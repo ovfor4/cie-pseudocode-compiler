@@ -34,9 +34,10 @@ Facts about the driver (`tools/driver/main.cc`) that break naive automation:
   `verifyModule`, so invalid IR flips the exit code too. Check the exit code — do not
   grep stderr.
 
-Build pin: **LLVM 18 only.** LLVM 19 breaks compilation (`ArithmeticHandler.cc` uses
-`llvm::Module` methods relying on LLVM 18's transitive `#include`; fix would be adding
-`llvm/IR/Module.h`).
+Build pin: developed and tested against **LLVM 18**. (The historical LLVM 19 breakage —
+`ArithmeticHandler.cc` touching `llvm::Module` through a transitive include — is gone
+now that string concatenation lives in `StringHandler`, but newer LLVM versions remain
+untested.)
 
 ## Layout
 

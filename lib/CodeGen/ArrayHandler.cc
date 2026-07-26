@@ -32,11 +32,6 @@ void ArrayHandler::setupExternalFunctions() {
 
     FunctionType *MallocType = FunctionType::get(PointerType::getUnqual(*TheContext), MallocArgs, false);
     MallocFunc = TheModule->getOrInsertFunction("malloc", MallocType);
-
-    std::vector<Type*> FreeArgs;
-    FreeArgs.push_back(PointerType::getUnqual(*TheContext));
-    FunctionType *FreeType = FunctionType::get(Type::getVoidTy(*TheContext), FreeArgs, false);
-    FreeFunc = TheModule->getOrInsertFunction("free", FreeType);
 }
 
 const ArrayMetadata *ArrayHandler::getMetadata(const std::string &Name) const {

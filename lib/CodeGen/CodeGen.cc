@@ -99,6 +99,11 @@ void CodeGen::SetupExternalFunctions() {
     FunctionType *ScanfType = FunctionType::get(Type::getInt32Ty(*TheContext), PrintfArgs, true);
     ScanfFunc = TheModule->getOrInsertFunction("scanf", ScanfType);
 
+    FunctionType *MallocType = FunctionType::get(PointerType::getUnqual(*TheContext),
+                                                 {Type::getInt64Ty(*TheContext)},
+                                                 false);
+    MallocFunc = TheModule->getOrInsertFunction("malloc", MallocType);
+
     PrintfFormatStr = Builder->CreateGlobalStringPtr("%lld\n", "fmt_nl", 0, TheModule.get());
     PrintfFloatFormatStr = Builder->CreateGlobalStringPtr("%f\n", "fmt_flt", 0, TheModule.get());
     PrintfStringFormatStr = Builder->CreateGlobalStringPtr("%s\n", "fmt_str", 0, TheModule.get());
@@ -291,17 +296,7 @@ Value *CodeGen::coerceValueToType(Value *Val, const TypeInfo *TargetInfo) {
                 return StrConvHandler->emitNumToStr(Val, true);
             }
             if (Val->getType()->isIntegerTy(8)) {
-                Function *MallocF = TheModule->getFunction("malloc");
-                if (!MallocF) {
-                    FunctionType *MallocTy = FunctionType::get(PointerType::getUnqual(*TheContext),
-                                                               {Type::getInt64Ty(*TheContext)},
-                                                               false);
-                    MallocF = Function::Create(MallocTy,
-                                               Function::ExternalLinkage,
-                                               "malloc",
-                                               TheModule.get());
-                }
-                Value *Mem = Builder->CreateCall(MallocF,
+                Value *Mem = Builder->CreateCall(MallocFunc,
                                                  ConstantInt::get(*TheContext, APInt(64, 2)),
                                                  "char_str");
                 Builder->CreateStore(Val, Mem);
@@ -511,6 +506,9 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         Value *L = emitExpr(Bin->getLHS());
         Value *R = emitExpr(Bin->getRHS());
         if (!L || !R) return nullptr;
+        if (Bin->getOp() == '&') {
+            return StrHandler->emitConcat(L, R);
+        }
         return ArithHandler->emitBinaryOp(Bin->getOp(), L, R, Bin->getLine());
     }
 
@@ -565,14 +563,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         if (Name == "CHR") {
             Value *IntVal = coerceValueToType(emitExpr(Call->getArgs()[0].get()), resolveType("INTEGER"));
             Value *CharVal = ChrHandler->emitChr(IntVal);
-            Function *MallocF = TheModule->getFunction("malloc");
-            Value *Mem = Builder->CreateCall(MallocF, ConstantInt::get(*TheContext, APInt(64, 2)));
-            Builder->CreateStore(CharVal, Mem);
-            Value *NullPtr = Builder->CreateInBoundsGEP(Type::getInt8Ty(*TheContext),
-                                                        Mem,
-                                                        ConstantInt::get(*TheContext, APInt(64, 1)));
-            Builder->CreateStore(ConstantInt::get(Type::getInt8Ty(*TheContext), 0), NullPtr);
-            return Mem;
+            return coerceValueToType(CharVal, resolveType("STRING"));
         }
         if (Name == "IS_NUM") {
             return StrConvHandler->emitIsNum(emitExpr(Call->getArgs()[0].get()));
@@ -873,8 +864,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             Value *BoolVal = Builder->CreateICmpNE(Val, ConstantInt::get(*TheContext, APInt(64, 0)), "bool_cast");
             Builder->CreateStore(BoolVal, Info->Storage);
         } else if (TypeInfo->isString()) {
-            Function *MallocF = TheModule->getFunction("malloc");
-            Value *Mem = Builder->CreateCall(MallocF, ConstantInt::get(*TheContext, APInt(64, 1024)), "input_str");
+            Value *Mem = Builder->CreateCall(MallocFunc, ConstantInt::get(*TheContext, APInt(64, 1024)), "input_str");
             Args.push_back(ScanfStringFormatStr);
             Args.push_back(Mem);
             Builder->CreateCall(ScanfFunc, Args);

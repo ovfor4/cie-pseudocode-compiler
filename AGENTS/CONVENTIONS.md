@@ -33,8 +33,12 @@ pseudocode types *backwards* from LLVM types (`getExprTypeInfo`, `ArithmeticHand
 **Strings are malloc'd and never freed — by design.** Every string-producing operation
 (`&`, MID/LEFT/RIGHT/LCASE/UCASE, NUM_TO_STR, CHR, CHAR/number→STRING coercion) mallocs
 a fresh buffer; string literals and BOOLEAN→STRING coercion instead return pointers to
-shared module globals, so a STRING value may alias a global. `free` is declared but has
-zero call sites. Don't "fix" leaks piecemeal; it's a global design decision.
+shared module globals, so a STRING value may alias a global. `free` is never declared or
+called. Don't "fix" leaks piecemeal; it's a global design decision. All heap-string
+operations (including `&` concatenation, `StringHandler::emitConcat`) live in
+`StringHandler`; `CodeGen` also keeps its own `MallocFunc` for the char→STRING coercion
+and INPUT STRING buffers — declared in `SetupExternalFunctions`, never fetched with a
+bare `getFunction("malloc")`.
 
 **One flat symbol namespace.** Two parallel maps in CodeGen — `NamedValues`
 (name → storage `Value*`) and `Symbols` (name → `SymbolInfo{Storage, TypeName,

@@ -11,32 +11,6 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
     bool LIsDouble = LHS->getType()->isDoubleTy();
     bool RIsDouble = RHS->getType()->isDoubleTy();
 
-    if (Op == '&') {
-        Module *M = Builder.GetInsertBlock()->getParent()->getParent();
-
-        FunctionType *StrLenTy = FunctionType::get(Type::getInt64Ty(Context), {PointerType::getUnqual(Context)}, false);
-        FunctionCallee StrLenF = M->getOrInsertFunction("strlen", StrLenTy);
-
-        FunctionType *MallocTy = FunctionType::get(PointerType::getUnqual(Context), {Type::getInt64Ty(Context)}, false);
-        FunctionCallee MallocF = M->getOrInsertFunction("malloc", MallocTy);
-
-        FunctionType *StrCpyTy = FunctionType::get(PointerType::getUnqual(Context), {PointerType::getUnqual(Context), PointerType::getUnqual(Context)}, false);
-        FunctionCallee StrCpyF = M->getOrInsertFunction("strcpy", StrCpyTy);
-        FunctionCallee StrCatF = M->getOrInsertFunction("strcat", StrCpyTy);
-
-        Value *LLen = Builder.CreateCall(StrLenF, {LHS}, "llen");
-        Value *RLen = Builder.CreateCall(StrLenF, {RHS}, "rlen");
-        Value *TotalLen = Builder.CreateAdd(LLen, RLen, "totallen");
-        Value *AllocSize = Builder.CreateAdd(TotalLen, ConstantInt::get(Type::getInt64Ty(Context), 1), "allocsize");
-
-        Value *NewStr = Builder.CreateCall(MallocF, {AllocSize}, "concat_str");
-
-        Builder.CreateCall(StrCpyF, {NewStr, LHS});
-        Builder.CreateCall(StrCatF, {NewStr, RHS});
-
-        return NewStr;
-    }
-
     if (Op == '/') {
         Value *LVal = LHS;
         Value *RVal = RHS;

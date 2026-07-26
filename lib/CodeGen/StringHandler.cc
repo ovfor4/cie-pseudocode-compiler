@@ -16,15 +16,18 @@ void StringHandler::setupExternalFunctions() {
     FunctionType *MallocType = FunctionType::get(PointerType::getUnqual(Context), {Type::getInt64Ty(Context)}, false);
     MallocFunc = Module.getOrInsertFunction("malloc", MallocType);
 
-    FunctionType *FreeType = FunctionType::get(Type::getVoidTy(Context), {PointerType::getUnqual(Context)}, false);
-    FreeFunc = Module.getOrInsertFunction("free", FreeType);
-
     FunctionType *StrLenType = FunctionType::get(Type::getInt64Ty(Context), {PointerType::getUnqual(Context)}, false);
     StrLenFunc = Module.getOrInsertFunction("strlen", StrLenType);
 
     std::vector<Type*> MemCpyArgs = {PointerType::getUnqual(Context), PointerType::getUnqual(Context), Type::getInt64Ty(Context)};
     FunctionType *MemCpyType = FunctionType::get(PointerType::getUnqual(Context), MemCpyArgs, false);
     MemCpyFunc = Module.getOrInsertFunction("memcpy", MemCpyType);
+
+    FunctionType *StrCpyType = FunctionType::get(PointerType::getUnqual(Context),
+                                                 {PointerType::getUnqual(Context), PointerType::getUnqual(Context)},
+                                                 false);
+    StrCpyFunc = Module.getOrInsertFunction("strcpy", StrCpyType);
+    StrCatFunc = Module.getOrInsertFunction("strcat", StrCpyType);
 
     FunctionType *CharCaseType = FunctionType::get(Type::getInt32Ty(Context), {Type::getInt32Ty(Context)}, false);
     ToUpperFunc = Module.getOrInsertFunction("toupper", CharCaseType);
@@ -48,6 +51,22 @@ Value *StringHandler::createLiteral(const std::string &Val) {
 Value *StringHandler::emitLength(Value *Str) {
     if (!Str) return nullptr;
     return Builder.CreateCall(StrLenFunc, Str, "len");
+}
+
+Value *StringHandler::emitConcat(Value *LHS, Value *RHS) {
+    if (!LHS || !RHS) return nullptr;
+
+    Value *LLen = Builder.CreateCall(StrLenFunc, {LHS}, "llen");
+    Value *RLen = Builder.CreateCall(StrLenFunc, {RHS}, "rlen");
+    Value *TotalLen = Builder.CreateAdd(LLen, RLen, "totallen");
+    Value *AllocSize = Builder.CreateAdd(TotalLen, ConstantInt::get(Type::getInt64Ty(Context), 1), "allocsize");
+
+    Value *NewStr = Builder.CreateCall(MallocFunc, {AllocSize}, "concat_str");
+
+    Builder.CreateCall(StrCpyFunc, {NewStr, LHS});
+    Builder.CreateCall(StrCatFunc, {NewStr, RHS});
+
+    return NewStr;
 }
 
 Value *StringHandler::emitMid(Value *Str, Value *Start, Value *Len) {

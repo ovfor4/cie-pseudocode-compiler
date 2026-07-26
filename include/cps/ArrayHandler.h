@@ -36,7 +36,6 @@ class ArrayHandler {
     RuntimeCheck &RuntimeChecker;
 
     llvm::FunctionCallee MallocFunc;
-    llvm::FunctionCallee FreeFunc;
 
     llvm::Value *computeFlatIndex(const std::string &Name, const std::vector<llvm::Value*> &Indices);
     llvm::Value *getArrayBasePointer(const std::string &Name);

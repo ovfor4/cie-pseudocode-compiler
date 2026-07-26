@@ -14,9 +14,10 @@ class StringHandler {
     std::map<std::string, llvm::Value*> &NamedValues;
 
     llvm::FunctionCallee MallocFunc;
-    llvm::FunctionCallee FreeFunc;
     llvm::FunctionCallee StrLenFunc;
     llvm::FunctionCallee MemCpyFunc;
+    llvm::FunctionCallee StrCpyFunc;
+    llvm::FunctionCallee StrCatFunc;
     llvm::FunctionCallee ToUpperFunc;
     llvm::FunctionCallee ToLowerFunc;
 
@@ -29,6 +30,7 @@ public:
     llvm::Value *createLiteral(const std::string &Val);
     
     llvm::Value *emitLength(llvm::Value *Str);
+    llvm::Value *emitConcat(llvm::Value *LHS, llvm::Value *RHS);
     llvm::Value *emitMid(llvm::Value *Str, llvm::Value *Start, llvm::Value *Len);
     llvm::Value *emitRight(llvm::Value *Str, llvm::Value *Len);
     llvm::Value *emitLeft(llvm::Value *Str, llvm::Value *Len);

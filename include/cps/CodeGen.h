@@ -45,6 +45,7 @@ class CodeGen {
 
     llvm::FunctionCallee PrintfFunc;
     llvm::FunctionCallee ScanfFunc;
+    llvm::FunctionCallee MallocFunc;
     
     llvm::Value *PrintfFormatStr;       // %lld\n
     llvm::Value *PrintfFloatFormatStr;  // %f\n
