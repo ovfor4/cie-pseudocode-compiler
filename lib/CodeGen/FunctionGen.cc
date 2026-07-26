@@ -1,9 +1,23 @@
 #include "cps/FunctionGen.h"
-#include "llvm/IR/Verifier.h"
+#include "cps/CodeGen.h"
 #include <cstdio>
 
 using namespace llvm;
 using namespace cps;
+
+// Symbols the compiler itself declares (libc + runtime); a user
+// FUNCTION/PROCEDURE with one of these names would hijack the runtime.
+static bool isReservedRuntimeName(const std::string &Name) {
+    static const char *Reserved[] = {
+        "main", "printf", "scanf", "malloc", "free", "strlen", "memcpy",
+        "strcpy", "strcat", "toupper", "tolower", "sprintf", "strtol",
+        "strtod", "memset", "exit",
+    };
+    for (const char *R : Reserved) {
+        if (Name == R) return true;
+    }
+    return false;
+}
 
 Type *FunctionGen::getLLVMType(const std::string &TypeName) {
     Type *Resolved = Types.getLLVMType(TypeName);
@@ -45,6 +59,19 @@ const FuncSig *FunctionGen::getSignature(const std::string &Name) const {
 }
 
 Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
+    if (isReservedRuntimeName(Proto->getName())) {
+        fprintf(stderr, "Error: '%s' is a reserved runtime symbol and cannot be a FUNCTION/PROCEDURE name\n",
+                Proto->getName().c_str());
+        HadError = true;
+        return nullptr;
+    }
+    if (CodeGen::isBuiltinName(Proto->getName())) {
+        fprintf(stderr, "Error: '%s' is a built-in function and cannot be redefined\n",
+                Proto->getName().c_str());
+        HadError = true;
+        return nullptr;
+    }
+
     FuncSig Sig;
     Sig.ReturnTypeName = Proto->getReturnType();
 
@@ -57,14 +84,23 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
         ArgTypes.push_back(T);
         Sig.Params.emplace_back(std::get<1>(Arg), std::get<2>(Arg));
     }
-    Signatures[Proto->getName()] = std::move(Sig);
 
     Type *RetType = getLLVMType(Proto->getReturnType());
     FunctionType *FT = FunctionType::get(RetType, ArgTypes, false);
     Function *F = Module.getFunction(Proto->getName());
+    if (F && F->getFunctionType() != FT) {
+        fprintf(stderr, "Error: Function %s conflicts with an existing declaration of a different type\n",
+                Proto->getName().c_str());
+        HadError = true;
+        return nullptr;
+    }
     if (!F) {
         F = Function::Create(FT, Function::ExternalLinkage, Proto->getName(), &Module);
     }
+
+    // Keep the first registration: on a duplicate definition the first one
+    // wins and the second is rejected by emitFunctionDef.
+    Signatures.emplace(Proto->getName(), std::move(Sig));
 
     unsigned Idx = 0;
     for (auto &Arg : F->args()) {
@@ -78,11 +114,7 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
 Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
                                        const std::function<void(StmtAST*)> &StmtEmitter) {
     PrototypeAST *Proto = FuncAST->getProto();
-    Function *TheFunction = Module.getFunction(Proto->getName());
-
-    if (!TheFunction) {
-        TheFunction = emitPrototype(Proto);
-    }
+    Function *TheFunction = emitPrototype(Proto);
 
     if (!TheFunction) return nullptr;
     if (!TheFunction->empty()) {

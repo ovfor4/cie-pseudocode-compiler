@@ -137,8 +137,12 @@ std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
 std::unique_ptr<StmtAST> Parser::ParseReturnStmt() {
     getNextToken();
     std::unique_ptr<ExprAST> Expr = nullptr;
-    if (CurTok != tok_endif && CurTok != tok_else && CurTok != tok_endfunction && CurTok != tok_endprocedure) {
+    // A bare RETURN is recognized right before any block terminator.
+    if (CurTok != tok_endif && CurTok != tok_else && CurTok != tok_endfunction &&
+        CurTok != tok_endprocedure && CurTok != tok_endwhile && CurTok != tok_until &&
+        CurTok != tok_next && CurTok != tok_eof) {
         Expr = ParseExpression();
+        if (!Expr) return nullptr;
     }
     return std::make_unique<ReturnStmtAST>(std::move(Expr));
 }

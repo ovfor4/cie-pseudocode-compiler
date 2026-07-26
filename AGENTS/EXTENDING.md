@@ -15,15 +15,17 @@ already terminated the block.
 
 **New builtin function:** add a `{Name, Arity, ReturnTypeName}` row to the static
 `Builtins` table at the top of `CodeGen.cc` (single source of truth — arity checking in
-`emitExpr` and the return type in `getExprTypeInfo` both read it), then implement IR
-emission as a method on the fitting handler (String/Char/StringConversion) and add the
-name intercept in `emitExpr`'s CallExprAST section. Builtins are plain identifiers —
-nothing is needed in lexer/parser.
+`emitExpr`, the return type in `getExprTypeInfo`, and the reject-user-redefinition check
+all read it), then implement IR emission as a method on the fitting handler
+(String/StringConversion) or inline, and add the name intercept in `emitExpr`'s
+CallExprAST section — null-check every emitted argument before use, like the existing
+branches do. Builtins are plain identifiers — nothing is needed in lexer/parser.
 
 **New binary operator:** token (if multi-char) → one line in `BinopPrecedence`
 (Parser ctor; levels: OR=3, AND=5, comparisons=10, `+ - &`=20, `* / DIV MOD`=40;
-precedence must be > 0) → branch in `ArithmeticHandler::emitBinaryOp`, which owns *all*
-binary ops and dispatches on raw LLVM operand types.
+precedence must be > 0) → branch in `ArithmeticHandler::emitBinaryOp`, which dispatches
+on raw LLVM operand types. Exception: `&` is intercepted upstream in `CodeGen::emitExpr`
+(operands coerced to STRING, then `StringHandler::emitConcat`).
 
 **New type:** register in `TypeSystem::registerBuiltins` (correct `ElementSize` —
 arrays malloc `count * ElementSize`) + `TypeKind` case + `getZeroValue` +

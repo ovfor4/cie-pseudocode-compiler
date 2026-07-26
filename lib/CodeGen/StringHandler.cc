@@ -128,6 +128,7 @@ Value *StringHandler::emitLeft(Value *Str, Value *Len) {
 // Shared loop for LCASE/UCASE: malloc a copy of Str with every byte run
 // through CaseFn (tolower/toupper).
 Value *StringHandler::emitCaseConvert(Value *Str, FunctionCallee CaseFn) {
+    if (!Str) return nullptr;
     Value *Len = emitLength(Str);
     Value *One = ConstantInt::get(Context, APInt(64, 1));
     Value *AllocSize = Builder.CreateAdd(Len, One);

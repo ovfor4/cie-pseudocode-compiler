@@ -13,7 +13,8 @@ test programs.
   `&`. Similarly INPUT only accepts a plain identifier — no `INPUT arr[i]`.
 - **Arrays cannot cross function boundaries.** `ArrayTable` is never scoped; metadata
   SSA values belong to the declaring function, so referencing another function's array
-  produces invalid IR, and arrays can't be parameters.
+  produces invalid IR. Passing a whole array as a call argument is rejected with a
+  compile error.
 - **`/` always yields REAL** (double FDiv), even for two INTEGERs; integer division is
   DIV/MOD only. CHR returns a STRING (2-byte heap buffer), not CHAR. STR_TO_NUM always
   returns REAL. NUM_TO_STR formats i64 with sprintf `"%d"` — corrupts values over 32
@@ -27,7 +28,8 @@ test programs.
   `compile()` and makes the driver exit non-zero.
 - The FOR loop variable must be pre-DECLAREd as INTEGER; FOR reuses that alloca. The
   loop direction is decided at run time from the STEP value's sign; STEP is evaluated
-  once per iteration in the condition block.
+  exactly once, before the loop. (The TO expression is still re-evaluated every
+  iteration.)
 
 ## Not implemented (9618 features)
 

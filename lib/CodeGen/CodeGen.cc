@@ -45,6 +45,10 @@ const BuiltinInfo *findBuiltin(const std::string &Name) {
 
 CodeGen::~CodeGen() = default;
 
+bool CodeGen::isBuiltinName(const std::string &Name) {
+    return findBuiltin(Name) != nullptr;
+}
+
 void CodeGen::reportError(const char *Fmt, ...) {
     va_list Args;
     va_start(Args, Fmt);
@@ -500,6 +504,9 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         Value *R = emitExpr(Bin->getRHS());
         if (!L || !R) return nullptr;
         if (Bin->getOp() == '&') {
+            L = coerceValueToType(L, resolveType("STRING"));
+            R = coerceValueToType(R, resolveType("STRING"));
+            if (!L || !R) return nullptr;
             return StrHandler->emitConcat(L, R);
         }
         return ArithHandler->emitBinaryOp(Bin->getOp(), L, R, Bin->getLine());
@@ -536,13 +543,18 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return StrHandler->emitLeft(Str, Len);
         }
         if (Name == "LCASE") {
-            return StrHandler->emitLCase(emitExpr(Call->getArgs()[0].get()));
+            Value *Str = emitExpr(Call->getArgs()[0].get());
+            if (!Str) return nullptr;
+            return StrHandler->emitLCase(Str);
         }
         if (Name == "UCASE") {
-            return StrHandler->emitUCase(emitExpr(Call->getArgs()[0].get()));
+            Value *Str = emitExpr(Call->getArgs()[0].get());
+            if (!Str) return nullptr;
+            return StrHandler->emitUCase(Str);
         }
         if (Name == "ASC") {
             Value *ArgVal = emitExpr(Call->getArgs()[0].get());
+            if (!ArgVal) return nullptr;
             const TypeInfo *ArgType = getExprTypeInfo(Call->getArgs()[0].get());
             Value *CharVal = nullptr;
             if (ArgType && ArgType->isChar()) {
@@ -555,14 +567,18 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         }
         if (Name == "CHR") {
             Value *IntVal = coerceValueToType(emitExpr(Call->getArgs()[0].get()), resolveType("INTEGER"));
+            if (!IntVal) return nullptr;
             Value *CharVal = Builder->CreateTrunc(IntVal, Type::getInt8Ty(*TheContext), "chr_val");
             return coerceValueToType(CharVal, resolveType("STRING"));
         }
         if (Name == "IS_NUM") {
-            return StrConvHandler->emitIsNum(emitExpr(Call->getArgs()[0].get()));
+            Value *Str = emitExpr(Call->getArgs()[0].get());
+            if (!Str) return nullptr;
+            return StrConvHandler->emitIsNum(Str);
         }
         if (Name == "NUM_TO_STR") {
             Value *NumV = emitExpr(Call->getArgs()[0].get());
+            if (!NumV) return nullptr;
             bool IsReal = NumV->getType()->isDoubleTy();
             if (NumV->getType()->isIntegerTy(8)) {
                 NumV = coerceValueToType(NumV, resolveType("INTEGER"));
@@ -570,7 +586,9 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return StrConvHandler->emitNumToStr(NumV, IsReal);
         }
         if (Name == "STR_TO_NUM") {
-            return StrConvHandler->emitStrToNum(emitExpr(Call->getArgs()[0].get()), true);
+            Value *Str = emitExpr(Call->getArgs()[0].get());
+            if (!Str) return nullptr;
+            return StrConvHandler->emitStrToNum(Str, true);
         }
 
         std::vector<Value*> Args;
@@ -602,18 +620,36 @@ bool CodeGen::marshalCallArgs(const std::string &Callee,
         bool IsByRef = Sig->Params[i].second;
         ExprAST *ArgExpr = ArgExprs[i].get();
 
+        // Parameters can never be arrays, so a whole-array argument is always
+        // a user error (and would smash the data pointer if let through).
+        if (auto *Var = dynamic_cast<VariableExprAST*>(ArgExpr)) {
+            const SymbolInfo *Info = getSymbolInfo(Var->getName());
+            if (Info && Info->IsArray) {
+                reportError("Cannot pass whole array %s to %s; pass an element like %s[i]",
+                            Var->getName().c_str(), Callee.c_str(), Var->getName().c_str());
+                return false;
+            }
+        }
+
         if (IsByRef) {
             auto *Var = dynamic_cast<VariableExprAST*>(ArgExpr);
             if (!Var) {
                 reportError("BYREF argument to %s must be a variable", Callee.c_str());
                 return false;
             }
-            Value *Ptr = getNamedValue(Var->getName());
-            if (!Ptr) {
+            const SymbolInfo *Info = getSymbolInfo(Var->getName());
+            if (!Info) {
                 reportError("Unknown variable %s in BYREF call", Var->getName().c_str());
                 return false;
             }
-            Out.push_back(Ptr);
+            // BYREF aliases the storage, so the types must match exactly.
+            if (Info->TypeName != TypeName) {
+                reportError("BYREF argument %s to %s must be of type %s (got %s)",
+                            Var->getName().c_str(), Callee.c_str(),
+                            TypeName.c_str(), Info->TypeName.c_str());
+                return false;
+            }
+            Out.push_back(Info->Storage);
         } else {
             Value *V = coerceValueToType(emitExpr(ArgExpr), resolveType(TypeName));
             if (!V) return false;
@@ -716,6 +752,15 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
     Value *Alloca = Symbol->Storage;
     Builder->CreateStore(StartVal, Alloca);
 
+    // STEP is evaluated exactly once, before the loop.
+    Value *StepVal = nullptr;
+    if (Stmt->getStep()) {
+        StepVal = coerceValueToType(emitExpr(Stmt->getStep()), resolveType("INTEGER"));
+        if (!StepVal) return;
+    } else {
+        StepVal = ConstantInt::get(*TheContext, APInt(64, 1));
+    }
+
     BasicBlock *CondBB = BasicBlock::Create(*TheContext, "forcond", TheFunction);
     BasicBlock *LoopBB = BasicBlock::Create(*TheContext, "forloop", TheFunction);
     BasicBlock *IncBB = BasicBlock::Create(*TheContext, "forinc", TheFunction);
@@ -727,14 +772,6 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
     Value *CurVar = Builder->CreateLoad(Type::getInt64Ty(*TheContext), Alloca, VarName.c_str());
     Value *EndVal = coerceValueToType(emitExpr(Stmt->getEnd()), resolveType("INTEGER"));
     if (!EndVal) return;
-
-    Value *StepVal = nullptr;
-    if (Stmt->getStep()) {
-        StepVal = coerceValueToType(emitExpr(Stmt->getStep()), resolveType("INTEGER"));
-        if (!StepVal) return;
-    } else {
-        StepVal = ConstantInt::get(*TheContext, APInt(64, 1));
-    }
 
     // The loop direction depends on the STEP value at run time.
     Value *StepNonNeg = Builder->CreateICmpSGE(StepVal,
@@ -795,6 +832,11 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
         Value *RetVal = nullptr;
         if (Ret->getRetVal()) {
             RetVal = emitExpr(Ret->getRetVal());
+            Function *F = Builder->GetInsertBlock()->getParent();
+            if (const FuncSig *Sig = FuncGen->getSignature(F->getName().str())) {
+                RetVal = coerceValueToType(RetVal, resolveType(Sig->ReturnTypeName));
+                if (!RetVal) return;
+            }
         }
         FuncGen->emitReturn(Ret, RetVal);
         return;
@@ -883,6 +925,10 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
         const TypeInfo *TypeInfo = getExprTypeInfo(Out->getExpr());
         if (!TypeInfo) {
             reportError("Cannot infer the type of the OUTPUT expression");
+            return;
+        }
+        if (TypeInfo->isVoid()) {
+            reportError("Cannot OUTPUT the result of a PROCEDURE call");
             return;
         }
         emitOutputValue(Val, TypeInfo, true);

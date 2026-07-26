@@ -26,19 +26,19 @@ identifier as a type name except `VOID` (rejected outside a RETURNS clause via i
 `AllowVoid` flag); other unknown types only fail (softly) in CodeGen.
 
 **Fixed IR representation per type.** INTEGER = `i64`, REAL = `double`, BOOLEAN = `i1`,
-CHAR = `i8`, STRING = opaque `ptr` to a NUL-terminated buffer. Much code infers
-pseudocode types *backwards* from LLVM types (`getExprTypeInfo`, `ArithmeticHandler`'s
-`isIntegerTy(64)` tests, BYREF detection), so these widths are ABI.
+CHAR = `i8`, STRING = opaque `ptr` to a NUL-terminated buffer. Some code still infers
+pseudocode types *backwards* from LLVM types (`getExprTypeInfo`'s fallback,
+`ArithmeticHandler`'s `isIntegerTy(64)` tests), so these widths are ABI.
 
 **Strings are malloc'd and never freed — by design.** Every string-producing operation
 (`&`, MID/LEFT/RIGHT/LCASE/UCASE, NUM_TO_STR, CHR, CHAR/number→STRING coercion) mallocs
 a fresh buffer; string literals and BOOLEAN→STRING coercion instead return pointers to
 shared module globals, so a STRING value may alias a global. `free` is never declared or
-called. Don't "fix" leaks piecemeal; it's a global design decision. All heap-string
-operations (including `&` concatenation, `StringHandler::emitConcat`) live in
-`StringHandler`; `CodeGen` also keeps its own `MallocFunc` for the char→STRING coercion
-and INPUT STRING buffers — declared in `SetupExternalFunctions`, never fetched with a
-bare `getFunction("malloc")`.
+called. Don't "fix" leaks piecemeal; it's a global design decision. Heap-string
+operations live in `StringHandler` (including `&` concatenation, `emitConcat`) and
+`StringConversionHandler` (NUM_TO_STR/STR_TO_NUM buffers); `CodeGen` also keeps its own
+`MallocFunc` for the char→STRING coercion and INPUT STRING buffers — declared in
+`SetupExternalFunctions`, never fetched with a bare `getFunction("malloc")`.
 
 **One flat symbol namespace, one table.** `Symbols` (name → `SymbolInfo{Storage,
 TypeName, IsArray}`) in CodeGen is the only symbol table; register through
@@ -63,12 +63,14 @@ continues; the failure is always diagnosed and reflected in the exit code.
 **Calls dispatch on the declared signature.** `FunctionGen::emitPrototype` records every
 function's pseudocode signature (`FuncSig`: return type name + per-param type name and
 BYREF flag); `CodeGen::marshalCallArgs` — the single call-marshalling path for both
-call-expr and call-stmt — requires BYREF arguments to be bare variables (their alloca is
-passed) and coerces BYVAL arguments to the declared parameter type. STRING works on both
-sides in both modes. Top-level prototypes are pre-registered before statement emission,
-so call-before-definition is fine; a call with no registered signature is a compile
-error. Function names get no mangling — a pseudocode `FUNCTION printf` collides with
-libc.
+call-expr and call-stmt — requires BYREF arguments to be bare variables of *exactly* the
+declared type (their alloca is passed), coerces BYVAL arguments to the declared
+parameter type, and rejects whole-array arguments. RETURN values are coerced to the
+declared return type. STRING works on both sides in both modes. Top-level prototypes are
+pre-registered before statement emission, so call-before-definition is fine; a call with
+no registered signature is a compile error. Function names get no mangling, so
+`emitPrototype` rejects names that collide with runtime/libc symbols
+(`isReservedRuntimeName`) or with builtins.
 
 **Builtins are plain identifiers backed by one table.** All 11 builtins
 (LENGTH/MID/RIGHT/LEFT/LCASE/UCASE/ASC/CHR/IS_NUM/NUM_TO_STR/STR_TO_NUM) parse as

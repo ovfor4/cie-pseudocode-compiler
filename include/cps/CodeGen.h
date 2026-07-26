@@ -79,6 +79,7 @@ public:
     void print();
     bool hadError() const { return HadError; }
     void reportError(const char *Fmt, ...);
+    static bool isBuiltinName(const std::string &Name);
     
     llvm::Value *emitExpr(ExprAST *Expr);
     void emitStmt(StmtAST *Stmt);
