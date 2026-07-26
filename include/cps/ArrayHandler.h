@@ -28,7 +28,6 @@ class ArrayHandler {
     llvm::LLVMContext *TheContext;
     llvm::IRBuilder<> *Builder;
     llvm::Module *TheModule;
-    std::map<std::string, llvm::Value*> *NamedValues;
     std::map<std::string, SymbolInfo> *Symbols;
     TypeSystem &Types;
 
@@ -57,7 +56,6 @@ public:
     ArrayHandler(llvm::LLVMContext &C,
                  llvm::IRBuilder<> &B,
                  llvm::Module &M,
-                 std::map<std::string, llvm::Value*> &NV,
                  std::map<std::string, SymbolInfo> &Sym,
                  TypeSystem &TS,
                  RuntimeCheck &RC);

@@ -12,14 +12,12 @@ using namespace cps;
 ArrayHandler::ArrayHandler(LLVMContext &C,
                            IRBuilder<> &B,
                            Module &M,
-                           std::map<std::string, Value*> &NV,
                            std::map<std::string, SymbolInfo> &Sym,
                            TypeSystem &TS,
                            RuntimeCheck &RC)
     : TheContext(&C),
       Builder(&B),
       TheModule(&M),
-      NamedValues(&NV),
       Symbols(&Sym),
       Types(TS),
       RuntimeChecker(RC) {
@@ -58,11 +56,11 @@ Value *ArrayHandler::computeFlatIndex(const std::string &Name, const std::vector
 }
 
 Value *ArrayHandler::getArrayBasePointer(const std::string &Name) {
-    auto It = NamedValues->find(Name);
-    if (It == NamedValues->end() || !It->second) {
+    auto It = Symbols->find(Name);
+    if (It == Symbols->end() || !It->second.Storage) {
         return nullptr;
     }
-    return Builder->CreateLoad(PointerType::getUnqual(*TheContext), It->second, (Name + "_raw").c_str());
+    return Builder->CreateLoad(PointerType::getUnqual(*TheContext), It->second.Storage, (Name + "_raw").c_str());
 }
 
 Value *ArrayHandler::getElementPointer(const std::string &Name, Value *Offset) {

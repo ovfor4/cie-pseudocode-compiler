@@ -26,7 +26,6 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<std::tupl
         ArgVal->setName(ArgName);
 
         if (IsRef) {
-            NamedValues[ArgName] = ArgVal;
             Symbols[ArgName] = {ArgVal, ArgTypeStr, false};
             continue;
         }
@@ -36,7 +35,6 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<std::tupl
         AllocaInst *Alloca = TmpB.CreateAlloca(ArgType, nullptr, ArgName);
 
         Builder.CreateStore(ArgVal, Alloca);
-        NamedValues[ArgName] = Alloca;
         Symbols[ArgName] = {Alloca, ArgTypeStr, false};
     }
 }
@@ -96,9 +94,7 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
     BasicBlock *BB = BasicBlock::Create(Context, "entry", TheFunction);
     Builder.SetInsertPoint(BB);
 
-    std::map<std::string, llvm::Value*> OldNamedValues = NamedValues;
     std::map<std::string, SymbolInfo> OldSymbols = Symbols;
-    NamedValues.clear();
     Symbols.clear();
 
     createArgumentAllocas(TheFunction, Proto->getArgs());
@@ -115,7 +111,6 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
         }
     }
 
-    NamedValues = OldNamedValues;
     Symbols = OldSymbols;
     return TheFunction;
 }

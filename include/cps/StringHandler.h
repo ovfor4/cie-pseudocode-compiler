@@ -2,7 +2,6 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include <map>
 #include <string>
 
 namespace cps {
@@ -11,7 +10,6 @@ class StringHandler {
     llvm::LLVMContext &Context;
     llvm::IRBuilder<> &Builder;
     llvm::Module &Module;
-    std::map<std::string, llvm::Value*> &NamedValues;
 
     llvm::FunctionCallee MallocFunc;
     llvm::FunctionCallee StrLenFunc;
@@ -22,11 +20,9 @@ class StringHandler {
     llvm::FunctionCallee ToLowerFunc;
 
 public:
-    StringHandler(llvm::LLVMContext &Ctx, llvm::IRBuilder<> &B, llvm::Module &M, 
-                  std::map<std::string, llvm::Value*> &NV);
-    
+    StringHandler(llvm::LLVMContext &Ctx, llvm::IRBuilder<> &B, llvm::Module &M);
+
     void setupExternalFunctions();
-    void emitDeclare(const std::string &Name);
     llvm::Value *createLiteral(const std::string &Val);
     
     llvm::Value *emitLength(llvm::Value *Str);

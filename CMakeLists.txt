@@ -23,12 +23,8 @@ add_library(CPSCodeGen
     lib/CodeGen/ArrayHandler.cc
     lib/CodeGen/RuntimeCheck.cc
     lib/CodeGen/FunctionGen.cc
-    lib/CodeGen/IntegerHandler.cc
-    lib/CodeGen/RealHandler.cc
-    lib/CodeGen/BooleanHandler.cc
     lib/CodeGen/ArithmeticHandler.cc
     lib/CodeGen/StringHandler.cc
-    lib/CodeGen/CharHandler.cc
     lib/CodeGen/StringConversionHandler.cc
     lib/CodeGen/TypeSystem.cc
 )

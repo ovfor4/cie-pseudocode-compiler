@@ -25,7 +25,6 @@ class FunctionGen {
     llvm::IRBuilder<> &Builder;
     TypeSystem &Types;
 
-    std::map<std::string, llvm::Value*> &NamedValues;
     std::map<std::string, SymbolInfo> &Symbols;
     bool &HadError;
 
@@ -38,10 +37,9 @@ public:
                 llvm::Module &M,
                 llvm::IRBuilder<> &B,
                 TypeSystem &TS,
-                std::map<std::string, llvm::Value*> &NV,
                 std::map<std::string, SymbolInfo> &Sym,
                 bool &HadErrorFlag)
-        : Context(C), Module(M), Builder(B), Types(TS), NamedValues(NV), Symbols(Sym), HadError(HadErrorFlag) {}
+        : Context(C), Module(M), Builder(B), Types(TS), Symbols(Sym), HadError(HadErrorFlag) {}
 
     llvm::Type *getLLVMType(const std::string &TypeName);
 

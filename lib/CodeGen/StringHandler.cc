@@ -6,9 +6,8 @@
 using namespace llvm;
 using namespace cps;
 
-StringHandler::StringHandler(LLVMContext &Ctx, IRBuilder<> &B, llvm::Module &M, 
-                             std::map<std::string, Value*> &NV)
-    : Context(Ctx), Builder(B), Module(M), NamedValues(NV) {
+StringHandler::StringHandler(LLVMContext &Ctx, IRBuilder<> &B, llvm::Module &M)
+    : Context(Ctx), Builder(B), Module(M) {
     setupExternalFunctions();
 }
 
@@ -32,16 +31,6 @@ void StringHandler::setupExternalFunctions() {
     FunctionType *CharCaseType = FunctionType::get(Type::getInt32Ty(Context), {Type::getInt32Ty(Context)}, false);
     ToUpperFunc = Module.getOrInsertFunction("toupper", CharCaseType);
     ToLowerFunc = Module.getOrInsertFunction("tolower", CharCaseType);
-}
-
-void StringHandler::emitDeclare(const std::string &Name) {
-    Function *TheFunction = Builder.GetInsertBlock()->getParent();
-    IRBuilder<> TmpB(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().begin());
-    AllocaInst *Alloca = TmpB.CreateAlloca(PointerType::getUnqual(Context), nullptr, Name);
-
-    Value *EmptyStr = createLiteral("");
-    Builder.CreateStore(EmptyStr, Alloca);
-    NamedValues[Name] = Alloca;
 }
 
 Value *StringHandler::createLiteral(const std::string &Val) {

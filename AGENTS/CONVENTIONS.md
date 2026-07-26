@@ -40,14 +40,12 @@ operations (including `&` concatenation, `StringHandler::emitConcat`) live in
 and INPUT STRING buffers — declared in `SetupExternalFunctions`, never fetched with a
 bare `getFunction("malloc")`.
 
-**One flat symbol namespace.** Two parallel maps in CodeGen — `NamedValues`
-(name → storage `Value*`) and `Symbols` (name → `SymbolInfo{Storage, TypeName,
-IsArray}`) — must always be updated in lock-step: via `registerSymbol()`, or directly
-but both together as `FunctionGen::createArgumentAllocas` does for parameters. (The
-per-type handlers' `emitDeclare` methods set `NamedValues` alone — that is dead code;
-don't imitate it.) There is no scope stack. `FunctionGen` saves/clears/restores both
-maps around a function body, but `ArrayHandler::ArrayTable` is *not* scoped (see
-`PITFALLS.md`).
+**One flat symbol namespace, one table.** `Symbols` (name → `SymbolInfo{Storage,
+TypeName, IsArray}`) in CodeGen is the only symbol table; register through
+`registerSymbol()` (or directly, as `FunctionGen::createArgumentAllocas` does for
+parameters) and read storage through `getNamedValue()`/`getSymbolInfo()`. There is no
+scope stack. `FunctionGen` saves/clears/restores the table around a function body, but
+`ArrayHandler::ArrayTable` is *not* scoped (see `PITFALLS.md`).
 
 **Dispatch is by `dynamic_cast` chain, not virtual methods.** `CodeGen::emitStmt` and
 `emitExpr` walk a linear if-chain of casts. **A statement type missing from the chain is

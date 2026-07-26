@@ -66,7 +66,6 @@ CodeGen::CodeGen() {
     Arrays = std::make_unique<ArrayHandler>(*TheContext,
                                             *Builder,
                                             *TheModule,
-                                            NamedValues,
                                             Symbols,
                                             *Types,
                                             *RuntimeChecker);
@@ -75,16 +74,11 @@ CodeGen::CodeGen() {
                                             *TheModule,
                                             *Builder,
                                             *Types,
-                                            NamedValues,
                                             Symbols,
                                             HadError);
 
-    IntHandler = std::make_unique<IntegerHandler>(*TheContext, *Builder, *TheModule, NamedValues);
-    RealHelper = std::make_unique<RealHandler>(*TheContext, *Builder, *TheModule, NamedValues);
-    BoolHandler = std::make_unique<BooleanHandler>(*TheContext, *Builder, *TheModule, NamedValues);
     ArithHandler = std::make_unique<ArithmeticHandler>(*TheContext, *Builder, HadError);
-    StrHandler = std::make_unique<StringHandler>(*TheContext, *Builder, *TheModule, NamedValues);
-    ChrHandler = std::make_unique<CharHandler>(*TheContext, *Builder, *TheModule);
+    StrHandler = std::make_unique<StringHandler>(*TheContext, *Builder, *TheModule);
     StrConvHandler = std::make_unique<StringConversionHandler>(*TheContext, *Builder, *TheModule);
 
     SetupExternalFunctions();
@@ -135,7 +129,6 @@ void CodeGen::registerSymbol(const std::string &Name,
                              Value *Storage,
                              const std::string &TypeName,
                              bool IsArray) {
-    NamedValues[Name] = Storage;
     Symbols[Name] = {Storage, TypeName, IsArray};
 }
 
@@ -156,8 +149,8 @@ Type *CodeGen::getLLVMType(const std::string &TypeName) const {
 }
 
 Value *CodeGen::getNamedValue(const std::string &Name) const {
-    auto It = NamedValues.find(Name);
-    return It == NamedValues.end() ? nullptr : It->second;
+    auto It = Symbols.find(Name);
+    return It == Symbols.end() ? nullptr : It->second.Storage;
 }
 
 const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
@@ -443,15 +436,15 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
     if (!Expr) return nullptr;
 
     if (auto *Num = dynamic_cast<IntegerExprAST*>(Expr)) {
-        return IntHandler->createLiteral(Num->getVal());
+        return ConstantInt::get(*TheContext, APInt(64, Num->getVal(), true));
     }
 
     if (auto *Real = dynamic_cast<RealExprAST*>(Expr)) {
-        return RealHelper->createLiteral(Real->getVal());
+        return ConstantFP::get(*TheContext, APFloat(Real->getVal()));
     }
 
     if (auto *Bool = dynamic_cast<BooleanExprAST*>(Expr)) {
-        return BoolHandler->createLiteral(Bool->getVal());
+        return ConstantInt::get(*TheContext, APInt(1, Bool->getVal() ? 1 : 0));
     }
 
     if (auto *Chr = dynamic_cast<CharExprAST*>(Expr)) {
@@ -557,12 +550,12 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             } else {
                 CharVal = Builder->CreateLoad(Type::getInt8Ty(*TheContext), ArgVal, "char_load");
             }
-            Value *AscVal = ChrHandler->emitAsc(CharVal);
+            Value *AscVal = Builder->CreateZExt(CharVal, Type::getInt32Ty(*TheContext), "asc_val");
             return coerceValueToType(AscVal, resolveType("INTEGER"));
         }
         if (Name == "CHR") {
             Value *IntVal = coerceValueToType(emitExpr(Call->getArgs()[0].get()), resolveType("INTEGER"));
-            Value *CharVal = ChrHandler->emitChr(IntVal);
+            Value *CharVal = Builder->CreateTrunc(IntVal, Type::getInt8Ty(*TheContext), "chr_val");
             return coerceValueToType(CharVal, resolveType("STRING"));
         }
         if (Name == "IS_NUM") {

@@ -7,12 +7,8 @@
 #include "cps/FunctionGen.h"
 #include "cps/TypeSystem.h"
 
-#include "cps/IntegerHandler.h"
-#include "cps/RealHandler.h"
-#include "cps/BooleanHandler.h"
 #include "cps/ArithmeticHandler.h"
 #include "cps/StringHandler.h"
-#include "cps/CharHandler.h"
 #include "cps/StringConversionHandler.h"
 
 #include <map>
@@ -27,20 +23,15 @@ class CodeGen {
     std::unique_ptr<llvm::LLVMContext> TheContext;
     std::unique_ptr<llvm::Module> TheModule;
     std::unique_ptr<llvm::IRBuilder<>> Builder;
-    std::map<std::string, llvm::Value*> NamedValues;
     std::map<std::string, SymbolInfo> Symbols;
     std::unique_ptr<TypeSystem> Types;
-    
+
     std::unique_ptr<ArrayHandler> Arrays;
     std::unique_ptr<RuntimeCheck> RuntimeChecker;
     std::unique_ptr<FunctionGen> FuncGen;
 
-    std::unique_ptr<IntegerHandler> IntHandler;
-    std::unique_ptr<RealHandler> RealHelper;
-    std::unique_ptr<BooleanHandler> BoolHandler;
     std::unique_ptr<ArithmeticHandler> ArithHandler;
     std::unique_ptr<StringHandler> StrHandler;
-    std::unique_ptr<CharHandler> ChrHandler;
     std::unique_ptr<StringConversionHandler> StrConvHandler;
 
     llvm::FunctionCallee PrintfFunc;
