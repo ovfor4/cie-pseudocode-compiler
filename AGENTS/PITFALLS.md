@@ -7,10 +7,10 @@ test programs.
 
 - **STRING `=` / `<>` compares pointer identity, not contents.** No strcmp anywhere;
   two equal heap strings compare unequal.
-- **OUTPUT takes exactly one expression.** `OUTPUT a, ", ", b` silently drops everything
-  after the comma — and if the dropped tail ends in an identifier, error recovery also
-  swallows the first token of the *next* statement. Concatenate with `&`. Similarly
-  INPUT only accepts a plain identifier — no `INPUT arr[i]`.
+- **OUTPUT takes exactly one expression.** `OUTPUT a, ", ", b` prints `a`, then the
+  stray `, ", ", b` produces parse errors (recovery resyncs at the next statement
+  start, so following statements survive; the compile still fails). Concatenate with
+  `&`. Similarly INPUT only accepts a plain identifier — no `INPUT arr[i]`.
 - **Arrays cannot cross function boundaries.** `ArrayTable` is never scoped; metadata
   SSA values belong to the declaring function, so referencing another function's array
   produces invalid IR, and arrays can't be parameters.

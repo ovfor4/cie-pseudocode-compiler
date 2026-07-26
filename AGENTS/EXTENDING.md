@@ -5,9 +5,11 @@ below assumes those invariants.
 
 **New statement:** token in `Lexer.h` enum + keyword match in `Lexer.cc`'s if-chain →
 node class in `AST.h` (unique_ptr children, move ctor, raw-ptr getters) → `ParseXxx` in
-`Parser.cc` + branch in `ParseStatement` (copy the existing body-loop pattern for block
-statements — terminator keyword + tok_eof guard) → `dynamic_cast` branch in
-`CodeGen::emitStmt`. Guard every fall-through branch in control-flow codegen with
+`Parser.cc` + branch in `ParseStatementImpl` (block statements parse their body with
+`ParseBlock({terminator tokens})`; comma-separated expression lists use
+`ParseExprList(close, allowEmpty)`; add the new statement's leading keyword to
+`syncToStatementStart`) → `dynamic_cast` branch in `CodeGen::emitStmt`. Guard every
+fall-through branch in control-flow codegen with
 `if (!Builder->GetInsertBlock()->getTerminator())` — a RETURN in the body may have
 already terminated the block.
 

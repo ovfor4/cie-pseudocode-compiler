@@ -57,43 +57,18 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
 
     if (CurTok == '(') {
         getNextToken();
-        std::vector<std::unique_ptr<ExprAST>> Args;
-        if (CurTok != ')') {
-            while (true) {
-                if (auto Arg = ParseExpression())
-                    Args.push_back(std::move(Arg));
-                else
-                    return nullptr;
-
-                if (CurTok == ')') break;
-
-                if (CurTok != ',') {
-                    fprintf(stderr, "Error: Expected ')' or ',' in function call.\n");
-                    return nullptr;
-                }
-                getNextToken();
-            }
-        }
-        getNextToken();
-        return std::make_unique<CallExprAST>(IdName, std::move(Args));
+        auto Args = ParseExprList(')', true);
+        if (!Args) return nullptr;
+        return std::make_unique<CallExprAST>(IdName, std::move(*Args));
     }
-    
+
     if (CurTok == '[') {
         getNextToken();
-        std::vector<std::unique_ptr<ExprAST>> Indices;
-        while (true) {
-            auto Exp = ParseExpression();
-            if (!Exp) return nullptr;
-            Indices.push_back(std::move(Exp));
-            if (CurTok == ']') break;
-            if (CurTok == ',') { getNextToken(); continue; }
-            fprintf(stderr, "Error: Expected ',' or ']'\n");
-            return nullptr;
-        }
-        getNextToken(); 
-        return std::make_unique<ArrayAccessExprAST>(IdName, std::move(Indices), Line);
+        auto Indices = ParseExprList(']', false);
+        if (!Indices) return nullptr;
+        return std::make_unique<ArrayAccessExprAST>(IdName, std::move(*Indices), Line);
     }
-    
+
     return std::make_unique<VariableExprAST>(IdName);
 }
 
@@ -224,15 +199,67 @@ std::unique_ptr<ExprAST> Parser::ParseExpression() {
 }
 
 std::vector<std::unique_ptr<StmtAST>> Parser::Parse() {
-    std::vector<std::unique_ptr<StmtAST>> Statements;
+    return ParseBlock({});
+}
+
+// After a statement fails to parse, skip ahead to the next token that can
+// start a statement or end a block, so one bad statement cannot swallow the
+// start of the next good one.
+void Parser::syncToStatementStart() {
     while (CurTok != tok_eof) {
-        if (auto Stmt = ParseStatement()) {
-            Statements.push_back(std::move(Stmt));
-        } else {
-            if (CurTok != tok_eof) getNextToken();
+        switch (CurTok) {
+        case tok_declare: case tok_identifier: case tok_input: case tok_output:
+        case tok_if: case tok_while: case tok_repeat: case tok_for:
+        case tok_function: case tok_procedure: case tok_call: case tok_return:
+        case tok_else: case tok_endif: case tok_endwhile: case tok_until:
+        case tok_next: case tok_endfunction: case tok_endprocedure:
+            return;
+        default:
+            getNextToken();
         }
     }
-    return Statements;
+}
+
+std::vector<std::unique_ptr<StmtAST>> Parser::ParseBlock(std::initializer_list<int> Terminators) {
+    auto AtTerminator = [&] {
+        for (int T : Terminators) {
+            if (CurTok == T) return true;
+        }
+        return false;
+    };
+
+    std::vector<std::unique_ptr<StmtAST>> Body;
+    while (!AtTerminator() && CurTok != tok_eof) {
+        if (auto Stmt = ParseStatement()) {
+            Body.push_back(std::move(Stmt));
+        } else {
+            syncToStatementStart();
+        }
+    }
+    return Body;
+}
+
+std::optional<std::vector<std::unique_ptr<ExprAST>>> Parser::ParseExprList(char CloseDelim, bool AllowEmpty) {
+    std::vector<std::unique_ptr<ExprAST>> Elems;
+    if (AllowEmpty && CurTok == CloseDelim) {
+        getNextToken();
+        return Elems;
+    }
+
+    while (true) {
+        auto E = ParseExpression();
+        if (!E) return std::nullopt;
+        Elems.push_back(std::move(E));
+
+        if (CurTok == CloseDelim) break;
+        if (CurTok != ',') {
+            fprintf(stderr, "Error: Expected ',' or '%c' at line %d\n", CloseDelim, Lex.getLine());
+            return std::nullopt;
+        }
+        getNextToken();
+    }
+    getNextToken();
+    return Elems;
 }
 
 std::unique_ptr<StmtAST> Parser::ParseDeclare() {
@@ -318,21 +345,12 @@ std::unique_ptr<StmtAST> Parser::ParseIfStmt() {
     }
     getNextToken();
 
-    std::vector<std::unique_ptr<StmtAST>> ThenStmts;
-    while (CurTok != tok_else && CurTok != tok_endif && CurTok != tok_eof) {
-        auto Stmt = ParseStatement();
-        if (Stmt) ThenStmts.push_back(std::move(Stmt));
-        else if (CurTok != tok_eof && CurTok != tok_else && CurTok != tok_endif) getNextToken();
-    }
+    std::vector<std::unique_ptr<StmtAST>> ThenStmts = ParseBlock({tok_else, tok_endif});
 
     std::vector<std::unique_ptr<StmtAST>> ElseStmts;
     if (CurTok == tok_else) {
         getNextToken();
-        while (CurTok != tok_endif && CurTok != tok_eof) {
-            auto Stmt = ParseStatement();
-            if (Stmt) ElseStmts.push_back(std::move(Stmt));
-            else if (CurTok != tok_eof && CurTok != tok_endif) getNextToken();
-        }
+        ElseStmts = ParseBlock({tok_endif});
     }
 
     if (CurTok != tok_endif) {
@@ -355,12 +373,7 @@ std::unique_ptr<StmtAST> Parser::ParseWhileStmt() {
     }
     getNextToken();
 
-    std::vector<std::unique_ptr<StmtAST>> Body;
-    while (CurTok != tok_endwhile && CurTok != tok_eof) {
-        auto Stmt = ParseStatement();
-        if (Stmt) Body.push_back(std::move(Stmt));
-        else if (CurTok != tok_eof && CurTok != tok_endwhile) getNextToken();
-    }
+    std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endwhile});
 
     if (CurTok != tok_endwhile) {
         fprintf(stderr, "Error: expected ENDWHILE\n");
@@ -374,12 +387,7 @@ std::unique_ptr<StmtAST> Parser::ParseWhileStmt() {
 std::unique_ptr<StmtAST> Parser::ParseRepeatStmt() {
     getNextToken();
 
-    std::vector<std::unique_ptr<StmtAST>> Body;
-    while (CurTok != tok_until && CurTok != tok_eof) {
-        auto Stmt = ParseStatement();
-        if (Stmt) Body.push_back(std::move(Stmt));
-        else if (CurTok != tok_eof && CurTok != tok_until) getNextToken();
-    }
+    std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_until});
 
     if (CurTok != tok_until) {
         fprintf(stderr, "Error: expected UNTIL\n");
@@ -427,12 +435,7 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
         if (!Step) return nullptr;
     }
 
-    std::vector<std::unique_ptr<StmtAST>> Body;
-    while (CurTok != tok_next && CurTok != tok_eof) {
-        auto Stmt = ParseStatement();
-        if (Stmt) Body.push_back(std::move(Stmt));
-        else if (CurTok != tok_eof && CurTok != tok_next) getNextToken();
-    }
+    std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_next});
 
     if (CurTok != tok_next) {
         fprintf(stderr, "Error: expected NEXT\n");
@@ -472,16 +475,9 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
         
         if (CurTok == '[') {
             getNextToken();
-            std::vector<std::unique_ptr<ExprAST>> Indices;
-            while (true) {
-                auto Exp = ParseExpression();
-                if (!Exp) return nullptr;
-                Indices.push_back(std::move(Exp));
-                if (CurTok == ']') break;
-                if (CurTok == ',') getNextToken();
-            }
-            getNextToken();
-            
+            auto Indices = ParseExprList(']', false);
+            if (!Indices) return nullptr;
+
             if (CurTok != tok_assign) {
                 fprintf(stderr, "Error: Expected '<-' after array access in assignment\n");
                 return nullptr;
@@ -489,7 +485,7 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
             getNextToken();
             auto Expr = ParseExpression();
             if (!Expr) return nullptr;
-            return std::make_unique<ArrayAssignStmtAST>(Name, std::move(Indices), std::move(Expr), Line);
+            return std::make_unique<ArrayAssignStmtAST>(Name, std::move(*Indices), std::move(Expr), Line);
         }
         
         if (CurTok != tok_assign) {
@@ -543,5 +539,6 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     }
 
     fprintf(stderr, "Error: Unexpected token at line %d when expecting a statement\n", Lex.getLine());
+    getNextToken(); // guarantee progress so error recovery cannot loop forever
     return nullptr;
 }

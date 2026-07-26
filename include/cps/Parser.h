@@ -2,6 +2,7 @@
 #include "cps/Lexer.h"
 #include "cps/AST.h"
 #include <vector>
+#include <initializer_list>
 #include <memory>
 #include <map>
 #include <optional>
@@ -32,6 +33,9 @@ class Parser {
 
     std::unique_ptr<StmtAST> ParseStatement();
     std::unique_ptr<StmtAST> ParseStatementImpl();
+    std::vector<std::unique_ptr<StmtAST>> ParseBlock(std::initializer_list<int> Terminators);
+    std::optional<std::vector<std::unique_ptr<ExprAST>>> ParseExprList(char CloseDelim, bool AllowEmpty);
+    void syncToStatementStart();
     std::unique_ptr<StmtAST> ParseIfStmt();
     std::unique_ptr<StmtAST> ParseWhileStmt();
     std::unique_ptr<StmtAST> ParseRepeatStmt();

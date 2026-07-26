@@ -11,8 +11,6 @@ std::optional<std::vector<std::tuple<std::string, std::string, bool>>> Parser::P
     getNextToken();
 
     while (CurTok != ')') {
-        if (CurTok == -1000 || CurTok == -1001) getNextToken();
-
         bool IsRef = false;
         if (CurTok == tok_byref) {
             IsRef = true;
@@ -79,12 +77,7 @@ std::unique_ptr<StmtAST> Parser::ParseFunction() {
 
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), RetType);
 
-    std::vector<std::unique_ptr<StmtAST>> Body;
-    while (CurTok != tok_endfunction && CurTok != tok_eof) {
-        auto Stmt = ParseStatement();
-        if (Stmt) Body.push_back(std::move(Stmt));
-        else if (CurTok != tok_eof && CurTok != tok_endfunction) getNextToken();
-    }
+    std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endfunction});
 
     if (CurTok != tok_endfunction) {
         fprintf(stderr, "Error: expected ENDFUNCTION\n");
@@ -109,12 +102,7 @@ std::unique_ptr<StmtAST> Parser::ParseProcedure() {
     if (!Args) return nullptr;
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID");
 
-    std::vector<std::unique_ptr<StmtAST>> Body;
-    while (CurTok != tok_endprocedure && CurTok != tok_eof) {
-        auto Stmt = ParseStatement();
-        if (Stmt) Body.push_back(std::move(Stmt));
-        else if (CurTok != tok_eof && CurTok != tok_endprocedure) getNextToken();
-    }
+    std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endprocedure});
 
     if (CurTok != tok_endprocedure) {
         fprintf(stderr, "Error: expected ENDPROCEDURE\n");
@@ -138,21 +126,11 @@ std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
     std::vector<std::unique_ptr<ExprAST>> Args;
     if (CurTok == '(') {
         getNextToken();
-        while (CurTok != ')') {
-            auto Arg = ParseExpression();
-            if (Arg) Args.push_back(std::move(Arg));
-            else return nullptr;
-            
-            if (CurTok == ')') break;
-            if (CurTok != ',') {
-                fprintf(stderr, "Error: Expected ',' or ')' in call\n");
-                return nullptr;
-            }
-            getNextToken();
-        }
-        getNextToken();
+        auto Parsed = ParseExprList(')', true);
+        if (!Parsed) return nullptr;
+        Args = std::move(*Parsed);
     }
-    
+
     return std::make_unique<CallStmtAST>(Callee, std::move(Args));
 }
 

@@ -54,9 +54,9 @@ keep compiling.** No exceptions, no exit mid-compile. `Lexer`/`Parser`/`CodeGen`
 expose `hadError()`; `CodeGen::reportError(fmt, ...)` is the helper for codegen-side
 diagnostics (`ArrayHandler` reaches it through its `CodeGen &` parameter,
 `FunctionGen`/`ArithmeticHandler` hold a `bool &HadError` reference). The driver exits
-non-zero when any flag is set. The parser still drops a failed statement, skips one
-token, and continues — later statements can be swallowed during recovery, but the
-failure is always diagnosed and reflected in the exit code.
+non-zero when any flag is set. The parser drops a failed statement and resyncs at the
+next token that can start a statement or end a block (`syncToStatementStart`), then
+continues; the failure is always diagnosed and reflected in the exit code.
 
 **Calls dispatch on the declared signature.** `FunctionGen::emitPrototype` records every
 function's pseudocode signature (`FuncSig`: return type name + per-param type name and
