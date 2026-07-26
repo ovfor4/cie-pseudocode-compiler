@@ -7,11 +7,6 @@ test programs.
 
 - **STRING `=` / `<>` compares pointer identity, not contents.** No strcmp anywhere;
   two equal heap strings compare unequal.
-- **Descending FOR loops never work.** CodeGen picks the loop direction at compile time
-  by dynamic_casting the STEP to a negative `IntegerExprAST` — but `-1` parses as the
-  expression `0 - 1` (the lexer has no signed literals), so that branch is dead code and
-  *every* FOR compiles with an ascending `<=` test. `FOR i <- 5 TO 1 STEP -1` runs zero
-  iterations (empirically verified).
 - **OUTPUT takes exactly one expression.** `OUTPUT a, ", ", b` silently drops everything
   after the comma — and if the dropped tail ends in an identifier, error recovery also
   swallows the first token of the *next* statement. Concatenate with `&`. Similarly
@@ -29,8 +24,11 @@ test programs.
   inference prints garbage instead of erroring.
 - The lexer emits no newline tokens; the grammar is purely keyword-delimited. Bare
   `RETURN` is only recognized right before ENDIF/ELSE/ENDFUNCTION/ENDPROCEDURE.
-- `verifyFunction` results are ignored; invalid modules still print.
-- The FOR loop variable must be pre-DECLAREd as INTEGER; FOR reuses that alloca.
+- Invalid modules still print their IR, but `verifyModule` runs at the end of
+  `compile()` and makes the driver exit non-zero.
+- The FOR loop variable must be pre-DECLAREd as INTEGER; FOR reuses that alloca. The
+  loop direction is decided at run time from the STEP value's sign; STEP is evaluated
+  once per iteration in the condition block.
 
 ## Not implemented (9618 features)
 

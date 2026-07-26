@@ -23,19 +23,16 @@ mkdir -p build && cd build && cmake -DLLVM_DIR=/usr/lib/llvm-18/cmake .. && make
 clang-18 prog.ll -o prog && ./prog
 ```
 
-Three facts about the driver (`tools/driver/main.cc`, 17 lines) that break naive automation:
+Facts about the driver (`tools/driver/main.cc`) that break naive automation:
 
 - **No argv.** `./cpsc file.cps` blocks forever on stdin; you must redirect `<`.
-- **IR and error messages share stderr.** A failed parse still dumps (partial) IR,
-  prefixed by `Error:` lines that make clang reject the file.
-- **Exit code is always 0**, even on errors. Grepping stderr for `Error:` catches most
-  failures but has false negatives: some parse paths return nullptr without printing
-  anything (an identifier statement not followed by `<-`/`[`, an unrecognized statement
-  token), the keyword builtins' arity checks print without the `Error:` prefix
-  (`LENGTH expects 1 arg`), and the identifier-route builtins
-  (ASC/CHR/IS_NUM/NUM_TO_STR/STR_TO_NUM) fail arity checks silently. Those statements
-  just vanish from otherwise-valid IR. The only reliable check is running the program
-  and diffing its output.
+- **IR and error messages share stderr.** A failed compile still dumps (partial) IR,
+  mixed with `Error:` lines that make clang reject the file.
+- **Exit code is non-zero iff a diagnostic was emitted.** Lexer, Parser and CodeGen each
+  track an error flag (`hadError()`); every failure path prints an `Error:` line, and
+  `main` returns 1 when any flag is set. The emitted module is also checked with
+  `verifyModule`, so invalid IR flips the exit code too. Check the exit code — do not
+  grep stderr.
 
 Build pin: **LLVM 18 only.** LLVM 19 breaks compilation (`ArithmeticHandler.cc` uses
 `llvm::Module` methods relying on LLVM 18's transitive `#include`; fix would be adding

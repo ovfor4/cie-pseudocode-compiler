@@ -42,13 +42,7 @@ enum Token {
     tok_not = -27,
 
     tok_string_kw = -30,
-    tok_length = -31,
-    tok_mid = -32,
-    tok_right = -33,
-    tok_lcase = -34,
-    tok_ucase = -35,
     tok_string_literal = -36,
-    tok_left = -37,
     tok_char_kw = -38,
     tok_char_literal = -39,
 

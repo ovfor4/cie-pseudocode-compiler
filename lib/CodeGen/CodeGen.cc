@@ -9,6 +9,40 @@
 using namespace llvm;
 using namespace cps;
 
+namespace {
+
+// Single source of truth for the built-in functions: name, arity and return
+// type. emitExpr checks arity against this table before dispatching, and
+// getExprTypeInfo reads the return type from it.
+struct BuiltinInfo {
+    const char *Name;
+    unsigned Arity;
+    const char *ReturnTypeName;
+};
+
+constexpr BuiltinInfo Builtins[] = {
+    {"LENGTH",     1, "INTEGER"},
+    {"MID",        3, "STRING"},
+    {"RIGHT",      2, "STRING"},
+    {"LEFT",       2, "STRING"},
+    {"LCASE",      1, "STRING"},
+    {"UCASE",      1, "STRING"},
+    {"ASC",        1, "INTEGER"},
+    {"CHR",        1, "STRING"},
+    {"IS_NUM",     1, "BOOLEAN"},
+    {"NUM_TO_STR", 1, "STRING"},
+    {"STR_TO_NUM", 1, "REAL"},
+};
+
+const BuiltinInfo *findBuiltin(const std::string &Name) {
+    for (const auto &B : Builtins) {
+        if (Name == B.Name) return &B;
+    }
+    return nullptr;
+}
+
+} // namespace
+
 CodeGen::~CodeGen() = default;
 
 void CodeGen::reportError(const char *Fmt, ...) {
@@ -174,12 +208,9 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
 
     if (auto *Call = dynamic_cast<CallExprAST*>(Expr)) {
         const std::string &Name = Call->getCallee();
-        if (Name == "LENGTH" || Name == "ASC") return resolveType("INTEGER");
-        if (Name == "MID" || Name == "RIGHT" || Name == "LEFT" ||
-            Name == "LCASE" || Name == "UCASE" || Name == "CHR" ||
-            Name == "NUM_TO_STR") return resolveType("STRING");
-        if (Name == "IS_NUM") return resolveType("BOOLEAN");
-        if (Name == "STR_TO_NUM") return resolveType("REAL");
+        if (const BuiltinInfo *B = findBuiltin(Name)) {
+            return resolveType(B->ReturnTypeName);
+        }
 
         Function *CalleeF = TheModule->getFunction(Name);
         if (!CalleeF) return resolveType("INTEGER");
@@ -474,12 +505,16 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
 
     if (auto *Call = dynamic_cast<CallExprAST*>(Expr)) {
         std::string Name = Call->getCallee();
+        if (const BuiltinInfo *B = findBuiltin(Name)) {
+            if (Call->getArgs().size() != B->Arity) {
+                reportError("%s expects %u arg%s", B->Name, B->Arity, B->Arity == 1 ? "" : "s");
+                return nullptr;
+            }
+        }
         if (Name == "LENGTH") {
-            if (Call->getArgs().size() != 1) { reportError("LENGTH expects 1 arg"); return nullptr; }
             return StrHandler->emitLength(emitExpr(Call->getArgs()[0].get()));
         }
         if (Name == "MID") {
-            if (Call->getArgs().size() != 3) { reportError("MID expects 3 args"); return nullptr; }
             Value *Str = emitExpr(Call->getArgs()[0].get());
             Value *Start = coerceValueToType(emitExpr(Call->getArgs()[1].get()), resolveType("INTEGER"));
             Value *Len = coerceValueToType(emitExpr(Call->getArgs()[2].get()), resolveType("INTEGER"));
@@ -487,29 +522,24 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return StrHandler->emitMid(Str, Start, Len);
         }
         if (Name == "RIGHT") {
-            if (Call->getArgs().size() != 2) { reportError("RIGHT expects 2 args"); return nullptr; }
             Value *Str = emitExpr(Call->getArgs()[0].get());
             Value *Len = coerceValueToType(emitExpr(Call->getArgs()[1].get()), resolveType("INTEGER"));
             if (!Str || !Len) return nullptr;
             return StrHandler->emitRight(Str, Len);
         }
         if (Name == "LEFT") {
-            if (Call->getArgs().size() != 2) { reportError("LEFT expects 2 args"); return nullptr; }
             Value *Str = emitExpr(Call->getArgs()[0].get());
             Value *Len = coerceValueToType(emitExpr(Call->getArgs()[1].get()), resolveType("INTEGER"));
             if (!Str || !Len) return nullptr;
             return StrHandler->emitLeft(Str, Len);
         }
         if (Name == "LCASE") {
-            if (Call->getArgs().size() != 1) { reportError("LCASE expects 1 arg"); return nullptr; }
             return StrHandler->emitLCase(emitExpr(Call->getArgs()[0].get()));
         }
         if (Name == "UCASE") {
-            if (Call->getArgs().size() != 1) { reportError("UCASE expects 1 arg"); return nullptr; }
             return StrHandler->emitUCase(emitExpr(Call->getArgs()[0].get()));
         }
         if (Name == "ASC") {
-            if (Call->getArgs().size() != 1) { reportError("ASC expects 1 arg"); return nullptr; }
             Value *ArgVal = emitExpr(Call->getArgs()[0].get());
             const TypeInfo *ArgType = getExprTypeInfo(Call->getArgs()[0].get());
             Value *CharVal = nullptr;
@@ -522,7 +552,6 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return coerceValueToType(AscVal, resolveType("INTEGER"));
         }
         if (Name == "CHR") {
-            if (Call->getArgs().size() != 1) { reportError("CHR expects 1 arg"); return nullptr; }
             Value *IntVal = coerceValueToType(emitExpr(Call->getArgs()[0].get()), resolveType("INTEGER"));
             Value *CharVal = ChrHandler->emitChr(IntVal);
             Function *MallocF = TheModule->getFunction("malloc");
@@ -535,11 +564,9 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return Mem;
         }
         if (Name == "IS_NUM") {
-            if (Call->getArgs().size() != 1) { reportError("IS_NUM expects 1 arg"); return nullptr; }
             return StrConvHandler->emitIsNum(emitExpr(Call->getArgs()[0].get()));
         }
         if (Name == "NUM_TO_STR") {
-            if (Call->getArgs().size() != 1) { reportError("NUM_TO_STR expects 1 arg"); return nullptr; }
             Value *NumV = emitExpr(Call->getArgs()[0].get());
             bool IsReal = NumV->getType()->isDoubleTy();
             if (NumV->getType()->isIntegerTy(8)) {
@@ -548,7 +575,6 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return StrConvHandler->emitNumToStr(NumV, IsReal);
         }
         if (Name == "STR_TO_NUM") {
-            if (Call->getArgs().size() != 1) { reportError("STR_TO_NUM expects 1 arg"); return nullptr; }
             return StrConvHandler->emitStrToNum(emitExpr(Call->getArgs()[0].get()), true);
         }
 

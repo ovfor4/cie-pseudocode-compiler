@@ -132,34 +132,6 @@ std::string Parser::ParseTypeName(bool AllowVoid) {
     return "";
 }
 
-std::unique_ptr<ExprAST> Parser::ParseStringBuiltin(const std::string &FuncName) {
-    getNextToken();
-    if (CurTok != '(') {
-        fprintf(stderr, "Error: Expected '(' after %s\n", FuncName.c_str());
-        return nullptr;
-    }
-    getNextToken();
-
-    std::vector<std::unique_ptr<ExprAST>> Args;
-    if (CurTok != ')') {
-        while (true) {
-            if (auto Arg = ParseExpression())
-                Args.push_back(std::move(Arg));
-            else
-                return nullptr;
-
-            if (CurTok == ')') break;
-            if (CurTok != ',') {
-                fprintf(stderr, "Error: Expected ',' or ')' in %s\n", FuncName.c_str());
-                return nullptr;
-            }
-            getNextToken();
-        }
-    }
-    getNextToken(); 
-    return std::make_unique<CallExprAST>(FuncName, std::move(Args));
-}
-
 std::unique_ptr<ExprAST> Parser::ParseParenExpr() {
     getNextToken();
     auto V = ParseExpression();
@@ -187,13 +159,6 @@ std::unique_ptr<ExprAST> Parser::ParsePrimary() {
         getNextToken();
         return Res;
     }
-    case tok_length: return ParseStringBuiltin("LENGTH");
-    case tok_mid:    return ParseStringBuiltin("MID");
-    case tok_right:  return ParseStringBuiltin("RIGHT");
-    case tok_left:   return ParseStringBuiltin("LEFT");
-    case tok_lcase:  return ParseStringBuiltin("LCASE");
-    case tok_ucase:  return ParseStringBuiltin("UCASE");
-
     case tok_true: {
         getNextToken();
         return std::make_unique<BooleanExprAST>(true);

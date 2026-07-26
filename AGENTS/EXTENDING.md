@@ -11,10 +11,12 @@ statements — terminator keyword + tok_eof guard) → `dynamic_cast` branch in
 `if (!Builder->GetInsertBlock()->getTerminator())` — a RETURN in the body may have
 already terminated the block.
 
-**New builtin function:** implement IR emission as a method on the fitting handler
-(String/Char/StringConversion), add the name intercept in `emitExpr`'s CallExprAST
-section with an arg-count check, **and** add the name to `getExprTypeInfo`'s table.
-Identifier-shaped names need nothing in lexer/parser.
+**New builtin function:** add a `{Name, Arity, ReturnTypeName}` row to the static
+`Builtins` table at the top of `CodeGen.cc` (single source of truth — arity checking in
+`emitExpr` and the return type in `getExprTypeInfo` both read it), then implement IR
+emission as a method on the fitting handler (String/Char/StringConversion) and add the
+name intercept in `emitExpr`'s CallExprAST section. Builtins are plain identifiers —
+nothing is needed in lexer/parser.
 
 **New binary operator:** token (if multi-char) → one line in `BinopPrecedence`
 (Parser ctor; levels: OR=3, AND=5, comparisons=10, `+ - &`=20, `* / DIV MOD`=40;

@@ -29,8 +29,6 @@ class Parser {
     std::unique_ptr<ExprAST> ParseIdentifierExpr();
     std::unique_ptr<ExprAST> ParseParenExpr();
     std::string ParseTypeName(bool AllowVoid = false);
-    
-    std::unique_ptr<ExprAST> ParseStringBuiltin(const std::string &FuncName);
 
     std::unique_ptr<StmtAST> ParseStatement();
     std::unique_ptr<StmtAST> ParseStatementImpl();

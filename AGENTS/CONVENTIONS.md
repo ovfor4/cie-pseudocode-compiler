@@ -49,12 +49,14 @@ maps around a function body, but `ArrayHandler::ArrayTable` is *not* scoped (see
 `emitExpr` walk a linear if-chain of casts. **A statement type missing from the chain is
 silently ignored** — no error. Adding an AST node always means touching these chains.
 
-**Error style everywhere: `fprintf(stderr, ...)` then return nullptr/void, and keep
-compiling.** No exceptions, no exit, no error counter. Most messages start with
-`Error:`; the keyword builtins' arity checks in `emitExpr` lack the prefix, and the
-identifier-route builtins' arity checks and several parse failures print nothing at all.
-The parser drops a failed statement, skips one token, and continues, so erroneous
-statements simply vanish from the program.
+**Error style everywhere: print an `Error:` line, set the component's error flag, and
+keep compiling.** No exceptions, no exit mid-compile. `Lexer`/`Parser`/`CodeGen` each
+expose `hadError()`; `CodeGen::reportError(fmt, ...)` is the helper for codegen-side
+diagnostics (`ArrayHandler` reaches it through its `CodeGen &` parameter,
+`FunctionGen`/`ArithmeticHandler` hold a `bool &HadError` reference). The driver exits
+non-zero when any flag is set. The parser still drops a failed statement, skips one
+token, and continues — later statements can be swallowed during recovery, but the
+failure is always diagnosed and reflected in the exit code.
 
 **BYREF is a pointer-typed parameter, inferred structurally at call sites.**
 `FunctionGen` emits pointer params for BYREF; call sites (in CodeGen, duplicated for
@@ -67,11 +69,10 @@ garbage at runtime. Only declared-BYREF STRING parameters work, and STRING argum
 never be literals/expressions. Function names get no mangling — a pseudocode
 `FUNCTION printf` collides with libc.
 
-**Builtins have two routes and one trap.** LENGTH/MID/RIGHT/LEFT/LCASE/UCASE are
-reserved keywords with tokens, normalized back into ordinary `CallExprAST` by the
-parser; ASC/CHR/IS_NUM/NUM_TO_STR/STR_TO_NUM need no lexer/parser support at all —
-identifiers may contain `_` and `Name(args)` already parses as a call. Both routes are
-intercepted by name-string comparison in `emitExpr`'s `CallExprAST` branch *before* the
-user-function fallback. The trap: builtin return types are duplicated in
-`getExprTypeInfo`'s hard-coded table — forget that second edit and OUTPUT prints the
-result with the wrong format, with no compile error.
+**Builtins are plain identifiers backed by one table.** All 11 builtins
+(LENGTH/MID/RIGHT/LEFT/LCASE/UCASE/ASC/CHR/IS_NUM/NUM_TO_STR/STR_TO_NUM) parse as
+ordinary calls — no lexer/parser support, and the names are not reserved words. The
+static `Builtins` table at the top of `CodeGen.cc` ({Name, Arity, ReturnTypeName}) is
+the single source of truth: `emitExpr`'s `CallExprAST` branch checks arity against it
+before dispatching to the per-builtin emit branches (still an if-chain, ahead of the
+user-function fallback), and `getExprTypeInfo` reads return types from it.

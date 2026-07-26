@@ -110,13 +110,6 @@ int Lexer::gettok() {
         if (IdentifierStr == "OR") return tok_or;
         if (IdentifierStr == "NOT") return tok_not;
 
-        if (IdentifierStr == "LENGTH") return tok_length;
-        if (IdentifierStr == "MID") return tok_mid;
-        if (IdentifierStr == "RIGHT") return tok_right;
-        if (IdentifierStr == "LEFT") return tok_left;
-        if (IdentifierStr == "LCASE") return tok_lcase;
-        if (IdentifierStr == "UCASE") return tok_ucase;
-
         if (IdentifierStr == "FUNCTION") return tok_function;
         if (IdentifierStr == "ENDFUNCTION") return tok_endfunction;
         if (IdentifierStr == "PROCEDURE") return tok_procedure;
