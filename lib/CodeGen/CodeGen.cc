@@ -186,6 +186,41 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
         return Info ? resolveType(Info->TypeName) : nullptr;
     }
 
+    if (auto *D = dynamic_cast<DesignatorExprAST*>(Expr)) {
+        const SymbolInfo *Info = getSymbolInfo(D->getBaseName());
+        if (!Info) return nullptr;
+        std::string TypeName = Info->TypeName;
+        size_t Start = 0;
+        if (Info->IsArray) {
+            // SymbolInfo already holds the ELEMENT type name for arrays.
+            if (D->getAccesses().empty() || D->getAccesses()[0].Kind != AccessKind::Index)
+                return nullptr;
+            Start = 1;
+        }
+        for (size_t I = Start; I < D->getAccesses().size(); ++I) {
+            const TypeInfo *Cur = resolveType(TypeName);
+            if (!Cur) return nullptr;
+            const DesignatorAccess &A = D->getAccesses()[I];
+            if (A.Kind == AccessKind::Field) {
+                const RecordPayload *RP = Cur->asRecord();
+                const RecordFieldInfo *FI = RP ? RP->findField(A.FieldName) : nullptr;
+                if (!FI) return nullptr;
+                TypeName = FI->TypeName;
+            } else if (A.Kind == AccessKind::Deref) {
+                const PointerPayload *PP = Cur->asPointer();
+                if (!PP) return nullptr;
+                TypeName = PP->PointeeTypeName;
+            } else {
+                return nullptr; // indexing a non-array
+            }
+        }
+        return resolveType(TypeName);
+    }
+
+    // ^x has no pseudocode type of its own; only the pointer admission in
+    // emitCoercedExpr may consume it.
+    if (dynamic_cast<AddrOfExprAST*>(Expr)) return nullptr;
+
     if (auto *Unary = dynamic_cast<UnaryExprAST*>(Expr)) {
         if (Unary->getOp() == tok_not) {
             return resolveType("BOOLEAN");
@@ -683,10 +718,18 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         return FuncGen->emitCallExpr(Call, Args);
     }
 
-    // TYPE-system stubs: parsed but not yet wired (phases C/D/E of the TYPE work).
-    if (dynamic_cast<DesignatorExprAST*>(Expr) || dynamic_cast<AddrOfExprAST*>(Expr)) {
-        reportError("Record field / pointer expressions are not implemented yet");
-        return nullptr;
+    if (auto *D = dynamic_cast<DesignatorExprAST*>(Expr)) {
+        LValueInfo LV;
+        if (!emitLValue(D, LV)) return nullptr;
+        return loadFromLValue(LV);
+    }
+
+    // ^x produces a raw address; it is only admissible where a pointer type
+    // is expected, which emitCoercedExpr enforces by pointee name.
+    if (auto *Addr = dynamic_cast<AddrOfExprAST*>(Expr)) {
+        LValueInfo LV;
+        if (!emitLValue(Addr->getTarget(), LV)) return nullptr;
+        return LV.Addr;
     }
 
     return nullptr;
@@ -1115,9 +1158,12 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
         dynamic_cast<RecordTypeDeclAST*>(Stmt)) {
         return;
     }
-    // TYPE-system stub: wired in the record/lvalue phase.
-    if (dynamic_cast<DesignatorAssignStmtAST*>(Stmt)) {
-        reportError("Assignment to record fields / pointer targets is not implemented yet");
+    if (auto *DA = dynamic_cast<DesignatorAssignStmtAST*>(Stmt)) {
+        LValueInfo LV;
+        if (!emitLValue(DA->getTarget(), LV)) return;
+        Value *Val = emitCoercedExpr(DA->getExpr(), resolveType(LV.TypeName));
+        if (!Val) return;
+        Builder->CreateStore(Val, LV.Addr);
         return;
     }
 }

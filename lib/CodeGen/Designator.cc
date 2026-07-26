@@ -4,6 +4,7 @@
 // These are CodeGen methods; the file is split out to keep the hub
 // dispatch-only.
 #include "cps/CodeGen.h"
+#include "cps/ArrayHandler.h"
 #include "cps/TypeAST.h"
 #include "cps/Lexer.h"
 
@@ -66,6 +67,132 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
     }
 }
 
+// Resolves a designator (or legacy variable/array-access node) to the address
+// of its storage plus the type name stored there. Array indexing goes through
+// ArrayHandler's checked pipeline; dereferences emit the null-pointer check.
+bool CodeGen::emitLValue(ExprAST *E, LValueInfo &Out) {
+    if (auto *Var = dynamic_cast<VariableExprAST*>(E)) {
+        const SymbolInfo *Info = getSymbolInfo(Var->getName());
+        if (!Info) {
+            if (Types->lookupEnumConstant(Var->getName())) {
+                reportError("Enum value %s is not an assignable location", Var->getName().c_str());
+            } else {
+                reportError("Unknown variable name %s", Var->getName().c_str());
+            }
+            return false;
+        }
+        if (Info->IsArray) {
+            reportError("Whole array %s is not an assignable location; index it", Var->getName().c_str());
+            return false;
+        }
+        Out.Addr = Info->Storage;
+        Out.TypeName = Info->TypeName;
+        return true;
+    }
+
+    if (auto *Acc = dynamic_cast<ArrayAccessExprAST*>(E)) {
+        Out.Addr = Arrays->emitElementAddress(Acc, *this, Out.TypeName);
+        return Out.Addr != nullptr;
+    }
+
+    auto *D = dynamic_cast<DesignatorExprAST*>(E);
+    if (!D) {
+        reportError("Expression is not an assignable location");
+        return false;
+    }
+
+    const SymbolInfo *Info = getSymbolInfo(D->getBaseName());
+    if (!Info) {
+        if (Types->lookupEnumConstant(D->getBaseName())) {
+            reportError("Enum value %s is not an assignable location", D->getBaseName().c_str());
+        } else {
+            reportError("Unknown variable name %s", D->getBaseName().c_str());
+        }
+        return false;
+    }
+
+    const auto &Accesses = D->getAccesses();
+    Value *Addr = Info->Storage;
+    std::string TypeName = Info->TypeName;
+    size_t Start = 0;
+
+    if (Info->IsArray) {
+        if (Accesses.empty() || Accesses[0].Kind != AccessKind::Index) {
+            reportError("Array %s must be indexed before '.' or '^' access", D->getBaseName().c_str());
+            return false;
+        }
+        Addr = Arrays->emitElementAddress(D->getBaseName(), Accesses[0].Indices,
+                                          D->getLine(), *this, TypeName);
+        if (!Addr) return false;
+        Start = 1;
+    }
+
+    for (size_t I = Start; I < Accesses.size(); ++I) {
+        const DesignatorAccess &A = Accesses[I];
+        const TypeInfo *Cur = resolveType(TypeName);
+        if (!Cur) {
+            reportError("Unknown type %s", TypeName.c_str());
+            return false;
+        }
+
+        switch (A.Kind) {
+        case AccessKind::Field: {
+            const RecordPayload *RP = Cur->asRecord();
+            if (!RP) {
+                reportError("Type %s is not a record; '.%s' is invalid",
+                            TypeName.c_str(), A.FieldName.c_str());
+                return false;
+            }
+            const RecordFieldInfo *FI = RP->findField(A.FieldName);
+            if (!FI) {
+                reportError("Record type %s has no field %s", TypeName.c_str(), A.FieldName.c_str());
+                return false;
+            }
+            Addr = Builder->CreateStructGEP(Cur->LLVMType, Addr, FI->Index,
+                                            TypeName + "." + A.FieldName);
+            TypeName = FI->TypeName;
+            break;
+        }
+
+        case AccessKind::Deref: {
+            const PointerPayload *PP = Cur->asPointer();
+            if (!PP) {
+                reportError("Cannot dereference a value of type %s ('^' needs a pointer)",
+                            TypeName.c_str());
+                return false;
+            }
+            Value *P = Builder->CreateLoad(PointerType::getUnqual(*TheContext), Addr, "deref_ptr");
+            RuntimeChecker->emitNullDerefCheck(P, D->getLine());
+            Addr = P;
+            TypeName = PP->PointeeTypeName;
+            break;
+        }
+
+        case AccessKind::Index:
+            reportError("Cannot index a value of type %s (only declared arrays can be indexed)",
+                        TypeName.c_str());
+            return false;
+        }
+    }
+
+    Out.Addr = Addr;
+    Out.TypeName = TypeName;
+    return true;
+}
+
+Value *CodeGen::loadFromLValue(const LValueInfo &LV) {
+    const TypeInfo *Info = resolveType(LV.TypeName);
+    if (!Info || !Info->LLVMType) {
+        reportError("Unknown type %s", LV.TypeName.c_str());
+        return nullptr;
+    }
+    Value *Val = Builder->CreateLoad(Info->LLVMType, LV.Addr);
+    if (Info->isString()) {
+        Val = emitStringNullGuard(Val);
+    }
+    return Val;
+}
+
 // The single name-level admission gate. Targets of a user kind demand exact
 // type-name equality (their representations are indistinguishable at the
 // LLVM level); builtin targets additionally reject user-kind sources, then
@@ -76,10 +203,24 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
     const TypeInfo *Src = getExprTypeInfo(E);
 
     if (Target->isUserKind()) {
-        // ^x into a pointer target compares pointee names, not type names;
-        // wired in the pointer phase.
-        if (Target->isPointer() && dynamic_cast<AddrOfExprAST*>(E)) {
-            return emitExpr(E);
+        // ^x into a pointer target is structural: the pointee type name must
+        // match the pointer type's declared pointee exactly (strict — the
+        // guide's own ^INTEGER-at-a-Season example is rejected by design).
+        if (auto *Addr = dynamic_cast<AddrOfExprAST*>(E)) {
+            const PointerPayload *PP = Target->asPointer();
+            if (!PP) {
+                reportError("'^' (address-of) can only be used where a pointer type is expected (got %s)",
+                            Target->Name.c_str());
+                return nullptr;
+            }
+            LValueInfo LV;
+            if (!emitLValue(Addr->getTarget(), LV)) return nullptr;
+            if (LV.TypeName != PP->PointeeTypeName) {
+                reportError("%s is a pointer to %s and cannot point at a value of type %s",
+                            Target->Name.c_str(), PP->PointeeTypeName.c_str(), LV.TypeName.c_str());
+                return nullptr;
+            }
+            return LV.Addr;
         }
         if (!Src) {
             // Emit anyway: an inadmissible sub-expression (e.g. enum * 2)

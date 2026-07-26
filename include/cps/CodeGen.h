@@ -68,6 +68,17 @@ class CodeGen {
     // TYPE-system helpers (Designator.cc).
     void runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements);
     llvm::Value *emitUserKindBinaryOp(BinaryExprAST *Bin, const TypeInfo *LT, const TypeInfo *RT);
+
+    // An addressable location and the pseudocode type stored there.
+    struct LValueInfo {
+        llvm::Value *Addr = nullptr;
+        std::string TypeName;
+    };
+    // Resolves a variable / array element / field chain / deref to an address
+    // (emitting index and null-pointer checks along the way).
+    bool emitLValue(ExprAST *E, LValueInfo &Out);
+    // The rvalue read: load + the STRING null->"" guard.
+    llvm::Value *loadFromLValue(const LValueInfo &LV);
     bool marshalCallArgs(const std::string &Callee,
                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
                          std::vector<llvm::Value*> &Out);
