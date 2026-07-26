@@ -16,9 +16,10 @@ class FunctionGen {
     llvm::Module &Module;
     llvm::IRBuilder<> &Builder;
     TypeSystem &Types;
-    
+
     std::map<std::string, llvm::Value*> &NamedValues;
     std::map<std::string, SymbolInfo> &Symbols;
+    bool &HadError;
 
     void createArgumentAllocas(llvm::Function *F, const std::vector<std::tuple<std::string, std::string, bool>> &Args);
 
@@ -28,8 +29,9 @@ public:
                 llvm::IRBuilder<> &B,
                 TypeSystem &TS,
                 std::map<std::string, llvm::Value*> &NV,
-                std::map<std::string, SymbolInfo> &Sym)
-        : Context(C), Module(M), Builder(B), Types(TS), NamedValues(NV), Symbols(Sym) {}
+                std::map<std::string, SymbolInfo> &Sym,
+                bool &HadErrorFlag)
+        : Context(C), Module(M), Builder(B), Types(TS), NamedValues(NV), Symbols(Sym), HadError(HadErrorFlag) {}
 
     llvm::Type *getLLVMType(const std::string &TypeName);
 

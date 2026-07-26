@@ -9,6 +9,7 @@ Type *FunctionGen::getLLVMType(const std::string &TypeName) {
     Type *Resolved = Types.getLLVMType(TypeName);
     if (!Resolved) {
         fprintf(stderr, "Error: Unknown type %s\n", TypeName.c_str());
+        HadError = true;
         return Type::getInt64Ty(Context);
     }
     return Resolved;
@@ -78,6 +79,7 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
     if (!TheFunction) return nullptr;
     if (!TheFunction->empty()) {
         fprintf(stderr, "Error: Function %s cannot be redefined.\n", Proto->getName().c_str());
+        HadError = true;
         return nullptr;
     }
 
@@ -103,7 +105,6 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
         }
     }
 
-    verifyFunction(*TheFunction);
     NamedValues = OldNamedValues;
     Symbols = OldSymbols;
     return TheFunction;
@@ -113,7 +114,8 @@ static Value *GenerateCall(llvm::Module &Module,
                            llvm::IRBuilder<> &Builder,
                            llvm::LLVMContext &Context,
                            const std::string &CalleeName,
-                           const std::vector<llvm::Value*> &Args) {
+                           const std::vector<llvm::Value*> &Args,
+                           bool &HadError) {
     Function *CalleeF = Module.getFunction(CalleeName);
     if (!CalleeF) {
         std::vector<Type*> ArgTypes;
@@ -124,6 +126,7 @@ static Value *GenerateCall(llvm::Module &Module,
 
     if (CalleeF->arg_size() != Args.size()) {
         fprintf(stderr, "Error: Incorrect # arguments passed to %s\n", CalleeName.c_str());
+        HadError = true;
         return nullptr;
     }
 
@@ -135,11 +138,11 @@ static Value *GenerateCall(llvm::Module &Module,
 }
 
 llvm::Value *FunctionGen::emitCallExpr(CallExprAST *Call, const std::vector<llvm::Value*> &Args) {
-    return GenerateCall(Module, Builder, Context, Call->getCallee(), Args);
+    return GenerateCall(Module, Builder, Context, Call->getCallee(), Args, HadError);
 }
 
 void FunctionGen::emitCallStmt(CallStmtAST *Call, const std::vector<llvm::Value*> &Args) {
-    GenerateCall(Module, Builder, Context, Call->getCallee(), Args);
+    GenerateCall(Module, Builder, Context, Call->getCallee(), Args, HadError);
 }
 
 void FunctionGen::emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal) {

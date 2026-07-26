@@ -271,12 +271,18 @@ std::vector<std::unique_ptr<StmtAST>> Parser::Parse() {
 }
 
 std::unique_ptr<StmtAST> Parser::ParseDeclare() {
-    getNextToken(); 
-    if (CurTok != tok_identifier) return nullptr;
+    getNextToken();
+    if (CurTok != tok_identifier) {
+        fprintf(stderr, "Error: Expected identifier after DECLARE at line %d\n", Lex.getLine());
+        return nullptr;
+    }
     std::string Name = Lex.IdentifierStr;
     getNextToken();
-    
-    if (CurTok != tok_colon) return nullptr;
+
+    if (CurTok != tok_colon) {
+        fprintf(stderr, "Error: Expected ':' after variable name '%s' at line %d\n", Name.c_str(), Lex.getLine());
+        return nullptr;
+    }
     getNextToken();
     
     if (CurTok == tok_array) {
@@ -485,6 +491,12 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
 }
 
 std::unique_ptr<StmtAST> Parser::ParseStatement() {
+    auto Stmt = ParseStatementImpl();
+    if (!Stmt) ++NumErrors;
+    return Stmt;
+}
+
+std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     if (CurTok == tok_declare) {
         return ParseDeclare();
     }
@@ -515,7 +527,10 @@ std::unique_ptr<StmtAST> Parser::ParseStatement() {
             return std::make_unique<ArrayAssignStmtAST>(Name, std::move(Indices), std::move(Expr), Line);
         }
         
-        if (CurTok != tok_assign) return nullptr;
+        if (CurTok != tok_assign) {
+            fprintf(stderr, "Error: Expected '<-' after identifier '%s' at line %d\n", Name.c_str(), Line);
+            return nullptr;
+        }
         getNextToken();
         auto Expr = ParseExpression();
         if (!Expr) return nullptr;
@@ -523,7 +538,10 @@ std::unique_ptr<StmtAST> Parser::ParseStatement() {
     }
     else if (CurTok == tok_input) {
         getNextToken();
-        if (CurTok != tok_identifier) return nullptr;
+        if (CurTok != tok_identifier) {
+            fprintf(stderr, "Error: Expected variable name after INPUT at line %d\n", Lex.getLine());
+            return nullptr;
+        }
         std::string Name = Lex.IdentifierStr;
         getNextToken();
         return std::make_unique<InputStmtAST>(Name);
@@ -559,5 +577,6 @@ std::unique_ptr<StmtAST> Parser::ParseStatement() {
         return ParseReturnStmt();
     }
 
+    fprintf(stderr, "Error: Unexpected token at line %d when expecting a statement\n", Lex.getLine());
     return nullptr;
 }

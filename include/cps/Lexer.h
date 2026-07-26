@@ -80,6 +80,7 @@ enum Token {
 
 class Lexer {
     int CurrentLine = 1;
+    bool HadError = false;
 public:
     std::string IdentifierStr;
     std::string StringVal;
@@ -89,6 +90,7 @@ public:
 
     int gettok();
     int getLine() const { return CurrentLine; }
+    bool hadError() const { return HadError; }
 };
 
 }

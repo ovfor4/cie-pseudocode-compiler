@@ -13,5 +13,5 @@ int main() {
 
     CG.print();
 
-    return 0;
+    return (Lex.hadError() || Parser.hadError() || CG.hadError()) ? 1 : 0;
 }

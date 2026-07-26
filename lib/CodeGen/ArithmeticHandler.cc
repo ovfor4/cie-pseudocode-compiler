@@ -49,7 +49,8 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
 
     if (Op == tok_div || Op == tok_mod) {
         if (!LIsInt || !RIsInt) {
-            fprintf(stderr, "Error: DIV and MOD operators require INTEGER operands.\n");
+            fprintf(stderr, "Error: DIV and MOD operators require INTEGER operands (line %d).\n", Line);
+            HadError = true;
             return nullptr;
         }
         if (Op == tok_div) return Builder.CreateSDiv(LHS, RHS, "div_int_tmp");
@@ -106,6 +107,8 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
             case tok_ge: return Builder.CreateICmpSGE(LHS, RHS, "sgetmp");
         }
     }
-    
+
+    fprintf(stderr, "Error: Unsupported operand types for binary operator (line %d).\n", Line);
+    HadError = true;
     return nullptr;
 }

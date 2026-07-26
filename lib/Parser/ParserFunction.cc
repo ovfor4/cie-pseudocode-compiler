@@ -5,7 +5,7 @@
 
 using namespace cps;
 
-std::vector<std::tuple<std::string, std::string, bool>> Parser::ParsePrototypeArgs() {
+std::optional<std::vector<std::tuple<std::string, std::string, bool>>> Parser::ParsePrototypeArgs() {
     std::vector<std::tuple<std::string, std::string, bool>> Args;
     if (CurTok != '(') return Args;
     getNextToken();
@@ -24,21 +24,21 @@ std::vector<std::tuple<std::string, std::string, bool>> Parser::ParsePrototypeAr
 
         if (CurTok != tok_identifier) {
             fprintf(stderr, "Error: Expected argument name\n");
-            return Args;
+            return std::nullopt;
         }
         std::string Name = Lex.IdentifierStr;
         getNextToken();
 
         if (CurTok != tok_colon) {
             fprintf(stderr, "Error: Expected ':' after argument name\n");
-            return Args;
+            return std::nullopt;
         }
         getNextToken();
 
         std::string Type = ParseTypeName(false);
         if (Type.empty()) {
             fprintf(stderr, "Error: Expected argument type for '%s'\n", Name.c_str());
-            return Args;
+            return std::nullopt;
         }
 
         Args.emplace_back(Name, Type, IsRef);
@@ -46,7 +46,7 @@ std::vector<std::tuple<std::string, std::string, bool>> Parser::ParsePrototypeAr
         if (CurTok == ')') break;
         if (CurTok != ',') {
             fprintf(stderr, "Error: Expected ',' or ')'\n");
-            return Args;
+            return std::nullopt;
         }
         getNextToken();
     }
@@ -65,6 +65,7 @@ std::unique_ptr<StmtAST> Parser::ParseFunction() {
     getNextToken();
 
     auto Args = ParsePrototypeArgs();
+    if (!Args) return nullptr;
 
     std::string RetType = "INTEGER";
     if (CurTok == tok_returns) {
@@ -76,7 +77,7 @@ std::unique_ptr<StmtAST> Parser::ParseFunction() {
         }
     }
 
-    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(Args), RetType);
+    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), RetType);
 
     std::vector<std::unique_ptr<StmtAST>> Body;
     while (CurTok != tok_endfunction && CurTok != tok_eof) {
@@ -105,7 +106,8 @@ std::unique_ptr<StmtAST> Parser::ParseProcedure() {
     getNextToken();
 
     auto Args = ParsePrototypeArgs();
-    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(Args), "VOID");
+    if (!Args) return nullptr;
+    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID");
 
     std::vector<std::unique_ptr<StmtAST>> Body;
     while (CurTok != tok_endprocedure && CurTok != tok_eof) {

@@ -59,6 +59,8 @@ class CodeGen {
     llvm::Value *FalseStr;              // "FALSE"
     llvm::Value *EmptyStringStr;        // ""
 
+    bool HadError = false;
+
     void SetupExternalFunctions();
     llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction, const std::string &VarName);
     llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction, llvm::Type *AllocType, const std::string &VarName);
@@ -80,6 +82,8 @@ public:
     ~CodeGen();
     void compile(const std::vector<std::unique_ptr<StmtAST>> &Statements);
     void print();
+    bool hadError() const { return HadError; }
+    void reportError(const char *Fmt, ...);
     
     llvm::Value *emitExpr(ExprAST *Expr);
     void emitStmt(StmtAST *Stmt);

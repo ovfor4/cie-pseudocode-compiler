@@ -88,7 +88,7 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
 
     const TypeInfo *ElemInfo = Types.resolve(Stmt->getType());
     if (!ElemInfo || !ElemInfo->LLVMType || ElemInfo->isVoid()) {
-        fprintf(stderr, "Error: Unknown array element type %s\n", Stmt->getType().c_str());
+        CG.reportError("Unknown array element type %s", Stmt->getType().c_str());
         return;
     }
 
@@ -148,30 +148,39 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
     CG.registerSymbol(Name, Alloca, ElemInfo->Name, true);
 }
 
-Value *ArrayHandler::emitArrayAccess(ArrayAccessExprAST *Expr, CodeGen &CG) {
-    std::string Name = Expr->getName();
+bool ArrayHandler::emitCheckedIndices(const std::string &Name,
+                                      const std::vector<std::unique_ptr<ExprAST>> &IndexExprs,
+                                      int Line,
+                                      bool RequireExact,
+                                      CodeGen &CG,
+                                      std::vector<Value*> &Out) {
     const ArrayMetadata *Meta = getMetadata(Name);
     if (!Meta) {
-        fprintf(stderr, "Error: Undeclared array %s\n", Name.c_str());
-        return nullptr;
+        CG.reportError("Undeclared array %s", Name.c_str());
+        return false;
     }
 
-    if (Expr->getIndices().size() != static_cast<size_t>(Meta->Rank)) {
-        fprintf(stderr, "Error: Incorrect number of indices for %s\n", Name.c_str());
-        return nullptr;
+    size_t Rank = static_cast<size_t>(Meta->Rank);
+    if (IndexExprs.size() > Rank || (RequireExact && IndexExprs.size() != Rank)) {
+        CG.reportError("Incorrect number of indices for %s", Name.c_str());
+        return false;
     }
 
-    std::vector<Value*> Indices;
-    for (size_t i = 0; i < Expr->getIndices().size(); ++i) {
-        Value *Idx = CG.emitExpr(Expr->getIndices()[i].get());
+    for (size_t i = 0; i < IndexExprs.size(); ++i) {
+        Value *Idx = CG.emitExpr(IndexExprs[i].get());
         Idx = CG.coerceValueToType(Idx, CG.resolveType("INTEGER"));
-        if (!Idx) return nullptr;
+        if (!Idx) return false;
 
-        Indices.push_back(Idx);
-        RuntimeChecker.emitIndexCheck(Idx, Meta->LowerBounds[i], Meta->UpperBounds[i], Expr->getLine());
+        Out.push_back(Idx);
+        RuntimeChecker.emitIndexCheck(Idx, Meta->LowerBounds[i], Meta->UpperBounds[i], Line);
     }
+    return true;
+}
 
-    Value *Offset = computeFlatIndex(Name, Indices);
+Value *ArrayHandler::loadElement(const std::string &Name, Value *Offset, CodeGen &CG) {
+    const ArrayMetadata *Meta = getMetadata(Name);
+    if (!Meta) return nullptr;
+
     Value *ElemPtr = getElementPointer(Name, Offset);
     if (!ElemPtr) return nullptr;
 
@@ -185,29 +194,23 @@ Value *ArrayHandler::emitArrayAccess(ArrayAccessExprAST *Expr, CodeGen &CG) {
     return Val;
 }
 
+Value *ArrayHandler::emitArrayAccess(ArrayAccessExprAST *Expr, CodeGen &CG) {
+    std::string Name = Expr->getName();
+    std::vector<Value*> Indices;
+    if (!emitCheckedIndices(Name, Expr->getIndices(), Expr->getLine(), true, CG, Indices))
+        return nullptr;
+
+    Value *Offset = computeFlatIndex(Name, Indices);
+    return loadElement(Name, Offset, CG);
+}
+
 void ArrayHandler::emitArrayAssign(ArrayAssignStmtAST *Stmt, CodeGen &CG) {
     std::string Name = Stmt->getName();
-    const ArrayMetadata *Meta = getMetadata(Name);
-    if (!Meta) {
-        fprintf(stderr, "Error: Undeclared array %s\n", Name.c_str());
-        return;
-    }
-
-    if (Stmt->getIndices().size() != static_cast<size_t>(Meta->Rank)) {
-        fprintf(stderr, "Error: Incorrect number of indices for %s\n", Name.c_str());
-        return;
-    }
-
     std::vector<Value*> Indices;
-    for (size_t i = 0; i < Stmt->getIndices().size(); ++i) {
-        Value *Idx = CG.emitExpr(Stmt->getIndices()[i].get());
-        Idx = CG.coerceValueToType(Idx, CG.resolveType("INTEGER"));
-        if (!Idx) return;
+    if (!emitCheckedIndices(Name, Stmt->getIndices(), Stmt->getLine(), true, CG, Indices))
+        return;
 
-        Indices.push_back(Idx);
-        RuntimeChecker.emitIndexCheck(Idx, Meta->LowerBounds[i], Meta->UpperBounds[i], Stmt->getLine());
-    }
-
+    const ArrayMetadata *Meta = getMetadata(Name);
     const TypeInfo *ElemInfo = Types.resolve(Meta->ElementTypeName);
     Value *Val = CG.emitExpr(Stmt->getExpr());
     Val = CG.coerceValueToType(Val, ElemInfo);
@@ -222,7 +225,8 @@ void ArrayHandler::emitArrayAssign(ArrayAssignStmtAST *Stmt, CodeGen &CG) {
 
 bool ArrayHandler::tryEmitArrayOutput(ExprAST *Expr, CodeGen &CG) {
     std::string Name;
-    std::vector<Value*> Indices;
+    const std::vector<std::unique_ptr<ExprAST>> *IndexExprs = nullptr;
+    int Line = 0;
 
     if (auto *Var = dynamic_cast<VariableExprAST*>(Expr)) {
         Name = Var->getName();
@@ -231,27 +235,18 @@ bool ArrayHandler::tryEmitArrayOutput(ExprAST *Expr, CodeGen &CG) {
         Name = Acc->getName();
         const ArrayMetadata *Meta = getMetadata(Name);
         if (!Meta) return false;
-
-        for (size_t i = 0; i < Acc->getIndices().size(); ++i) {
-            Value *Idx = CG.emitExpr(Acc->getIndices()[i].get());
-            Idx = CG.coerceValueToType(Idx, CG.resolveType("INTEGER"));
-            if (!Idx) return false;
-            Indices.push_back(Idx);
-            RuntimeChecker.emitIndexCheck(Idx, Meta->LowerBounds[i], Meta->UpperBounds[i], Acc->getLine());
+        if (Acc->getIndices().size() == static_cast<size_t>(Meta->Rank)) {
+            return false; // full element access: handled by the normal expression path
         }
-
-        if (Indices.size() > static_cast<size_t>(Meta->Rank)) {
-            fprintf(stderr, "Error: Incorrect number of indices for %s\n", Name.c_str());
-            return true;
-        }
+        IndexExprs = &Acc->getIndices();
+        Line = Acc->getLine();
     } else {
         return false;
     }
 
-    const ArrayMetadata *Meta = getMetadata(Name);
-    if (!Meta) return false;
-    if (Indices.size() == static_cast<size_t>(Meta->Rank)) {
-        return false;
+    std::vector<Value*> Indices;
+    if (IndexExprs && !emitCheckedIndices(Name, *IndexExprs, Line, false, CG, Indices)) {
+        return true; // diagnosed
     }
 
     emitPrintLoop(Name, static_cast<int>(Indices.size()), Indices, CG);
@@ -267,16 +262,8 @@ void ArrayHandler::emitPrintLoop(const std::string &Name,
 
     if (CurrentDim == Meta->Rank) {
         Value *Offset = computeFlatIndex(Name, CurrentIndices);
-        Value *ElemPtr = getElementPointer(Name, Offset);
-        if (!ElemPtr) return;
-
-        Value *Val = Builder->CreateLoad(Meta->ElementType, ElemPtr, Name + "_print_val");
-        if (Meta->ElementTypeName == "STRING") {
-            Value *IsNull = Builder->CreateICmpEQ(Val,
-                                                  ConstantPointerNull::get(cast<PointerType>(Meta->ElementType)),
-                                                  Name + "_print_str_is_null");
-            Val = Builder->CreateSelect(IsNull, CG.EmptyStringStr, Val, Name + "_print_safe_str");
-        }
+        Value *Val = loadElement(Name, Offset, CG);
+        if (!Val) return;
 
         CG.emitOutputValue(Val, Types.resolve(Meta->ElementTypeName), true);
         return;

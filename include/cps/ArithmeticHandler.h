@@ -8,10 +8,11 @@ namespace cps {
 class ArithmeticHandler {
     llvm::LLVMContext &Context;
     llvm::IRBuilder<> &Builder;
+    bool &HadError;
 
 public:
-    ArithmeticHandler(llvm::LLVMContext &Ctx, llvm::IRBuilder<> &B)
-        : Context(Ctx), Builder(B) {}
+    ArithmeticHandler(llvm::LLVMContext &Ctx, llvm::IRBuilder<> &B, bool &HadErrorFlag)
+        : Context(Ctx), Builder(B), HadError(HadErrorFlag) {}
 
     llvm::Value *emitBinaryOp(int Op, llvm::Value *LHS, llvm::Value *RHS, int Line);
 };

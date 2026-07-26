@@ -42,6 +42,13 @@ class ArrayHandler {
     llvm::Value *getArrayBasePointer(const std::string &Name);
     llvm::Value *getElementPointer(const std::string &Name, llvm::Value *Offset);
     const ArrayMetadata *getMetadata(const std::string &Name) const;
+    bool emitCheckedIndices(const std::string &Name,
+                            const std::vector<std::unique_ptr<ExprAST>> &IndexExprs,
+                            int Line,
+                            bool RequireExact,
+                            CodeGen &CG,
+                            std::vector<llvm::Value*> &Out);
+    llvm::Value *loadElement(const std::string &Name, llvm::Value *Offset, CodeGen &CG);
     void emitPrintLoop(const std::string &Name,
                        int CurrentDim,
                        std::vector<llvm::Value*> CurrentIndices,

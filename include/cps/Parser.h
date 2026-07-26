@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <optional>
 #include <tuple>
 #include <string>
 
@@ -12,7 +13,8 @@ namespace cps {
 class Parser {
     Lexer &Lex;
     int CurTok;
-    
+    unsigned NumErrors = 0;
+
     std::map<int, int> BinopPrecedence;
 
     int getNextToken();
@@ -31,6 +33,7 @@ class Parser {
     std::unique_ptr<ExprAST> ParseStringBuiltin(const std::string &FuncName);
 
     std::unique_ptr<StmtAST> ParseStatement();
+    std::unique_ptr<StmtAST> ParseStatementImpl();
     std::unique_ptr<StmtAST> ParseIfStmt();
     std::unique_ptr<StmtAST> ParseWhileStmt();
     std::unique_ptr<StmtAST> ParseRepeatStmt();
@@ -42,11 +45,12 @@ class Parser {
     std::unique_ptr<StmtAST> ParseProcedure();
     std::unique_ptr<StmtAST> ParseCallStmt();
     std::unique_ptr<StmtAST> ParseReturnStmt();
-    std::vector<std::tuple<std::string, std::string, bool>> ParsePrototypeArgs();
-    
+    std::optional<std::vector<std::tuple<std::string, std::string, bool>>> ParsePrototypeArgs();
+
 public:
     Parser(Lexer &L);
     std::vector<std::unique_ptr<StmtAST>> Parse();
+    bool hadError() const { return NumErrors != 0; }
 };
 
 } // namespace cps

@@ -114,12 +114,6 @@ Value *StringHandler::emitRight(Value *Str, Value *Len) {
 
 Value *StringHandler::emitLeft(Value *Str, Value *Len) {
     Value *FullLen = emitLength(Str);
-    if (Len->getType()->isIntegerTy() && Len->getType()->getIntegerBitWidth() != 64) {
-        Len = Builder.CreateSExt(Len, Type::getInt64Ty(Context), "len_ext");
-    } 
-    else if (Len->getType()->isDoubleTy()) {
-        Len = Builder.CreateFPToSI(Len, Type::getInt64Ty(Context), "len_int");
-    }
 
     Value *Zero = ConstantInt::get(Context, APInt(64, 0));
     Value *IsNeg = Builder.CreateICmpSLT(Len, Zero);

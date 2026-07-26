@@ -3,12 +3,23 @@
 #include "cps/Lexer.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Verifier.h"
+#include <cstdarg>
 #include <cstdio>
 
 using namespace llvm;
 using namespace cps;
 
 CodeGen::~CodeGen() = default;
+
+void CodeGen::reportError(const char *Fmt, ...) {
+    va_list Args;
+    va_start(Args, Fmt);
+    fprintf(stderr, "Error: ");
+    vfprintf(stderr, Fmt, Args);
+    fprintf(stderr, "\n");
+    va_end(Args);
+    HadError = true;
+}
 
 CodeGen::CodeGen() {
     TheContext = std::make_unique<LLVMContext>();
@@ -31,12 +42,13 @@ CodeGen::CodeGen() {
                                             *Builder,
                                             *Types,
                                             NamedValues,
-                                            Symbols);
+                                            Symbols,
+                                            HadError);
 
     IntHandler = std::make_unique<IntegerHandler>(*TheContext, *Builder, *TheModule, NamedValues);
     RealHelper = std::make_unique<RealHandler>(*TheContext, *Builder, *TheModule, NamedValues);
     BoolHandler = std::make_unique<BooleanHandler>(*TheContext, *Builder, *TheModule, NamedValues);
-    ArithHandler = std::make_unique<ArithmeticHandler>(*TheContext, *Builder);
+    ArithHandler = std::make_unique<ArithmeticHandler>(*TheContext, *Builder, HadError);
     StrHandler = std::make_unique<StringHandler>(*TheContext, *Builder, *TheModule, NamedValues);
     ChrHandler = std::make_unique<CharHandler>(*TheContext, *Builder, *TheModule);
     StrConvHandler = std::make_unique<StringConversionHandler>(*TheContext, *Builder, *TheModule);
@@ -282,8 +294,7 @@ Value *CodeGen::coerceValueToType(Value *Val, const TypeInfo *TargetInfo) {
             break;
     }
 
-    fprintf(stderr,
-            "Error: Cannot coerce value of LLVM type to target type %s\n",
+    reportError("Cannot coerce value of LLVM type to target type %s",
             TargetInfo->Name.c_str());
     return nullptr;
 }
@@ -291,7 +302,7 @@ Value *CodeGen::coerceValueToType(Value *Val, const TypeInfo *TargetInfo) {
 void CodeGen::emitDeclareStmt(DeclareStmtAST *Stmt) {
     const TypeInfo *Info = resolveType(Stmt->getType());
     if (!Info || !Info->LLVMType || Info->isVoid()) {
-        fprintf(stderr, "Error: Unknown type %s\n", Stmt->getType().c_str());
+        reportError("Unknown type %s", Stmt->getType().c_str());
         return;
     }
 
@@ -315,7 +326,7 @@ void CodeGen::emitDeclareStmt(DeclareStmtAST *Stmt) {
 void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewline) {
     if (!Val || !Info) return;
     if (!Info->Printable && Info->Kind == TypeKind::Custom) {
-        fprintf(stderr, "Error: OUTPUT for custom type %s is not implemented yet\n", Info->Name.c_str());
+        reportError("OUTPUT for custom type %s is not implemented yet", Info->Name.c_str());
         return;
     }
 
@@ -382,7 +393,9 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
         Builder->CreateRet(ConstantInt::get(*TheContext, APInt(32, 0)));
     }
 
-    verifyFunction(*F);
+    if (verifyModule(*TheModule, &errs())) {
+        HadError = true;
+    }
 }
 
 void CodeGen::print() {
@@ -415,7 +428,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
     if (auto *Var = dynamic_cast<VariableExprAST*>(Expr)) {
         const SymbolInfo *Info = getSymbolInfo(Var->getName());
         if (!Info) {
-            fprintf(stderr, "Error: Unknown variable name %s\n", Var->getName().c_str());
+            reportError("Unknown variable name %s", Var->getName().c_str());
             return nullptr;
         }
         if (Info->IsArray) {
@@ -424,7 +437,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
 
         const TypeInfo *TypeInfo = resolveType(Info->TypeName);
         if (!TypeInfo || !TypeInfo->LLVMType) {
-            fprintf(stderr, "Error: Unknown type for variable %s\n", Var->getName().c_str());
+            reportError("Unknown type for variable %s", Var->getName().c_str());
             return nullptr;
         }
 
@@ -462,35 +475,41 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
     if (auto *Call = dynamic_cast<CallExprAST*>(Expr)) {
         std::string Name = Call->getCallee();
         if (Name == "LENGTH") {
-            if (Call->getArgs().size() != 1) { fprintf(stderr, "LENGTH expects 1 arg\n"); return nullptr; }
+            if (Call->getArgs().size() != 1) { reportError("LENGTH expects 1 arg"); return nullptr; }
             return StrHandler->emitLength(emitExpr(Call->getArgs()[0].get()));
         }
         if (Name == "MID") {
-            if (Call->getArgs().size() != 3) { fprintf(stderr, "MID expects 3 args\n"); return nullptr; }
-            return StrHandler->emitMid(emitExpr(Call->getArgs()[0].get()),
-                                       emitExpr(Call->getArgs()[1].get()),
-                                       emitExpr(Call->getArgs()[2].get()));
+            if (Call->getArgs().size() != 3) { reportError("MID expects 3 args"); return nullptr; }
+            Value *Str = emitExpr(Call->getArgs()[0].get());
+            Value *Start = coerceValueToType(emitExpr(Call->getArgs()[1].get()), resolveType("INTEGER"));
+            Value *Len = coerceValueToType(emitExpr(Call->getArgs()[2].get()), resolveType("INTEGER"));
+            if (!Str || !Start || !Len) return nullptr;
+            return StrHandler->emitMid(Str, Start, Len);
         }
         if (Name == "RIGHT") {
-            if (Call->getArgs().size() != 2) { fprintf(stderr, "RIGHT expects 2 args\n"); return nullptr; }
-            return StrHandler->emitRight(emitExpr(Call->getArgs()[0].get()),
-                                         emitExpr(Call->getArgs()[1].get()));
+            if (Call->getArgs().size() != 2) { reportError("RIGHT expects 2 args"); return nullptr; }
+            Value *Str = emitExpr(Call->getArgs()[0].get());
+            Value *Len = coerceValueToType(emitExpr(Call->getArgs()[1].get()), resolveType("INTEGER"));
+            if (!Str || !Len) return nullptr;
+            return StrHandler->emitRight(Str, Len);
         }
         if (Name == "LEFT") {
-            if (Call->getArgs().size() != 2) { fprintf(stderr, "LEFT expects 2 args\n"); return nullptr; }
-            return StrHandler->emitLeft(emitExpr(Call->getArgs()[0].get()),
-                                        emitExpr(Call->getArgs()[1].get()));
+            if (Call->getArgs().size() != 2) { reportError("LEFT expects 2 args"); return nullptr; }
+            Value *Str = emitExpr(Call->getArgs()[0].get());
+            Value *Len = coerceValueToType(emitExpr(Call->getArgs()[1].get()), resolveType("INTEGER"));
+            if (!Str || !Len) return nullptr;
+            return StrHandler->emitLeft(Str, Len);
         }
         if (Name == "LCASE") {
-            if (Call->getArgs().size() != 1) { fprintf(stderr, "LCASE expects 1 arg\n"); return nullptr; }
+            if (Call->getArgs().size() != 1) { reportError("LCASE expects 1 arg"); return nullptr; }
             return StrHandler->emitLCase(emitExpr(Call->getArgs()[0].get()));
         }
         if (Name == "UCASE") {
-            if (Call->getArgs().size() != 1) { fprintf(stderr, "UCASE expects 1 arg\n"); return nullptr; }
+            if (Call->getArgs().size() != 1) { reportError("UCASE expects 1 arg"); return nullptr; }
             return StrHandler->emitUCase(emitExpr(Call->getArgs()[0].get()));
         }
         if (Name == "ASC") {
-            if (Call->getArgs().size() != 1) return nullptr;
+            if (Call->getArgs().size() != 1) { reportError("ASC expects 1 arg"); return nullptr; }
             Value *ArgVal = emitExpr(Call->getArgs()[0].get());
             const TypeInfo *ArgType = getExprTypeInfo(Call->getArgs()[0].get());
             Value *CharVal = nullptr;
@@ -503,7 +522,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return coerceValueToType(AscVal, resolveType("INTEGER"));
         }
         if (Name == "CHR") {
-            if (Call->getArgs().size() != 1) return nullptr;
+            if (Call->getArgs().size() != 1) { reportError("CHR expects 1 arg"); return nullptr; }
             Value *IntVal = coerceValueToType(emitExpr(Call->getArgs()[0].get()), resolveType("INTEGER"));
             Value *CharVal = ChrHandler->emitChr(IntVal);
             Function *MallocF = TheModule->getFunction("malloc");
@@ -516,11 +535,11 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return Mem;
         }
         if (Name == "IS_NUM") {
-            if (Call->getArgs().size() != 1) return nullptr;
+            if (Call->getArgs().size() != 1) { reportError("IS_NUM expects 1 arg"); return nullptr; }
             return StrConvHandler->emitIsNum(emitExpr(Call->getArgs()[0].get()));
         }
         if (Name == "NUM_TO_STR") {
-            if (Call->getArgs().size() != 1) return nullptr;
+            if (Call->getArgs().size() != 1) { reportError("NUM_TO_STR expects 1 arg"); return nullptr; }
             Value *NumV = emitExpr(Call->getArgs()[0].get());
             bool IsReal = NumV->getType()->isDoubleTy();
             if (NumV->getType()->isIntegerTy(8)) {
@@ -529,7 +548,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return StrConvHandler->emitNumToStr(NumV, IsReal);
         }
         if (Name == "STR_TO_NUM") {
-            if (Call->getArgs().size() != 1) return nullptr;
+            if (Call->getArgs().size() != 1) { reportError("STR_TO_NUM expects 1 arg"); return nullptr; }
             return StrConvHandler->emitStrToNum(emitExpr(Call->getArgs()[0].get()), true);
         }
 
@@ -550,12 +569,12 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
                 if (auto *Var = dynamic_cast<VariableExprAST*>(ArgExpr)) {
                     Value *Ptr = getNamedValue(Var->getName());
                     if (!Ptr) {
-                        fprintf(stderr, "Error: Unknown variable %s in BYREF call\n", Var->getName().c_str());
+                        reportError("Unknown variable %s in BYREF call", Var->getName().c_str());
                         return nullptr;
                     }
                     Args.push_back(Ptr);
                 } else {
-                    fprintf(stderr, "Error: BYREF argument must be a variable.\n");
+                    reportError("BYREF argument must be a variable.");
                     return nullptr;
                 }
             } else {
@@ -647,11 +666,11 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
 
     const SymbolInfo *Symbol = getSymbolInfo(VarName);
     if (!Symbol) {
-        fprintf(stderr, "Error: Unknown variable in FOR loop %s\n", VarName.c_str());
+        reportError("Unknown variable in FOR loop %s", VarName.c_str());
         return;
     }
     if (Symbol->TypeName != "INTEGER") {
-        fprintf(stderr, "Error: FOR loop variable %s must be INTEGER\n", VarName.c_str());
+        reportError("FOR loop variable %s must be INTEGER", VarName.c_str());
         return;
     }
 
@@ -673,16 +692,21 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
     Value *EndVal = coerceValueToType(emitExpr(Stmt->getEnd()), resolveType("INTEGER"));
     if (!EndVal) return;
 
-    bool IsNegativeStep = false;
+    Value *StepVal = nullptr;
     if (Stmt->getStep()) {
-        if (auto *Num = dynamic_cast<IntegerExprAST*>(Stmt->getStep())) {
-            if (Num->getVal() < 0) IsNegativeStep = true;
-        }
+        StepVal = coerceValueToType(emitExpr(Stmt->getStep()), resolveType("INTEGER"));
+        if (!StepVal) return;
+    } else {
+        StepVal = ConstantInt::get(*TheContext, APInt(64, 1));
     }
 
-    Value *CondV = IsNegativeStep
-        ? Builder->CreateICmpSGE(CurVar, EndVal, "forcond_ge")
-        : Builder->CreateICmpSLE(CurVar, EndVal, "forcond_le");
+    // The loop direction depends on the STEP value at run time.
+    Value *StepNonNeg = Builder->CreateICmpSGE(StepVal,
+                                               ConstantInt::get(*TheContext, APInt(64, 0)),
+                                               "step_nonneg");
+    Value *CondUp = Builder->CreateICmpSLE(CurVar, EndVal, "forcond_le");
+    Value *CondDown = Builder->CreateICmpSGE(CurVar, EndVal, "forcond_ge");
+    Value *CondV = Builder->CreateSelect(StepNonNeg, CondUp, CondDown, "forcond");
 
     Builder->CreateCondBr(CondV, LoopBB, AfterBB);
 
@@ -692,13 +716,6 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
         Builder->CreateBr(IncBB);
 
     Builder->SetInsertPoint(IncBB);
-    Value *StepVal = nullptr;
-    if (Stmt->getStep()) {
-        StepVal = coerceValueToType(emitExpr(Stmt->getStep()), resolveType("INTEGER"));
-    } else {
-        StepVal = ConstantInt::get(*TheContext, APInt(64, 1));
-    }
-
     Value *CurValForInc = Builder->CreateLoad(Type::getInt64Ty(*TheContext), Alloca, VarName.c_str());
     Value *NextVal = Builder->CreateAdd(CurValForInc, StepVal, "nextval");
     Builder->CreateStore(NextVal, Alloca);
@@ -749,12 +766,12 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
                 if (auto *Var = dynamic_cast<VariableExprAST*>(ArgExpr)) {
                     Value *Ptr = getNamedValue(Var->getName());
                     if (!Ptr) {
-                        fprintf(stderr, "Error: Unknown variable %s in BYREF call\n", Var->getName().c_str());
+                        reportError("Unknown variable %s in BYREF call", Var->getName().c_str());
                         return;
                     }
                     Args.push_back(Ptr);
                 } else {
-                    fprintf(stderr, "Error: BYREF argument must be a variable.\n");
+                    reportError("BYREF argument must be a variable.");
                     return;
                 }
             } else {
@@ -782,11 +799,11 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     if (auto *Assign = dynamic_cast<AssignStmtAST*>(Stmt)) {
         const SymbolInfo *Info = getSymbolInfo(Assign->getName());
         if (!Info) {
-            fprintf(stderr, "Error: Unknown variable name %s\n", Assign->getName().c_str());
+            reportError("Unknown variable name %s", Assign->getName().c_str());
             return;
         }
         if (Info->IsArray) {
-            fprintf(stderr, "Error: Cannot assign array %s without indices\n", Assign->getName().c_str());
+            reportError("Cannot assign array %s without indices", Assign->getName().c_str());
             return;
         }
 
@@ -802,17 +819,17 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     if (auto *In = dynamic_cast<InputStmtAST*>(Stmt)) {
         const SymbolInfo *Info = getSymbolInfo(In->getName());
         if (!Info) {
-            fprintf(stderr, "Error: Unknown variable name %s\n", In->getName().c_str());
+            reportError("Unknown variable name %s", In->getName().c_str());
             return;
         }
         if (Info->IsArray) {
-            fprintf(stderr, "Error: INPUT for entire array %s is not supported\n", In->getName().c_str());
+            reportError("INPUT for entire array %s is not supported", In->getName().c_str());
             return;
         }
 
         const TypeInfo *TypeInfo = resolveType(Info->TypeName);
         if (!TypeInfo) {
-            fprintf(stderr, "Error: Unknown type for INPUT %s\n", In->getName().c_str());
+            reportError("Unknown type for INPUT %s", In->getName().c_str());
             return;
         }
 
