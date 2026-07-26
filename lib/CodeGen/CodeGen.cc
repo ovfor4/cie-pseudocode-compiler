@@ -1017,21 +1017,23 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     if (auto *Ret = dynamic_cast<ReturnStmtAST*>(Stmt)) {
         Function *F = Builder->GetInsertBlock()->getParent();
         const FuncSig *Sig = FuncGen->getSignature(F->getName().str());
-        if (Sig && Sig->ReturnTypeName == "VOID" && Ret->getRetVal()) {
+        // Pseudocode cannot name a function "main" (reserved runtime symbol),
+        // so no signature means we are emitting the top level.
+        if (!Sig) {
+            reportError("RETURN is only allowed inside a FUNCTION or PROCEDURE");
+            return;
+        }
+        if (Sig->ReturnTypeName == "VOID" && Ret->getRetVal()) {
             reportError("RETURN with a value is only allowed in a FUNCTION");
             return;
         }
-        if (Sig && Sig->ReturnTypeName != "VOID" && !Ret->getRetVal()) {
+        if (Sig->ReturnTypeName != "VOID" && !Ret->getRetVal()) {
             reportError("RETURN in a FUNCTION requires a value");
             return;
         }
         Value *RetVal = nullptr;
         if (Ret->getRetVal()) {
-            if (Sig) {
-                RetVal = emitCoercedExpr(Ret->getRetVal(), resolveType(Sig->ReturnTypeName));
-            } else {
-                RetVal = emitExpr(Ret->getRetVal());
-            }
+            RetVal = emitCoercedExpr(Ret->getRetVal(), resolveType(Sig->ReturnTypeName));
             if (!RetVal) return;
         }
         FuncGen->emitReturn(Ret, RetVal);

@@ -57,6 +57,14 @@ std::unique_ptr<StmtAST> Parser::ParseReadFile() {
     std::string VarName = Lex.IdentifierStr;
     getNextToken(); // eat the variable name
 
+    if (CurTok == '[' || CurTok == '.' || CurTok == '^') {
+        // Consume the whole designator so it cannot replay as statements.
+        std::vector<DesignatorAccess> Dummy;
+        ParseDesignatorSuffix(Dummy);
+        fprintf(stderr, "Error: READFILE target must be a plain STRING variable at line %d\n", Line);
+        return nullptr;
+    }
+
     return std::make_unique<ReadFileStmtAST>(std::move(FileName), VarName, Line);
 }
 
