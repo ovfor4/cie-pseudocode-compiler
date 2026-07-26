@@ -20,8 +20,7 @@ test programs.
   bits.
 - **`getExprTypeInfo` returns nullptr** for expressions it can't classify (null-check it
   at any new call site) and internally defaults to INTEGER for arithmetic binaries and
-  unknown-function calls; OUTPUT substitutes INTEGER for a nullptr result — so wrong
-  inference prints garbage instead of erroring.
+  unknown-function calls; OUTPUT reports an error for a nullptr result.
 - The lexer emits no newline tokens; the grammar is purely keyword-delimited. Bare
   `RETURN` is only recognized right before ENDIF/ELSE/ENDFUNCTION/ENDPROCEDURE.
 - Invalid modules still print their IR, but `verifyModule` runs at the end of

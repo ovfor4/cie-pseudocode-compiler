@@ -41,7 +41,15 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<std::tupl
     }
 }
 
+const FuncSig *FunctionGen::getSignature(const std::string &Name) const {
+    auto It = Signatures.find(Name);
+    return It == Signatures.end() ? nullptr : &It->second;
+}
+
 Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
+    FuncSig Sig;
+    Sig.ReturnTypeName = Proto->getReturnType();
+
     std::vector<Type*> ArgTypes;
     for (const auto &Arg : Proto->getArgs()) {
         Type *T = getLLVMType(std::get<1>(Arg));
@@ -49,7 +57,9 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
             T = T->getPointerTo();
         }
         ArgTypes.push_back(T);
+        Sig.Params.emplace_back(std::get<1>(Arg), std::get<2>(Arg));
     }
+    Signatures[Proto->getName()] = std::move(Sig);
 
     Type *RetType = getLLVMType(Proto->getReturnType());
     FunctionType *FT = FunctionType::get(RetType, ArgTypes, false);
@@ -112,20 +122,12 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
 
 static Value *GenerateCall(llvm::Module &Module,
                            llvm::IRBuilder<> &Builder,
-                           llvm::LLVMContext &Context,
                            const std::string &CalleeName,
                            const std::vector<llvm::Value*> &Args,
                            bool &HadError) {
     Function *CalleeF = Module.getFunction(CalleeName);
     if (!CalleeF) {
-        std::vector<Type*> ArgTypes;
-        for (auto *Val : Args) ArgTypes.push_back(Val->getType());
-        FunctionType *FT = FunctionType::get(Type::getInt64Ty(Context), ArgTypes, false);
-        CalleeF = Function::Create(FT, Function::ExternalLinkage, CalleeName, &Module);
-    }
-
-    if (CalleeF->arg_size() != Args.size()) {
-        fprintf(stderr, "Error: Incorrect # arguments passed to %s\n", CalleeName.c_str());
+        fprintf(stderr, "Error: Call to undefined function %s\n", CalleeName.c_str());
         HadError = true;
         return nullptr;
     }
@@ -138,11 +140,11 @@ static Value *GenerateCall(llvm::Module &Module,
 }
 
 llvm::Value *FunctionGen::emitCallExpr(CallExprAST *Call, const std::vector<llvm::Value*> &Args) {
-    return GenerateCall(Module, Builder, Context, Call->getCallee(), Args, HadError);
+    return GenerateCall(Module, Builder, Call->getCallee(), Args, HadError);
 }
 
 void FunctionGen::emitCallStmt(CallStmtAST *Call, const std::vector<llvm::Value*> &Args) {
-    GenerateCall(Module, Builder, Context, Call->getCallee(), Args, HadError);
+    GenerateCall(Module, Builder, Call->getCallee(), Args, HadError);
 }
 
 void FunctionGen::emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal) {

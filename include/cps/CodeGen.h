@@ -69,6 +69,9 @@ class CodeGen {
     const SymbolInfo *getSymbolInfo(const std::string &Name) const;
     const TypeInfo *getExprTypeInfo(ExprAST *Expr) const;
     llvm::Value *coerceValueToType(llvm::Value *Val, const TypeInfo *TargetInfo);
+    bool marshalCallArgs(const std::string &Callee,
+                         const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
+                         std::vector<llvm::Value*> &Out);
     void emitDeclareStmt(DeclareStmtAST *Stmt);
     void emitOutputValue(llvm::Value *Val, const TypeInfo *TypeInfo, bool AppendNewline = true);
 

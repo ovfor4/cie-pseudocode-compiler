@@ -58,16 +58,15 @@ non-zero when any flag is set. The parser still drops a failed statement, skips 
 token, and continues — later statements can be swallowed during recovery, but the
 failure is always diagnosed and reflected in the exit code.
 
-**BYREF is a pointer-typed parameter, inferred structurally at call sites.**
-`FunctionGen` emits pointer params for BYREF; call sites (in CodeGen, duplicated for
-call-expr and call-stmt) treat *any* pointer-typed callee param as BYREF and require the
-argument to be a bare variable whose alloca is passed. The callee side, however, binds
-by the *declared* flag. Since STRING itself lowers to `ptr`, the two sides disagree for
-STRING: the caller always passes the alloca, but a declared-BYVAL STRING param (the
-default) copies that alloca *address* and treats it as the string data pointer — reading
-garbage at runtime. Only declared-BYREF STRING parameters work, and STRING arguments can
-never be literals/expressions. Function names get no mangling — a pseudocode
-`FUNCTION printf` collides with libc.
+**Calls dispatch on the declared signature.** `FunctionGen::emitPrototype` records every
+function's pseudocode signature (`FuncSig`: return type name + per-param type name and
+BYREF flag); `CodeGen::marshalCallArgs` — the single call-marshalling path for both
+call-expr and call-stmt — requires BYREF arguments to be bare variables (their alloca is
+passed) and coerces BYVAL arguments to the declared parameter type. STRING works on both
+sides in both modes. Top-level prototypes are pre-registered before statement emission,
+so call-before-definition is fine; a call with no registered signature is a compile
+error. Function names get no mangling — a pseudocode `FUNCTION printf` collides with
+libc.
 
 **Builtins are plain identifiers backed by one table.** All 11 builtins
 (LENGTH/MID/RIGHT/LEFT/LCASE/UCASE/ASC/CHR/IS_NUM/NUM_TO_STR/STR_TO_NUM) parse as

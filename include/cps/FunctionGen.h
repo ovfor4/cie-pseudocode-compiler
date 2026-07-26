@@ -11,6 +11,14 @@
 
 namespace cps {
 
+// Pseudocode-level signature of a FUNCTION/PROCEDURE, kept so call sites can
+// dispatch on declared parameter types and BYREF flags instead of inferring
+// them back from LLVM types.
+struct FuncSig {
+    std::string ReturnTypeName;
+    std::vector<std::pair<std::string, bool>> Params; // (TypeName, IsByRef)
+};
+
 class FunctionGen {
     llvm::LLVMContext &Context;
     llvm::Module &Module;
@@ -20,6 +28,8 @@ class FunctionGen {
     std::map<std::string, llvm::Value*> &NamedValues;
     std::map<std::string, SymbolInfo> &Symbols;
     bool &HadError;
+
+    std::map<std::string, FuncSig> Signatures;
 
     void createArgumentAllocas(llvm::Function *F, const std::vector<std::tuple<std::string, std::string, bool>> &Args);
 
@@ -34,6 +44,8 @@ public:
         : Context(C), Module(M), Builder(B), Types(TS), NamedValues(NV), Symbols(Sym), HadError(HadErrorFlag) {}
 
     llvm::Type *getLLVMType(const std::string &TypeName);
+
+    const FuncSig *getSignature(const std::string &Name) const;
 
     llvm::Function *emitPrototype(PrototypeAST *Proto);
 

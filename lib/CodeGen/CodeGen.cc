@@ -211,6 +211,9 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
         if (const BuiltinInfo *B = findBuiltin(Name)) {
             return resolveType(B->ReturnTypeName);
         }
+        if (const FuncSig *Sig = FuncGen->getSignature(Name)) {
+            return resolveType(Sig->ReturnTypeName);
+        }
 
         Function *CalleeF = TheModule->getFunction(Name);
         if (!CalleeF) return resolveType("INTEGER");
@@ -416,6 +419,14 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
     BasicBlock *BB = BasicBlock::Create(*TheContext, "entry", F);
     Builder->SetInsertPoint(BB);
 
+    // Pre-register every top-level FUNCTION/PROCEDURE prototype so calls may
+    // precede definitions.
+    for (const auto &Stmt : Statements) {
+        if (auto *FuncDef = dynamic_cast<FunctionDefAST*>(Stmt.get())) {
+            FuncGen->emitPrototype(FuncDef->getProto());
+        }
+    }
+
     for (const auto &Stmt : Statements) {
         emitStmt(Stmt.get());
     }
@@ -578,39 +589,54 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return StrConvHandler->emitStrToNum(emitExpr(Call->getArgs()[0].get()), true);
         }
 
-        Function *CalleeF = TheModule->getFunction(Call->getCallee());
         std::vector<Value*> Args;
-
-        for (unsigned i = 0; i < Call->getArgs().size(); ++i) {
-            ExprAST *ArgExpr = Call->getArgs()[i].get();
-            bool IsByRef = false;
-
-            if (CalleeF && i < CalleeF->arg_size()) {
-                if (CalleeF->getArg(i)->getType()->isPointerTy()) {
-                    IsByRef = true;
-                }
-            }
-
-            if (IsByRef) {
-                if (auto *Var = dynamic_cast<VariableExprAST*>(ArgExpr)) {
-                    Value *Ptr = getNamedValue(Var->getName());
-                    if (!Ptr) {
-                        reportError("Unknown variable %s in BYREF call", Var->getName().c_str());
-                        return nullptr;
-                    }
-                    Args.push_back(Ptr);
-                } else {
-                    reportError("BYREF argument must be a variable.");
-                    return nullptr;
-                }
-            } else {
-                Args.push_back(emitExpr(ArgExpr));
-            }
-        }
+        if (!marshalCallArgs(Name, Call->getArgs(), Args)) return nullptr;
         return FuncGen->emitCallExpr(Call, Args);
     }
 
     return nullptr;
+}
+
+// Collects the arguments for a call to a user FUNCTION/PROCEDURE, dispatching
+// on the *declared* signature: BYREF parameters take the variable's alloca,
+// BYVAL parameters are evaluated and coerced to the declared parameter type.
+bool CodeGen::marshalCallArgs(const std::string &Callee,
+                              const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
+                              std::vector<Value*> &Out) {
+    const FuncSig *Sig = FuncGen->getSignature(Callee);
+    if (!Sig) {
+        reportError("Call to undefined function %s", Callee.c_str());
+        return false;
+    }
+    if (ArgExprs.size() != Sig->Params.size()) {
+        reportError("Incorrect # arguments passed to %s", Callee.c_str());
+        return false;
+    }
+
+    for (size_t i = 0; i < ArgExprs.size(); ++i) {
+        const std::string &TypeName = Sig->Params[i].first;
+        bool IsByRef = Sig->Params[i].second;
+        ExprAST *ArgExpr = ArgExprs[i].get();
+
+        if (IsByRef) {
+            auto *Var = dynamic_cast<VariableExprAST*>(ArgExpr);
+            if (!Var) {
+                reportError("BYREF argument to %s must be a variable", Callee.c_str());
+                return false;
+            }
+            Value *Ptr = getNamedValue(Var->getName());
+            if (!Ptr) {
+                reportError("Unknown variable %s in BYREF call", Var->getName().c_str());
+                return false;
+            }
+            Out.push_back(Ptr);
+        } else {
+            Value *V = coerceValueToType(emitExpr(ArgExpr), resolveType(TypeName));
+            if (!V) return false;
+            Out.push_back(V);
+        }
+    }
+    return true;
 }
 
 void CodeGen::emitIfStmt(IfStmtAST *Stmt) {
@@ -775,35 +801,8 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     }
 
     if (auto *Call = dynamic_cast<CallStmtAST*>(Stmt)) {
-        Function *CalleeF = TheModule->getFunction(Call->getCallee());
         std::vector<Value*> Args;
-
-        for (unsigned i = 0; i < Call->getArgs().size(); ++i) {
-            ExprAST *ArgExpr = Call->getArgs()[i].get();
-            bool IsByRef = false;
-
-            if (CalleeF && i < CalleeF->arg_size()) {
-                if (CalleeF->getArg(i)->getType()->isPointerTy()) {
-                    IsByRef = true;
-                }
-            }
-
-            if (IsByRef) {
-                if (auto *Var = dynamic_cast<VariableExprAST*>(ArgExpr)) {
-                    Value *Ptr = getNamedValue(Var->getName());
-                    if (!Ptr) {
-                        reportError("Unknown variable %s in BYREF call", Var->getName().c_str());
-                        return;
-                    }
-                    Args.push_back(Ptr);
-                } else {
-                    reportError("BYREF argument must be a variable.");
-                    return;
-                }
-            } else {
-                Args.push_back(emitExpr(ArgExpr));
-            }
-        }
+        if (!marshalCallArgs(Call->getCallee(), Call->getArgs(), Args)) return;
         FuncGen->emitCallStmt(Call, Args);
         return;
     }
@@ -899,7 +898,10 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
 
         Value *Val = emitExpr(Out->getExpr());
         const TypeInfo *TypeInfo = getExprTypeInfo(Out->getExpr());
-        if (!TypeInfo) TypeInfo = resolveType("INTEGER");
+        if (!TypeInfo) {
+            reportError("Cannot infer the type of the OUTPUT expression");
+            return;
+        }
         emitOutputValue(Val, TypeInfo, true);
         return;
     }
