@@ -130,6 +130,11 @@ int Lexer::gettok() {
         if (IdentifierStr == "APPEND") return tok_append;
         if (IdentifierStr == "RANDOM") return tok_random;
 
+        if (IdentifierStr == "TYPE") return tok_type;
+        if (IdentifierStr == "ENDTYPE") return tok_endtype;
+        if (IdentifierStr == "SET") return tok_set;
+        if (IdentifierStr == "DEFINE") return tok_define;
+
         return tok_identifier;
     }
 

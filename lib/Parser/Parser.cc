@@ -59,17 +59,56 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
         getNextToken();
         auto Args = ParseExprList(')', true);
         if (!Args) return nullptr;
+        if (CurTok == '[' || CurTok == '.' || CurTok == '^') {
+            fprintf(stderr, "Error: record/array/pointer access on a function result is not supported at line %d\n",
+                    Lex.getLine());
+            return nullptr;
+        }
         return std::make_unique<CallExprAST>(IdName, std::move(*Args), Line);
     }
 
-    if (CurTok == '[') {
-        getNextToken();
-        auto Indices = ParseExprList(']', false);
-        if (!Indices) return nullptr;
-        return std::make_unique<ArrayAccessExprAST>(IdName, std::move(*Indices), Line);
-    }
+    std::vector<DesignatorAccess> Accesses;
+    if (!ParseDesignatorSuffix(Accesses)) return nullptr;
 
-    return std::make_unique<VariableExprAST>(IdName);
+    // Degrade rule: shapes that existed before designators keep their nodes.
+    if (Accesses.empty())
+        return std::make_unique<VariableExprAST>(IdName);
+    if (Accesses.size() == 1 && Accesses[0].Kind == AccessKind::Index)
+        return std::make_unique<ArrayAccessExprAST>(IdName, std::move(Accesses[0].Indices), Line);
+    return std::make_unique<DesignatorExprAST>(IdName, std::move(Accesses), Line);
+}
+
+// Postfix accessor chain after an identifier: '[' exprs ']' | '.' IDENT | '^'
+bool Parser::ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out) {
+    while (true) {
+        if (CurTok == '[') {
+            getNextToken();
+            auto Indices = ParseExprList(']', false);
+            if (!Indices) return false;
+            DesignatorAccess A;
+            A.Kind = AccessKind::Index;
+            A.Indices = std::move(*Indices);
+            Out.push_back(std::move(A));
+        } else if (CurTok == '.') {
+            getNextToken();
+            if (CurTok != tok_identifier) {
+                fprintf(stderr, "Error: Expected field name after '.' at line %d\n", Lex.getLine());
+                return false;
+            }
+            DesignatorAccess A;
+            A.Kind = AccessKind::Field;
+            A.FieldName = Lex.IdentifierStr;
+            Out.push_back(std::move(A));
+            getNextToken();
+        } else if (CurTok == '^') {
+            getNextToken();
+            DesignatorAccess A;
+            A.Kind = AccessKind::Deref;
+            Out.push_back(std::move(A));
+        } else {
+            return true;
+        }
+    }
 }
 
 std::string Parser::ParseTypeName(bool AllowVoid) {
@@ -158,6 +197,27 @@ std::unique_ptr<ExprAST> Parser::ParseUnary() {
         return std::make_unique<UnaryExprAST>(tok_not, std::move(Operand));
     }
 
+    // ^<designator> — address-of; the operand must be an lvalue shape.
+    if (CurTok == '^') {
+        int Line = Lex.getLine();
+        getNextToken();
+        if (CurTok != tok_identifier) {
+            fprintf(stderr, "Error: '^' (address-of) requires a variable, array element or record field at line %d\n",
+                    Line);
+            return nullptr;
+        }
+        std::string BaseName = Lex.IdentifierStr;
+        getNextToken();
+        if (CurTok == '(') {
+            fprintf(stderr, "Error: cannot take the address of a function result at line %d\n", Line);
+            return nullptr;
+        }
+        std::vector<DesignatorAccess> Accesses;
+        if (!ParseDesignatorSuffix(Accesses)) return nullptr;
+        auto Target = std::make_unique<DesignatorExprAST>(BaseName, std::move(Accesses), Line);
+        return std::make_unique<AddrOfExprAST>(std::move(Target));
+    }
+
     if (CurTok == '-') {
         int Line = Lex.getLine();
         getNextToken();
@@ -214,6 +274,7 @@ void Parser::syncToStatementStart() {
         case tok_else: case tok_endif: case tok_endwhile: case tok_until:
         case tok_next: case tok_endfunction: case tok_endprocedure:
         case tok_openfile: case tok_readfile: case tok_writefile: case tok_closefile:
+        case tok_type: case tok_define: case tok_endtype:
             return;
         default:
             getNextToken();
@@ -229,6 +290,7 @@ std::vector<std::unique_ptr<StmtAST>> Parser::ParseBlock(std::initializer_list<i
         return false;
     };
 
+    ++BlockDepth; // 1 = top level (Parse() calls ParseBlock({}))
     std::vector<std::unique_ptr<StmtAST>> Body;
     while (!AtTerminator() && CurTok != tok_eof) {
         if (auto Stmt = ParseStatement()) {
@@ -237,6 +299,7 @@ std::vector<std::unique_ptr<StmtAST>> Parser::ParseBlock(std::initializer_list<i
             syncToStatementStart();
         }
     }
+    --BlockDepth;
     return Body;
 }
 
@@ -470,33 +533,7 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
         return ParseDeclare();
     }
     else if (CurTok == tok_identifier) {
-        std::string Name = Lex.IdentifierStr;
-        int Line = Lex.getLine();
-        getNextToken();
-        
-        if (CurTok == '[') {
-            getNextToken();
-            auto Indices = ParseExprList(']', false);
-            if (!Indices) return nullptr;
-
-            if (CurTok != tok_assign) {
-                fprintf(stderr, "Error: Expected '<-' after array access in assignment\n");
-                return nullptr;
-            }
-            getNextToken();
-            auto Expr = ParseExpression();
-            if (!Expr) return nullptr;
-            return std::make_unique<ArrayAssignStmtAST>(Name, std::move(*Indices), std::move(Expr), Line);
-        }
-        
-        if (CurTok != tok_assign) {
-            fprintf(stderr, "Error: Expected '<-' after identifier '%s' at line %d\n", Name.c_str(), Line);
-            return nullptr;
-        }
-        getNextToken();
-        auto Expr = ParseExpression();
-        if (!Expr) return nullptr;
-        return std::make_unique<AssignStmtAST>(Name, std::move(Expr));
+        return ParseAssignStmt();
     }
     else if (CurTok == tok_input) {
         getNextToken();
@@ -550,8 +587,49 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     else if (CurTok == tok_closefile) {
         return ParseCloseFile();
     }
+    else if (CurTok == tok_type) {
+        return ParseTypeDecl();
+    }
+    else if (CurTok == tok_define) {
+        fprintf(stderr, "Error: DEFINE (SET literals) is not implemented at line %d\n", Lex.getLine());
+        getNextToken();
+        return nullptr;
+    }
+    else if (CurTok == tok_endtype) {
+        fprintf(stderr, "Error: ENDTYPE without matching TYPE at line %d\n", Lex.getLine());
+        getNextToken();
+        return nullptr;
+    }
 
     fprintf(stderr, "Error: Unexpected token at line %d when expecting a statement\n", Lex.getLine());
     getNextToken(); // guarantee progress so error recovery cannot loop forever
     return nullptr;
+}
+
+// <designator> <- <expr>
+// Bare-name and single-index targets degrade to their legacy nodes so the
+// existing assignment code paths stay untouched.
+std::unique_ptr<StmtAST> Parser::ParseAssignStmt() {
+    std::string Name = Lex.IdentifierStr;
+    int Line = Lex.getLine();
+    getNextToken();
+
+    std::vector<DesignatorAccess> Accesses;
+    if (!ParseDesignatorSuffix(Accesses)) return nullptr;
+
+    if (CurTok != tok_assign) {
+        fprintf(stderr, "Error: Expected '<-' after identifier '%s' at line %d\n", Name.c_str(), Line);
+        return nullptr;
+    }
+    getNextToken();
+    auto Expr = ParseExpression();
+    if (!Expr) return nullptr;
+
+    if (Accesses.empty())
+        return std::make_unique<AssignStmtAST>(Name, std::move(Expr));
+    if (Accesses.size() == 1 && Accesses[0].Kind == AccessKind::Index)
+        return std::make_unique<ArrayAssignStmtAST>(Name, std::move(Accesses[0].Indices), std::move(Expr), Line);
+
+    auto Target = std::make_unique<DesignatorExprAST>(Name, std::move(Accesses), Line);
+    return std::make_unique<DesignatorAssignStmtAST>(std::move(Target), std::move(Expr));
 }

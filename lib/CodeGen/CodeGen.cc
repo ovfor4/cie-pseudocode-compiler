@@ -3,6 +3,7 @@
 #include "cps/FileAST.h"
 #include "cps/FileHandler.h"
 #include "cps/Lexer.h"
+#include "cps/TypeAST.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Verifier.h"
 #include <cstdarg>
@@ -619,6 +620,12 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         return FuncGen->emitCallExpr(Call, Args);
     }
 
+    // TYPE-system stubs: parsed but not yet wired (phases C/D/E of the TYPE work).
+    if (dynamic_cast<DesignatorExprAST*>(Expr) || dynamic_cast<AddrOfExprAST*>(Expr)) {
+        reportError("Record field / pointer expressions are not implemented yet");
+        return nullptr;
+    }
+
     return nullptr;
 }
 
@@ -1037,6 +1044,17 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     }
     if (auto *ForStmt = dynamic_cast<ForStmtAST*>(Stmt)) {
         emitForStmt(ForStmt);
+        return;
+    }
+
+    // TYPE-system stubs: parsed but not yet wired (phases C/D of the TYPE work).
+    if (dynamic_cast<EnumTypeDeclAST*>(Stmt) || dynamic_cast<PointerTypeDeclAST*>(Stmt) ||
+        dynamic_cast<RecordTypeDeclAST*>(Stmt)) {
+        reportError("TYPE declarations are not implemented yet");
+        return;
+    }
+    if (dynamic_cast<DesignatorAssignStmtAST*>(Stmt)) {
+        reportError("Assignment to record fields / pointer targets is not implemented yet");
         return;
     }
 }

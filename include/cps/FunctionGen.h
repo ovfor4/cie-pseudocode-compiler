@@ -30,7 +30,7 @@ class FunctionGen {
 
     std::map<std::string, FuncSig> Signatures;
 
-    void createArgumentAllocas(llvm::Function *F, const std::vector<std::tuple<std::string, std::string, bool>> &Args);
+    void createArgumentAllocas(llvm::Function *F, const std::vector<ParamDecl> &Params);
 
 public:
     FunctionGen(llvm::LLVMContext &C,

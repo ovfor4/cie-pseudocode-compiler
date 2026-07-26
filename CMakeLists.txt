@@ -17,6 +17,7 @@ add_library(CPSParser
     lib/Parser/Parser.cc
     lib/Parser/ParserFunction.cc
     lib/Parser/ParserFile.cc
+    lib/Parser/ParserType.cc
 )
 
 add_library(CPSCodeGen

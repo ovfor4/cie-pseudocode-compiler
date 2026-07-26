@@ -1,27 +1,43 @@
 #pragma once
 #include "cps/AST.h"
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <memory>
-#include <tuple>
+#include <utility>
 
 namespace cps {
 
+enum class PassMode : uint8_t { ByVal, ByRef };
+
+// One declared FUNCTION/PROCEDURE parameter. For array parameters TypeName
+// is the ELEMENT type; DeclaredBounds holds literal per-dimension bounds for
+// the bounded form (empty for `ARRAY OF T`, which is rank 1 with the bounds
+// travelling alongside the argument).
+struct ParamDecl {
+    std::string Name;
+    std::string TypeName;
+    PassMode Mode = PassMode::ByVal;
+    bool IsArray = false;
+    int Rank = 0; // 0 = scalar
+    std::vector<std::pair<int64_t, int64_t>> DeclaredBounds;
+};
+
 class PrototypeAST {
     std::string Name;
-    std::vector<std::tuple<std::string, std::string, bool>> Args;
+    std::vector<ParamDecl> Params;
     std::string ReturnType;
     bool IsExternal;
 
 public:
-    PrototypeAST(const std::string &Name, 
-                 std::vector<std::tuple<std::string, std::string, bool>> Args, 
+    PrototypeAST(const std::string &Name,
+                 std::vector<ParamDecl> Params,
                  const std::string &ReturnType,
                  bool IsExternal = false)
-        : Name(Name), Args(std::move(Args)), ReturnType(ReturnType), IsExternal(IsExternal) {}
+        : Name(Name), Params(std::move(Params)), ReturnType(ReturnType), IsExternal(IsExternal) {}
 
     const std::string &getName() const { return Name; }
-    const std::vector<std::tuple<std::string, std::string, bool>> &getArgs() const { return Args; }
+    const std::vector<ParamDecl> &getParams() const { return Params; }
     const std::string &getReturnType() const { return ReturnType; }
     bool isExternal() const { return IsExternal; }
 };

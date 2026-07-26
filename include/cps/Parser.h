@@ -1,12 +1,14 @@
 #pragma once
 #include "cps/Lexer.h"
 #include "cps/AST.h"
+#include "cps/TypeAST.h"
+#include "cps/FunctionAST.h"
+#include <cstdint>
 #include <vector>
 #include <initializer_list>
 #include <memory>
 #include <map>
 #include <optional>
-#include <tuple>
 #include <string>
 
 namespace cps {
@@ -15,6 +17,7 @@ class Parser {
     Lexer &Lex;
     int CurTok;
     unsigned NumErrors = 0;
+    unsigned BlockDepth = 0; // ParseBlock nesting; 1 = top level
 
     std::map<int, int> BinopPrecedence;
 
@@ -42,12 +45,18 @@ class Parser {
     std::unique_ptr<StmtAST> ParseForStmt();
     
     std::unique_ptr<StmtAST> ParseDeclare();
+    std::unique_ptr<StmtAST> ParseAssignStmt();
+    bool ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out);
+
+    std::unique_ptr<StmtAST> ParseTypeDecl();
+    bool ParseRecordField(std::vector<RecordFieldDecl> &Out);
 
     std::unique_ptr<StmtAST> ParseFunction();
     std::unique_ptr<StmtAST> ParseProcedure();
     std::unique_ptr<StmtAST> ParseCallStmt();
     std::unique_ptr<StmtAST> ParseReturnStmt();
-    std::optional<std::vector<std::tuple<std::string, std::string, bool>>> ParsePrototypeArgs();
+    std::optional<std::vector<ParamDecl>> ParsePrototypeArgs(bool AllowByRef);
+    bool ParseSignedIntBound(int64_t &Out);
 
     std::unique_ptr<StmtAST> ParseOpenFile();
     std::unique_ptr<StmtAST> ParseReadFile();

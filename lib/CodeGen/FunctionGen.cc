@@ -31,27 +31,24 @@ Type *FunctionGen::getLLVMType(const std::string &TypeName) {
     return Resolved;
 }
 
-void FunctionGen::createArgumentAllocas(Function *F, const std::vector<std::tuple<std::string, std::string, bool>> &Args) {
+void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl> &Params) {
     Function::arg_iterator AI = F->arg_begin();
-    for (unsigned Idx = 0, E = Args.size(); Idx != E; ++Idx, ++AI) {
-        std::string ArgName = std::get<0>(Args[Idx]);
-        std::string ArgTypeStr = std::get<1>(Args[Idx]);
-        bool IsRef = std::get<2>(Args[Idx]);
-
+    for (const ParamDecl &P : Params) {
         Value *ArgVal = &(*AI);
-        ArgVal->setName(ArgName);
+        ++AI;
+        ArgVal->setName(P.Name);
 
-        if (IsRef) {
-            Symbols[ArgName] = {ArgVal, ArgTypeStr, false};
+        if (P.Mode == PassMode::ByRef) {
+            Symbols[P.Name] = {ArgVal, P.TypeName, false};
             continue;
         }
 
-        Type *ArgType = getLLVMType(ArgTypeStr);
+        Type *ArgType = getLLVMType(P.TypeName);
         IRBuilder<> TmpB(&F->getEntryBlock(), F->getEntryBlock().begin());
-        AllocaInst *Alloca = TmpB.CreateAlloca(ArgType, nullptr, ArgName);
+        AllocaInst *Alloca = TmpB.CreateAlloca(ArgType, nullptr, P.Name);
 
         Builder.CreateStore(ArgVal, Alloca);
-        Symbols[ArgName] = {Alloca, ArgTypeStr, false};
+        Symbols[P.Name] = {Alloca, P.TypeName, false};
     }
 }
 
@@ -78,13 +75,19 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     Sig.ReturnTypeName = Proto->getReturnType();
 
     std::vector<Type*> ArgTypes;
-    for (const auto &Arg : Proto->getArgs()) {
-        Type *T = getLLVMType(std::get<1>(Arg));
-        if (std::get<2>(Arg)) {
+    for (const ParamDecl &P : Proto->getParams()) {
+        if (P.IsArray) {
+            fprintf(stderr, "Error: Array parameters are not implemented yet (parameter '%s' of %s)\n",
+                    P.Name.c_str(), Proto->getName().c_str());
+            HadError = true;
+            return nullptr;
+        }
+        Type *T = getLLVMType(P.TypeName);
+        if (P.Mode == PassMode::ByRef) {
             T = T->getPointerTo();
         }
         ArgTypes.push_back(T);
-        Sig.Params.emplace_back(std::get<1>(Arg), std::get<2>(Arg));
+        Sig.Params.emplace_back(P.TypeName, P.Mode == PassMode::ByRef);
     }
 
     Type *RetType = getLLVMType(Proto->getReturnType());
@@ -106,8 +109,8 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
 
     unsigned Idx = 0;
     for (auto &Arg : F->args()) {
-        if (Idx < Proto->getArgs().size()) {
-            Arg.setName(std::get<0>(Proto->getArgs()[Idx++]));
+        if (Idx < Proto->getParams().size()) {
+            Arg.setName(Proto->getParams()[Idx++].Name);
         }
     }
     return F;
@@ -131,7 +134,7 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
     std::map<std::string, SymbolInfo> OldSymbols = Symbols;
     Symbols.clear();
 
-    createArgumentAllocas(TheFunction, Proto->getArgs());
+    createArgumentAllocas(TheFunction, Proto->getParams());
 
     for (const auto &Stmt : FuncAST->getBody()) {
         StmtEmitter(Stmt.get());

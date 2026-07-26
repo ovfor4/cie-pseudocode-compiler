@@ -1,45 +1,112 @@
 #include "cps/Parser.h"
 #include "cps/FunctionAST.h"
 #include <cstdio>
-#include <tuple>
 
 using namespace cps;
 
-std::optional<std::vector<std::tuple<std::string, std::string, bool>>> Parser::ParsePrototypeArgs() {
-    std::vector<std::tuple<std::string, std::string, bool>> Args;
-    if (CurTok != '(') return Args;
+// Array-parameter bounds live in the signature, not the AST, so they must be
+// integer literals (an optional leading '-' is allowed).
+bool Parser::ParseSignedIntBound(int64_t &Out) {
+    bool Negative = false;
+    if (CurTok == '-') {
+        Negative = true;
+        getNextToken();
+    }
+    if (CurTok != tok_number_int) {
+        fprintf(stderr, "Error: Array parameter bounds must be integer literals at line %d\n",
+                Lex.getLine());
+        return false;
+    }
+    Out = Negative ? -Lex.NumVal : Lex.NumVal;
+    getNextToken();
+    return true;
+}
+
+// ( [BYREF|BYVAL] <name> : <type>
+//                | <name> : ARRAY OF <type>                 -- rank 1, bounds from the argument
+//                | <name> : ARRAY[<int>:<int>,...] OF <type> , ... )
+// The pass mode is sticky across parameters (guide §8.3: "the BYVAL or BYREF
+// keyword need not be repeated"); unannotated parameters default to BYVAL
+// (§8.1). BYREF is procedure-only (§8.3), gated by AllowByRef.
+std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef) {
+    std::vector<ParamDecl> Params;
+    if (CurTok != '(') return Params;
     getNextToken();
 
+    PassMode Current = PassMode::ByVal;
     while (CurTok != ')') {
-        bool IsRef = false;
         if (CurTok == tok_byref) {
-            IsRef = true;
+            if (!AllowByRef) {
+                fprintf(stderr, "Error: BYREF parameters are not allowed in a FUNCTION (procedures only) at line %d\n",
+                        Lex.getLine());
+                return std::nullopt;
+            }
+            Current = PassMode::ByRef;
             getNextToken();
         } else if (CurTok == tok_byval) {
-            IsRef = false;
+            Current = PassMode::ByVal;
             getNextToken();
         }
 
         if (CurTok != tok_identifier) {
-            fprintf(stderr, "Error: Expected argument name\n");
+            fprintf(stderr, "Error: Expected argument name at line %d\n", Lex.getLine());
             return std::nullopt;
         }
-        std::string Name = Lex.IdentifierStr;
+        ParamDecl P;
+        P.Name = Lex.IdentifierStr;
+        P.Mode = Current;
         getNextToken();
 
         if (CurTok != tok_colon) {
-            fprintf(stderr, "Error: Expected ':' after argument name\n");
+            fprintf(stderr, "Error: Expected ':' after argument name at line %d\n", Lex.getLine());
             return std::nullopt;
         }
         getNextToken();
 
-        std::string Type = ParseTypeName(false);
-        if (Type.empty()) {
-            fprintf(stderr, "Error: Expected argument type for '%s'\n", Name.c_str());
+        if (CurTok == tok_array) {
+            getNextToken();
+            P.IsArray = true;
+            if (CurTok == '[') {
+                getNextToken();
+                while (true) {
+                    int64_t Lo = 0, Hi = 0;
+                    if (!ParseSignedIntBound(Lo)) return std::nullopt;
+                    if (CurTok != tok_colon) {
+                        fprintf(stderr, "Error: Expected ':' between array parameter bounds at line %d\n",
+                                Lex.getLine());
+                        return std::nullopt;
+                    }
+                    getNextToken();
+                    if (!ParseSignedIntBound(Hi)) return std::nullopt;
+                    P.DeclaredBounds.emplace_back(Lo, Hi);
+                    if (CurTok == ']') break;
+                    if (CurTok != ',') {
+                        fprintf(stderr, "Error: Expected ',' or ']' in array parameter bounds at line %d\n",
+                                Lex.getLine());
+                        return std::nullopt;
+                    }
+                    getNextToken();
+                }
+                getNextToken(); // eat ']'
+                P.Rank = static_cast<int>(P.DeclaredBounds.size());
+            } else {
+                P.Rank = 1; // ARRAY OF T: bounds travel with the argument
+            }
+            if (CurTok != tok_of) {
+                fprintf(stderr, "Error: Expected OF after ARRAY in parameter '%s' at line %d\n",
+                        P.Name.c_str(), Lex.getLine());
+                return std::nullopt;
+            }
+            getNextToken();
+        }
+
+        P.TypeName = ParseTypeName(false);
+        if (P.TypeName.empty()) {
+            fprintf(stderr, "Error: Expected argument type for '%s'\n", P.Name.c_str());
             return std::nullopt;
         }
 
-        Args.emplace_back(Name, Type, IsRef);
+        Params.push_back(std::move(P));
 
         if (CurTok == ')') break;
         if (CurTok != ',') {
@@ -49,7 +116,7 @@ std::optional<std::vector<std::tuple<std::string, std::string, bool>>> Parser::P
         getNextToken();
     }
     getNextToken();
-    return Args;
+    return Params;
 }
 
 std::unique_ptr<StmtAST> Parser::ParseFunction() {
@@ -62,7 +129,7 @@ std::unique_ptr<StmtAST> Parser::ParseFunction() {
     std::string Name = Lex.IdentifierStr;
     getNextToken();
 
-    auto Args = ParsePrototypeArgs();
+    auto Args = ParsePrototypeArgs(/*AllowByRef=*/false);
     if (!Args) return nullptr;
 
     std::string RetType = "INTEGER";
@@ -98,7 +165,7 @@ std::unique_ptr<StmtAST> Parser::ParseProcedure() {
     std::string Name = Lex.IdentifierStr;
     getNextToken();
 
-    auto Args = ParsePrototypeArgs();
+    auto Args = ParsePrototypeArgs(/*AllowByRef=*/true);
     if (!Args) return nullptr;
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID");
 
