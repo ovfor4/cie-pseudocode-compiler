@@ -22,6 +22,7 @@ add_library(CPSParser
 
 add_library(CPSCodeGen
     lib/CodeGen/CodeGen.cc
+    lib/CodeGen/Designator.cc
     lib/CodeGen/ArrayHandler.cc
     lib/CodeGen/RuntimeCheck.cc
     lib/CodeGen/FunctionGen.cc

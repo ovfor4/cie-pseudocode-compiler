@@ -84,6 +84,10 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
         CG.reportError("Unknown array element type %s", Stmt->getType().c_str());
         return;
     }
+    if (Types.lookupEnumConstant(Name)) {
+        CG.reportError("'%s' is an enum value and cannot be declared as an array", Name.c_str());
+        return;
+    }
 
     std::vector<Value*> Lows;
     std::vector<Value*> Highs;
@@ -199,8 +203,7 @@ void ArrayHandler::emitArrayAssign(ArrayAssignStmtAST *Stmt, CodeGen &CG) {
                                         Stmt->getLine(), CG, ElemTypeName);
     if (!ElemPtr) return;
 
-    Value *Val = CG.emitExpr(Stmt->getExpr());
-    Val = CG.coerceValueToType(Val, Types.resolve(ElemTypeName));
+    Value *Val = CG.emitCoercedExpr(Stmt->getExpr(), Types.resolve(ElemTypeName));
     if (!Val) return;
 
     Builder->CreateStore(Val, ElemPtr);
@@ -254,6 +257,13 @@ bool ArrayHandler::tryEmitArrayOutput(ExprAST *Expr, CodeGen &CG) {
         Line = Acc->getLine();
     } else {
         return false;
+    }
+
+    const TypeInfo *ElemInfo = Types.resolve(getMetadata(Name)->ElementTypeName);
+    if (ElemInfo && !ElemInfo->isOutputtable()) {
+        CG.reportError("Cannot OUTPUT array %s of type %s; output individual fields",
+                       Name.c_str(), ElemInfo->Name.c_str());
+        return true; // diagnosed
     }
 
     std::vector<Value*> Indices;

@@ -64,6 +64,10 @@ class CodeGen {
     bool isWholeArrayVar(ExprAST *Expr) const;
     const TypeInfo *getExprTypeInfo(ExprAST *Expr) const;
     llvm::Value *coerceValueToType(llvm::Value *Val, const TypeInfo *TargetInfo);
+
+    // TYPE-system helpers (Designator.cc).
+    void runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements);
+    llvm::Value *emitUserKindBinaryOp(BinaryExprAST *Bin, const TypeInfo *LT, const TypeInfo *RT);
     bool marshalCallArgs(const std::string &Callee,
                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
                          std::vector<llvm::Value*> &Out);
@@ -90,10 +94,14 @@ public:
     // STRING slots zero-init to null; normalize null to "" at load/print sites.
     llvm::Value *emitStringNullGuard(llvm::Value *StrVal);
 
+    // Name-level admission gate for Enum/Record/Pointer plus the existing
+    // representation coercion for builtin targets. The ONLY door through
+    // which assignments, BYVAL args, RETURN values and file/builtin operands
+    // may produce a typed value. (Designator.cc)
+    llvm::Value *emitCoercedExpr(ExprAST *E, const TypeInfo *TargetInfo);
+
     const TypeInfo *resolveType(const std::string &TypeName) const;
-    llvm::Type *getLLVMType(const std::string &TypeName) const;
-    llvm::Value *getNamedValue(const std::string &Name) const;
-    
+
     friend class ArrayHandler;
 };
 

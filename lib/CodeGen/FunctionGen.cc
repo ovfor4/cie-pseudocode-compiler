@@ -34,6 +34,10 @@ Type *FunctionGen::getLLVMType(const std::string &TypeName) {
 void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl> &Params) {
     Function::arg_iterator AI = F->arg_begin();
     for (const ParamDecl &P : Params) {
+        if (Types.lookupEnumConstant(P.Name)) {
+            fprintf(stderr, "Error: parameter '%s' collides with an enum value\n", P.Name.c_str());
+            HadError = true;
+        }
         Value *ArgVal = &(*AI);
         ++AI;
         ArgVal->setName(P.Name);
@@ -66,6 +70,12 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     }
     if (CodeGen::isBuiltinName(Proto->getName())) {
         fprintf(stderr, "Error: '%s' is a built-in function and cannot be redefined\n",
+                Proto->getName().c_str());
+        HadError = true;
+        return nullptr;
+    }
+    if (Types.lookupEnumConstant(Proto->getName())) {
+        fprintf(stderr, "Error: '%s' is an enum value and cannot be a FUNCTION/PROCEDURE name\n",
                 Proto->getName().c_str());
         HadError = true;
         return nullptr;

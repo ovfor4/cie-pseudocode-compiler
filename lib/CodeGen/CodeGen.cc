@@ -163,15 +163,6 @@ const TypeInfo *CodeGen::resolveType(const std::string &TypeName) const {
     return Types->resolve(TypeName);
 }
 
-Type *CodeGen::getLLVMType(const std::string &TypeName) const {
-    return Types->getLLVMType(TypeName);
-}
-
-Value *CodeGen::getNamedValue(const std::string &Name) const {
-    auto It = Symbols.find(Name);
-    return It == Symbols.end() ? nullptr : It->second.Storage;
-}
-
 const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
     if (!Expr) return nullptr;
 
@@ -183,7 +174,11 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
 
     if (auto *Var = dynamic_cast<VariableExprAST*>(Expr)) {
         const SymbolInfo *Info = getSymbolInfo(Var->getName());
-        return Info ? resolveType(Info->TypeName) : nullptr;
+        if (Info) return resolveType(Info->TypeName);
+        if (const EnumConstant *EC = Types->lookupEnumConstant(Var->getName())) {
+            return resolveType(EC->TypeName);
+        }
+        return nullptr;
     }
 
     if (auto *Arr = dynamic_cast<ArrayAccessExprAST*>(Expr)) {
@@ -217,6 +212,15 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
 
         const TypeInfo *L = getExprTypeInfo(Bin->getLHS());
         const TypeInfo *R = getExprTypeInfo(Bin->getRHS());
+        // Enum arithmetic: E +/- INTEGER (enum on the left) yields the enum;
+        // every other user-kind combination has no type (emission rejects it).
+        if ((L && L->isUserKind()) || (R && R->isUserKind())) {
+            if (L && L->isEnum() && R && R->Kind == TypeKind::Integer &&
+                (Bin->getOp() == '+' || Bin->getOp() == '-')) {
+                return L;
+            }
+            return nullptr;
+        }
         if ((L && L->Kind == TypeKind::Real) || (R && R->Kind == TypeKind::Real)) {
             return resolveType("REAL");
         }
@@ -327,12 +331,15 @@ Value *CodeGen::coerceValueToType(Value *Val, const TypeInfo *TargetInfo) {
         case TypeKind::Void:
             return nullptr;
 
-        case TypeKind::Custom:
-            if (Val->getType() == TargetInfo->LLVMType) return Val;
-            if (Val->getType()->isPointerTy() && TargetInfo->LLVMType->isPointerTy()) {
-                return Builder->CreateBitCast(Val, TargetInfo->LLVMType, "custom_ptr_cast");
-            }
-            break;
+        // Enum/Record/Pointer identity lives in the type NAME; at this level
+        // an enum is a plain i64 and a pointer a plain ptr, so nothing can be
+        // checked here. emitCoercedExpr is the only legitimate door.
+        case TypeKind::Enum:
+        case TypeKind::Record:
+        case TypeKind::Pointer:
+            reportError("Internal: a %s value reached representation coercion without a name-level check",
+                        TargetInfo->Name.c_str());
+            return nullptr;
     }
 
     reportError("Cannot coerce value of LLVM type to target type %s",
@@ -344,6 +351,11 @@ void CodeGen::emitDeclareStmt(DeclareStmtAST *Stmt) {
     const TypeInfo *Info = resolveType(Stmt->getType());
     if (!Info || !Info->LLVMType || Info->isVoid()) {
         reportError("Unknown type %s", Stmt->getType().c_str());
+        return;
+    }
+    if (Types->lookupEnumConstant(Stmt->getName())) {
+        reportError("'%s' is an enum value and cannot be declared as a variable",
+                    Stmt->getName().c_str());
         return;
     }
 
@@ -374,35 +386,42 @@ Value *CodeGen::emitStringNullGuard(Value *StrVal) {
 
 void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewline) {
     if (!Val || !Info) return;
-    if (!Info->Printable && Info->Kind == TypeKind::Custom) {
-        reportError("OUTPUT for custom type %s is not implemented yet", Info->Name.c_str());
-        return;
-    }
 
     std::vector<Value*> Args;
     Value *Fmt = nullptr;
 
-    if (Info->isReal()) {
+    // Exhaustive over TypeKind (no default): the compiler warns when a new
+    // kind is added without deciding its OUTPUT story.
+    switch (Info->Kind) {
+    case TypeKind::Real:
         Fmt = AppendNewline
             ? PrintfFloatFormatStr
             : Builder->CreateGlobalStringPtr("%f", "fmt_flt_inline", 0, TheModule.get());
         Args.push_back(Fmt);
         Args.push_back(Val);
-    } else if (Info->isBoolean()) {
+        break;
+
+    case TypeKind::Boolean: {
         Value *BoolVal = coerceValueToType(Val, resolveType("BOOLEAN"));
         Fmt = AppendNewline
             ? PrintfStringFormatStr
             : Builder->CreateGlobalStringPtr("%s", "fmt_str_inline", 0, TheModule.get());
         Args.push_back(Fmt);
         Args.push_back(Builder->CreateSelect(BoolVal, TrueStr, FalseStr));
-    } else if (Info->isString()) {
+        break;
+    }
+
+    case TypeKind::String: {
         Value *StrVal = emitStringNullGuard(Val);
         Fmt = AppendNewline
             ? PrintfStringFormatStr
             : Builder->CreateGlobalStringPtr("%s", "fmt_str_inline", 0, TheModule.get());
         Args.push_back(Fmt);
         Args.push_back(StrVal);
-    } else if (Info->isChar()) {
+        break;
+    }
+
+    case TypeKind::Char: {
         Value *CharVal = coerceValueToType(Val, resolveType("CHAR"));
         Value *Promoted = Builder->CreateZExt(CharVal, Type::getInt32Ty(*TheContext), "char_for_printf");
         Fmt = AppendNewline
@@ -410,13 +429,32 @@ void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewli
             : Builder->CreateGlobalStringPtr("%c", "fmt_chr_inline", 0, TheModule.get());
         Args.push_back(Fmt);
         Args.push_back(Promoted);
-    } else {
-        Value *IntVal = coerceValueToType(Val, resolveType("INTEGER"));
+        break;
+    }
+
+    case TypeKind::Integer:
+    case TypeKind::Enum: { // an enum prints its ordinal (user decision)
+        Value *IntVal = Info->isEnum() ? Val : coerceValueToType(Val, resolveType("INTEGER"));
         Fmt = AppendNewline
             ? PrintfFormatStr
             : Builder->CreateGlobalStringPtr("%lld", "fmt_int_inline", 0, TheModule.get());
         Args.push_back(Fmt);
         Args.push_back(IntVal);
+        break;
+    }
+
+    case TypeKind::Record:
+        reportError("Cannot OUTPUT a value of record type %s; output its fields individually",
+                    Info->Name.c_str());
+        return;
+
+    case TypeKind::Pointer:
+        reportError("Cannot OUTPUT a value of pointer type %s", Info->Name.c_str());
+        return;
+
+    case TypeKind::Void:
+        reportError("Cannot OUTPUT a VOID value");
+        return;
     }
 
     Builder->CreateCall(PrintfFunc, Args);
@@ -427,6 +465,9 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
     Function *F = Function::Create(FT, Function::ExternalLinkage, "main", TheModule.get());
     BasicBlock *BB = BasicBlock::Create(*TheContext, "entry", F);
     Builder->SetInsertPoint(BB);
+
+    // User types first: prototypes may name them in parameters/returns.
+    runTypePrePass(Statements);
 
     // Pre-register every top-level FUNCTION/PROCEDURE prototype so calls may
     // precede definitions.
@@ -479,6 +520,11 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
     if (auto *Var = dynamic_cast<VariableExprAST*>(Expr)) {
         const SymbolInfo *Info = getSymbolInfo(Var->getName());
         if (!Info) {
+            // Enum values are bare identifiers; collisions with variables are
+            // rejected at declaration time, so the order here cannot shadow.
+            if (const EnumConstant *EC = Types->lookupEnumConstant(Var->getName())) {
+                return ConstantInt::get(*TheContext, APInt(64, static_cast<uint64_t>(EC->Ordinal), true));
+            }
             reportError("Unknown variable name %s", Var->getName().c_str());
             return nullptr;
         }
@@ -504,16 +550,23 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
     }
 
     if (auto *Unary = dynamic_cast<UnaryExprAST*>(Expr)) {
-        Value *Operand = emitExpr(Unary->getOperand());
-        if (!Operand) return nullptr;
-
         if (Unary->getOp() == tok_not) {
-            Operand = coerceValueToType(Operand, resolveType("BOOLEAN"));
+            Value *Operand = emitCoercedExpr(Unary->getOperand(), resolveType("BOOLEAN"));
+            if (!Operand) return nullptr;
             return Builder->CreateNot(Operand, "nottmp");
         }
+        return nullptr;
     }
 
     if (auto *Bin = dynamic_cast<BinaryExprAST*>(Expr)) {
+        // Enum/Record/Pointer operands never reach ArithmeticHandler or the
+        // '&' path: their admissible operations are decided by name here.
+        const TypeInfo *LT = getExprTypeInfo(Bin->getLHS());
+        const TypeInfo *RT = getExprTypeInfo(Bin->getRHS());
+        if ((LT && LT->isUserKind()) || (RT && RT->isUserKind())) {
+            return emitUserKindBinaryOp(Bin, LT, RT);
+        }
+
         Value *L = emitExpr(Bin->getLHS());
         Value *R = emitExpr(Bin->getRHS());
         if (!L || !R) return nullptr;
@@ -535,41 +588,47 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             }
         }
         if (Name == "LENGTH") {
-            return StrHandler->emitLength(emitExpr(Call->getArgs()[0].get()));
+            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
+            if (!Str) return nullptr;
+            return StrHandler->emitLength(Str);
         }
         if (Name == "MID") {
-            Value *Str = emitExpr(Call->getArgs()[0].get());
-            Value *Start = coerceValueToType(emitExpr(Call->getArgs()[1].get()), resolveType("INTEGER"));
-            Value *Len = coerceValueToType(emitExpr(Call->getArgs()[2].get()), resolveType("INTEGER"));
+            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
+            Value *Start = emitCoercedExpr(Call->getArgs()[1].get(), resolveType("INTEGER"));
+            Value *Len = emitCoercedExpr(Call->getArgs()[2].get(), resolveType("INTEGER"));
             if (!Str || !Start || !Len) return nullptr;
             return StrHandler->emitMid(Str, Start, Len);
         }
         if (Name == "RIGHT") {
-            Value *Str = emitExpr(Call->getArgs()[0].get());
-            Value *Len = coerceValueToType(emitExpr(Call->getArgs()[1].get()), resolveType("INTEGER"));
+            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
+            Value *Len = emitCoercedExpr(Call->getArgs()[1].get(), resolveType("INTEGER"));
             if (!Str || !Len) return nullptr;
             return StrHandler->emitRight(Str, Len);
         }
         if (Name == "LEFT") {
-            Value *Str = emitExpr(Call->getArgs()[0].get());
-            Value *Len = coerceValueToType(emitExpr(Call->getArgs()[1].get()), resolveType("INTEGER"));
+            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
+            Value *Len = emitCoercedExpr(Call->getArgs()[1].get(), resolveType("INTEGER"));
             if (!Str || !Len) return nullptr;
             return StrHandler->emitLeft(Str, Len);
         }
         if (Name == "LCASE") {
-            Value *Str = emitExpr(Call->getArgs()[0].get());
+            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
             if (!Str) return nullptr;
             return StrHandler->emitLCase(Str);
         }
         if (Name == "UCASE") {
-            Value *Str = emitExpr(Call->getArgs()[0].get());
+            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
             if (!Str) return nullptr;
             return StrHandler->emitUCase(Str);
         }
         if (Name == "ASC") {
+            const TypeInfo *ArgType = getExprTypeInfo(Call->getArgs()[0].get());
+            if (ArgType && ArgType->isUserKind()) {
+                reportError("ASC expects a CHAR or STRING (got %s)", ArgType->Name.c_str());
+                return nullptr;
+            }
             Value *ArgVal = emitExpr(Call->getArgs()[0].get());
             if (!ArgVal) return nullptr;
-            const TypeInfo *ArgType = getExprTypeInfo(Call->getArgs()[0].get());
             Value *CharVal = nullptr;
             if (ArgType && ArgType->isChar()) {
                 CharVal = coerceValueToType(ArgVal, resolveType("CHAR"));
@@ -580,17 +639,22 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return coerceValueToType(AscVal, resolveType("INTEGER"));
         }
         if (Name == "CHR") {
-            Value *IntVal = coerceValueToType(emitExpr(Call->getArgs()[0].get()), resolveType("INTEGER"));
+            Value *IntVal = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("INTEGER"));
             if (!IntVal) return nullptr;
             Value *CharVal = Builder->CreateTrunc(IntVal, Type::getInt8Ty(*TheContext), "chr_val");
             return coerceValueToType(CharVal, resolveType("STRING"));
         }
         if (Name == "IS_NUM") {
-            Value *Str = emitExpr(Call->getArgs()[0].get());
+            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
             if (!Str) return nullptr;
             return StrConvHandler->emitIsNum(Str);
         }
         if (Name == "NUM_TO_STR") {
+            const TypeInfo *ArgType = getExprTypeInfo(Call->getArgs()[0].get());
+            if (ArgType && ArgType->isUserKind()) {
+                reportError("NUM_TO_STR expects a number (got %s)", ArgType->Name.c_str());
+                return nullptr;
+            }
             Value *NumV = emitExpr(Call->getArgs()[0].get());
             if (!NumV) return nullptr;
             bool IsReal = NumV->getType()->isDoubleTy();
@@ -600,7 +664,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return StrConvHandler->emitNumToStr(NumV, IsReal);
         }
         if (Name == "STR_TO_NUM") {
-            Value *Str = emitExpr(Call->getArgs()[0].get());
+            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
             if (!Str) return nullptr;
             return StrConvHandler->emitStrToNum(Str, true);
         }
@@ -609,8 +673,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
                 reportError("Cannot use a whole array as the EOF filename");
                 return nullptr;
             }
-            Value *FileName = coerceValueToType(emitExpr(Call->getArgs()[0].get()),
-                                                resolveType("STRING"));
+            Value *FileName = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
             if (!FileName) return nullptr;
             return Files->emitEof(FileName, Call->getLine());
         }
@@ -681,7 +744,7 @@ bool CodeGen::marshalCallArgs(const std::string &Callee,
             }
             Out.push_back(Info->Storage);
         } else {
-            Value *V = coerceValueToType(emitExpr(ArgExpr), resolveType(TypeName));
+            Value *V = emitCoercedExpr(ArgExpr, resolveType(TypeName));
             if (!V) return false;
             Out.push_back(V);
         }
@@ -690,10 +753,8 @@ bool CodeGen::marshalCallArgs(const std::string &Callee,
 }
 
 void CodeGen::emitIfStmt(IfStmtAST *Stmt) {
-    Value *CondV = emitExpr(Stmt->getCond());
+    Value *CondV = emitCoercedExpr(Stmt->getCond(), resolveType("BOOLEAN"));
     if (!CondV) return;
-
-    CondV = coerceValueToType(CondV, resolveType("BOOLEAN"));
 
     Function *TheFunction = Builder->GetInsertBlock()->getParent();
     BasicBlock *ThenBB = BasicBlock::Create(*TheContext, "then", TheFunction);
@@ -723,9 +784,8 @@ void CodeGen::emitWhileStmt(WhileStmtAST *Stmt) {
     Builder->CreateBr(CondBB);
 
     Builder->SetInsertPoint(CondBB);
-    Value *CondV = emitExpr(Stmt->getCond());
+    Value *CondV = emitCoercedExpr(Stmt->getCond(), resolveType("BOOLEAN"));
     if (!CondV) return;
-    CondV = coerceValueToType(CondV, resolveType("BOOLEAN"));
 
     Builder->CreateCondBr(CondV, LoopBB, AfterBB);
 
@@ -753,9 +813,8 @@ void CodeGen::emitRepeatStmt(RepeatStmtAST *Stmt) {
         Builder->CreateBr(CondBB);
 
     Builder->SetInsertPoint(CondBB);
-    Value *CondV = emitExpr(Stmt->getCond());
+    Value *CondV = emitCoercedExpr(Stmt->getCond(), resolveType("BOOLEAN"));
     if (!CondV) return;
-    CondV = coerceValueToType(CondV, resolveType("BOOLEAN"));
 
     Builder->CreateCondBr(CondV, AfterBB, LoopBB);
 
@@ -776,7 +835,7 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
         return;
     }
 
-    Value *StartVal = coerceValueToType(emitExpr(Stmt->getStart()), resolveType("INTEGER"));
+    Value *StartVal = emitCoercedExpr(Stmt->getStart(), resolveType("INTEGER"));
     if (!StartVal) return;
 
     Value *Alloca = Symbol->Storage;
@@ -785,7 +844,7 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
     // STEP is evaluated exactly once, before the loop.
     Value *StepVal = nullptr;
     if (Stmt->getStep()) {
-        StepVal = coerceValueToType(emitExpr(Stmt->getStep()), resolveType("INTEGER"));
+        StepVal = emitCoercedExpr(Stmt->getStep(), resolveType("INTEGER"));
         if (!StepVal) return;
     } else {
         StepVal = ConstantInt::get(*TheContext, APInt(64, 1));
@@ -800,7 +859,7 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
     Builder->SetInsertPoint(CondBB);
 
     Value *CurVar = Builder->CreateLoad(Type::getInt64Ty(*TheContext), Alloca, VarName.c_str());
-    Value *EndVal = coerceValueToType(emitExpr(Stmt->getEnd()), resolveType("INTEGER"));
+    Value *EndVal = emitCoercedExpr(Stmt->getEnd(), resolveType("INTEGER"));
     if (!EndVal) return;
 
     // The loop direction depends on the STEP value at run time.
@@ -865,12 +924,13 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     if (auto *Ret = dynamic_cast<ReturnStmtAST*>(Stmt)) {
         Value *RetVal = nullptr;
         if (Ret->getRetVal()) {
-            RetVal = emitExpr(Ret->getRetVal());
             Function *F = Builder->GetInsertBlock()->getParent();
             if (const FuncSig *Sig = FuncGen->getSignature(F->getName().str())) {
-                RetVal = coerceValueToType(RetVal, resolveType(Sig->ReturnTypeName));
-                if (!RetVal) return;
+                RetVal = emitCoercedExpr(Ret->getRetVal(), resolveType(Sig->ReturnTypeName));
+            } else {
+                RetVal = emitExpr(Ret->getRetVal());
             }
+            if (!RetVal) return;
         }
         FuncGen->emitReturn(Ret, RetVal);
         return;
@@ -892,9 +952,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             return;
         }
 
-        Value *Val = emitExpr(Assign->getExpr());
-        const TypeInfo *TargetType = resolveType(Info->TypeName);
-        Val = coerceValueToType(Val, TargetType);
+        Value *Val = emitCoercedExpr(Assign->getExpr(), resolveType(Info->TypeName));
         if (!Val) return;
 
         Builder->CreateStore(Val, Info->Storage);
@@ -943,10 +1001,14 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             Args.push_back(CharFmt);
             Args.push_back(Info->Storage);
             Builder->CreateCall(ScanfFunc, Args);
-        } else {
+        } else if (TypeInfo->Kind == TypeKind::Integer) {
             Args.push_back(ScanfFormatStr);
             Args.push_back(Info->Storage);
             Builder->CreateCall(ScanfFunc, Args);
+        } else {
+            // Enum/Record/Pointer and any future kind: scanf'ing raw bytes
+            // into typed storage would corrupt it — reject explicitly.
+            reportError("INPUT is not supported for a value of type %s", TypeInfo->Name.c_str());
         }
         return;
     }
@@ -974,7 +1036,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             reportError("Cannot use a whole array as the OPENFILE filename");
             return;
         }
-        Value *Name = coerceValueToType(emitExpr(Open->getFileName()), resolveType("STRING"));
+        Value *Name = emitCoercedExpr(Open->getFileName(), resolveType("STRING"));
         if (!Name) return;
         Files->emitOpen(Name, Open->getMode(), Open->getLine());
         return;
@@ -999,7 +1061,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             reportError("Cannot use a whole array as the READFILE filename");
             return;
         }
-        Value *Name = coerceValueToType(emitExpr(Read->getFileName()), resolveType("STRING"));
+        Value *Name = emitCoercedExpr(Read->getFileName(), resolveType("STRING"));
         if (!Name) return;
         Value *LineStr = Files->emitRead(Name, Read->getLine());
         if (!LineStr) return;
@@ -1012,8 +1074,8 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             reportError("Cannot use a whole array in WRITEFILE");
             return;
         }
-        Value *Name = coerceValueToType(emitExpr(Write->getFileName()), resolveType("STRING"));
-        Value *Data = coerceValueToType(emitExpr(Write->getData()), resolveType("STRING"));
+        Value *Name = emitCoercedExpr(Write->getFileName(), resolveType("STRING"));
+        Value *Data = emitCoercedExpr(Write->getData(), resolveType("STRING"));
         if (!Name || !Data) return;
         Files->emitWrite(Name, Data, Write->getLine());
         return;
@@ -1024,7 +1086,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             reportError("Cannot use a whole array as the CLOSEFILE filename");
             return;
         }
-        Value *Name = coerceValueToType(emitExpr(Close->getFileName()), resolveType("STRING"));
+        Value *Name = emitCoercedExpr(Close->getFileName(), resolveType("STRING"));
         if (!Name) return;
         Files->emitClose(Name, Close->getLine());
         return;
@@ -1047,12 +1109,13 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
         return;
     }
 
-    // TYPE-system stubs: parsed but not yet wired (phases C/D of the TYPE work).
+    // TYPE declarations are registered by compile()'s pre-pass (the parser
+    // guarantees they are top-level); nothing is emitted here.
     if (dynamic_cast<EnumTypeDeclAST*>(Stmt) || dynamic_cast<PointerTypeDeclAST*>(Stmt) ||
         dynamic_cast<RecordTypeDeclAST*>(Stmt)) {
-        reportError("TYPE declarations are not implemented yet");
         return;
     }
+    // TYPE-system stub: wired in the record/lvalue phase.
     if (dynamic_cast<DesignatorAssignStmtAST*>(Stmt)) {
         reportError("Assignment to record fields / pointer targets is not implemented yet");
         return;
