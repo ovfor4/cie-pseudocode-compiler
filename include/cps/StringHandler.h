@@ -19,6 +19,9 @@ class StringHandler {
     llvm::FunctionCallee ToUpperFunc;
     llvm::FunctionCallee ToLowerFunc;
 
+    llvm::Value *emitCaseConvert(llvm::Value *Str, llvm::FunctionCallee CaseFn);
+    llvm::Value *allocCopySubstring(llvm::Value *Src, llvm::Value *StartIdx, llvm::Value *Len);
+
 public:
     StringHandler(llvm::LLVMContext &Ctx, llvm::IRBuilder<> &B, llvm::Module &M);
 

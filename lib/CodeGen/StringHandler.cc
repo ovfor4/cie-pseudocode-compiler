@@ -58,8 +58,23 @@ Value *StringHandler::emitConcat(Value *LHS, Value *RHS) {
     return NewStr;
 }
 
+// malloc(Len + 1), copy Len bytes from Src + StartIdx, NUL-terminate.
+// Clamping is each caller's business — MID/RIGHT/LEFT clamp different things.
+Value *StringHandler::allocCopySubstring(Value *Src, Value *StartIdx, Value *Len) {
+    Value *One = ConstantInt::get(Context, APInt(64, 1));
+    Value *AllocSize = Builder.CreateAdd(Len, One);
+    Value *NewStr = Builder.CreateCall(MallocFunc, AllocSize, "substr_mem");
+
+    Value *SrcPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), Src, StartIdx);
+    Builder.CreateCall(MemCpyFunc, {NewStr, SrcPtr, Len});
+
+    Value *NullTermPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), NewStr, Len);
+    Builder.CreateStore(ConstantInt::get(Type::getInt8Ty(Context), 0), NullTermPtr);
+
+    return NewStr;
+}
+
 Value *StringHandler::emitMid(Value *Str, Value *Start, Value *Len) {
-    
     Value *FullLen = emitLength(Str);
 
     Value *One = ConstantInt::get(Context, APInt(64, 1));
@@ -80,18 +95,7 @@ Value *StringHandler::emitMid(Value *Str, Value *Start, Value *Len) {
     Value *IsLenNeg = Builder.CreateICmpSLT(ActualLen, Zero);
     ActualLen = Builder.CreateSelect(IsLenNeg, Zero, ActualLen);
 
-    Value *AllocSize = Builder.CreateAdd(ActualLen, One);
-    Value *NewStrMem = Builder.CreateCall(MallocFunc, AllocSize, "mid_str_mem");
-
-    Value *SrcPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), Str, StartZeroBased);
-
-    std::vector<Value*> Args = {NewStrMem, SrcPtr, ActualLen};
-    Builder.CreateCall(MemCpyFunc, Args);
-
-    Value *NullTermPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), NewStrMem, ActualLen);
-    Builder.CreateStore(ConstantInt::get(Type::getInt8Ty(Context), 0), NullTermPtr);
-    
-    return NewStrMem;
+    return allocCopySubstring(Str, StartZeroBased, ActualLen);
 }
 
 Value *StringHandler::emitRight(Value *Str, Value *Len) {
@@ -105,19 +109,7 @@ Value *StringHandler::emitRight(Value *Str, Value *Len) {
 
     Value *ActualLen = Builder.CreateSub(FullLen, StartIdx);
 
-    Value *One = ConstantInt::get(Context, APInt(64, 1));
-    Value *AllocSize = Builder.CreateAdd(ActualLen, One);
-    Value *NewStrMem = Builder.CreateCall(MallocFunc, AllocSize, "right_str_mem");
-
-    Value *SrcPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), Str, StartIdx);
-
-    std::vector<Value*> Args = {NewStrMem, SrcPtr, ActualLen};
-    Builder.CreateCall(MemCpyFunc, Args);
-
-    Value *NullTermPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), NewStrMem, ActualLen);
-    Builder.CreateStore(ConstantInt::get(Type::getInt8Ty(Context), 0), NullTermPtr);
-    
-    return NewStrMem;
+    return allocCopySubstring(Str, StartIdx, ActualLen);
 }
 
 Value *StringHandler::emitLeft(Value *Str, Value *Len) {
@@ -130,111 +122,62 @@ Value *StringHandler::emitLeft(Value *Str, Value *Len) {
     Value *IsTooBig = Builder.CreateICmpSGT(SafeLen, FullLen);
     Value *ActualLen = Builder.CreateSelect(IsTooBig, FullLen, SafeLen);
 
+    return allocCopySubstring(Str, Zero, ActualLen);
+}
+
+// Shared loop for LCASE/UCASE: malloc a copy of Str with every byte run
+// through CaseFn (tolower/toupper).
+Value *StringHandler::emitCaseConvert(Value *Str, FunctionCallee CaseFn) {
+    Value *Len = emitLength(Str);
     Value *One = ConstantInt::get(Context, APInt(64, 1));
-    Value *AllocSize = Builder.CreateAdd(ActualLen, One);
-    Value *NewStrMem = Builder.CreateCall(MallocFunc, AllocSize, "left_str_mem");
+    Value *AllocSize = Builder.CreateAdd(Len, One);
+    Value *NewStr = Builder.CreateCall(MallocFunc, AllocSize, "case_str");
 
-    std::vector<Value*> Args = {NewStrMem, Str, ActualLen};
-    Builder.CreateCall(MemCpyFunc, Args);
+    Function *TheFunction = Builder.GetInsertBlock()->getParent();
+    BasicBlock *LoopBB = BasicBlock::Create(Context, "loop", TheFunction);
+    BasicBlock *AfterBB = BasicBlock::Create(Context, "afterloop", TheFunction);
 
-    Value *NullTermPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), NewStrMem, ActualLen);
-    Builder.CreateStore(ConstantInt::get(Type::getInt8Ty(Context), 0), NullTermPtr);
+    IRBuilder<> TmpB(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().begin());
+    AllocaInst *IdxVar = TmpB.CreateAlloca(Type::getInt64Ty(Context), nullptr, "idx");
+    Builder.CreateStore(ConstantInt::get(Context, APInt(64, 0)), IdxVar);
 
-    return NewStrMem;
+    Builder.CreateBr(LoopBB);
+    Builder.SetInsertPoint(LoopBB);
+
+    Value *CurIdx = Builder.CreateLoad(Type::getInt64Ty(Context), IdxVar);
+    Value *Cond = Builder.CreateICmpSLT(CurIdx, Len);
+
+    BasicBlock *BodyBB = BasicBlock::Create(Context, "body", TheFunction);
+    Builder.CreateCondBr(Cond, BodyBB, AfterBB);
+
+    Builder.SetInsertPoint(BodyBB);
+
+    Value *SrcPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), Str, CurIdx);
+    Value *CharVal = Builder.CreateLoad(Type::getInt8Ty(Context), SrcPtr);
+
+    Value *ExtChar = Builder.CreateSExt(CharVal, Type::getInt32Ty(Context));
+    Value *ConvChar = Builder.CreateCall(CaseFn, ExtChar);
+    Value *TruncChar = Builder.CreateTrunc(ConvChar, Type::getInt8Ty(Context));
+
+    Value *DestPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), NewStr, CurIdx);
+    Builder.CreateStore(TruncChar, DestPtr);
+
+    Value *NextIdx = Builder.CreateAdd(CurIdx, One);
+    Builder.CreateStore(NextIdx, IdxVar);
+    Builder.CreateBr(LoopBB);
+
+    Builder.SetInsertPoint(AfterBB);
+
+    Value *NullPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), NewStr, Len);
+    Builder.CreateStore(ConstantInt::get(Type::getInt8Ty(Context), 0), NullPtr);
+
+    return NewStr;
 }
 
 Value *StringHandler::emitLCase(Value *Str) {
-    Value *Len = emitLength(Str);
-    Value *One = ConstantInt::get(Context, APInt(64, 1));
-    Value *AllocSize = Builder.CreateAdd(Len, One);
-    Value *NewStr = Builder.CreateCall(MallocFunc, AllocSize, "lcase_str");
-
-    Function *TheFunction = Builder.GetInsertBlock()->getParent();
-    BasicBlock *LoopBB = BasicBlock::Create(Context, "loop", TheFunction);
-    BasicBlock *AfterBB = BasicBlock::Create(Context, "afterloop", TheFunction);
-
-    IRBuilder<> TmpB(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().begin());
-    AllocaInst *IdxVar = TmpB.CreateAlloca(Type::getInt64Ty(Context), nullptr, "idx");
-    Builder.CreateStore(ConstantInt::get(Context, APInt(64, 0)), IdxVar);
-    
-    Builder.CreateBr(LoopBB);
-    Builder.SetInsertPoint(LoopBB);
-    
-    Value *CurIdx = Builder.CreateLoad(Type::getInt64Ty(Context), IdxVar);
-    Value *Cond = Builder.CreateICmpSLT(CurIdx, Len);
-    
-    BasicBlock *BodyBB = BasicBlock::Create(Context, "body", TheFunction);
-    Builder.CreateCondBr(Cond, BodyBB, AfterBB);
-    
-    Builder.SetInsertPoint(BodyBB);
-
-    Value *SrcPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), Str, CurIdx);
-    Value *CharVal = Builder.CreateLoad(Type::getInt8Ty(Context), SrcPtr);
-
-    Value *ExtChar = Builder.CreateSExt(CharVal, Type::getInt32Ty(Context));
-    Value *LowerChar = Builder.CreateCall(ToLowerFunc, ExtChar);
-    Value *TruncChar = Builder.CreateTrunc(LowerChar, Type::getInt8Ty(Context));
-
-    Value *DestPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), NewStr, CurIdx);
-    Builder.CreateStore(TruncChar, DestPtr);
-
-    Value *NextIdx = Builder.CreateAdd(CurIdx, One);
-    Builder.CreateStore(NextIdx, IdxVar);
-    Builder.CreateBr(LoopBB);
-    
-    Builder.SetInsertPoint(AfterBB);
-
-    Value *NullPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), NewStr, Len);
-    Builder.CreateStore(ConstantInt::get(Type::getInt8Ty(Context), 0), NullPtr);
-    
-    return NewStr;
+    return emitCaseConvert(Str, ToLowerFunc);
 }
 
 Value *StringHandler::emitUCase(Value *Str) {
-    Value *Len = emitLength(Str);
-    Value *One = ConstantInt::get(Context, APInt(64, 1));
-    Value *AllocSize = Builder.CreateAdd(Len, One);
-    Value *NewStr = Builder.CreateCall(MallocFunc, AllocSize, "ucase_str");
-    
-    // Loop
-    Function *TheFunction = Builder.GetInsertBlock()->getParent();
-    BasicBlock *LoopBB = BasicBlock::Create(Context, "loop", TheFunction);
-    BasicBlock *AfterBB = BasicBlock::Create(Context, "afterloop", TheFunction);
-    
-    // Init i = 0
-    IRBuilder<> TmpB(&TheFunction->getEntryBlock(), TheFunction->getEntryBlock().begin());
-    AllocaInst *IdxVar = TmpB.CreateAlloca(Type::getInt64Ty(Context), nullptr, "idx");
-    Builder.CreateStore(ConstantInt::get(Context, APInt(64, 0)), IdxVar);
-    
-    Builder.CreateBr(LoopBB);
-    Builder.SetInsertPoint(LoopBB);
-    
-    Value *CurIdx = Builder.CreateLoad(Type::getInt64Ty(Context), IdxVar);
-    Value *Cond = Builder.CreateICmpSLT(CurIdx, Len);
-    
-    BasicBlock *BodyBB = BasicBlock::Create(Context, "body", TheFunction);
-    Builder.CreateCondBr(Cond, BodyBB, AfterBB);
-    
-    Builder.SetInsertPoint(BodyBB);
-
-    Value *SrcPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), Str, CurIdx);
-    Value *CharVal = Builder.CreateLoad(Type::getInt8Ty(Context), SrcPtr);
-
-    Value *ExtChar = Builder.CreateSExt(CharVal, Type::getInt32Ty(Context));
-    Value *UpperChar = Builder.CreateCall(ToUpperFunc, ExtChar);
-    Value *TruncChar = Builder.CreateTrunc(UpperChar, Type::getInt8Ty(Context));
-
-    Value *DestPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), NewStr, CurIdx);
-    Builder.CreateStore(TruncChar, DestPtr);
-
-    Value *NextIdx = Builder.CreateAdd(CurIdx, One);
-    Builder.CreateStore(NextIdx, IdxVar);
-    Builder.CreateBr(LoopBB);
-    
-    Builder.SetInsertPoint(AfterBB);
-
-    Value *NullPtr = Builder.CreateInBoundsGEP(Type::getInt8Ty(Context), NewStr, Len);
-    Builder.CreateStore(ConstantInt::get(Type::getInt8Ty(Context), 0), NullPtr);
-    
-    return NewStr;
+    return emitCaseConvert(Str, ToUpperFunc);
 }
