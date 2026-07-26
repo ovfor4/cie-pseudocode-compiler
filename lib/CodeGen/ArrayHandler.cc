@@ -88,15 +88,17 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
         CG.reportError("'%s' is an enum value and cannot be declared as an array", Name.c_str());
         return;
     }
+    if (Types.resolve(Name)) {
+        CG.reportError("'%s' is a type name and cannot be declared as an array", Name.c_str());
+        return;
+    }
 
     std::vector<Value*> Lows;
     std::vector<Value*> Highs;
 
     for (const auto &Pair : Stmt->getBounds()) {
-        Value *L = CG.emitExpr(Pair.first.get());
-        Value *R = CG.emitExpr(Pair.second.get());
-        L = CG.coerceValueToType(L, CG.resolveType("INTEGER"));
-        R = CG.coerceValueToType(R, CG.resolveType("INTEGER"));
+        Value *L = CG.emitCoercedExpr(Pair.first.get(), CG.resolveType("INTEGER"));
+        Value *R = CG.emitCoercedExpr(Pair.second.get(), CG.resolveType("INTEGER"));
 
         if (!L || !R) return;
 
@@ -178,8 +180,7 @@ bool ArrayHandler::emitCheckedIndices(const std::string &Name,
     }
 
     for (size_t i = 0; i < IndexExprs.size(); ++i) {
-        Value *Idx = CG.emitExpr(IndexExprs[i].get());
-        Idx = CG.coerceValueToType(Idx, CG.resolveType("INTEGER"));
+        Value *Idx = CG.emitCoercedExpr(IndexExprs[i].get(), CG.resolveType("INTEGER"));
         if (!Idx) return false;
 
         Out.push_back(Idx);

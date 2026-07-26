@@ -11,7 +11,12 @@ stdin ──> Lexer ──> Parser ──> vector<unique_ptr<StmtAST>> ──> C
 
 Fixed value representation (ABI — much code infers types backwards from these):
 INTEGER = `i64`, REAL = `double`, BOOLEAN = `i1`, CHAR = `i8`, STRING = opaque `ptr`
-to a NUL-terminated buffer.
+to a NUL-terminated buffer. User-defined types (§4): enum = `i64` (0-based ordinal),
+pointer = opaque `ptr`, record = named struct `%record.NAME`. Enum/pointer are
+LLVM-identical to INTEGER/STRING **by design** — their identity lives in the type
+*name*, enforced upstream (see CONVENTIONS.md). Byte sizes are never computed
+host-side: the module has no DataLayout string, so every size is a null-GEP
+`sizeof` constant (`TypeSystem::getSizeOfConstant`) folded by the backend.
 
 ## Build & run
 
@@ -45,15 +50,17 @@ untested.)
 |---|---|
 | `include/cps/` | All headers, included as `"cps/Foo.h"` |
 | `lib/Lexer/Lexer.cc` | Entire lexer: one function, `Lexer::gettok()` |
-| `lib/Parser/Parser.cc` | Statements, expressions, precedence table |
-| `lib/Parser/ParserFunction.cc` | FUNCTION/PROCEDURE/CALL/RETURN parsing |
+| `lib/Parser/Parser.cc` | Statements, expressions, designators, precedence table |
+| `lib/Parser/ParserFunction.cc` | FUNCTION/PROCEDURE/CALL/RETURN + parameter-list parsing |
 | `lib/Parser/ParserFile.cc` | OPENFILE/READFILE/WRITEFILE/CLOSEFILE parsing |
+| `lib/Parser/ParserType.cc` | TYPE/ENDTYPE declarations, SET/DEFINE reserved stubs |
 | `lib/CodeGen/CodeGen.cc` | Hub: dispatch, coercion, control flow, INPUT/OUTPUT, main() |
+| `lib/CodeGen/Designator.cc` | CodeGen methods for the TYPE system: type pre-pass, `emitLValue`/`loadFromLValue`, `emitCoercedExpr` gate, user-kind binary-op interception |
 | `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen |
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
 
-AST nodes live in `include/cps/AST.h` (+ `FunctionAST.h`, `FileAST.h`); they are pure
-data with virtual destructors only — no codegen/visitor methods.
+AST nodes live in `include/cps/AST.h` (+ `FunctionAST.h`, `FileAST.h`, `TypeAST.h`);
+they are pure data with virtual destructors only — no codegen/visitor methods.
 
 ## Detail docs
 

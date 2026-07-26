@@ -4,28 +4,52 @@ Deep-dives on the CodeGen helper subsystems. (Invariants: `CONVENTIONS.md`;
 known bugs: `PITFALLS.md`.)
 
 **Arrays** (`ArrayHandler`): a DECLAREd array is one malloc'd flat buffer (memset to
-zero), row-major, any rank, any bounds. Bounds and multipliers are *compile-time SSA
-values* cached in `ArrayMetadata` (global `ArrayTable` map, keyed by name). Every access
-goes through `emitCheckedIndices` (validates the index count for the caller's semantics,
-then per-dimension coerce + `emitIndexCheck`) → `computeFlatIndex` → `loadElement`
-(load + the STRING null-guard `select` to the empty string); never hand-roll indexing
-or element loads.
+zero), row-major, any rank, any bounds. Bounds and multipliers are *SSA values* cached
+in `ArrayMetadata`; `ArrayTable` is scoped per function (`exchangeTable`, driven from
+CodeGen's `FunctionDefAST` branch, mirroring the Symbols discipline). Element sizes are
+`sizeof` constants (`ElementSizeC`), never host-side numbers. Every access goes through
+`emitCheckedIndices` (validates the index count for the caller's semantics, then
+per-dimension coerce + `emitIndexCheck`) → `computeFlatIndex` → `loadElement` (load +
+the STRING null-guard); the public `emitElementAddress` exposes the same checked
+pipeline as an address for the lvalue layer (`Form[i].YearGroup`, `^arr[i]`) — never
+hand-roll indexing or element loads. Array parameters: `bindArrayParameter` rebuilds
+callee-side metadata from the flattened `ptr + 2R bounds` ABI (BYVAL = malloc+memcpy
+whole copy), `emitArrayArgument` validates and pushes the caller side.
 `OUTPUT arr` (and partially-indexed accesses) is intercepted by
 `ArrayHandler::tryEmitArrayOutput` — the first branch of OUTPUT dispatch, emitting
-nested print loops — so any rework of OUTPUT must preserve that interception.
+nested print loops (element kinds that are not outputtable, i.e. records/pointers,
+are a compile error there) — so any rework of OUTPUT must preserve that interception.
 
 **Functions** (`FunctionGen`): plain LLVM functions, external linkage, exact pseudocode
-name. Params are `tuple<name, typeString, isByRef>`. BYVAL args are copied into
-entry-block allocas; BYREF args bind the incoming pointer directly as the variable's
-storage. Missing RETURNS defaults the return type to INTEGER; procedures use "VOID".
-`emitPrototype` records each function's pseudocode signature in a `FuncSig` map
-(`FunctionGen::getSignature`); `CodeGen::marshalCallArgs` dispatches call arguments on
-those *declared* param types and BYREF flags (BYVAL args are coerced to the declared
-type), and `getExprTypeInfo` reads return types from the same map. Top-level prototypes
-are pre-registered at the start of `compile()`, so calls may precede definitions;
-calling a name with no signature is a compile error (no extern is fabricated). Body
-emission is inverted: CodeGen injects a `StmtEmitter` callback, and must restore its
-own insert point afterwards.
+name. Params are `ParamDecl{name, typeString, mode, array rank/bounds}`. BYVAL args are
+copied into entry-block allocas (whole structs for records); BYREF args bind the
+incoming pointer directly as the variable's storage; array params are handed to the
+binder callback CodeGen injects (`setArrayParamBinder`) so FunctionGen never sees
+ArrayHandler. Missing RETURNS defaults the return type to INTEGER; procedures use
+"VOID". `emitPrototype` records each function's pseudocode signature in a `FuncSig`
+map (`FunctionGen::getSignature`); `CodeGen::marshalCallArgs` dispatches call arguments
+on those *declared* `ParamSig`s, and `getExprTypeInfo` reads return types from the same
+map. Top-level prototypes are pre-registered at the start of `compile()` (after the
+TYPE pre-pass), so calls may precede definitions; calling a name with no signature is a
+compile error (no extern is fabricated). Body emission is inverted: CodeGen injects a
+`StmtEmitter` callback, and must restore its own insert point (and the exchanged
+ArrayTable) afterwards.
+
+**User types** (`TypeSystem` + `Designator.cc`): TYPE declarations are top-level only
+and registered by `CodeGen::runTypePrePass` in two passes — `declareUserType` reserves
+every name (records become opaque named structs, so pointer pointees may
+forward-reference: `TYPE NodePtr = ^Node` before `TYPE Node`), then
+`defineEnum/defineRecord/definePointer` fill payloads in source order (a by-value
+record field needs its record complete; inclusion via pointer is always fine). Enum
+constants live in a TypeSystem-owned table, resolved in `emitExpr`'s
+`VariableExprAST` branch after `Symbols` misses. The lvalue layer
+(`emitLValue`/`loadFromLValue`) resolves designator chains to `{address, type name}`;
+`emitCoercedExpr` is the single name-level admission gate; `emitUserKindBinaryOp`
+intercepts binary operators ahead of ArithmeticHandler (which, like StringHandler and
+FileHandler, is deliberately ignorant of user kinds). The enum range check after
+`E ± INTEGER` is the only site that can produce an invalid ordinal — every other
+producer (constants, same-name copies, zero-init, memset-0 arrays) is valid by
+construction, which is why 0-based ordinals are load-bearing.
 
 **Runtime checks** (`RuntimeCheck`): only array bounds checking and the file checks are
 actually wired up. `emitDivZeroCheck` exists but has **zero call sites** — division by

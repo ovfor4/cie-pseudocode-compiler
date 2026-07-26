@@ -19,11 +19,38 @@ in string/char literals. Comments are `//` to end of line.
 in a function-local `static int LastChar` and calls `getchar()` directly. No re-lexing,
 no file paths, and unit tests can't lex two programs in one process.
 
-**Types travel as uppercase `std::string`** (`"INTEGER"`, `"REAL"`, `"BOOLEAN"`,
-`"CHAR"`, `"STRING"`, `"VOID"`) — never an enum. `TypeSystem` resolves the string to
-`TypeInfo{LLVMType, ElementSize, Kind, ...}`. The parser's `ParseTypeName` accepts *any*
+**Types travel as uppercase `std::string`** (`"INTEGER"`, `"REAL"`, ..., plus
+user-defined names) — never an enum. `TypeSystem` resolves the string to
+`TypeInfo{LLVMType, Kind, per-kind payload}`. The parser's `ParseTypeName` accepts *any*
 identifier as a type name except `VOID` (rejected outside a RETURNS clause via its
 `AllowVoid` flag); other unknown types only fail (softly) in CodeGen.
+
+**User-kind typing is nominal, and checked upstream only.** Enum/Record/Pointer
+identity is name equality (`P1 = ^INTEGER` and `P2 = ^INTEGER` are incompatible;
+same-layout records too). Their LLVM representations are indistinguishable from
+builtins, so values of these kinds must NEVER reach `ArithmeticHandler` or
+`coerceValueToType` without a prior name-level check — `CodeGen::emitCoercedExpr`
+(assignments, BYVAL args, RETURN, IF/WHILE/REPEAT/FOR operands, file operands,
+builtin args) and the binary-op interception at the top of `emitExpr`'s
+`BinaryExprAST` branch are the only doors. `coerceValueToType` hard-errors
+("Internal: ...") if a user-kind target reaches it.
+
+**Enum value names are a flat, globally reserved namespace** owned by `TypeSystem`
+(not `Symbols`, so they survive FunctionGen's save/clear/restore). Expression
+resolution order is `Symbols` first, then enum constants; collisions with
+DECLARE/array/parameter/function names are compile errors at declaration time,
+so the order can never shadow. TYPE declarations are top-level only, registered
+by `compile()`'s two-pass pre-scan (names first — pointer pointees may
+forward-reference; definitions second, in source order — a by-value record
+field requires its record type to be already complete).
+
+**Designators degrade.** The parser turns `x` / `arr[i]` into the legacy
+`VariableExprAST`/`ArrayAccessExprAST` (and their assign statements) and only
+builds `DesignatorExprAST`/`DesignatorAssignStmtAST` for chains involving `.`,
+`^` or multiple accessors — existing programs keep byte-identical ASTs.
+`CodeGen::emitLValue` resolves any of these to `{address, type name}`, emitting
+index and null-deref checks on the way; `loadFromLValue` owns the rvalue read
+and the STRING null→`""` guard.
 
 **Fixed IR representation per type.** INTEGER = `i64`, REAL = `double`, BOOLEAN = `i1`,
 CHAR = `i8`, STRING = opaque `ptr` to a NUL-terminated buffer. Some code still infers
@@ -63,16 +90,29 @@ next token that can start a statement or end a block (`syncToStatementStart`), t
 continues; the failure is always diagnosed and reflected in the exit code.
 
 **Calls dispatch on the declared signature.** `FunctionGen::emitPrototype` records every
-function's pseudocode signature (`FuncSig`: return type name + per-param type name and
-BYREF flag); `CodeGen::marshalCallArgs` — the single call-marshalling path for both
-call-expr and call-stmt — requires BYREF arguments to be bare variables of *exactly* the
-declared type (their alloca is passed), coerces BYVAL arguments to the declared
-parameter type, and rejects whole-array arguments. RETURN values are coerced to the
-declared return type. STRING works on both sides in both modes. Top-level prototypes are
-pre-registered before statement emission, so call-before-definition is fine; a call with
+function's pseudocode signature (`FuncSig`: return type name + per-param `ParamSig`
+{type name, mode, array rank/bounds}); `CodeGen::marshalCallArgs` — the single
+call-marshalling path for both call-expr and call-stmt — requires BYREF arguments to be
+bare variables of *exactly* the declared type (their alloca is passed), admits BYVAL
+arguments through `emitCoercedExpr`, and dispatches whole-array arguments to
+`ArrayHandler::emitArrayArgument`. RETURN values go through `emitCoercedExpr` against
+the declared return type. Top-level prototypes are pre-registered (after the TYPE
+pre-pass) before statement emission, so call-before-definition is fine; a call with
 no registered signature is a compile error. Function names get no mangling, so
 `emitPrototype` rejects names that collide with runtime/libc symbols
-(`isReservedRuntimeName`) or with builtins.
+(`isReservedRuntimeName`), builtins, or enum values.
+
+**Parameter modes are sticky and BYREF is procedure-only (guide §8.3).** In
+`(BYREF a : T, b : T)` the `b` is BYREF too; unannotated parameters default to
+BYVAL (§8.1). A BYREF parameter in a FUNCTION is a parse error. **Array
+parameters**: `ARRAY OF T` (rank 1, bounds travel with the argument) or
+`ARRAY[l:u,...] OF T` (literal bounds, any rank, a contract checked at compile
+time when the caller's bounds are constants, else at run time with `[Fatal]`).
+The LLVM ABI flattens each rank-R array parameter into a data `ptr` plus
+`kBoundArgsPerDim` (=2) i64 bounds per dimension; the callee rebuilds its
+`ArrayMetadata` from those (`ArrayHandler::bindArrayParameter` via the binder
+callback CodeGen injects into FunctionGen). BYVAL arrays are whole
+malloc+memcpy copies at callee entry; BYREF binds the caller's buffer.
 
 **Builtins are plain identifiers backed by one table.** All 12 builtins
 (LENGTH/MID/RIGHT/LEFT/LCASE/UCASE/ASC/CHR/IS_NUM/NUM_TO_STR/STR_TO_NUM/EOF) parse as

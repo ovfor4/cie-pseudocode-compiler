@@ -28,16 +28,36 @@ precedence must be > 0) → branch in `ArithmeticHandler::emitBinaryOp`, which d
 on raw LLVM operand types. Exception: `&` is intercepted upstream in `CodeGen::emitExpr`
 (operands coerced to STRING, then `StringHandler::emitConcat`).
 
-**New type:** register in `TypeSystem::registerBuiltins` (correct `ElementSize` —
-arrays malloc `count * ElementSize`) + `TypeKind` case + `getZeroValue` +
-`coerceValueToType` + `emitOutputValue` + INPUT branch in CodeGen + lexer keyword +
-`ParseTypeName` case.
+**New builtin type:** register in `TypeSystem::registerBuiltins` (sizes are derived —
+never hand-written) + `TypeKind` case in the **exhaustive, default-less switches**:
+`getZeroValue`, `coerceValueToType`, `emitOutputValue`, `TypeInfo::isOutputtable`,
+the INPUT branch in CodeGen + lexer keyword + `ParseTypeName` case. The compiler
+warns on a missing enumerator — that is the anti-silent-fall-through mechanism;
+never add a `default`.
+
+**New user-defined type KIND (like enum/record/pointer):** payload struct + checked
+accessor in `TypeInfo`, `declareUserType`/`defineXxx` pair in TypeSystem (two-pass:
+names then definitions), decl AST node in `TypeAST.h`, `ParseTypeDecl` branch,
+pre-pass branch in `CodeGen::runTypePrePass`, admissibility rules in
+`emitCoercedExpr` + `emitUserKindBinaryOp`, and a decision for every hole:
+OUTPUT/INPUT/WRITEFILE/file-name operands, FOR variables, builtin args,
+`getExprTypeInfo` classification. Everything not explicitly admitted must be a
+compile error.
+
+**New designator access form:** `AccessKind` case in `TypeAST.h` +
+`ParseDesignatorSuffix` + the walk in `CodeGen::emitLValue` **and** the static
+walk in `getExprTypeInfo`'s designator branch (they must agree) — plus the
+degrade rule in `ParseIdentifierExpr`/`ParseAssignStmt` if the new form can
+collapse to a legacy node.
 
 **New runtime check:** message global + `emitXxxCheck` in `RuntimeCheck` (build an i1
 fail-condition, call `emitErrorAndExit` — it splits the block and leaves the builder at
 the continuation), then call it from the emit site with the AST node's `getLine()`.
-Precedent: `emitIndexCheck`, called per-dimension from ArrayHandler. Note that failure
-messages print to **stdout** (`[Fatal] line %d: ...`) and `exit(1)`.
+Precedents: `emitIndexCheck` (per-dimension, from ArrayHandler), `emitEnumRangeCheck`
+(after enum ± INTEGER — the only site that can manufacture an invalid ordinal),
+`emitNullDerefCheck` (before every `^` deref), `emitArrayArgBoundsCheck` (bounded
+array-parameter contract). Note that failure messages print to **stdout**
+(`[Fatal] line %d: ...`) and `exit(1)`.
 
 **New libc dependency:** declare via `getOrInsertFunction` in the owning component's
 `setupExternalFunctions()` (re-declaring the same symbol in two handlers is fine — it

@@ -542,7 +542,15 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
             return nullptr;
         }
         std::string Name = Lex.IdentifierStr;
+        int Line = Lex.getLine();
         getNextToken();
+        if (CurTok == '[' || CurTok == '.' || CurTok == '^') {
+            // Consume the whole designator so it cannot replay as statements.
+            std::vector<DesignatorAccess> Dummy;
+            ParseDesignatorSuffix(Dummy);
+            fprintf(stderr, "Error: INPUT target must be a plain variable at line %d\n", Line);
+            return nullptr;
+        }
         return std::make_unique<InputStmtAST>(Name);
     }
     else if (CurTok == tok_output) {

@@ -38,6 +38,10 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
             fprintf(stderr, "Error: parameter '%s' collides with an enum value\n", P.Name.c_str());
             HadError = true;
         }
+        if (Types.resolve(P.Name)) {
+            fprintf(stderr, "Error: parameter '%s' collides with a type name\n", P.Name.c_str());
+            HadError = true;
+        }
         Value *ArgVal = &(*AI);
         ++AI;
         ArgVal->setName(P.Name);
@@ -94,6 +98,12 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     }
     if (Types.lookupEnumConstant(Proto->getName())) {
         fprintf(stderr, "Error: '%s' is an enum value and cannot be a FUNCTION/PROCEDURE name\n",
+                Proto->getName().c_str());
+        HadError = true;
+        return nullptr;
+    }
+    if (Types.resolve(Proto->getName())) {
+        fprintf(stderr, "Error: '%s' is a type name and cannot be a FUNCTION/PROCEDURE name\n",
                 Proto->getName().c_str());
         HadError = true;
         return nullptr;

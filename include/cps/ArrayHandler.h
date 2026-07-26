@@ -91,6 +91,11 @@ public:
     // the Symbols save/clear/restore discipline); returns the previous table.
     std::map<std::string, ArrayMetadata> exchangeTable(std::map<std::string, ArrayMetadata> NewTable);
 
+    // Copy for block-scoping: control-flow bodies snapshot before and restore
+    // after, so an array declared inside a branch cannot be referenced past it
+    // (its buffer setup and bound SSA values live inside the branch).
+    std::map<std::string, ArrayMetadata> snapshotTable() const { return ArrayTable; }
+
     // Callee side of an array parameter: rebuild metadata from the incoming
     // data pointer + per-dim bounds. MakeCopy (BYVAL) mallocs and memcpys the
     // whole buffer so callee writes stay invisible to the caller.

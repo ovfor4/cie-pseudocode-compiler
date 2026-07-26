@@ -200,6 +200,15 @@ Value *CodeGen::loadFromLValue(const LValueInfo &LV) {
 Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
     if (!E || !Target) return nullptr;
 
+    // A whole-array reference evaluates to its raw data pointer, and
+    // getExprTypeInfo reports the ELEMENT type for it — both would slip
+    // through the name check and smash the pointer into the target.
+    if (isWholeArrayVar(E)) {
+        reportError("A whole array cannot be used as a value of type %s; index it",
+                    Target->Name.c_str());
+        return nullptr;
+    }
+
     const TypeInfo *Src = getExprTypeInfo(E);
 
     if (Target->isUserKind()) {
@@ -237,6 +246,14 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
             return nullptr;
         }
         return emitExpr(E); // same nominal type: no conversion needed
+    }
+
+    // ^x is a raw address: admissible ONLY where a pointer type is expected.
+    // Without this check the ptr would coerce into STRING/BOOLEAN silently.
+    if (dynamic_cast<AddrOfExprAST*>(E)) {
+        reportError("'^' (address-of) can only be used where a pointer type is expected (got %s)",
+                    Target->Name.c_str());
+        return nullptr;
     }
 
     if (Src && Src->isUserKind()) {

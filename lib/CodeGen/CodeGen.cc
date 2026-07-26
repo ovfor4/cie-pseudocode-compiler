@@ -402,6 +402,11 @@ void CodeGen::emitDeclareStmt(DeclareStmtAST *Stmt) {
                     Stmt->getName().c_str());
         return;
     }
+    if (Types->resolve(Stmt->getName())) {
+        reportError("'%s' is a type name and cannot be declared as a variable",
+                    Stmt->getName().c_str());
+        return;
+    }
 
     Function *TheFunction = Builder->GetInsertBlock()->getParent();
     AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Info->LLVMType, Stmt->getName());
@@ -603,6 +608,18 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
     }
 
     if (auto *Bin = dynamic_cast<BinaryExprAST*>(Expr)) {
+        // Whole arrays evaluate to raw data pointers and ^x to raw addresses;
+        // neither is a value any operator may consume.
+        if (isWholeArrayVar(Bin->getLHS()) || isWholeArrayVar(Bin->getRHS())) {
+            reportError("A whole array cannot be used as an operand; index it");
+            return nullptr;
+        }
+        if (dynamic_cast<AddrOfExprAST*>(Bin->getLHS()) ||
+            dynamic_cast<AddrOfExprAST*>(Bin->getRHS())) {
+            reportError("'^' (address-of) can only be used where a pointer type is expected");
+            return nullptr;
+        }
+
         // Enum/Record/Pointer operands never reach ArithmeticHandler or the
         // '&' path: their admissible operations are decided by name here.
         const TypeInfo *LT = getExprTypeInfo(Bin->getLHS());
@@ -825,13 +842,18 @@ void CodeGen::emitIfStmt(IfStmtAST *Stmt) {
 
     Builder->CreateCondBr(CondV, ThenBB, ElseBB);
 
+    // Arrays are block-scoped: metadata SSA values and the buffer setup live
+    // inside the branch, so a declaration must not survive it.
+    auto SavedArrays = Arrays->snapshotTable();
     Builder->SetInsertPoint(ThenBB);
     for (const auto &S : Stmt->getThenStmts()) emitStmt(S.get());
     if (!Builder->GetInsertBlock()->getTerminator()) Builder->CreateBr(MergeBB);
+    Arrays->exchangeTable(SavedArrays);
 
     Builder->SetInsertPoint(ElseBB);
     for (const auto &S : Stmt->getElseStmts()) emitStmt(S.get());
     if (!Builder->GetInsertBlock()->getTerminator()) Builder->CreateBr(MergeBB);
+    Arrays->exchangeTable(std::move(SavedArrays));
 
     Builder->SetInsertPoint(MergeBB);
 }
@@ -851,8 +873,11 @@ void CodeGen::emitWhileStmt(WhileStmtAST *Stmt) {
 
     Builder->CreateCondBr(CondV, LoopBB, AfterBB);
 
+    // Arrays declared in the body are block-scoped (see emitIfStmt).
+    auto SavedArrays = Arrays->snapshotTable();
     Builder->SetInsertPoint(LoopBB);
     for (const auto &S : Stmt->getBody()) emitStmt(S.get());
+    Arrays->exchangeTable(std::move(SavedArrays));
 
     if (!Builder->GetInsertBlock()->getTerminator())
         Builder->CreateBr(CondBB);
@@ -869,8 +894,11 @@ void CodeGen::emitRepeatStmt(RepeatStmtAST *Stmt) {
 
     Builder->CreateBr(LoopBB);
 
+    // Arrays declared in the body are block-scoped (see emitIfStmt).
+    auto SavedArrays = Arrays->snapshotTable();
     Builder->SetInsertPoint(LoopBB);
     for (const auto &S : Stmt->getBody()) emitStmt(S.get());
+    Arrays->exchangeTable(std::move(SavedArrays));
     if (!Builder->GetInsertBlock()->getTerminator())
         Builder->CreateBr(CondBB);
 
@@ -934,8 +962,11 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
 
     Builder->CreateCondBr(CondV, LoopBB, AfterBB);
 
+    // Arrays declared in the body are block-scoped (see emitIfStmt).
+    auto SavedArrays = Arrays->snapshotTable();
     Builder->SetInsertPoint(LoopBB);
     for (const auto &S : Stmt->getBody()) emitStmt(S.get());
+    Arrays->exchangeTable(std::move(SavedArrays));
     if (!Builder->GetInsertBlock()->getTerminator())
         Builder->CreateBr(IncBB);
 
@@ -984,10 +1015,19 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     }
 
     if (auto *Ret = dynamic_cast<ReturnStmtAST*>(Stmt)) {
+        Function *F = Builder->GetInsertBlock()->getParent();
+        const FuncSig *Sig = FuncGen->getSignature(F->getName().str());
+        if (Sig && Sig->ReturnTypeName == "VOID" && Ret->getRetVal()) {
+            reportError("RETURN with a value is only allowed in a FUNCTION");
+            return;
+        }
+        if (Sig && Sig->ReturnTypeName != "VOID" && !Ret->getRetVal()) {
+            reportError("RETURN in a FUNCTION requires a value");
+            return;
+        }
         Value *RetVal = nullptr;
         if (Ret->getRetVal()) {
-            Function *F = Builder->GetInsertBlock()->getParent();
-            if (const FuncSig *Sig = FuncGen->getSignature(F->getName().str())) {
+            if (Sig) {
                 RetVal = emitCoercedExpr(Ret->getRetVal(), resolveType(Sig->ReturnTypeName));
             } else {
                 RetVal = emitExpr(Ret->getRetVal());
@@ -1006,7 +1046,11 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     if (auto *Assign = dynamic_cast<AssignStmtAST*>(Stmt)) {
         const SymbolInfo *Info = getSymbolInfo(Assign->getName());
         if (!Info) {
-            reportError("Unknown variable name %s", Assign->getName().c_str());
+            if (Types->lookupEnumConstant(Assign->getName())) {
+                reportError("Enum value %s is not an assignable location", Assign->getName().c_str());
+            } else {
+                reportError("Unknown variable name %s", Assign->getName().c_str());
+            }
             return;
         }
         if (Info->IsArray) {

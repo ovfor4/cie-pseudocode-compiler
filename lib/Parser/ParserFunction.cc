@@ -106,6 +106,13 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
             return std::nullopt;
         }
 
+        for (const ParamDecl &Prev : Params) {
+            if (Prev.Name == P.Name) {
+                fprintf(stderr, "Error: Duplicate parameter name '%s' at line %d\n",
+                        P.Name.c_str(), Lex.getLine());
+                return std::nullopt;
+            }
+        }
         Params.push_back(std::move(P));
 
         if (CurTok == ')') break;
@@ -114,6 +121,10 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
             return std::nullopt;
         }
         getNextToken();
+        if (CurTok == ')') {
+            fprintf(stderr, "Error: Expected another parameter after ',' at line %d\n", Lex.getLine());
+            return std::nullopt;
+        }
     }
     getNextToken();
     return Params;
