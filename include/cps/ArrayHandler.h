@@ -16,7 +16,7 @@ struct ArrayMetadata {
     int Rank = 0;
     std::string ElementTypeName;
     llvm::Type *ElementType = nullptr;
-    uint64_t ElementSize = 0;
+    llvm::Constant *ElementSizeC = nullptr; // i64 sizeof constant (target-folded)
     std::vector<llvm::Value*> LowerBounds;
     std::vector<llvm::Value*> UpperBounds;
     std::vector<llvm::Value*> Multipliers;
@@ -67,6 +67,22 @@ public:
     llvm::Value *emitArrayAccess(ArrayAccessExprAST *Expr, CodeGen &CG);
 
     bool tryEmitArrayOutput(ExprAST *Expr, CodeGen &CG);
+
+    // Full-rank checked element address (bounds checks included); reports the
+    // element type name through ElemTypeNameOut. The lvalue layer builds
+    // field/deref accesses on top of this.
+    llvm::Value *emitElementAddress(const std::string &Name,
+                                    const std::vector<std::unique_ptr<ExprAST>> &IndexExprs,
+                                    int Line,
+                                    CodeGen &CG,
+                                    std::string &ElemTypeNameOut);
+    llvm::Value *emitElementAddress(ArrayAccessExprAST *Expr,
+                                    CodeGen &CG,
+                                    std::string &ElemTypeNameOut);
+
+    // Swap in a fresh table (function bodies get their own scope, mirroring
+    // the Symbols save/clear/restore discipline); returns the previous table.
+    std::map<std::string, ArrayMetadata> exchangeTable(std::map<std::string, ArrayMetadata> NewTable);
 };
 
 } // namespace cps

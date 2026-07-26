@@ -117,14 +117,13 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
     Meta.Rank = Rank;
     Meta.ElementTypeName = ElemInfo->Name;
     Meta.ElementType = ElemInfo->LLVMType;
-    Meta.ElementSize = ElemInfo->ElementSize;
+    Meta.ElementSizeC = Types.getSizeOfConstant(ElemInfo->LLVMType);
     Meta.LowerBounds = std::move(Lows);
     Meta.UpperBounds = std::move(Highs);
     Meta.Multipliers = std::move(Multipliers);
     ArrayTable[Name] = Meta;
 
-    Value *ElemSize = ConstantInt::get(*TheContext, APInt(64, ElemInfo->ElementSize));
-    Value *TotalBytes = Builder->CreateMul(TotalElements, ElemSize, Name + "_total_bytes");
+    Value *TotalBytes = Builder->CreateMul(TotalElements, Meta.ElementSizeC, Name + "_total_bytes");
     CallInst *Ptr = Builder->CreateCall(MallocFunc, TotalBytes, Name + "_malloc");
 
     FunctionType *MemsetType = FunctionType::get(PointerType::getUnqual(*TheContext),
@@ -179,10 +178,7 @@ Value *ArrayHandler::loadElement(const std::string &Name, Value *Offset, CodeGen
 
     Value *Val = Builder->CreateLoad(Meta->ElementType, ElemPtr, Name + "_elem");
     if (Meta->ElementTypeName == "STRING") {
-        Value *IsNull = Builder->CreateICmpEQ(Val,
-                                              ConstantPointerNull::get(cast<PointerType>(Meta->ElementType)),
-                                              Name + "_str_is_null");
-        Val = Builder->CreateSelect(IsNull, CG.EmptyStringStr, Val, Name + "_safe_str");
+        Val = CG.emitStringNullGuard(Val);
     }
     return Val;
 }
@@ -198,22 +194,45 @@ Value *ArrayHandler::emitArrayAccess(ArrayAccessExprAST *Expr, CodeGen &CG) {
 }
 
 void ArrayHandler::emitArrayAssign(ArrayAssignStmtAST *Stmt, CodeGen &CG) {
-    std::string Name = Stmt->getName();
-    std::vector<Value*> Indices;
-    if (!emitCheckedIndices(Name, Stmt->getIndices(), Stmt->getLine(), true, CG, Indices))
-        return;
+    std::string ElemTypeName;
+    Value *ElemPtr = emitElementAddress(Stmt->getName(), Stmt->getIndices(),
+                                        Stmt->getLine(), CG, ElemTypeName);
+    if (!ElemPtr) return;
 
-    const ArrayMetadata *Meta = getMetadata(Name);
-    const TypeInfo *ElemInfo = Types.resolve(Meta->ElementTypeName);
     Value *Val = CG.emitExpr(Stmt->getExpr());
-    Val = CG.coerceValueToType(Val, ElemInfo);
+    Val = CG.coerceValueToType(Val, Types.resolve(ElemTypeName));
     if (!Val) return;
+
+    Builder->CreateStore(Val, ElemPtr);
+}
+
+Value *ArrayHandler::emitElementAddress(const std::string &Name,
+                                        const std::vector<std::unique_ptr<ExprAST>> &IndexExprs,
+                                        int Line,
+                                        CodeGen &CG,
+                                        std::string &ElemTypeNameOut) {
+    std::vector<Value*> Indices;
+    if (!emitCheckedIndices(Name, IndexExprs, Line, true, CG, Indices))
+        return nullptr;
 
     Value *Offset = computeFlatIndex(Name, Indices);
     Value *ElemPtr = getElementPointer(Name, Offset);
-    if (!ElemPtr) return;
+    if (!ElemPtr) return nullptr;
 
-    Builder->CreateStore(Val, ElemPtr);
+    ElemTypeNameOut = getMetadata(Name)->ElementTypeName;
+    return ElemPtr;
+}
+
+Value *ArrayHandler::emitElementAddress(ArrayAccessExprAST *Expr,
+                                        CodeGen &CG,
+                                        std::string &ElemTypeNameOut) {
+    return emitElementAddress(Expr->getName(), Expr->getIndices(), Expr->getLine(),
+                              CG, ElemTypeNameOut);
+}
+
+std::map<std::string, ArrayMetadata> ArrayHandler::exchangeTable(std::map<std::string, ArrayMetadata> NewTable) {
+    std::swap(ArrayTable, NewTable);
+    return NewTable;
 }
 
 bool ArrayHandler::tryEmitArrayOutput(ExprAST *Expr, CodeGen &CG) {

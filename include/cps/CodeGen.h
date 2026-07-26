@@ -87,6 +87,9 @@ public:
     llvm::Value *emitExpr(ExprAST *Expr);
     void emitStmt(StmtAST *Stmt);
 
+    // STRING slots zero-init to null; normalize null to "" at load/print sites.
+    llvm::Value *emitStringNullGuard(llvm::Value *StrVal);
+
     const TypeInfo *resolveType(const std::string &TypeName) const;
     llvm::Type *getLLVMType(const std::string &TypeName) const;
     llvm::Value *getNamedValue(const std::string &Name) const;

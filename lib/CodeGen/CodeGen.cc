@@ -363,6 +363,14 @@ void CodeGen::emitDeclareStmt(DeclareStmtAST *Stmt) {
     registerSymbol(Stmt->getName(), Alloca, Info->Name, false);
 }
 
+Value *CodeGen::emitStringNullGuard(Value *StrVal) {
+    if (!StrVal || !StrVal->getType()->isPointerTy()) return StrVal;
+    Value *IsNull = Builder->CreateICmpEQ(StrVal,
+                                          ConstantPointerNull::get(cast<PointerType>(StrVal->getType())),
+                                          "str_is_null");
+    return Builder->CreateSelect(IsNull, EmptyStringStr, StrVal, "safe_str");
+}
+
 void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewline) {
     if (!Val || !Info) return;
     if (!Info->Printable && Info->Kind == TypeKind::Custom) {
@@ -387,13 +395,7 @@ void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewli
         Args.push_back(Fmt);
         Args.push_back(Builder->CreateSelect(BoolVal, TrueStr, FalseStr));
     } else if (Info->isString()) {
-        Value *StrVal = Val;
-        if (StrVal->getType()->isPointerTy()) {
-            Value *IsNull = Builder->CreateICmpEQ(StrVal,
-                                                  ConstantPointerNull::get(cast<PointerType>(StrVal->getType())),
-                                                  "str_is_null");
-            StrVal = Builder->CreateSelect(IsNull, EmptyStringStr, StrVal, "safe_str");
-        }
+        Value *StrVal = emitStringNullGuard(Val);
         Fmt = AppendNewline
             ? PrintfStringFormatStr
             : Builder->CreateGlobalStringPtr("%s", "fmt_str_inline", 0, TheModule.get());
@@ -491,10 +493,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
 
         Value *Loaded = Builder->CreateLoad(TypeInfo->LLVMType, Info->Storage, Var->getName().c_str());
         if (TypeInfo->isString()) {
-            Value *IsNull = Builder->CreateICmpEQ(Loaded,
-                                                  ConstantPointerNull::get(cast<PointerType>(Loaded->getType())),
-                                                  "str_is_null");
-            Loaded = Builder->CreateSelect(IsNull, EmptyStringStr, Loaded, "safe_var_str");
+            Loaded = emitStringNullGuard(Loaded);
         }
         return Loaded;
     }
@@ -836,11 +835,15 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
 
     if (auto *FuncDef = dynamic_cast<FunctionDefAST*>(Stmt)) {
         BasicBlock *SavedBlock = Builder->GetInsertBlock();
+        // Function bodies get a fresh array scope (metadata SSA values belong
+        // to the emitting function), mirroring FunctionGen's Symbols handling.
+        auto SavedArrays = Arrays->exchangeTable({});
 
         FuncGen->emitFunctionDef(FuncDef, [this](StmtAST *S) {
             this->emitStmt(S);
         });
 
+        Arrays->exchangeTable(std::move(SavedArrays));
         if (SavedBlock) Builder->SetInsertPoint(SavedBlock);
         return;
     }

@@ -66,6 +66,11 @@ public:
     llvm::Type *getLLVMType(const std::string &TypeName) const;
     uint64_t getElementSize(const std::string &TypeName) const;
     llvm::Constant *getZeroValue(const std::string &TypeName) const;
+
+    // Target-independent sizeof: a null-GEP+ptrtoint i64 constant the backend
+    // folds with the *real* target's DataLayout. The module carries no
+    // DataLayout string, so sizes must never be computed host-side.
+    llvm::Constant *getSizeOfConstant(llvm::Type *Ty) const;
 };
 
 } // namespace cps

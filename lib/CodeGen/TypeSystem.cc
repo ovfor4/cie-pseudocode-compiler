@@ -129,6 +129,10 @@ uint64_t TypeSystem::getElementSize(const std::string &TypeName) const {
     return Info ? Info->ElementSize : 0;
 }
 
+Constant *TypeSystem::getSizeOfConstant(Type *Ty) const {
+    return ConstantExpr::getSizeOf(Ty);
+}
+
 Constant *TypeSystem::getZeroValue(const std::string &TypeName) const {
     const TypeInfo *Info = resolve(TypeName);
     if (!Info || !Info->LLVMType || Info->LLVMType->isVoidTy()) {
