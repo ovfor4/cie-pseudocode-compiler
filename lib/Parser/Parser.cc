@@ -59,7 +59,7 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
         getNextToken();
         auto Args = ParseExprList(')', true);
         if (!Args) return nullptr;
-        return std::make_unique<CallExprAST>(IdName, std::move(*Args));
+        return std::make_unique<CallExprAST>(IdName, std::move(*Args), Line);
     }
 
     if (CurTok == '[') {
@@ -213,6 +213,7 @@ void Parser::syncToStatementStart() {
         case tok_function: case tok_procedure: case tok_call: case tok_return:
         case tok_else: case tok_endif: case tok_endwhile: case tok_until:
         case tok_next: case tok_endfunction: case tok_endprocedure:
+        case tok_openfile: case tok_readfile: case tok_writefile: case tok_closefile:
             return;
         default:
             getNextToken();
@@ -536,6 +537,18 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     }
     else if (CurTok == tok_return) {
         return ParseReturnStmt();
+    }
+    else if (CurTok == tok_openfile) {
+        return ParseOpenFile();
+    }
+    else if (CurTok == tok_readfile) {
+        return ParseReadFile();
+    }
+    else if (CurTok == tok_writefile) {
+        return ParseWriteFile();
+    }
+    else if (CurTok == tok_closefile) {
+        return ParseCloseFile();
     }
 
     fprintf(stderr, "Error: Unexpected token at line %d when expecting a statement\n", Lex.getLine());

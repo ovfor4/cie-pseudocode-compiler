@@ -18,6 +18,7 @@
 namespace cps {
 
 class ArrayHandler;
+class FileHandler;
 
 class CodeGen {
     std::unique_ptr<llvm::LLVMContext> TheContext;
@@ -33,6 +34,7 @@ class CodeGen {
     std::unique_ptr<ArithmeticHandler> ArithHandler;
     std::unique_ptr<StringHandler> StrHandler;
     std::unique_ptr<StringConversionHandler> StrConvHandler;
+    std::unique_ptr<FileHandler> Files;
 
     llvm::FunctionCallee PrintfFunc;
     llvm::FunctionCallee ScanfFunc;
@@ -59,6 +61,7 @@ class CodeGen {
 
     void registerSymbol(const std::string &Name, llvm::Value *Storage, const std::string &TypeName, bool IsArray = false);
     const SymbolInfo *getSymbolInfo(const std::string &Name) const;
+    bool isWholeArrayVar(ExprAST *Expr) const;
     const TypeInfo *getExprTypeInfo(ExprAST *Expr) const;
     llvm::Value *coerceValueToType(llvm::Value *Val, const TypeInfo *TargetInfo);
     bool marshalCallArgs(const std::string &Callee,

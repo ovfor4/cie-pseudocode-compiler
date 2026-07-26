@@ -15,13 +15,16 @@ IDK WHAT HAPPENDED IT IS 100% AI-GENERATED DO NOT OPEN ANY ISSUES JUST CLONE AND
 - cache-friendly array (perhaps)
 - dynamic string handling, with full implementation of all CIE string functions, with high security
 - native support for BYREF/BYVAL using pointers
+- text file handling (OPENFILE/READFILE/WRITEFILE/CLOSEFILE/EOF) with runtime misuse
+  checking (wrong mode, not open, read past EOF, ... all die with a clean `[Fatal]`
+  message instead of corrupting anything)
 - ultra-fast compiling & executing
 
 ## TODO
 
 - search for `TODO` in my code
 - type
-- file
+- random files (OPENFILE FOR RANDOM / SEEK / GETRECORD / PUTRECORD) — needs `type` first
 
 
 ## Dependencies

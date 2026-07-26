@@ -121,6 +121,15 @@ int Lexer::gettok() {
         if (IdentifierStr == "BYREF") return tok_byref;
         if (IdentifierStr == "BYVAL") return tok_byval;
 
+        if (IdentifierStr == "OPENFILE") return tok_openfile;
+        if (IdentifierStr == "READFILE") return tok_readfile;
+        if (IdentifierStr == "WRITEFILE") return tok_writefile;
+        if (IdentifierStr == "CLOSEFILE") return tok_closefile;
+        if (IdentifierStr == "READ") return tok_read;
+        if (IdentifierStr == "WRITE") return tok_write;
+        if (IdentifierStr == "APPEND") return tok_append;
+        if (IdentifierStr == "RANDOM") return tok_random;
+
         return tok_identifier;
     }
 

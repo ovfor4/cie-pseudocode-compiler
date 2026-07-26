@@ -31,14 +31,16 @@ pseudocode types *backwards* from LLVM types (`getExprTypeInfo`'s fallback,
 `ArithmeticHandler`'s `isIntegerTy(64)` tests), so these widths are ABI.
 
 **Strings are malloc'd and never freed — by design.** Every string-producing operation
-(`&`, MID/LEFT/RIGHT/LCASE/UCASE, NUM_TO_STR, CHR, CHAR/number→STRING coercion) mallocs
-a fresh buffer; string literals and BOOLEAN→STRING coercion instead return pointers to
-shared module globals, so a STRING value may alias a global. `free` is never declared or
-called. Don't "fix" leaks piecemeal; it's a global design decision. Heap-string
-operations live in `StringHandler` (including `&` concatenation, `emitConcat`) and
-`StringConversionHandler` (NUM_TO_STR/STR_TO_NUM buffers); `CodeGen` also keeps its own
-`MallocFunc` for the char→STRING coercion and INPUT STRING buffers — declared in
-`SetupExternalFunctions`, never fetched with a bare `getFunction("malloc")`.
+(`&`, MID/LEFT/RIGHT/LCASE/UCASE, NUM_TO_STR, CHR, READFILE, CHAR/number→STRING
+coercion) mallocs a fresh buffer; string literals and BOOLEAN→STRING coercion instead
+return pointers to shared module globals, so a STRING value may alias a global. `free`
+is never declared or called. Don't "fix" leaks piecemeal; it's a global design decision.
+Heap-string operations live in `StringHandler` (including `&` concatenation,
+`emitConcat`), `StringConversionHandler` (NUM_TO_STR/STR_TO_NUM buffers) and
+`FileHandler` (READFILE line buffers — its `__cps_file_read` helper owns the project's
+only `realloc`); `CodeGen` also keeps its own `MallocFunc` for the char→STRING coercion
+and INPUT STRING buffers — declared in `SetupExternalFunctions`, never fetched with a
+bare `getFunction("malloc")`.
 
 **One flat symbol namespace, one table.** `Symbols` (name → `SymbolInfo{Storage,
 TypeName, IsArray}`) in CodeGen is the only symbol table; register through
@@ -72,10 +74,12 @@ no registered signature is a compile error. Function names get no mangling, so
 `emitPrototype` rejects names that collide with runtime/libc symbols
 (`isReservedRuntimeName`) or with builtins.
 
-**Builtins are plain identifiers backed by one table.** All 11 builtins
-(LENGTH/MID/RIGHT/LEFT/LCASE/UCASE/ASC/CHR/IS_NUM/NUM_TO_STR/STR_TO_NUM) parse as
+**Builtins are plain identifiers backed by one table.** All 12 builtins
+(LENGTH/MID/RIGHT/LEFT/LCASE/UCASE/ASC/CHR/IS_NUM/NUM_TO_STR/STR_TO_NUM/EOF) parse as
 ordinary calls — no lexer/parser support, and the names are not reserved words. The
 static `Builtins` table at the top of `CodeGen.cc` ({Name, Arity, ReturnTypeName}) is
 the single source of truth: `emitExpr`'s `CallExprAST` branch checks arity against it
 before dispatching to the per-builtin emit branches (still an if-chain, ahead of the
-user-function fallback), and `getExprTypeInfo` reads return types from it.
+user-function fallback), and `getExprTypeInfo` reads return types from it. EOF is the
+odd one out: its intercept consumes `CallExprAST::getLine()` (runtime diagnostics) and
+it is the only builtin that touches mutable runtime state and can exit(1) at run time.

@@ -23,6 +23,13 @@ public:
 
     void emitDivZeroCheck(llvm::Value *Divisor, int Line);
     void emitIndexCheck(llvm::Value *Index, llvm::Value *Lower, llvm::Value *Upper, int Line);
+
+    // Runtime-computed variant: FmtArgs are the printf varargs after Msg
+    // (e.g. {i32 line, ptr filename}). Needed when the failure site is inside
+    // a synthesized helper function, where the line number is an argument
+    // rather than a compile-time constant.
+    void emitErrorAndExit(llvm::Value *Condition, llvm::Value *Msg,
+                          llvm::ArrayRef<llvm::Value *> FmtArgs);
 };
 
 }

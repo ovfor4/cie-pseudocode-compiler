@@ -42,13 +42,15 @@ public:
 class CallExprAST : public ExprAST {
     std::string Callee;
     std::vector<std::unique_ptr<ExprAST>> Args;
+    int Line;
 
 public:
-    CallExprAST(const std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args)
-        : Callee(Callee), Args(std::move(Args)) {}
+    CallExprAST(const std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args, int Line)
+        : Callee(Callee), Args(std::move(Args)), Line(Line) {}
 
     const std::string &getCallee() const { return Callee; }
     const std::vector<std::unique_ptr<ExprAST>> &getArgs() const { return Args; }
+    int getLine() const { return Line; }
 };
 
 class CallStmtAST : public StmtAST {

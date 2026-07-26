@@ -12,6 +12,8 @@ static bool isReservedRuntimeName(const std::string &Name) {
         "main", "printf", "scanf", "malloc", "free", "strlen", "memcpy",
         "strcpy", "strcat", "toupper", "tolower", "sprintf", "strtol",
         "strtod", "memset", "exit",
+        "fopen", "fclose", "fgetc", "ungetc", "fputs", "fputc",
+        "realloc", "strcmp",
     };
     for (const char *R : Reserved) {
         if (Name == R) return true;

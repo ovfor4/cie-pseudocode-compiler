@@ -4,7 +4,8 @@ Step-by-step patterns for adding features. Read `CONVENTIONS.md` first — every
 below assumes those invariants.
 
 **New statement:** token in `Lexer.h` enum + keyword match in `Lexer.cc`'s if-chain →
-node class in `AST.h` (unique_ptr children, move ctor, raw-ptr getters) → `ParseXxx` in
+node class in `AST.h` or a feature header (`FunctionAST.h`/`FileAST.h` precedent;
+unique_ptr children, move ctor, raw-ptr getters) → `ParseXxx` in
 `Parser.cc` + branch in `ParseStatementImpl` (block statements parse their body with
 `ParseBlock({terminator tokens})`; comma-separated expression lists use
 `ParseExprList(close, allowEmpty)`; add the new statement's leading keyword to

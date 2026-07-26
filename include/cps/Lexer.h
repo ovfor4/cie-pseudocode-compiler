@@ -69,7 +69,16 @@ enum Token {
     tok_endprocedure = -405, 
     tok_call = -406,
     tok_byref = -407,
-    tok_byval = -408
+    tok_byval = -408,
+
+    tok_openfile = -500,
+    tok_readfile = -501,
+    tok_writefile = -502,
+    tok_closefile = -503,
+    tok_read = -504,
+    tok_write = -505,
+    tok_append = -506,
+    tok_random = -507
 };
 
 class Lexer {

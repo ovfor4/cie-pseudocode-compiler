@@ -5,6 +5,16 @@
 using namespace llvm;
 using namespace cps;
 
+// Widen an i1 (BOOLEAN) or i8 (CHAR) operand to i64 with the same ZExt
+// coerceValueToType uses, so a mixed pair like EOF(f) - 1 cannot reach the
+// instruction builders with mismatched integer widths (invalid IR).
+static Value *widenSmallInt(IRBuilder<> &Builder, LLVMContext &Context, Value *V) {
+    Type *Ty = V->getType();
+    if (Ty->isIntegerTy() && Ty->getIntegerBitWidth() < 64)
+        return Builder.CreateZExt(V, Type::getInt64Ty(Context), "widetmp");
+    return V;
+}
+
 Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line) {
     bool LIsInt = LHS->getType()->isIntegerTy(64);
     bool RIsInt = RHS->getType()->isIntegerTy(64);
@@ -12,11 +22,16 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
     bool RIsDouble = RHS->getType()->isDoubleTy();
 
     if (Op == '/') {
-        Value *LVal = LHS;
-        Value *RVal = RHS;
-        if (LIsInt) LVal = Builder.CreateSIToFP(LHS, Type::getDoubleTy(Context));
-        if (RIsInt) RVal = Builder.CreateSIToFP(RHS, Type::getDoubleTy(Context));
-        
+        Value *LVal = widenSmallInt(Builder, Context, LHS);
+        Value *RVal = widenSmallInt(Builder, Context, RHS);
+        if (LVal->getType()->isIntegerTy(64)) LVal = Builder.CreateSIToFP(LVal, Type::getDoubleTy(Context));
+        if (RVal->getType()->isIntegerTy(64)) RVal = Builder.CreateSIToFP(RVal, Type::getDoubleTy(Context));
+        if (!LVal->getType()->isDoubleTy() || !RVal->getType()->isDoubleTy()) {
+            fprintf(stderr, "Error: '/' requires numeric operands (line %d).\n", Line);
+            HadError = true;
+            return nullptr;
+        }
+
         // TODO: DIV divide by 0 runtime check
         return Builder.CreateFDiv(LVal, RVal, "divtmp");
     }
@@ -68,17 +83,32 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
             case tok_ge: return Builder.CreateFCmpOGE(LVal, RVal, "sgetmp");
         }
     } else {
+        // Same-type pairs (i64/i64, i8/i8 CHAR, i1/i1, ptr/ptr STRING) go
+        // through untouched; mixed integer widths are widened, anything else
+        // mismatched is a diagnostic instead of invalid IR.
+        Value *L = LHS;
+        Value *R = RHS;
+        if (L->getType() != R->getType() &&
+            L->getType()->isIntegerTy() && R->getType()->isIntegerTy()) {
+            L = widenSmallInt(Builder, Context, L);
+            R = widenSmallInt(Builder, Context, R);
+        }
+        if (L->getType() != R->getType()) {
+            fprintf(stderr, "Error: Mismatched operand types for binary operator (line %d).\n", Line);
+            HadError = true;
+            return nullptr;
+        }
         switch (Op) {
-            case '+': return Builder.CreateAdd(LHS, RHS, "addtmp");
-            case '-': return Builder.CreateSub(LHS, RHS, "subtmp");
-            case '*': return Builder.CreateMul(LHS, RHS, "multmp");
-            
-            case tok_eq: return Builder.CreateICmpEQ(LHS, RHS, "eqtmp");
-            case tok_ne: return Builder.CreateICmpNE(LHS, RHS, "netmp");
-            case '<':    return Builder.CreateICmpSLT(LHS, RHS, "slttmp");
-            case '>':    return Builder.CreateICmpSGT(LHS, RHS, "sgttmp");
-            case tok_le: return Builder.CreateICmpSLE(LHS, RHS, "sletmp");
-            case tok_ge: return Builder.CreateICmpSGE(LHS, RHS, "sgetmp");
+            case '+': return Builder.CreateAdd(L, R, "addtmp");
+            case '-': return Builder.CreateSub(L, R, "subtmp");
+            case '*': return Builder.CreateMul(L, R, "multmp");
+
+            case tok_eq: return Builder.CreateICmpEQ(L, R, "eqtmp");
+            case tok_ne: return Builder.CreateICmpNE(L, R, "netmp");
+            case '<':    return Builder.CreateICmpSLT(L, R, "slttmp");
+            case '>':    return Builder.CreateICmpSGT(L, R, "sgttmp");
+            case tok_le: return Builder.CreateICmpSLE(L, R, "sletmp");
+            case tok_ge: return Builder.CreateICmpSGE(L, R, "sgetmp");
         }
     }
 

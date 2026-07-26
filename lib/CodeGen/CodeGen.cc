@@ -1,5 +1,7 @@
 #include "cps/CodeGen.h"
 #include "cps/ArrayHandler.h"
+#include "cps/FileAST.h"
+#include "cps/FileHandler.h"
 #include "cps/Lexer.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Verifier.h"
@@ -32,6 +34,7 @@ constexpr BuiltinInfo Builtins[] = {
     {"IS_NUM",     1, "BOOLEAN"},
     {"NUM_TO_STR", 1, "STRING"},
     {"STR_TO_NUM", 1, "REAL"},
+    {"EOF",        1, "BOOLEAN"},
 };
 
 const BuiltinInfo *findBuiltin(const std::string &Name) {
@@ -84,6 +87,7 @@ CodeGen::CodeGen() {
     ArithHandler = std::make_unique<ArithmeticHandler>(*TheContext, *Builder, HadError);
     StrHandler = std::make_unique<StringHandler>(*TheContext, *Builder, *TheModule);
     StrConvHandler = std::make_unique<StringConversionHandler>(*TheContext, *Builder, *TheModule);
+    Files = std::make_unique<FileHandler>(*TheContext, *Builder, *TheModule, *RuntimeChecker);
 
     SetupExternalFunctions();
 }
@@ -142,6 +146,16 @@ const SymbolInfo *CodeGen::getSymbolInfo(const std::string &Name) const {
         return nullptr;
     }
     return &It->second;
+}
+
+// A whole-array variable reference evaluates to the raw buffer pointer, which
+// the pointer->STRING coercion would accept unchanged; file-statement operands
+// must reject it explicitly or garbage gets treated as a C string.
+bool CodeGen::isWholeArrayVar(ExprAST *Expr) const {
+    auto *Var = dynamic_cast<VariableExprAST*>(Expr);
+    if (!Var) return false;
+    const SymbolInfo *Info = getSymbolInfo(Var->getName());
+    return Info && Info->IsArray;
 }
 
 const TypeInfo *CodeGen::resolveType(const std::string &TypeName) const {
@@ -590,6 +604,16 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             if (!Str) return nullptr;
             return StrConvHandler->emitStrToNum(Str, true);
         }
+        if (Name == "EOF") {
+            if (isWholeArrayVar(Call->getArgs()[0].get())) {
+                reportError("Cannot use a whole array as the EOF filename");
+                return nullptr;
+            }
+            Value *FileName = coerceValueToType(emitExpr(Call->getArgs()[0].get()),
+                                                resolveType("STRING"));
+            if (!FileName) return nullptr;
+            return Files->emitEof(FileName, Call->getLine());
+        }
 
         std::vector<Value*> Args;
         if (!marshalCallArgs(Name, Call->getArgs(), Args)) return nullptr;
@@ -932,6 +956,67 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             return;
         }
         emitOutputValue(Val, TypeInfo, true);
+        return;
+    }
+
+    if (auto *Open = dynamic_cast<OpenFileStmtAST*>(Stmt)) {
+        if (isWholeArrayVar(Open->getFileName())) {
+            reportError("Cannot use a whole array as the OPENFILE filename");
+            return;
+        }
+        Value *Name = coerceValueToType(emitExpr(Open->getFileName()), resolveType("STRING"));
+        if (!Name) return;
+        Files->emitOpen(Name, Open->getMode(), Open->getLine());
+        return;
+    }
+
+    if (auto *Read = dynamic_cast<ReadFileStmtAST*>(Stmt)) {
+        const SymbolInfo *Info = getSymbolInfo(Read->getVarName());
+        if (!Info) {
+            reportError("Unknown variable name %s", Read->getVarName().c_str());
+            return;
+        }
+        if (Info->IsArray) {
+            reportError("READFILE into entire array %s is not supported", Read->getVarName().c_str());
+            return;
+        }
+        if (Info->TypeName != "STRING") {
+            reportError("READFILE variable %s must be of type STRING (got %s)",
+                        Read->getVarName().c_str(), Info->TypeName.c_str());
+            return;
+        }
+        if (isWholeArrayVar(Read->getFileName())) {
+            reportError("Cannot use a whole array as the READFILE filename");
+            return;
+        }
+        Value *Name = coerceValueToType(emitExpr(Read->getFileName()), resolveType("STRING"));
+        if (!Name) return;
+        Value *LineStr = Files->emitRead(Name, Read->getLine());
+        if (!LineStr) return;
+        Builder->CreateStore(LineStr, Info->Storage);
+        return;
+    }
+
+    if (auto *Write = dynamic_cast<WriteFileStmtAST*>(Stmt)) {
+        if (isWholeArrayVar(Write->getFileName()) || isWholeArrayVar(Write->getData())) {
+            reportError("Cannot use a whole array in WRITEFILE");
+            return;
+        }
+        Value *Name = coerceValueToType(emitExpr(Write->getFileName()), resolveType("STRING"));
+        Value *Data = coerceValueToType(emitExpr(Write->getData()), resolveType("STRING"));
+        if (!Name || !Data) return;
+        Files->emitWrite(Name, Data, Write->getLine());
+        return;
+    }
+
+    if (auto *Close = dynamic_cast<CloseFileStmtAST*>(Stmt)) {
+        if (isWholeArrayVar(Close->getFileName())) {
+            reportError("Cannot use a whole array as the CLOSEFILE filename");
+            return;
+        }
+        Value *Name = coerceValueToType(emitExpr(Close->getFileName()), resolveType("STRING"));
+        if (!Name) return;
+        Files->emitClose(Name, Close->getLine());
         return;
     }
 

@@ -49,6 +49,11 @@ class Parser {
     std::unique_ptr<StmtAST> ParseReturnStmt();
     std::optional<std::vector<std::tuple<std::string, std::string, bool>>> ParsePrototypeArgs();
 
+    std::unique_ptr<StmtAST> ParseOpenFile();
+    std::unique_ptr<StmtAST> ParseReadFile();
+    std::unique_ptr<StmtAST> ParseWriteFile();
+    std::unique_ptr<StmtAST> ParseCloseFile();
+
 public:
     Parser(Lexer &L);
     std::vector<std::unique_ptr<StmtAST>> Parse();

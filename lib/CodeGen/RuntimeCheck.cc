@@ -27,8 +27,12 @@ void RuntimeCheck::setupExternalFunctions() {
 }
 
 void RuntimeCheck::emitErrorAndExit(Value *Condition, Value *Msg, int Line) {
+    emitErrorAndExit(Condition, Msg, {ConstantInt::get(TheContext, APInt(32, Line))});
+}
+
+void RuntimeCheck::emitErrorAndExit(Value *Condition, Value *Msg, ArrayRef<Value *> FmtArgs) {
     Function *TheFunction = Builder.GetInsertBlock()->getParent();
-    
+
     BasicBlock *FailBB = BasicBlock::Create(TheContext, "check_fail", TheFunction);
     BasicBlock *ContBB = BasicBlock::Create(TheContext, "check_cont", TheFunction);
 
@@ -37,7 +41,7 @@ void RuntimeCheck::emitErrorAndExit(Value *Condition, Value *Msg, int Line) {
     Builder.SetInsertPoint(FailBB);
     std::vector<Value*> PrintArgs;
     PrintArgs.push_back(Msg);
-    PrintArgs.push_back(ConstantInt::get(TheContext, APInt(32, Line)));
+    PrintArgs.insert(PrintArgs.end(), FmtArgs.begin(), FmtArgs.end());
     Builder.CreateCall(PrintfFunc, PrintArgs);
 
     Builder.CreateCall(ExitFunc, ConstantInt::get(TheContext, APInt(32, 1)));

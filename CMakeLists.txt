@@ -13,9 +13,10 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories(include)
 
 add_library(CPSLexer lib/Lexer/Lexer.cc)
-add_library(CPSParser 
+add_library(CPSParser
     lib/Parser/Parser.cc
     lib/Parser/ParserFunction.cc
+    lib/Parser/ParserFile.cc
 )
 
 add_library(CPSCodeGen
@@ -27,6 +28,7 @@ add_library(CPSCodeGen
     lib/CodeGen/StringHandler.cc
     lib/CodeGen/StringConversionHandler.cc
     lib/CodeGen/TypeSystem.cc
+    lib/CodeGen/FileHandler.cc
 )
 
 llvm_map_components_to_libnames(llvm_libs core support native irreader)

@@ -47,12 +47,13 @@ untested.)
 | `lib/Lexer/Lexer.cc` | Entire lexer: one function, `Lexer::gettok()` |
 | `lib/Parser/Parser.cc` | Statements, expressions, precedence table |
 | `lib/Parser/ParserFunction.cc` | FUNCTION/PROCEDURE/CALL/RETURN parsing |
+| `lib/Parser/ParserFile.cc` | OPENFILE/READFILE/WRITEFILE/CLOSEFILE parsing |
 | `lib/CodeGen/CodeGen.cc` | Hub: dispatch, coercion, control flow, INPUT/OUTPUT, main() |
 | `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen |
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
 
-AST nodes live in `include/cps/AST.h` (+ `FunctionAST.h`); they are pure data with
-virtual destructors only — no codegen/visitor methods.
+AST nodes live in `include/cps/AST.h` (+ `FunctionAST.h`, `FileAST.h`); they are pure
+data with virtual destructors only — no codegen/visitor methods.
 
 ## Detail docs
 
