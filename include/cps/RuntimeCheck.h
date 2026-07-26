@@ -18,6 +18,7 @@ class RuntimeCheck {
     llvm::Value *OutOfBoundsMsg;
     llvm::Value *EnumRangeMsg;
     llvm::Value *NullDerefMsg;
+    llvm::Value *ArrayArgBoundsMsg;
 
     void setupExternalFunctions();
     void emitErrorAndExit(llvm::Value *Condition, llvm::Value *Msg, int Line);
@@ -34,6 +35,11 @@ public:
 
     // Dereferencing an unset (null) pointer dies instead of segfaulting.
     void emitNullDerefCheck(llvm::Value *Ptr, int Line);
+
+    // A bounded array parameter is a contract: the argument's runtime bounds
+    // must equal the declared ones.
+    void emitArrayArgBoundsCheck(llvm::Value *ActualLower, llvm::Value *ActualUpper,
+                                 int64_t DeclaredLower, int64_t DeclaredUpper, int Line);
 
     // Runtime-computed variant: FmtArgs are the printf varargs after Msg
     // (e.g. {i32 line, ptr filename}). Needed when the failure site is inside

@@ -72,13 +72,15 @@ public:
 class CallStmtAST : public StmtAST {
     std::string Callee;
     std::vector<std::unique_ptr<ExprAST>> Args;
+    int Line;
 
 public:
-    CallStmtAST(const std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args)
-        : Callee(Callee), Args(std::move(Args)) {}
+    CallStmtAST(const std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args, int Line)
+        : Callee(Callee), Args(std::move(Args)), Line(Line) {}
 
     const std::string &getCallee() const { return Callee; }
     const std::vector<std::unique_ptr<ExprAST>> &getArgs() const { return Args; }
+    int getLine() const { return Line; }
 };
 
 

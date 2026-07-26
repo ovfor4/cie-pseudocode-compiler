@@ -27,6 +27,9 @@ void RuntimeCheck::setupExternalFunctions() {
     OutOfBoundsMsg = Builder.CreateGlobalStringPtr("[Fatal] line %d: Array index out of bounds\n", "err_bounds", 0, &TheModule);
     EnumRangeMsg = Builder.CreateGlobalStringPtr("[Fatal] line %d: Value out of range for enum %s\n", "err_enum_range", 0, &TheModule);
     NullDerefMsg = Builder.CreateGlobalStringPtr("[Fatal] line %d: Dereference of an unset pointer\n", "err_null_deref", 0, &TheModule);
+    ArrayArgBoundsMsg = Builder.CreateGlobalStringPtr(
+        "[Fatal] line %d: Array argument bounds [%lld:%lld] do not match the declared parameter bounds [%lld:%lld]\n",
+        "err_arr_arg_bounds", 0, &TheModule);
 }
 
 void RuntimeCheck::emitErrorAndExit(Value *Condition, Value *Msg, int Line) {
@@ -85,4 +88,18 @@ void RuntimeCheck::emitNullDerefCheck(Value *Ptr, int Line) {
                                          ConstantPointerNull::get(PointerType::getUnqual(TheContext)),
                                          "ptr_is_null");
     emitErrorAndExit(IsNull, NullDerefMsg, Line);
+}
+
+void RuntimeCheck::emitArrayArgBoundsCheck(Value *ActualLower, Value *ActualUpper,
+                                           int64_t DeclaredLower, int64_t DeclaredUpper,
+                                           int Line) {
+    Value *DeclLo = ConstantInt::get(TheContext, APInt(64, static_cast<uint64_t>(DeclaredLower), true));
+    Value *DeclHi = ConstantInt::get(TheContext, APInt(64, static_cast<uint64_t>(DeclaredUpper), true));
+    Value *LoDiff = Builder.CreateICmpNE(ActualLower, DeclLo, "arg_lo_ne");
+    Value *HiDiff = Builder.CreateICmpNE(ActualUpper, DeclHi, "arg_hi_ne");
+    Value *Mismatch = Builder.CreateOr(LoDiff, HiDiff, "arg_bounds_ne");
+
+    emitErrorAndExit(Mismatch, ArrayArgBoundsMsg,
+                     {ConstantInt::get(TheContext, APInt(32, Line)),
+                      ActualLower, ActualUpper, DeclLo, DeclHi});
 }

@@ -40,6 +40,13 @@ class ArrayHandler {
     llvm::Value *getArrayBasePointer(const std::string &Name);
     llvm::Value *getElementPointer(const std::string &Name, llvm::Value *Offset);
     const ArrayMetadata *getMetadata(const std::string &Name) const;
+    // Shared bounds math: DimSize_i = (Upper_i - Lower_i) + 1, row-major
+    // multipliers back-to-front, TotalElements = product of the sizes.
+    void computeDimsAndMultipliers(const std::string &Name,
+                                   const std::vector<llvm::Value*> &Lows,
+                                   const std::vector<llvm::Value*> &Highs,
+                                   std::vector<llvm::Value*> &Multipliers,
+                                   llvm::Value *&TotalElements);
     bool emitCheckedIndices(const std::string &Name,
                             const std::vector<std::unique_ptr<ExprAST>> &IndexExprs,
                             int Line,
@@ -83,6 +90,30 @@ public:
     // Swap in a fresh table (function bodies get their own scope, mirroring
     // the Symbols save/clear/restore discipline); returns the previous table.
     std::map<std::string, ArrayMetadata> exchangeTable(std::map<std::string, ArrayMetadata> NewTable);
+
+    // Callee side of an array parameter: rebuild metadata from the incoming
+    // data pointer + per-dim bounds. MakeCopy (BYVAL) mallocs and memcpys the
+    // whole buffer so callee writes stay invisible to the caller.
+    void bindArrayParameter(const std::string &Name,
+                            const std::string &ElemTypeName,
+                            llvm::Value *DataPtr,
+                            const std::vector<llvm::Value*> &LBs,
+                            const std::vector<llvm::Value*> &UBs,
+                            bool MakeCopy,
+                            CodeGen &CG);
+
+    // Call side: validate a whole-array argument against the declared
+    // parameter (element type and rank exactly; bounded params check their
+    // bounds at compile time when constant, else at run time) and append the
+    // data pointer plus per-dim bounds to Out.
+    bool emitArrayArgument(ExprAST *ArgExpr,
+                           const std::string &ElemTypeName,
+                           int Rank,
+                           const std::vector<std::pair<int64_t, int64_t>> &DeclaredBounds,
+                           const std::string &Callee,
+                           int Line,
+                           CodeGen &CG,
+                           std::vector<llvm::Value*> &Out);
 };
 
 } // namespace cps

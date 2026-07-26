@@ -135,6 +135,11 @@ std::unique_ptr<StmtAST> Parser::ParseFunction() {
     std::string RetType = "INTEGER";
     if (CurTok == tok_returns) {
         getNextToken();
+        if (CurTok == tok_array) {
+            fprintf(stderr, "Error: A FUNCTION cannot RETURN an array; use a BYREF PROCEDURE parameter instead at line %d\n",
+                    Lex.getLine());
+            return nullptr;
+        }
         RetType = ParseTypeName(true);
         if (RetType.empty()) {
             fprintf(stderr, "Error: Expected return type for function '%s'\n", Name.c_str());
@@ -181,6 +186,7 @@ std::unique_ptr<StmtAST> Parser::ParseProcedure() {
 }
 
 std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
+    int Line = Lex.getLine();
     getNextToken();
     if (CurTok != tok_identifier) {
         fprintf(stderr, "Error: Expected callee name after CALL\n");
@@ -198,7 +204,7 @@ std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
         Args = std::move(*Parsed);
     }
 
-    return std::make_unique<CallStmtAST>(Callee, std::move(Args));
+    return std::make_unique<CallStmtAST>(Callee, std::move(Args), Line);
 }
 
 std::unique_ptr<StmtAST> Parser::ParseReturnStmt() {

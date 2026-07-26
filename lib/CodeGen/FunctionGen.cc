@@ -42,6 +42,24 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
         ++AI;
         ArgVal->setName(P.Name);
 
+        if (P.IsArray) {
+            // Data pointer + kBoundArgsPerDim bounds per dimension; binding
+            // into the array subsystem is delegated to the injected binder.
+            std::vector<Value*> LBs, UBs;
+            for (int D = 1; D <= P.Rank; ++D) {
+                Value *LB = &(*AI);
+                ++AI;
+                LB->setName(P.Name + kLowerBoundSuffix + std::to_string(D));
+                Value *UB = &(*AI);
+                ++AI;
+                UB->setName(P.Name + kUpperBoundSuffix + std::to_string(D));
+                LBs.push_back(LB);
+                UBs.push_back(UB);
+            }
+            if (BindArrayParam) BindArrayParam(P, ArgVal, LBs, UBs);
+            continue;
+        }
+
         if (P.Mode == PassMode::ByRef) {
             Symbols[P.Name] = {ArgVal, P.TypeName, false};
             continue;
@@ -86,18 +104,27 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
 
     std::vector<Type*> ArgTypes;
     for (const ParamDecl &P : Proto->getParams()) {
+        ParamSig PS;
+        PS.TypeName = P.TypeName;
+        PS.IsByRef = P.Mode == PassMode::ByRef;
+        PS.IsArray = P.IsArray;
+        PS.Rank = P.Rank;
+        PS.DeclaredBounds = P.DeclaredBounds;
+
         if (P.IsArray) {
-            fprintf(stderr, "Error: Array parameters are not implemented yet (parameter '%s' of %s)\n",
-                    P.Name.c_str(), Proto->getName().c_str());
-            HadError = true;
-            return nullptr;
+            getLLVMType(P.TypeName); // diagnose an unknown element type
+            ArgTypes.push_back(PointerType::getUnqual(Context)); // data pointer
+            for (unsigned D = 0; D < static_cast<unsigned>(P.Rank) * kBoundArgsPerDim; ++D) {
+                ArgTypes.push_back(Type::getInt64Ty(Context));
+            }
+        } else {
+            Type *T = getLLVMType(P.TypeName);
+            if (PS.IsByRef) {
+                T = T->getPointerTo();
+            }
+            ArgTypes.push_back(T);
         }
-        Type *T = getLLVMType(P.TypeName);
-        if (P.Mode == PassMode::ByRef) {
-            T = T->getPointerTo();
-        }
-        ArgTypes.push_back(T);
-        Sig.Params.emplace_back(P.TypeName, P.Mode == PassMode::ByRef);
+        Sig.Params.push_back(std::move(PS));
     }
 
     Type *RetType = getLLVMType(Proto->getReturnType());
@@ -117,10 +144,14 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     // wins and the second is rejected by emitFunctionDef.
     Signatures.emplace(Proto->getName(), std::move(Sig));
 
-    unsigned Idx = 0;
-    for (auto &Arg : F->args()) {
-        if (Idx < Proto->getParams().size()) {
-            Arg.setName(Proto->getParams()[Idx++].Name);
+    Function::arg_iterator AI = F->arg_begin();
+    for (const ParamDecl &P : Proto->getParams()) {
+        if (AI == F->arg_end()) break;
+        (AI++)->setName(P.Name);
+        for (int D = 1; P.IsArray && D <= P.Rank && AI != F->arg_end(); ++D) {
+            (AI++)->setName(P.Name + kLowerBoundSuffix + std::to_string(D));
+            if (AI != F->arg_end())
+                (AI++)->setName(P.Name + kUpperBoundSuffix + std::to_string(D));
         }
     }
     return F;

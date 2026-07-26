@@ -81,6 +81,7 @@ class CodeGen {
     llvm::Value *loadFromLValue(const LValueInfo &LV);
     bool marshalCallArgs(const std::string &Callee,
                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
+                         int Line,
                          std::vector<llvm::Value*> &Out);
     void emitDeclareStmt(DeclareStmtAST *Stmt);
     void emitOutputValue(llvm::Value *Val, const TypeInfo *TypeInfo, bool AppendNewline = true);

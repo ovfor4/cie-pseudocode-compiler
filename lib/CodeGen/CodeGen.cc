@@ -90,6 +90,15 @@ CodeGen::CodeGen() {
     StrConvHandler = std::make_unique<StringConversionHandler>(*TheContext, *Builder, *TheModule);
     Files = std::make_unique<FileHandler>(*TheContext, *Builder, *TheModule, *RuntimeChecker);
 
+    // Array parameters are bound into ArrayHandler through this inversion so
+    // FunctionGen never sees the array subsystem.
+    FuncGen->setArrayParamBinder(
+        [this](const ParamDecl &P, Value *DataPtr,
+               const std::vector<Value*> &LBs, const std::vector<Value*> &UBs) {
+            Arrays->bindArrayParameter(P.Name, P.TypeName, DataPtr, LBs, UBs,
+                                       /*MakeCopy=*/P.Mode == PassMode::ByVal, *this);
+        });
+
     SetupExternalFunctions();
 }
 
@@ -714,7 +723,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         }
 
         std::vector<Value*> Args;
-        if (!marshalCallArgs(Name, Call->getArgs(), Args)) return nullptr;
+        if (!marshalCallArgs(Name, Call->getArgs(), Call->getLine(), Args)) return nullptr;
         return FuncGen->emitCallExpr(Call, Args);
     }
 
@@ -740,6 +749,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
 // BYVAL parameters are evaluated and coerced to the declared parameter type.
 bool CodeGen::marshalCallArgs(const std::string &Callee,
                               const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
+                              int Line,
                               std::vector<Value*> &Out) {
     const FuncSig *Sig = FuncGen->getSignature(Callee);
     if (!Sig) {
@@ -752,17 +762,26 @@ bool CodeGen::marshalCallArgs(const std::string &Callee,
     }
 
     for (size_t i = 0; i < ArgExprs.size(); ++i) {
-        const std::string &TypeName = Sig->Params[i].first;
-        bool IsByRef = Sig->Params[i].second;
+        const ParamSig &P = Sig->Params[i];
+        const std::string &TypeName = P.TypeName;
+        bool IsByRef = P.IsByRef;
         ExprAST *ArgExpr = ArgExprs[i].get();
 
-        // Parameters can never be arrays, so a whole-array argument is always
-        // a user error (and would smash the data pointer if let through).
+        if (P.IsArray) {
+            if (!Arrays->emitArrayArgument(ArgExpr, P.TypeName, P.Rank, P.DeclaredBounds,
+                                           Callee, Line, *this, Out)) {
+                return false;
+            }
+            continue;
+        }
+
+        // A whole-array argument against a scalar parameter is always a user
+        // error (and would smash the data pointer if let through).
         if (auto *Var = dynamic_cast<VariableExprAST*>(ArgExpr)) {
             const SymbolInfo *Info = getSymbolInfo(Var->getName());
             if (Info && Info->IsArray) {
-                reportError("Cannot pass whole array %s to %s; pass an element like %s[i]",
-                            Var->getName().c_str(), Callee.c_str(), Var->getName().c_str());
+                reportError("Cannot pass whole array %s to %s; the parameter is not an array (declare it ARRAY OF %s)",
+                            Var->getName().c_str(), Callee.c_str(), TypeName.c_str());
                 return false;
             }
         }
@@ -959,7 +978,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
 
     if (auto *Call = dynamic_cast<CallStmtAST*>(Stmt)) {
         std::vector<Value*> Args;
-        if (!marshalCallArgs(Call->getCallee(), Call->getArgs(), Args)) return;
+        if (!marshalCallArgs(Call->getCallee(), Call->getArgs(), Call->getLine(), Args)) return;
         FuncGen->emitCallStmt(Call, Args);
         return;
     }
