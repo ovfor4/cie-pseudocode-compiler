@@ -26,13 +26,27 @@ The compiler emits textual IR. Initial configuration must explicitly select
 development libraries to build; NONE still generates IR. Native binaries remain manual:
 
 ```bash
-mkdir -p build && cd build
-cmake -DCPSC_RUN_MODE=EMBEDDED -DLLVM_DIR=/usr/lib/llvm-18/cmake .. && make
-./cpsc prog.cps -o prog.ll     # default without -o: prog.ir beside the source
-./cpsc prog.cps -r             # execute using the selected build mode
-./cpsc prog.cps -r -o prog.ir  # save IR, then run it
+# First download dependencies as documented in doc/build.md.
+cmake -S . -B build -DCPSC_RUN_MODE=EMBEDDED \
+  -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+cmake --build build
+build/cpsc prog.cps -o prog.ll # default without -o: prog.ir beside the source
+build/cpsc prog.cps -r         # execute using the selected build mode
+build/cpsc prog.cps -r -o prog.ir # save IR, then run it
 clang-18 prog.ll -o prog && ./prog
 ```
+
+CMake, make and Clang are system tools. Other build dependencies are downloaded
+to the configured build directory's `deps/packages/`. The modular
+`cmake/LocalDependencies.cmake` entry point extracts Debian, MSYS2 and Homebrew
+binary packages into `deps/root/`, then searches each dependency locally before
+falling back to system libraries. Local LLVM overrides a cached system `LLVM_DIR`.
+Platform modules relocate package paths only inside the extraction directory;
+Homebrew bottles also receive local Cellar/opt links and Mach-O relocation/signing.
+Package hashes skip unchanged extractions; a changed package set rebuilds the
+managed root. Downloads belong to the package-manager commands in `doc/build.md`,
+not to CMake. The Windows Pandoc ZIP is downloaded directly from its official
+release because MSYS2 has no Pandoc package. Only the Linux build is verified.
 
 Driver behavior (`tools/driver/main.cc`):
 
@@ -68,7 +82,10 @@ On Linux, `make -C build install` builds the manual and calls the POSIX
 `install.sh` to copy `cpsc` and `doc/cpsc.1` into `CMAKE_INSTALL_PREFIX/bin` and
 `CMAKE_INSTALL_PREFIX/share/man/man1` (default prefix `/usr/local`). The script
 also supports `--prefix`, `--source-dir` and `DESTDIR` staging. Ordinary builds
-do not require Pandoc; `doc`, installation and release packaging do.
+do not require Pandoc; `doc`, installation and release packaging do. The modular
+`cmake/Manual.cmake` target defers Pandoc discovery until manual generation, prefers
+the extracted executable, and sets its local runtime/data paths as needed. System
+Pandoc remains the fallback.
 `make -C build release` packages the executable, manual, installer and license
 as `build/cpsc-VERSION-SYSTEM-ARCH.tar.xz`, retaining the configured execution mode.
 `cmake/Release.cmake` reads HEAD at packaging time; VERSION is the commit's UTC
@@ -117,6 +134,8 @@ untested.)
 | `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen |
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
 | `tools/driver/EmbeddedRunner.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only MCJIT runner and static support-library selection |
+| `cmake/LocalDependencies.cmake`, `cmake/*Packages.cmake` | Local package extraction, platform relocation and dependency discovery |
+| `cmake/Manual.cmake`, `cmake/GenerateManual.cmake.in` | Optional manual generation with local-first Pandoc discovery |
 | `install.sh`, `install.ps1`, `cmake/Install.cmake.in`, `cmake/Release.cmake` | Artifact installation and versioned binary release packaging |
 
 AST nodes live in `include/cps/AST.h` (+ `FunctionAST.h`, `FileAST.h`, `TypeAST.h`);
