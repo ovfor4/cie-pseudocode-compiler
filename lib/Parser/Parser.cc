@@ -555,9 +555,15 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     }
     else if (CurTok == tok_output) {
         getNextToken();
-        auto Expr = ParseExpression();
-        if (!Expr) return nullptr;
-        return std::make_unique<OutputStmtAST>(std::move(Expr));
+        std::vector<std::unique_ptr<ExprAST>> Exprs;
+        while (true) {
+            auto Expr = ParseExpression();
+            if (!Expr) return nullptr;
+            Exprs.push_back(std::move(Expr));
+            if (CurTok != ',') break;
+            getNextToken();
+        }
+        return std::make_unique<OutputStmtAST>(std::move(Exprs));
     }
     else if (CurTok == tok_if) {
         return ParseIfStmt();

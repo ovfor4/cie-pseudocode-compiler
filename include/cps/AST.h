@@ -150,10 +150,10 @@ public:
 };
 
 class OutputStmtAST : public StmtAST {
-    std::unique_ptr<ExprAST> Expr;
+    std::vector<std::unique_ptr<ExprAST>> Exprs;
 public:
-    OutputStmtAST(std::unique_ptr<ExprAST> Expr) : Expr(std::move(Expr)) {}
-    ExprAST *getExpr() const { return Expr.get(); }
+    OutputStmtAST(std::vector<std::unique_ptr<ExprAST>> Exprs) : Exprs(std::move(Exprs)) {}
+    const std::vector<std::unique_ptr<ExprAST>> &getExprs() const { return Exprs; }
 };
 
 class IfStmtAST : public StmtAST {

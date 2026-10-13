@@ -16,9 +16,10 @@ hand-roll indexing or element loads. Array parameters: `bindArrayParameter` rebu
 callee-side metadata from the flattened `ptr + 2R bounds` ABI (BYVAL = malloc+memcpy
 whole copy), `emitArrayArgument` validates and pushes the caller side.
 `OUTPUT arr` (and partially-indexed accesses) is intercepted by
-`ArrayHandler::tryEmitArrayOutput` — the first branch of OUTPUT dispatch, emitting
-nested print loops (element kinds that are not outputtable, i.e. records/pointers,
-are a compile error there) — so any rework of OUTPUT must preserve that interception.
+`ArrayHandler::tryEmitArrayOutput` — the first branch for each expression in an OUTPUT
+list, emitting nested print loops (element kinds that are not outputtable, i.e. records/pointers,
+are a compile error there). Arrays keep their per-element newlines and dispatch
+continues with the next expression; a final array requires no extra newline.
 
 **Functions** (`FunctionGen`): plain LLVM functions, external linkage, exact pseudocode
 name. Params are `ParamDecl{name, typeString, mode, array rank/bounds}`. BYVAL args are

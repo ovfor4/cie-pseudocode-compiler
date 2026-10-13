@@ -1138,20 +1138,23 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     }
 
     if (auto *Out = dynamic_cast<OutputStmtAST*>(Stmt)) {
-        bool Handled = Arrays->tryEmitArrayOutput(Out->getExpr(), *this);
-        if (Handled) return;
+        const auto &Exprs = Out->getExprs();
+        for (size_t I = 0; I < Exprs.size(); ++I) {
+            ExprAST *Expr = Exprs[I].get();
+            if (Arrays->tryEmitArrayOutput(Expr, *this)) continue;
 
-        Value *Val = emitExpr(Out->getExpr());
-        const TypeInfo *TypeInfo = getExprTypeInfo(Out->getExpr());
-        if (!TypeInfo) {
-            reportError("Cannot infer the type of the OUTPUT expression");
-            return;
+            Value *Val = emitExpr(Expr);
+            const TypeInfo *TypeInfo = getExprTypeInfo(Expr);
+            if (!TypeInfo) {
+                reportError("Cannot infer the type of the OUTPUT expression");
+                continue;
+            }
+            if (TypeInfo->isVoid()) {
+                reportError("Cannot OUTPUT the result of a PROCEDURE call");
+                continue;
+            }
+            emitOutputValue(Val, TypeInfo, I + 1 == Exprs.size());
         }
-        if (TypeInfo->isVoid()) {
-            reportError("Cannot OUTPUT the result of a PROCEDURE call");
-            return;
-        }
-        emitOutputValue(Val, TypeInfo, true);
         return;
     }
 
