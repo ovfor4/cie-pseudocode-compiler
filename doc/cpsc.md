@@ -8,6 +8,8 @@ cpsc - compile and run CIE pseudocode
 
 **cpsc** [**-r**] [**-o** *output*] *source*
 
+**cpsc** **-h**
+
 # DESCRIPTION
 
 Compile one pseudocode source file to LLVM IR. Options may appear before or after the source path. Source input from stdin is not supported.
@@ -15,6 +17,9 @@ Compile one pseudocode source file to LLVM IR. Options may appear before or afte
 Without **-o** or **-r**, replace the source filename's extension with `.ir` and save the output beside the source file.
 
 # OPTIONS
+
+**-h**
+:   Print only the documentation entry point: `man 1 cpsc` on Unix/macOS, or Start Menu > cpsc > cpsc Help on Windows. Return successfully without compiling, even when other arguments are present.
 
 **-o** *output*
 :   Save IR to the specified path. May be specified only once. With **-r**, keep this file even if execution fails.
@@ -64,7 +69,7 @@ cpsc test.cps -r -o result.ir
 # EXIT STATUS
 
 **0**
-:   Compilation succeeded.
+:   Compilation succeeded, or **-h** printed the documentation entry point.
 
 **1**
 :   An argument, file, compilation or execution-engine error occurred, including missing input, when PATH mode cannot find `lli` or NONE mode receives **-r**.

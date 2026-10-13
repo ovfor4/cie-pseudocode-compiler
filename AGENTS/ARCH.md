@@ -59,6 +59,9 @@ Driver behavior (`tools/driver/main.cc`):
 - One source file, with optional `-o path` and `-r`; options may precede or follow the source.
   No stdin source input. Missing input, including no arguments, prints
   `cpsc: fatal error: no input files` and `compilation terminated.`, then returns 1.
+- `-h` anywhere in the arguments prints one documentation pointer to stdout and
+  returns 0 without compiling: `man 1 cpsc` on Unix/macOS, or
+  Start Menu > cpsc > cpsc Help on Windows (selected by `_WIN32`).
 - IR is written only after successful parsing, code generation and module
   verification. Diagnostics stay on stderr; failures do not overwrite existing IR.
 - Lexer, Parser and CodeGen track error flags (`hadError()`); any error, including

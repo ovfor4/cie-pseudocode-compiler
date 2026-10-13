@@ -23,6 +23,17 @@ int compilationTerminated() {
 } // namespace
 
 int main(int argc, char **argv) {
+    for (int I = 1; I < argc; ++I) {
+        if (std::string(argv[I]) == "-h") {
+#ifdef _WIN32
+            llvm::outs() << "See Start Menu > cpsc > cpsc Help for HTML help.\n";
+#else
+            llvm::outs() << "See man 1 cpsc for help.\n";
+#endif
+            return 0;
+        }
+    }
+
     std::string InputPath;
     std::string OutputPath;
     bool Run = false;
