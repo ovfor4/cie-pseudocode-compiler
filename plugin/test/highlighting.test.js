@@ -36,7 +36,7 @@ test('C++ style scopes distinguish keywords, types, literals, operators and buil
 		['X <- TRUE', 'TRUE', 'constant.language'],
 		['X <- 12.5', '12.5', 'constant.numeric'],
 		['X <- 2 DIV 1', 'DIV', 'keyword.operator.word'],
-		['X <- 1', '<-', 'keyword.operator'],
+		['X <- 1', '<-', 'keyword.operator.assignment.cpp'],
 		['OUTPUT "text"', 'text', 'string.quoted.double'],
 		["X <- 'A'", 'A', 'string.quoted.single']
 	]) assert.ok(scopesAt(text, word).some(s => s.startsWith(scope)), text);
@@ -44,6 +44,13 @@ test('C++ style scopes distinguish keywords, types, literals, operators and buil
 		'ASC', 'CHR', 'IS_NUM', 'NUM_TO_STR', 'STR_TO_NUM', 'EOF']) {
 		assert.ok(scopesAt(`${name}(X)`, name).includes('entity.name.function.cie-pseudocode'));
 	}
+});
+
+test('both assignment characters share the C++ assignment scope', () => {
+	const text = 'X <- 1';
+	assert.deepEqual(scopesAt(text, '<-'), scopesAt(text, '-'));
+	assert.ok(!scopesAt('X < 1', '<').includes('keyword.operator.assignment.cpp'));
+	assert.ok(!scopesAt('X - 1', '-').includes('keyword.operator.assignment.cpp'));
 });
 
 test('comments, strings, lowercase and keyword prefixes cannot become keywords', () => {

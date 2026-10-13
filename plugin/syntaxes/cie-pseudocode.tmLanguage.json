@@ -37,7 +37,11 @@
       "name": "keyword.operator.word.cie-pseudocode"
     },
     {
-      "match": "<-|<>|<=|>=|[+*/=&^<>-]",
+      "match": "<-",
+      "name": "keyword.operator.assignment.cpp"
+    },
+    {
+      "match": "<>|<=|>=|[+*/=&^<>-]",
       "name": "keyword.operator.cie-pseudocode"
     },
     {
