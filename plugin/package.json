@@ -4,16 +4,17 @@
   "description": "CIE pseudocode highlighting, Tab indentation and bracket checking for .cps files.",
   "version": "0.1.0",
   "publisher": "ovfor4",
-  "license": "GPL-3.0-only",
+  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "https://github.com/ovfor4/cie-pseudocode-compiler.git",
     "directory": "plugin"
   },
   "engines": { "vscode": "^1.85.0" },
+  "main": "./src/extension.js",
   "categories": ["Programming Languages", "Formatters"],
   "scripts": {
-    "check": "node --check src/extension.js",
+    "check": "node --check src/extension.js && node --check src/indentation.js && node --check src/lexical.js",
     "test": "node --test test/*.test.js"
   },
   "contributes": {
@@ -23,6 +24,16 @@
       "extensions": [".cps"],
       "configuration": "./language-configuration.json"
     }],
+    "configurationDefaults": {
+      "[cie-pseudocode]": {
+        "editor.insertSpaces": false,
+        "editor.tabSize": 4,
+        "editor.detectIndentation": false,
+        "editor.autoIndent": "full",
+        "editor.formatOnType": true,
+        "editor.defaultFormatter": "ovfor4.cie-pseudocode"
+      }
+    },
     "grammars": [{
       "language": "cie-pseudocode",
       "scopeName": "source.cie-pseudocode",
