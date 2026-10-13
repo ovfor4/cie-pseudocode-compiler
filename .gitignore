@@ -40,6 +40,9 @@
 # debug information files
 *.dwo
 
+# Generated LLVM IR
+*.ir
+
 build/
 .vscode/
 reference/
