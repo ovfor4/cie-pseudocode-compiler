@@ -57,7 +57,12 @@ void RuntimeCheck::emitErrorAndExit(Value *Condition, Value *Msg, ArrayRef<Value
 }
 
 void RuntimeCheck::emitDivZeroCheck(Value *Divisor, int Line) {
-    Value *IsZero = Builder.CreateICmpEQ(Divisor, ConstantInt::get(TheContext, APInt(64, 0)), "is_zero");
+    Value *IsZero;
+    if (Divisor->getType()->isDoubleTy()) {
+        IsZero = Builder.CreateFCmpOEQ(Divisor, ConstantFP::get(Divisor->getType(), 0.0), "is_zero");
+    } else {
+        IsZero = Builder.CreateICmpEQ(Divisor, ConstantInt::get(Divisor->getType(), 0), "is_zero");
+    }
     emitErrorAndExit(IsZero, DivZeroMsg, Line);
 }
 

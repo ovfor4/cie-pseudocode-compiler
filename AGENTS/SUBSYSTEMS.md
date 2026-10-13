@@ -51,10 +51,11 @@ FileHandler, is deliberately ignorant of user kinds). The enum range check after
 producer (constants, same-name copies, zero-init, memset-0 arrays) is valid by
 construction, which is why 0-based ordinals are load-bearing.
 
-**Runtime checks** (`RuntimeCheck`): only array bounds checking and the file checks are
-actually wired up. `emitDivZeroCheck` exists but has **zero call sites** — division by
-zero (for `/`, DIV and MOD) is currently unchecked; the TODO sits in
-`ArithmeticHandler.cc`. The public `emitErrorAndExit(Cond, Msg, ArrayRef<Value*>)`
+**Runtime checks** (`RuntimeCheck`): array bounds, file misuse, enum ranges, null
+dereferences and array-parameter bounds contracts are checked at their emit sites.
+`ArithmeticHandler` calls `emitDivZeroCheck` before `/`, DIV and MOD; the check accepts
+i64 and double divisors, including both floating-point signed zeros, and exits with
+a `[Fatal]` diagnostic and status 1. The public `emitErrorAndExit(Cond, Msg, ArrayRef<Value*>)`
 overload exists for failure sites whose printf arguments (line, filename) are runtime
 values — FileHandler's helpers use it; the private compile-time-line form delegates to
 it.

@@ -5,14 +5,18 @@
 
 namespace cps {
 
+class RuntimeCheck;
+
 class ArithmeticHandler {
     llvm::LLVMContext &Context;
     llvm::IRBuilder<> &Builder;
     bool &HadError;
+    RuntimeCheck &RuntimeChecker;
 
 public:
-    ArithmeticHandler(llvm::LLVMContext &Ctx, llvm::IRBuilder<> &B, bool &HadErrorFlag)
-        : Context(Ctx), Builder(B), HadError(HadErrorFlag) {}
+    ArithmeticHandler(llvm::LLVMContext &Ctx, llvm::IRBuilder<> &B, bool &HadErrorFlag,
+                      RuntimeCheck &RC)
+        : Context(Ctx), Builder(B), HadError(HadErrorFlag), RuntimeChecker(RC) {}
 
     llvm::Value *emitBinaryOp(int Op, llvm::Value *LHS, llvm::Value *RHS, int Line);
 };

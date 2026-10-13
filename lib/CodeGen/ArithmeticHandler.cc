@@ -1,5 +1,6 @@
 #include "cps/ArithmeticHandler.h"
 #include "cps/Lexer.h"
+#include "cps/RuntimeCheck.h"
 #include <cstdio>
 
 using namespace llvm;
@@ -32,7 +33,7 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
             return nullptr;
         }
 
-        // TODO: DIV divide by 0 runtime check
+        RuntimeChecker.emitDivZeroCheck(RVal, Line);
         return Builder.CreateFDiv(LVal, RVal, "divtmp");
     }
 
@@ -42,6 +43,7 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
             HadError = true;
             return nullptr;
         }
+        RuntimeChecker.emitDivZeroCheck(RHS, Line);
         if (Op == tok_div) return Builder.CreateSDiv(LHS, RHS, "div_int_tmp");
         if (Op == tok_mod) return Builder.CreateSRem(LHS, RHS, "mod_tmp");
     }

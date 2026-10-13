@@ -85,7 +85,8 @@ CodeGen::CodeGen() {
                                             Symbols,
                                             HadError);
 
-    ArithHandler = std::make_unique<ArithmeticHandler>(*TheContext, *Builder, HadError);
+    ArithHandler = std::make_unique<ArithmeticHandler>(*TheContext, *Builder, HadError,
+                                                     *RuntimeChecker);
     StrHandler = std::make_unique<StringHandler>(*TheContext, *Builder, *TheModule);
     StrConvHandler = std::make_unique<StringConversionHandler>(*TheContext, *Builder, *TheModule);
     Files = std::make_unique<FileHandler>(*TheContext, *Builder, *TheModule, *RuntimeChecker);
