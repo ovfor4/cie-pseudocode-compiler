@@ -78,7 +78,7 @@ make -C build release
 The output is `build/cpsc-VERSION-SYSTEM-ARCH.tar.xz`. `VERSION` uses HEAD's commit
 time in UTC followed by its short ID: `yyyy-mm-dd-hh-mm-ss-commit`.
 The version is read each time packaging runs. The package uses the current build's
-execution mode and contains `cpsc`, `doc/cpsc.1`, `doc/language/*.7`, `install.sh` and `LICENSE`.
+execution mode and contains `cpsc`, `doc/cpsc.1`, `doc/language/**/*.7`, `install.sh` and `LICENSE`.
 Packaging builds the compiler and manual automatically; it requires Git and Pandoc.
 Use `EMBEDDED` when recipients should not need LLVM or `lli` at run time.
 
@@ -106,7 +106,7 @@ prefix is preserved. To change it, run
 
 You can also call `install.ps1` directly. It installs for the current user without
 administrator rights. Its source directory must contain `cpsc.exe`,
-`doc/cpsc.html` and `doc/language/*.html`:
+`doc/cpsc.html` and `doc/language/**/*.html`:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -SourceDir .\build
@@ -114,6 +114,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -SourceDir
 
 The default destination is `%LOCALAPPDATA%\Programs\cpsc`: `cpsc.exe` goes in
 that directory, the command manual goes in `doc`, and syntax manuals go in
+`doc/language/function` and `doc/language/keyword`; the overview stays in
 `doc/language`. The command manual links to the language overview and its pages.
 The installer adds the directory to the user PATH and creates Start Menu > cpsc > cpsc Help,
 which opens the manual in the default browser. Open a new terminal afterward;
@@ -134,7 +135,7 @@ cmake --build build --target release
 This is equivalent to `mingw32-make -C build release`. Windows produces
 `build/cpsc-VERSION-Windows-ARCH.zip`, using the same UTC commit version as Unix
 and retaining the configured execution mode. The ZIP contains `cpsc.exe`,
-`doc/cpsc.html`, `doc/language/*.html`, `install.ps1` and `LICENSE` under one top-level directory.
+`doc/cpsc.html`, `doc/language/**/*.html`, `install.ps1` and `LICENSE` under one top-level directory.
 It uses CMake's default Deflate compression and needs no additional compression
 tool; packaging requires Git and Pandoc, just as on Unix.
 

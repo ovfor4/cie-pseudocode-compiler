@@ -117,7 +117,7 @@ timestamp (`yyyy-mm-dd-hh-mm-ss`) followed by its short ID. Git is only required
 for packaging; recipients can install the extracted archive using just the script.
 
 The Windows `install.ps1` installs `cpsc.exe`, `doc/cpsc.html` and
-`doc/language/*.html` for the current user under `%LOCALAPPDATA%\Programs\cpsc` (or `-Prefix`). It appends that directory
+`doc/language/**/*.html` for the current user under `%LOCALAPPDATA%\Programs\cpsc` (or `-Prefix`). It appends that directory
 to the user PATH without copying the combined process PATH, and creates a
 per-user Start Menu help shortcut. `-SourceDir` selects the artifact directory;
 `DESTDIR` staging is unsupported on Windows. The script is compatible with
@@ -125,8 +125,8 @@ Windows PowerShell 5.1; its Windows actions have only been reviewed statically.
 The `doc` target uses CMake's `WIN32` target-platform detection: Windows generates
 standalone HTML with inline styles at `build/doc/cpsc.html`; other platforms
 generate `build/doc/cpsc.1`. The section 1 source is `doc/cpsc.1.md`; section 7 sources are
-`doc/language/cpsc-*.7.md`. `doc` builds every page, preserving the language
-subdirectory, as `.7` on Unix or `.html` on Windows. Sources are discovered with
+`doc/language/**/*.7.md`. `doc` builds every page, preserving the language
+category subdirectories, as `.7` on Unix or `.html` on Windows. Sources are discovered with
 CONFIGURE_DEPENDS; per-page commands regenerate only changed pages.
 `cmake/ManualLinks.lua` renders cross-references as man names or local HTML links.
 Windows `mingw32-make -C build install` builds the HTML manual and invokes
@@ -135,7 +135,7 @@ Windows `mingw32-make -C build install` builds the HTML manual and invokes
 directory above; explicit prefixes are preserved. Unix still invokes `install.sh`.
 The release target explicitly passes the configured Windows flag to
 `cmake/Release.cmake`, since a standalone CMake script otherwise describes the
-host platform. Windows packages `cpsc.exe`, `doc/cpsc.html`, `doc/language/*.html`, `install.ps1` and
+host platform. Windows packages `cpsc.exe`, `doc/cpsc.html`, `doc/language/**/*.html`, `install.ps1` and
 `LICENSE` as `build/cpsc-VERSION-Windows-ARCH.zip` using CMake's default Deflate
 compression. Unix retains `.tar.xz`, the POSIX installer and the man pages.
 Linux smoke tests can configure an isolated build with `-DWIN32=TRUE` to exercise
@@ -183,8 +183,9 @@ they are pure data with virtual destructors only — no codegen/visitor methods.
 ## Language manuals
 
 `doc/cpsc.1.md` documents the command-line interface. Short language manuals live
-in `doc/language/` as `cpsc-keyword-NAME.7.md`, `cpsc-function-NAME.7.md`, and
-`cpsc-language-overview.7.md`; filenames are lowercase and preserve underscores.
+in `doc/language/keyword/` as `cpsc-keyword-NAME.7.md` and
+`doc/language/function/` as `cpsc-function-NAME.7.md`; the overview remains
+`doc/language/cpsc-language-overview.7.md`. Filenames are lowercase and preserve underscores.
 Document auxiliary/closing keywords with the main construct, not in separate
 pages. Keep examples small and describe actual compiler support, noting relevant
 differences from the 2026 Cambridge guide in `reference/`. All project text is

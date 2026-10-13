@@ -8,7 +8,8 @@ Usage: install.sh [--prefix DIR] [--source-dir DIR]
 Install cpsc to DIR/bin and its man pages to DIR/share/cpsc/man/man1 and man7.
 The default prefix is /usr/local. The source directory defaults to the
 directory containing this script and must contain cpsc, doc/cpsc.1 and
-doc/language/*.7. Installation registers the independent manual search path.
+doc/language/cpsc-language-overview.7 and doc/language/{function,keyword}/*.7.
+Installation registers the independent manual search path.
 Use --source-dir build when running this script from the source checkout.
 DESTDIR may be set to stage files without changing host manpath configuration.
 EOF
@@ -46,7 +47,9 @@ source_dir=$(CDPATH= cd -- "$source_dir" && pwd) || die "cannot open source dire
     || die "missing readable executable: $source_dir/cpsc; build cpsc first"
 [ -f "$source_dir/doc/cpsc.1" ] && [ -r "$source_dir/doc/cpsc.1" ] \
     || die "missing readable manual: $source_dir/doc/cpsc.1; run make doc first"
-set -- "$source_dir"/doc/language/cpsc-*.7
+set -- "$source_dir/doc/language/cpsc-language-overview.7" \
+    "$source_dir"/doc/language/function/cpsc-function-*.7 \
+    "$source_dir"/doc/language/keyword/cpsc-keyword-*.7
 [ -f "$1" ] || die "missing language manuals: $source_dir/doc/language; run make doc first"
 for manual do
     [ -f "$manual" ] && [ -r "$manual" ] || die "missing readable manual: $manual"

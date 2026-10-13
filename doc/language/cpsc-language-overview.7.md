@@ -29,27 +29,27 @@ TYPE for records/enumerations/pointers, and CLASS for public/private fields.
 
 # KEYWORDS
 
-- [cpsc-keyword-declare(7)](cpsc-keyword-declare.7.md): declare variables and arrays.
-- [cpsc-keyword-input(7)](cpsc-keyword-input.7.md): read a value from standard input.
-- [cpsc-keyword-output(7)](cpsc-keyword-output.7.md): print values to standard output.
-- [cpsc-keyword-if(7)](cpsc-keyword-if.7.md): choose between branches.
-- [cpsc-keyword-while(7)](cpsc-keyword-while.7.md): repeat while a condition is true.
-- [cpsc-keyword-repeat(7)](cpsc-keyword-repeat.7.md): repeat until a condition is true.
-- [cpsc-keyword-for(7)](cpsc-keyword-for.7.md): iterate over an integer range.
-- [cpsc-keyword-function(7)](cpsc-keyword-function.7.md): define a function that returns a value.
-- [cpsc-keyword-procedure(7)](cpsc-keyword-procedure.7.md): define a procedure and parameter modes.
-- [cpsc-keyword-call(7)](cpsc-keyword-call.7.md): invoke a procedure.
-- [cpsc-keyword-openfile(7)](cpsc-keyword-openfile.7.md): open a text file.
-- [cpsc-keyword-readfile(7)](cpsc-keyword-readfile.7.md): read a line from a text file.
-- [cpsc-keyword-writefile(7)](cpsc-keyword-writefile.7.md): write a line to a text file.
-- [cpsc-keyword-closefile(7)](cpsc-keyword-closefile.7.md): close a text file.
-- [cpsc-keyword-type(7)](cpsc-keyword-type.7.md): define enumerations, pointers, and records.
-- [cpsc-keyword-class(7)](cpsc-keyword-class.7.md): define a class with public and private fields.
-- [cpsc-keyword-and(7)](cpsc-keyword-and.7.md): combine conditions with logical AND.
-- [cpsc-keyword-or(7)](cpsc-keyword-or.7.md): combine conditions with logical OR.
-- [cpsc-keyword-not(7)](cpsc-keyword-not.7.md): negate a condition.
-- [cpsc-keyword-div(7)](cpsc-keyword-div.7.md): perform integer division.
-- [cpsc-keyword-mod(7)](cpsc-keyword-mod.7.md): find the integer division remainder.
+- [cpsc-keyword-declare(7)](keyword/cpsc-keyword-declare.7.md): declare variables and arrays.
+- [cpsc-keyword-input(7)](keyword/cpsc-keyword-input.7.md): read a value from standard input.
+- [cpsc-keyword-output(7)](keyword/cpsc-keyword-output.7.md): print values to standard output.
+- [cpsc-keyword-if(7)](keyword/cpsc-keyword-if.7.md): choose between branches.
+- [cpsc-keyword-while(7)](keyword/cpsc-keyword-while.7.md): repeat while a condition is true.
+- [cpsc-keyword-repeat(7)](keyword/cpsc-keyword-repeat.7.md): repeat until a condition is true.
+- [cpsc-keyword-for(7)](keyword/cpsc-keyword-for.7.md): iterate over an integer range.
+- [cpsc-keyword-function(7)](keyword/cpsc-keyword-function.7.md): define a function that returns a value.
+- [cpsc-keyword-procedure(7)](keyword/cpsc-keyword-procedure.7.md): define a procedure and parameter modes.
+- [cpsc-keyword-call(7)](keyword/cpsc-keyword-call.7.md): invoke a procedure.
+- [cpsc-keyword-openfile(7)](keyword/cpsc-keyword-openfile.7.md): open a text file.
+- [cpsc-keyword-readfile(7)](keyword/cpsc-keyword-readfile.7.md): read a line from a text file.
+- [cpsc-keyword-writefile(7)](keyword/cpsc-keyword-writefile.7.md): write a line to a text file.
+- [cpsc-keyword-closefile(7)](keyword/cpsc-keyword-closefile.7.md): close a text file.
+- [cpsc-keyword-type(7)](keyword/cpsc-keyword-type.7.md): define enumerations, pointers, and records.
+- [cpsc-keyword-class(7)](keyword/cpsc-keyword-class.7.md): define a class with public and private fields.
+- [cpsc-keyword-and(7)](keyword/cpsc-keyword-and.7.md): combine conditions with logical AND.
+- [cpsc-keyword-or(7)](keyword/cpsc-keyword-or.7.md): combine conditions with logical OR.
+- [cpsc-keyword-not(7)](keyword/cpsc-keyword-not.7.md): negate a condition.
+- [cpsc-keyword-div(7)](keyword/cpsc-keyword-div.7.md): perform integer division.
+- [cpsc-keyword-mod(7)](keyword/cpsc-keyword-mod.7.md): find the integer division remainder.
 
 Closing and auxiliary keywords are documented with their main constructs:
 THEN/ELSE/ENDIF with IF; DO/ENDWHILE with WHILE; UNTIL with REPEAT;
@@ -61,18 +61,18 @@ TRUE/FALSE are BOOLEAN literals.
 
 # BUILT-IN FUNCTIONS
 
-- [cpsc-function-length(7)](cpsc-function-length.7.md): find a string's length.
-- [cpsc-function-mid(7)](cpsc-function-mid.7.md): extract part of a string.
-- [cpsc-function-left(7)](cpsc-function-left.7.md): extract the beginning of a string.
-- [cpsc-function-right(7)](cpsc-function-right.7.md): extract the end of a string.
-- [cpsc-function-lcase(7)](cpsc-function-lcase.7.md): convert text to lower case.
-- [cpsc-function-ucase(7)](cpsc-function-ucase.7.md): convert text to upper case.
-- [cpsc-function-asc(7)](cpsc-function-asc.7.md): find a character's byte code.
-- [cpsc-function-chr(7)](cpsc-function-chr.7.md): convert a byte code to text.
-- [cpsc-function-is_num(7)](cpsc-function-is_num.7.md): test whether text represents a number.
-- [cpsc-function-num_to_str(7)](cpsc-function-num_to_str.7.md): convert a number to text.
-- [cpsc-function-str_to_num(7)](cpsc-function-str_to_num.7.md): convert text to a real number.
-- [cpsc-function-eof(7)](cpsc-function-eof.7.md): test for the end of a text file.
+- [cpsc-function-length(7)](function/cpsc-function-length.7.md): find a string's length.
+- [cpsc-function-mid(7)](function/cpsc-function-mid.7.md): extract part of a string.
+- [cpsc-function-left(7)](function/cpsc-function-left.7.md): extract the beginning of a string.
+- [cpsc-function-right(7)](function/cpsc-function-right.7.md): extract the end of a string.
+- [cpsc-function-lcase(7)](function/cpsc-function-lcase.7.md): convert text to lower case.
+- [cpsc-function-ucase(7)](function/cpsc-function-ucase.7.md): convert text to upper case.
+- [cpsc-function-asc(7)](function/cpsc-function-asc.7.md): find a character's byte code.
+- [cpsc-function-chr(7)](function/cpsc-function-chr.7.md): convert a byte code to text.
+- [cpsc-function-is_num(7)](function/cpsc-function-is_num.7.md): test whether text represents a number.
+- [cpsc-function-num_to_str(7)](function/cpsc-function-num_to_str.7.md): convert a number to text.
+- [cpsc-function-str_to_num(7)](function/cpsc-function-str_to_num.7.md): convert text to a real number.
+- [cpsc-function-eof(7)](function/cpsc-function-eof.7.md): test for the end of a text file.
 
 # UNSUPPORTED FEATURES
 

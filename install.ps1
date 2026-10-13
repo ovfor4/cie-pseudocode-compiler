@@ -3,7 +3,7 @@
 .SYNOPSIS
 Installs cpsc and its HTML manual for the current user.
 .DESCRIPTION
-Copies cpsc.exe, doc\cpsc.html and doc\language\*.html, creates a help shortcut, and
+Copies cpsc.exe, doc\cpsc.html and doc\language HTML pages, creates a help shortcut, and
 adds the installation directory to the user PATH. No administrator is needed
 for the default location: %LOCALAPPDATA%\Programs\cpsc.
 .EXAMPLE
@@ -26,7 +26,7 @@ $ErrorActionPreference = 'Stop'
 if ($Help) {
     Write-Output 'Usage: install.ps1 [-Prefix DIR] [-SourceDir DIR] [-Help]'
     Write-Output 'Default destination: %LOCALAPPDATA%\Programs\cpsc'
-    Write-Output 'Source must contain cpsc.exe, doc\cpsc.html and doc\language\*.html; default: script directory.'
+    Write-Output 'Source must contain cpsc.exe, doc\cpsc.html and doc\language HTML pages; default: script directory.'
     return
 }
 
@@ -75,7 +75,19 @@ try {
     if (-not (Test-Path -LiteralPath $sourceLanguageDir -PathType Container)) {
         throw "Missing language manuals: $sourceLanguageDir; build the doc target first."
     }
-    $languageManuals = @(Get-ChildItem -LiteralPath $sourceLanguageDir -Filter 'cpsc-*.html' -File)
+    $sourceOverview = Join-Path $sourceLanguageDir 'cpsc-language-overview.html'
+    if (-not (Test-Path -LiteralPath $sourceOverview -PathType Leaf)) {
+        throw "Missing language overview: $sourceOverview; build the doc target first."
+    }
+    $languageManuals = @(Get-Item -LiteralPath $sourceOverview)
+    foreach ($category in @('function', 'keyword')) {
+        $categoryDir = Join-Path $sourceLanguageDir $category
+        $categoryManuals = @(Get-ChildItem -LiteralPath $categoryDir -Filter "cpsc-$category-*.html" -File)
+        if ($categoryManuals.Count -eq 0) {
+            throw "Missing language manuals: $categoryDir; build the doc target first."
+        }
+        $languageManuals += $categoryManuals
+    }
     if ($languageManuals.Count -eq 0) {
         throw "Missing language manuals: $sourceLanguageDir; build the doc target first."
     }
@@ -84,14 +96,14 @@ try {
     $languageDir = Join-Path $docDir 'language'
     $targetExe = Join-Path $Prefix 'cpsc.exe'
     $targetManual = Join-Path $docDir 'cpsc.html'
-    foreach ($directory in @($Prefix, $docDir, $languageDir)) {
+    foreach ($directory in @($Prefix, $docDir, $languageDir, (Join-Path $languageDir 'function'), (Join-Path $languageDir 'keyword'))) {
         if ((Test-Path -LiteralPath $directory) -and
             -not (Test-Path -LiteralPath $directory -PathType Container)) {
             throw "Installation directory is occupied by a file: $directory"
         }
     }
     $targetFiles = @($targetExe, $targetManual) + @($languageManuals | ForEach-Object {
-        Join-Path $languageDir $_.Name
+        Join-Path $languageDir ($_.FullName.Substring($sourceLanguageDir.Length + 1))
     })
     foreach ($file in $targetFiles) {
         if (Test-Path -LiteralPath $file -PathType Container) {
@@ -107,7 +119,9 @@ try {
     $shell = New-Object -ComObject WScript.Shell
 
     # Directory.CreateDirectory treats paths literally, including spaces and brackets.
-    [IO.Directory]::CreateDirectory($languageDir) | Out-Null
+    foreach ($category in @('function', 'keyword')) {
+        [IO.Directory]::CreateDirectory((Join-Path $languageDir $category)) | Out-Null
+    }
     if ($sourceExe -ine $targetExe) {
         Copy-Item -LiteralPath $sourceExe -Destination $targetExe -Force
     }
@@ -115,7 +129,7 @@ try {
         Copy-Item -LiteralPath $sourceManual -Destination $targetManual -Force
     }
     foreach ($manual in $languageManuals) {
-        $destination = Join-Path $languageDir $manual.Name
+        $destination = Join-Path $languageDir ($manual.FullName.Substring($sourceLanguageDir.Length + 1))
         if ($manual.FullName -ine $destination) {
             Copy-Item -LiteralPath $manual.FullName -Destination $destination -Force
         }

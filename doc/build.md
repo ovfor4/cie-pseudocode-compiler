@@ -225,13 +225,13 @@ cmake --build build --target doc
 ```
 
 CMake selects local Pandoc first, sets its local runtime/data paths as needed,
-and falls back to Pandoc in the system PATH. The outputs are `build/doc/cpsc.1` and `build/doc/language/*.7` on Unix,
-or `build/doc/cpsc.html` and `build/doc/language/*.html` on Windows. Each page
+and falls back to Pandoc in the system PATH. The outputs are `build/doc/cpsc.1` and `build/doc/language/**/*.7` on Unix,
+or `build/doc/cpsc.html` and `build/doc/language/**/*.html` on Windows. Each page
 is regenerated when its source, rendering configuration or downloaded packages
 change. New language pages are discovered automatically during the build.
 
 On Unix, open the command manual with `man ./build/doc/cpsc.1`, or a syntax
-page with `man ./build/doc/language/cpsc-keyword-if.7`. On Windows, open the standalone,
+page with `man ./build/doc/language/keyword/cpsc-keyword-if.7`. On Windows, open the standalone,
 offline HTML from PowerShell:
 
 ```powershell

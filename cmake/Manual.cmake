@@ -6,7 +6,7 @@ endif()
 
 configure_file("${CMAKE_CURRENT_LIST_DIR}/GenerateManual.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/GenerateManual.cmake" @ONLY)
-file(GLOB cpsc_language_sources CONFIGURE_DEPENDS
+file(GLOB_RECURSE cpsc_language_sources CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/doc/language/cpsc-*.7.md")
 set(cpsc_manual_sources "${CMAKE_CURRENT_SOURCE_DIR}/doc/cpsc.1.md"
     ${cpsc_language_sources})
