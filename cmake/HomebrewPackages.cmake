@@ -77,6 +77,21 @@ function(cpsc_prepare_homebrew_packages)
                     list(APPEND options -change "${old}" "${new}")
                 endif()
             endforeach()
+            execute_process(COMMAND "${cpsc_otool}" -l "${binary}"
+                OUTPUT_VARIABLE commands ERROR_QUIET RESULT_VARIABLE result)
+            if(NOT result EQUAL 0)
+                message(FATAL_ERROR "Cannot inspect Mach-O load commands in ${binary}")
+            endif()
+            string(REGEX MATCHALL "cmd LC_RPATH\n[^\n]*\n[ \t]*path [^\n]+" rpaths "${commands}")
+            foreach(rpath IN LISTS rpaths)
+                string(REGEX REPLACE
+                    "^cmd LC_RPATH\n[^\n]*\n[ \t]*path (.*) \\(offset [0-9]+\\)$"
+                    "\\1" old "${rpath}")
+                cpsc_homebrew_path("${old}" new)
+                if(NOT old STREQUAL new)
+                    list(APPEND options -rpath "${old}" "${new}")
+                endif()
+            endforeach()
             execute_process(COMMAND "${cpsc_otool}" -D "${binary}"
                 OUTPUT_VARIABLE identity ERROR_QUIET)
             string(REGEX MATCH "\n([^\n]+)" match "${identity}")
