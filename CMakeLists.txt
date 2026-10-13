@@ -79,3 +79,18 @@ add_custom_command(
     VERBATIM
 )
 add_custom_target(doc DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/doc/cpsc.1")
+
+configure_file(cmake/Install.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/Install.cmake" @ONLY)
+install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/Install.cmake")
+
+add_custom_target(release
+    COMMAND "${CMAKE_COMMAND}"
+        "-DCPSC_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+        "-DCPSC_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+        "-DCPSC_EXECUTABLE=$<TARGET_FILE:cpsc>"
+        "-DCPSC_PLATFORM=${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Release.cmake"
+    DEPENDS cpsc doc
+    COMMENT "Packaging cpsc and its manual"
+    VERBATIM
+)

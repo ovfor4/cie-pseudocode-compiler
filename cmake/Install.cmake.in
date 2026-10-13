@@ -1,0 +1,18 @@
+# The ordinary build does not require Pandoc; generate the manual on installation.
+execute_process(
+    COMMAND "@CMAKE_COMMAND@" --build "@CMAKE_CURRENT_BINARY_DIR@" --target doc
+    RESULT_VARIABLE cpsc_doc_result
+)
+if(NOT cpsc_doc_result STREQUAL "0")
+    message(FATAL_ERROR "Cannot build the manual; make sure Pandoc is installed")
+endif()
+
+execute_process(
+    COMMAND sh "@CMAKE_CURRENT_SOURCE_DIR@/install.sh"
+        --source-dir "@CMAKE_CURRENT_BINARY_DIR@"
+        --prefix "${CMAKE_INSTALL_PREFIX}"
+    RESULT_VARIABLE cpsc_install_result
+)
+if(NOT cpsc_install_result STREQUAL "0")
+    message(FATAL_ERROR "cpsc installation failed (${cpsc_install_result})")
+endif()
