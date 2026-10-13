@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.13)
 project(cps_compiler)
 
-set(CPSC_RUN_MODE "" CACHE STRING "Execution mode: PATH or NONE (required)")
-set_property(CACHE CPSC_RUN_MODE PROPERTY STRINGS PATH NONE)
-if(NOT CPSC_RUN_MODE MATCHES "^(PATH|NONE)$")
-    message(FATAL_ERROR "Specify -DCPSC_RUN_MODE=PATH or -DCPSC_RUN_MODE=NONE")
+set(CPSC_RUN_MODE "" CACHE STRING "Execution mode: PATH, EMBEDDED or NONE (required)")
+set_property(CACHE CPSC_RUN_MODE PROPERTY STRINGS PATH EMBEDDED NONE)
+if(NOT CPSC_RUN_MODE MATCHES "^(PATH|EMBEDDED|NONE)$")
+    message(FATAL_ERROR "Specify -DCPSC_RUN_MODE=PATH, EMBEDDED or NONE")
 endif()
 
 find_package(LLVM REQUIRED CONFIG)
@@ -18,15 +18,15 @@ set(CMAKE_CXX_STANDARD 17)
 
 include_directories(include)
 
-add_library(CPSLexer lib/Lexer/Lexer.cc)
-add_library(CPSParser
+add_library(CPSLexer STATIC lib/Lexer/Lexer.cc)
+add_library(CPSParser STATIC
     lib/Parser/Parser.cc
     lib/Parser/ParserFunction.cc
     lib/Parser/ParserFile.cc
     lib/Parser/ParserType.cc
 )
 
-add_library(CPSCodeGen
+add_library(CPSCodeGen STATIC
     lib/CodeGen/CodeGen.cc
     lib/CodeGen/Designator.cc
     lib/CodeGen/ArrayHandler.cc
@@ -40,9 +40,27 @@ add_library(CPSCodeGen
 )
 
 llvm_map_components_to_libnames(llvm_libs core support)
+if(CPSC_RUN_MODE STREQUAL "EMBEDDED")
+    llvm_map_components_to_libnames(llvm_libs core support native mcjit)
+    foreach(llvm_lib IN LISTS llvm_libs)
+        get_target_property(llvm_type ${llvm_lib} TYPE)
+        if(NOT llvm_type STREQUAL "STATIC_LIBRARY")
+            message(FATAL_ERROR "EMBEDDED requires static LLVM libraries: ${llvm_lib}")
+        endif()
+    endforeach()
+    include(cmake/EmbeddedLLVM.cmake)
+endif()
 
 add_executable(cpsc tools/driver/main.cc)
 target_compile_definitions(cpsc PRIVATE CPSC_RUN_${CPSC_RUN_MODE})
+if(CPSC_RUN_MODE STREQUAL "EMBEDDED")
+    target_sources(cpsc PRIVATE tools/driver/EmbeddedRunner.cc)
+    if(MINGW)
+        target_link_options(cpsc PRIVATE -static)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND UNIX AND NOT APPLE)
+        target_link_options(cpsc PRIVATE -static-libstdc++ -static-libgcc)
+    endif()
+endif()
 target_link_libraries(cpsc
     CPSCodeGen 
     CPSParser 

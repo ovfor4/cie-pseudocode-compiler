@@ -1,6 +1,9 @@
 #include "cps/Lexer.h"
 #include "cps/Parser.h"
 #include "cps/CodeGen.h"
+#ifdef CPSC_RUN_EMBEDDED
+#include "EmbeddedRunner.h"
+#endif
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
@@ -48,7 +51,9 @@ int main(int argc, char **argv) {
         llvm::errs() << "Error: no source file specified\n";
         return 1;
     }
+#ifdef CPSC_RUN_PATH
     std::string LliPath;
+#endif
     if (Run) {
 #ifdef CPSC_RUN_PATH
         auto Lli = llvm::sys::findProgramByName("lli");
@@ -57,7 +62,7 @@ int main(int argc, char **argv) {
             return 1;
         }
         LliPath = *Lli;
-#else
+#elif defined(CPSC_RUN_NONE)
         llvm::errs() << "Error: -r is disabled in this build (CPSC_RUN_MODE=NONE)\n";
         return 1;
 #endif
@@ -93,6 +98,9 @@ int main(int argc, char **argv) {
 
     if (CG.hadError()) return 1;
 
+#ifdef CPSC_RUN_EMBEDDED
+    if (Run && OutputPath.empty()) return runEmbedded(CG);
+#endif
     std::error_code EC;
     int OutputFD;
     llvm::FileRemover TemporaryOutput;
@@ -137,6 +145,8 @@ int main(int argc, char **argv) {
         return 1;
     }
     return Result;
+#elif defined(CPSC_RUN_EMBEDDED)
+    return runEmbedded(CG);
 #else
     return 0;
 #endif

@@ -1,0 +1,26 @@
+# LLVM packages can attach shared compression/terminal libraries even to
+# LLVMSupport.a. Use their archives so these do not become deployment files.
+get_target_property(cpsc_support_libs LLVMSupport INTERFACE_LINK_LIBRARIES)
+set(cpsc_saved_library_suffixes ${CMAKE_FIND_LIBRARY_SUFFIXES})
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+foreach(cpsc_dependency IN LISTS cpsc_support_libs)
+    if(cpsc_dependency STREQUAL "ZLIB::ZLIB")
+        set(cpsc_library_names z)
+    elseif(cpsc_dependency MATCHES "^zstd::libzstd")
+        set(cpsc_library_names zstd)
+    elseif(cpsc_dependency STREQUAL "Terminfo::terminfo")
+        set(cpsc_library_names terminfo tinfo curses ncurses ncursesw)
+    else()
+        continue()
+    endif()
+    list(GET cpsc_library_names 0 cpsc_library_name)
+    find_library(CPSC_STATIC_${cpsc_library_name} NAMES ${cpsc_library_names})
+    if(NOT CPSC_STATIC_${cpsc_library_name})
+        message(FATAL_ERROR
+            "EMBEDDED requires a static archive for ${cpsc_dependency}; install its development package")
+    endif()
+    string(REPLACE "${cpsc_dependency}" "${CPSC_STATIC_${cpsc_library_name}}"
+        cpsc_support_libs "${cpsc_support_libs}")
+endforeach()
+set(CMAKE_FIND_LIBRARY_SUFFIXES ${cpsc_saved_library_suffixes})
+set_property(TARGET LLVMSupport PROPERTY INTERFACE_LINK_LIBRARIES "${cpsc_support_libs}")
