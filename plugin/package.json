@@ -4,6 +4,7 @@
   "description": "CIE pseudocode highlighting, Tab indentation and bracket checking for .cps files.",
   "version": "0.1.0",
   "publisher": "ovfor4",
+  "author": "_ov4",
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",

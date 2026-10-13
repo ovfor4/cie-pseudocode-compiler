@@ -63,3 +63,7 @@ Language defaults use real Tabs, display width 4, disabled indentation detection
 full automatic indentation, on-type formatting and native bracket pair colors.
 The default formatter is `ovfor4.cie-pseudocode`. User and workspace settings can
 override editor defaults.
+
+The author credit is `_ov4`. The publisher ID stays `ovfor4`, because vsce accepts
+only letters, digits and hyphens in publisher IDs. Do not use the author display
+name as the extension or formatter ID.

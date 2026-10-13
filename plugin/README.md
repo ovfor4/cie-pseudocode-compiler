@@ -1,5 +1,7 @@
 # CIE Pseudocode
 
+By \_ov4.
+
 VS Code support for this project's `.cps` files. Requires VS Code 1.85 or newer and a dark theme.
 
 ## Install
