@@ -1,5 +1,6 @@
 #include "cps/FileHandler.h"
 #include "cps/RuntimeCheck.h"
+#include "cps/ExceptionHandler.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
@@ -9,8 +10,8 @@ using namespace llvm;
 using namespace cps;
 
 FileHandler::FileHandler(LLVMContext &Ctx, IRBuilder<> &B, llvm::Module &M,
-                         RuntimeCheck &RC)
-    : Context(Ctx), Builder(B), Module(M), Checker(RC) {
+                         RuntimeCheck &RC, ExceptionHandler &EH)
+    : Context(Ctx), Builder(B), Module(M), Checker(RC), Exceptions(EH) {
     // Nothing is declared or emitted here: the whole runtime is synthesized
     // lazily by ensureRuntime() so file-free programs keep their IR unchanged.
 }
@@ -57,21 +58,6 @@ void FileHandler::setupGlobals() {
     ModeReadStr = Builder.CreateGlobalStringPtr("r", "file_mode_r", 0, &Module);
     ModeWriteStr = Builder.CreateGlobalStringPtr("w", "file_mode_w", 0, &Module);
     ModeAppendStr = Builder.CreateGlobalStringPtr("a", "file_mode_a", 0, &Module);
-
-    ErrOpenFail = Builder.CreateGlobalStringPtr(
-        "[Fatal] line %d: Cannot open file '%s'\n", "err_file_open", 0, &Module);
-    ErrAlreadyOpen = Builder.CreateGlobalStringPtr(
-        "[Fatal] line %d: File '%s' is already open\n", "err_file_already_open", 0, &Module);
-    ErrTableFull = Builder.CreateGlobalStringPtr(
-        "[Fatal] line %d: Too many open files\n", "err_file_table_full", 0, &Module);
-    ErrNotOpen = Builder.CreateGlobalStringPtr(
-        "[Fatal] line %d: File '%s' is not open\n", "err_file_not_open", 0, &Module);
-    ErrNotRead = Builder.CreateGlobalStringPtr(
-        "[Fatal] line %d: File '%s' is not open for READ\n", "err_file_not_read", 0, &Module);
-    ErrNotWrite = Builder.CreateGlobalStringPtr(
-        "[Fatal] line %d: File '%s' is not open for WRITE\n", "err_file_not_write", 0, &Module);
-    ErrPastEof = Builder.CreateGlobalStringPtr(
-        "[Fatal] line %d: Read past end of file '%s'\n", "err_file_past_eof", 0, &Module);
 }
 
 void FileHandler::ensureRuntime() {
@@ -97,6 +83,7 @@ void FileHandler::ensureRuntime() {
 
 Function *FileHandler::createHelper(const char *Name, FunctionType *FT) {
     Function *F = Function::Create(FT, Function::InternalLinkage, Name, &Module);
+    Exceptions.prepareFunction(F);
     BasicBlock *Entry = BasicBlock::Create(Context, "entry", F);
     Builder.SetInsertPoint(Entry);
     return F;
@@ -108,11 +95,11 @@ Value *FileHandler::emitSlotGEP(GlobalVariable *Table, Type *ElemTy, Value *Idx)
 }
 
 // Shared prologue of every helper that operates on an already-open file:
-// look the name up, die with "not open" on a miss, return the slot index.
+// look the name up, throw on a miss, return the slot index.
 Value *FileHandler::emitLookupOrFail(Value *Name, Value *Line) {
     Value *Idx = Builder.CreateCall(FindFn, {Name}, "slot");
     Value *NotOpen = Builder.CreateICmpSLT(Idx, ConstantInt::get(Context, APInt(64, 0)), "not_open");
-    Checker.emitErrorAndExit(NotOpen, ErrNotOpen, {Line, Name});
+    Checker.emitCheck(NotOpen);
     return Idx;
 }
 
@@ -184,7 +171,7 @@ void FileHandler::buildOpenFn() {
 
     Value *Existing = Builder.CreateCall(FindFn, {Name}, "existing");
     Value *AlreadyOpen = Builder.CreateICmpSGE(Existing, ConstantInt::get(Context, APInt(64, 0)), "already_open");
-    Checker.emitErrorAndExit(AlreadyOpen, ErrAlreadyOpen, {Line, Name});
+    Checker.emitCheck(AlreadyOpen);
 
     // First-free-slot scan; SlotVar stays -1 when the table is full.
     AllocaInst *IdxVar = Builder.CreateAlloca(I64, nullptr, "idx");
@@ -221,7 +208,7 @@ void FileHandler::buildOpenFn() {
     Builder.SetInsertPoint(AfterBB);
     Value *Slot = Builder.CreateLoad(I64, SlotVar, "free_slot");
     Value *NoFree = Builder.CreateICmpSLT(Slot, ConstantInt::get(Context, APInt(64, 0)), "table_full");
-    Checker.emitErrorAndExit(NoFree, ErrTableFull, {Line});
+    Checker.emitCheck(NoFree);
 
     // Branch-free fopen-mode selection: 1 -> "r", 2 -> "w", 3 -> "a".
     Value *IsWrite = Builder.CreateICmpEQ(Mode, ConstantInt::get(I8, uint8_t(FileMode::Write)));
@@ -231,7 +218,7 @@ void FileHandler::buildOpenFn() {
 
     Value *Handle = Builder.CreateCall(FopenFunc, {Name, ModeStr}, "handle");
     Value *OpenFailed = Builder.CreateICmpEQ(Handle, ConstantPointerNull::get(PtrTy), "open_failed");
-    Checker.emitErrorAndExit(OpenFailed, ErrOpenFail, {Line, Name});
+    Checker.emitCheck(OpenFailed);
 
     Builder.CreateStore(Name, emitSlotGEP(FileNames, PtrTy, Slot));
     Builder.CreateStore(Handle, emitSlotGEP(FileHandles, PtrTy, Slot));
@@ -241,7 +228,7 @@ void FileHandler::buildOpenFn() {
 
 // ptr __cps_file_read(ptr name, i32 line): read one line into a fresh heap
 // STRING ('\n' consumed and stripped, trailing '\r' dropped). Reading at EOF
-// is a fatal error — CIE programs are expected to guard with EOF().
+// throws an exception — CIE programs are expected to guard with EOF().
 void FileHandler::buildReadFn() {
     PointerType *PtrTy = PointerType::getUnqual(Context);
     Type *I64 = Type::getInt64Ty(Context);
@@ -257,13 +244,13 @@ void FileHandler::buildReadFn() {
     Value *Idx = emitLookupOrFail(Name, Line);
     Value *Mode = Builder.CreateLoad(I8, emitSlotGEP(FileModes, I8, Idx), "mode");
     Value *NotRead = Builder.CreateICmpNE(Mode, ConstantInt::get(I8, uint8_t(FileMode::Read)), "not_read");
-    Checker.emitErrorAndExit(NotRead, ErrNotRead, {Line, Name});
+    Checker.emitCheck(NotRead);
     Value *Handle = Builder.CreateLoad(PtrTy, emitSlotGEP(FileHandles, PtrTy, Idx), "handle");
 
     Value *MinusOne = ConstantInt::get(Context, APInt(32, -1, /*isSigned=*/true));
     Value *Peek = Builder.CreateCall(FgetcFunc, {Handle}, "peek");
     Value *AtEof = Builder.CreateICmpEQ(Peek, MinusOne, "at_eof");
-    Checker.emitErrorAndExit(AtEof, ErrPastEof, {Line, Name});
+    Checker.emitCheck(AtEof);
     Builder.CreateCall(UngetcFunc, {Peek, Handle});
 
     // Growing buffer: cap doubles, always leaving room for byte + NUL.
@@ -361,7 +348,7 @@ void FileHandler::buildWriteFn() {
     Value *Idx = emitLookupOrFail(Name, Line);
     Value *Mode = Builder.CreateLoad(I8, emitSlotGEP(FileModes, I8, Idx), "mode");
     Value *IsReadMode = Builder.CreateICmpEQ(Mode, ConstantInt::get(I8, uint8_t(FileMode::Read)), "read_only");
-    Checker.emitErrorAndExit(IsReadMode, ErrNotWrite, {Line, Name});
+    Checker.emitCheck(IsReadMode);
 
     Value *Handle = Builder.CreateLoad(PtrTy, emitSlotGEP(FileHandles, PtrTy, Idx), "handle");
     Builder.CreateCall(FputsFunc, {Data, Handle});
@@ -407,7 +394,7 @@ void FileHandler::buildEofFn() {
     Value *Idx = emitLookupOrFail(Name, Line);
     Value *Mode = Builder.CreateLoad(I8, emitSlotGEP(FileModes, I8, Idx), "mode");
     Value *NotRead = Builder.CreateICmpNE(Mode, ConstantInt::get(I8, uint8_t(FileMode::Read)), "not_read");
-    Checker.emitErrorAndExit(NotRead, ErrNotRead, {Line, Name});
+    Checker.emitCheck(NotRead);
 
     Value *Handle = Builder.CreateLoad(PtrTy, emitSlotGEP(FileHandles, PtrTy, Idx), "handle");
     Value *Ch = Builder.CreateCall(FgetcFunc, {Handle}, "c");
@@ -420,7 +407,7 @@ void FileHandler::buildEofFn() {
 void FileHandler::emitOpen(Value *NameStr, FileMode Mode, int Line) {
     if (!NameStr) return;
     ensureRuntime();
-    Builder.CreateCall(OpenFn, {NameStr,
+    Exceptions.emitCall(OpenFn, {NameStr,
                                 ConstantInt::get(Type::getInt8Ty(Context), uint8_t(Mode)),
                                 ConstantInt::get(Context, APInt(32, Line))});
 }
@@ -428,25 +415,25 @@ void FileHandler::emitOpen(Value *NameStr, FileMode Mode, int Line) {
 Value *FileHandler::emitRead(Value *NameStr, int Line) {
     if (!NameStr) return nullptr;
     ensureRuntime();
-    return Builder.CreateCall(ReadFn, {NameStr, ConstantInt::get(Context, APInt(32, Line))},
+    return Exceptions.emitCall(ReadFn, {NameStr, ConstantInt::get(Context, APInt(32, Line))},
                               "file_line");
 }
 
 void FileHandler::emitWrite(Value *NameStr, Value *DataStr, int Line) {
     if (!NameStr || !DataStr) return;
     ensureRuntime();
-    Builder.CreateCall(WriteFn, {NameStr, DataStr, ConstantInt::get(Context, APInt(32, Line))});
+    Exceptions.emitCall(WriteFn, {NameStr, DataStr, ConstantInt::get(Context, APInt(32, Line))});
 }
 
 void FileHandler::emitClose(Value *NameStr, int Line) {
     if (!NameStr) return;
     ensureRuntime();
-    Builder.CreateCall(CloseFn, {NameStr, ConstantInt::get(Context, APInt(32, Line))});
+    Exceptions.emitCall(CloseFn, {NameStr, ConstantInt::get(Context, APInt(32, Line))});
 }
 
 Value *FileHandler::emitEof(Value *NameStr, int Line) {
     if (!NameStr) return nullptr;
     ensureRuntime();
-    return Builder.CreateCall(EofFn, {NameStr, ConstantInt::get(Context, APInt(32, Line))},
+    return Exceptions.emitCall(EofFn, {NameStr, ConstantInt::get(Context, APInt(32, Line))},
                               "file_eof");
 }

@@ -276,6 +276,7 @@ void Parser::syncToStatementStart() {
         case tok_openfile: case tok_readfile: case tok_writefile: case tok_closefile:
         case tok_type: case tok_define: case tok_endtype:
         case tok_class: case tok_endclass:
+        case tok_try: case tok_catch: case tok_endtry: case tok_throw:
             return;
         default:
             getNextToken();
@@ -397,6 +398,23 @@ std::unique_ptr<StmtAST> Parser::ParseDeclare() {
         }
         return std::make_unique<DeclareStmtAST>(Name, TypeStr);
     }
+}
+
+std::unique_ptr<StmtAST> Parser::ParseTryStmt() {
+    getNextToken();
+    auto Body = ParseBlock({tok_catch, tok_endtry});
+    if (CurTok != tok_catch) {
+        fprintf(stderr, "error: Expected CATCH in TRY at line %d\n", Lex.getLine());
+        return nullptr;
+    }
+    getNextToken();
+    auto CatchBody = ParseBlock({tok_endtry, tok_catch});
+    if (CurTok != tok_endtry) {
+        fprintf(stderr, "error: Expected ENDTRY after CATCH at line %d\n", Lex.getLine());
+        return nullptr;
+    }
+    getNextToken();
+    return std::make_unique<TryStmtAST>(std::move(Body), std::move(CatchBody));
 }
 
 std::unique_ptr<StmtAST> Parser::ParseIfStmt() {
@@ -568,6 +586,19 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     }
     else if (CurTok == tok_if) {
         return ParseIfStmt();
+    }
+    else if (CurTok == tok_try) {
+        return ParseTryStmt();
+    }
+    else if (CurTok == tok_throw) {
+        getNextToken();
+        return std::make_unique<ThrowStmtAST>();
+    }
+    else if (CurTok == tok_catch || CurTok == tok_endtry) {
+        fprintf(stderr, "error: Unexpected %s without matching TRY at line %d\n",
+                CurTok == tok_catch ? "CATCH" : "ENDTRY", Lex.getLine());
+        getNextToken();
+        return nullptr;
     }
     else if (CurTok == tok_while) {
         return ParseWhileStmt();

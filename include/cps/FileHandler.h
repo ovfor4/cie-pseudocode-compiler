@@ -7,6 +7,7 @@
 namespace cps {
 
 class RuntimeCheck;
+class ExceptionHandler;
 
 // Emits the text-file runtime: a fixed-size open-file table plus internal
 // __cps_file_* helper functions, synthesized once on first use so programs
@@ -20,6 +21,7 @@ class FileHandler {
     llvm::IRBuilder<> &Builder;
     llvm::Module &Module;
     RuntimeCheck &Checker;
+    ExceptionHandler &Exceptions;
 
     static constexpr uint64_t TableSize = 16;
     bool RuntimeEmitted = false;
@@ -35,9 +37,6 @@ class FileHandler {
     llvm::GlobalVariable *FileModes = nullptr;   // [TableSize x i8]  0 = free slot, else FileMode
 
     llvm::Value *ModeReadStr = nullptr, *ModeWriteStr = nullptr, *ModeAppendStr = nullptr;
-    llvm::Value *ErrOpenFail = nullptr, *ErrAlreadyOpen = nullptr, *ErrTableFull = nullptr,
-                *ErrNotOpen = nullptr, *ErrNotRead = nullptr, *ErrNotWrite = nullptr,
-                *ErrPastEof = nullptr;
 
     // synthesized helpers (internal linkage; pseudocode identifiers cannot
     // start with '_', so these names are un-collidable)
@@ -60,7 +59,7 @@ class FileHandler {
 
 public:
     FileHandler(llvm::LLVMContext &Ctx, llvm::IRBuilder<> &B, llvm::Module &M,
-                RuntimeCheck &RC);
+                RuntimeCheck &RC, ExceptionHandler &EH);
 
     // NameStr/DataStr are already-coerced STRING ptrs; Line is the statement's
     // source line for runtime diagnostics. All methods null-check and bail;

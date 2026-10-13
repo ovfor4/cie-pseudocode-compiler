@@ -42,6 +42,7 @@ add_library(CPSCodeGen STATIC
     lib/CodeGen/Designator.cc
     lib/CodeGen/ArrayHandler.cc
     lib/CodeGen/RuntimeCheck.cc
+    lib/CodeGen/ExceptionHandler.cc
     lib/CodeGen/FunctionGen.cc
     lib/CodeGen/ArithmeticHandler.cc
     lib/CodeGen/StringHandler.cc

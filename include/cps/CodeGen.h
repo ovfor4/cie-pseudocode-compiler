@@ -19,6 +19,7 @@ namespace cps {
 
 class ArrayHandler;
 class FileHandler;
+class ExceptionHandler;
 
 class CodeGen {
     std::unique_ptr<llvm::LLVMContext> TheContext;
@@ -28,6 +29,7 @@ class CodeGen {
     std::unique_ptr<TypeSystem> Types;
 
     std::unique_ptr<ArrayHandler> Arrays;
+    std::unique_ptr<ExceptionHandler> Exceptions;
     std::unique_ptr<RuntimeCheck> RuntimeChecker;
     std::unique_ptr<FunctionGen> FuncGen;
 
@@ -87,6 +89,7 @@ class CodeGen {
     void emitOutputValue(llvm::Value *Val, const TypeInfo *TypeInfo, bool AppendNewline = true);
 
     void emitIfStmt(IfStmtAST *Stmt);
+    void emitTryStmt(TryStmtAST *Stmt);
     void emitWhileStmt(WhileStmtAST *Stmt);
     void emitRepeatStmt(RepeatStmtAST *Stmt);
     void emitForStmt(ForStmtAST *Stmt);

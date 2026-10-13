@@ -88,7 +88,12 @@ enum Token {
     tok_class = -604,
     tok_endclass = -605,
     tok_public = -606,
-    tok_private = -607
+    tok_private = -607,
+
+    tok_try = -700,
+    tok_catch = -701,
+    tok_endtry = -702,
+    tok_throw = -703
 };
 
 class Lexer {

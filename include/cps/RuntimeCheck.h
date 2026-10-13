@@ -7,24 +7,18 @@
 
 namespace cps {
 
+class ExceptionHandler;
+
 class RuntimeCheck {
-    llvm::Module &TheModule;
     llvm::LLVMContext &TheContext;
     llvm::IRBuilder<> &Builder;
-
-    llvm::FunctionCallee PrintfFunc;
-    llvm::FunctionCallee ExitFunc;
-    llvm::Value *DivZeroMsg;
-    llvm::Value *OutOfBoundsMsg;
-    llvm::Value *EnumRangeMsg;
-    llvm::Value *NullDerefMsg;
-    llvm::Value *ArrayArgBoundsMsg;
-
-    void setupExternalFunctions();
-    void emitErrorAndExit(llvm::Value *Condition, llvm::Value *Msg, int Line);
+    ExceptionHandler &Exceptions;
 
 public:
-    RuntimeCheck(llvm::Module &M, llvm::LLVMContext &C, llvm::IRBuilder<> &B);
+    RuntimeCheck(llvm::LLVMContext &C, llvm::IRBuilder<> &B, ExceptionHandler &EH);
+
+    // Split the block, throwing an anonymous exception when Condition is true.
+    void emitCheck(llvm::Value *Condition);
 
     void emitDivZeroCheck(llvm::Value *Divisor, int Line);
     void emitIndexCheck(llvm::Value *Index, llvm::Value *Lower, llvm::Value *Upper, int Line);
@@ -33,7 +27,7 @@ public:
     void emitEnumRangeCheck(llvm::Value *Ordinal, uint64_t ValueCount,
                             const std::string &TypeName, int Line);
 
-    // Dereferencing an unset (null) pointer dies instead of segfaulting.
+    // Dereferencing an unset (null) pointer throws instead of segfaulting.
     void emitNullDerefCheck(llvm::Value *Ptr, int Line);
 
     // A bounded array parameter is a contract: the argument's runtime bounds
@@ -41,12 +35,6 @@ public:
     void emitArrayArgBoundsCheck(llvm::Value *ActualLower, llvm::Value *ActualUpper,
                                  int64_t DeclaredLower, int64_t DeclaredUpper, int Line);
 
-    // Runtime-computed variant: FmtArgs are the printf varargs after Msg
-    // (e.g. {i32 line, ptr filename}). Needed when the failure site is inside
-    // a synthesized helper function, where the line number is an argument
-    // rather than a compile-time constant.
-    void emitErrorAndExit(llvm::Value *Condition, llvm::Value *Msg,
-                          llvm::ArrayRef<llvm::Value *> FmtArgs);
 };
 
 }

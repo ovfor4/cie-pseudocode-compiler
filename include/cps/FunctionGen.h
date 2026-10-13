@@ -12,6 +12,8 @@
 
 namespace cps {
 
+class ExceptionHandler;
+
 // Array-parameter ABI: each rank-R array parameter is flattened into the
 // data pointer followed by kBoundArgsPerDim i64 bounds per dimension.
 inline constexpr unsigned kBoundArgsPerDim = 2; // lower, upper
@@ -51,6 +53,7 @@ private:
     llvm::Module &Module;
     llvm::IRBuilder<> &Builder;
     TypeSystem &Types;
+    ExceptionHandler &Exceptions;
 
     std::map<std::string, SymbolInfo> &Symbols;
     bool &HadError;
@@ -65,9 +68,10 @@ public:
                 llvm::Module &M,
                 llvm::IRBuilder<> &B,
                 TypeSystem &TS,
+                ExceptionHandler &EH,
                 std::map<std::string, SymbolInfo> &Sym,
                 bool &HadErrorFlag)
-        : Context(C), Module(M), Builder(B), Types(TS), Symbols(Sym), HadError(HadErrorFlag) {}
+        : Context(C), Module(M), Builder(B), Types(TS), Exceptions(EH), Symbols(Sym), HadError(HadErrorFlag) {}
 
     llvm::Type *getLLVMType(const std::string &TypeName);
 

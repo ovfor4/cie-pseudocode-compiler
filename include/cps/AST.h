@@ -93,6 +93,18 @@ public:
     virtual ~StmtAST() = default;
 };
 
+class TryStmtAST : public StmtAST {
+    std::vector<std::unique_ptr<StmtAST>> Body, CatchBody;
+public:
+    TryStmtAST(std::vector<std::unique_ptr<StmtAST>> Body,
+               std::vector<std::unique_ptr<StmtAST>> CatchBody)
+        : Body(std::move(Body)), CatchBody(std::move(CatchBody)) {}
+    const std::vector<std::unique_ptr<StmtAST>> &getBody() const { return Body; }
+    const std::vector<std::unique_ptr<StmtAST>> &getCatchBody() const { return CatchBody; }
+};
+
+class ThrowStmtAST : public StmtAST {};
+
 class DeclareStmtAST : public StmtAST {
     std::string Name;
     std::string Type;

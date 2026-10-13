@@ -86,6 +86,11 @@ int Lexer::gettok() {
         if (IdentifierStr == "ELSE") return tok_else;
         if (IdentifierStr == "ENDIF") return tok_endif;
 
+        if (IdentifierStr == "TRY") return tok_try;
+        if (IdentifierStr == "CATCH") return tok_catch;
+        if (IdentifierStr == "ENDTRY") return tok_endtry;
+        if (IdentifierStr == "THROW") return tok_throw;
+
         if (IdentifierStr == "WHILE") return tok_while;
         if (IdentifierStr == "DO") return tok_do;
         if (IdentifierStr == "ENDWHILE") return tok_endwhile;

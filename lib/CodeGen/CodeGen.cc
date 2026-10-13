@@ -2,6 +2,7 @@
 #include "cps/ArrayHandler.h"
 #include "cps/FileAST.h"
 #include "cps/FileHandler.h"
+#include "cps/ExceptionHandler.h"
 #include "cps/Lexer.h"
 #include "cps/TypeAST.h"
 #include "llvm/IR/Instructions.h"
@@ -69,7 +70,8 @@ CodeGen::CodeGen() {
     Builder = std::make_unique<IRBuilder<>>(*TheContext);
 
     Types = std::make_unique<TypeSystem>(*TheContext);
-    RuntimeChecker = std::make_unique<RuntimeCheck>(*TheModule, *TheContext, *Builder);
+    Exceptions = std::make_unique<ExceptionHandler>(*TheContext, *Builder, *TheModule);
+    RuntimeChecker = std::make_unique<RuntimeCheck>(*TheContext, *Builder, *Exceptions);
 
     Arrays = std::make_unique<ArrayHandler>(*TheContext,
                                             *Builder,
@@ -82,6 +84,7 @@ CodeGen::CodeGen() {
                                             *TheModule,
                                             *Builder,
                                             *Types,
+                                            *Exceptions,
                                             Symbols,
                                             HadError);
 
@@ -89,7 +92,8 @@ CodeGen::CodeGen() {
                                                      *RuntimeChecker);
     StrHandler = std::make_unique<StringHandler>(*TheContext, *Builder, *TheModule);
     StrConvHandler = std::make_unique<StringConversionHandler>(*TheContext, *Builder, *TheModule);
-    Files = std::make_unique<FileHandler>(*TheContext, *Builder, *TheModule, *RuntimeChecker);
+    Files = std::make_unique<FileHandler>(*TheContext, *Builder, *TheModule, *RuntimeChecker,
+                                         *Exceptions);
 
     // Array parameters are bound into ArrayHandler through this inversion so
     // FunctionGen never sees the array subsystem.
@@ -517,6 +521,10 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
     BasicBlock *BB = BasicBlock::Create(*TheContext, "entry", F);
     Builder->SetInsertPoint(BB);
 
+    Exceptions->prepareFunction(F);
+    BasicBlock *UnhandledBB = BasicBlock::Create(*TheContext, "unhandled_exception", F);
+    Exceptions->pushHandler(UnhandledBB);
+
     // User types first: prototypes may name them in parameters/returns.
     runTypePrePass(Statements);
 
@@ -535,6 +543,15 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
     if (!Builder->GetInsertBlock()->getTerminator()) {
         Builder->CreateRet(ConstantInt::get(*TheContext, APInt(32, 0)));
     }
+
+    auto *Exception = Exceptions->popHandler();
+    Builder->SetInsertPoint(UnhandledBB);
+    Exceptions->beginCatch(Exception);
+    Exceptions->endCatch();
+    Value *Msg = Builder->CreateGlobalStringPtr("Unhandled exception. Program terminated.\n",
+                                               "err_unhandled", 0, TheModule.get());
+    Builder->CreateCall(PrintfFunc, {Msg});
+    Builder->CreateRet(ConstantInt::get(Type::getInt32Ty(*TheContext), 1));
 
     if (verifyModule(*TheModule, &errs())) {
         errs() << "fatal error: LLVM module verification failed\n";
@@ -849,6 +866,27 @@ bool CodeGen::marshalCallArgs(const std::string &Callee,
     return true;
 }
 
+void CodeGen::emitTryStmt(TryStmtAST *Stmt) {
+    auto *F = Builder->GetInsertBlock()->getParent();
+    auto *CatchBB = BasicBlock::Create(*TheContext, "catch", F);
+    auto *AfterBB = BasicBlock::Create(*TheContext, "try_cont", F);
+    auto SavedArrays = Arrays->snapshotTable();
+
+    Exceptions->pushHandler(CatchBB);
+    for (const auto &S : Stmt->getBody()) emitStmt(S.get());
+    auto *Exception = Exceptions->popHandler();
+    if (!Builder->GetInsertBlock()->getTerminator()) Builder->CreateBr(AfterBB);
+    Arrays->exchangeTable(SavedArrays);
+
+    Builder->SetInsertPoint(CatchBB);
+    Exceptions->beginCatch(Exception);
+    for (const auto &S : Stmt->getCatchBody()) emitStmt(S.get());
+    Exceptions->endCatch();
+    if (!Builder->GetInsertBlock()->getTerminator()) Builder->CreateBr(AfterBB);
+    Arrays->exchangeTable(std::move(SavedArrays));
+    Builder->SetInsertPoint(AfterBB);
+}
+
 void CodeGen::emitIfStmt(IfStmtAST *Stmt) {
     Value *CondV = emitCoercedExpr(Stmt->getCond(), resolveType("BOOLEAN"));
     if (!CondV) return;
@@ -1000,16 +1038,6 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
 void CodeGen::emitStmt(StmtAST *Stmt) {
     if (!Stmt) return;
 
-    if (auto *ArrDecl = dynamic_cast<ArrayDeclareStmtAST*>(Stmt)) {
-        Arrays->emitArrayDeclare(ArrDecl, *this);
-        return;
-    }
-
-    if (auto *ArrAssign = dynamic_cast<ArrayAssignStmtAST*>(Stmt)) {
-        Arrays->emitArrayAssign(ArrAssign, *this);
-        return;
-    }
-
     if (auto *FuncDef = dynamic_cast<FunctionDefAST*>(Stmt)) {
         BasicBlock *SavedBlock = Builder->GetInsertBlock();
         // Function bodies get a fresh array scope (metadata SSA values belong
@@ -1022,6 +1050,30 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
 
         Arrays->exchangeTable(std::move(SavedArrays));
         if (SavedBlock) Builder->SetInsertPoint(SavedBlock);
+        return;
+    }
+
+    // Keep diagnosing statements after RETURN/THROW without appending code
+    // to a terminated block or making those statements reachable.
+    if (Builder->GetInsertBlock()->getTerminator()) {
+        auto *F = Builder->GetInsertBlock()->getParent();
+        Builder->SetInsertPoint(BasicBlock::Create(*TheContext, "unreachable_code", F));
+    }
+
+    if (auto *Try = dynamic_cast<TryStmtAST*>(Stmt)) {
+        emitTryStmt(Try);
+        return;
+    }
+    if (dynamic_cast<ThrowStmtAST*>(Stmt)) {
+        Exceptions->emitThrow();
+        return;
+    }
+    if (auto *ArrDecl = dynamic_cast<ArrayDeclareStmtAST*>(Stmt)) {
+        Arrays->emitArrayDeclare(ArrDecl, *this);
+        return;
+    }
+    if (auto *ArrAssign = dynamic_cast<ArrayAssignStmtAST*>(Stmt)) {
+        Arrays->emitArrayAssign(ArrAssign, *this);
         return;
     }
 

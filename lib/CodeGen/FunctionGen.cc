@@ -1,5 +1,6 @@
 #include "cps/FunctionGen.h"
 #include "cps/CodeGen.h"
+#include "cps/ExceptionHandler.h"
 #include <cstdio>
 
 using namespace llvm;
@@ -13,7 +14,9 @@ static bool isReservedRuntimeName(const std::string &Name) {
         "strcpy", "strcat", "toupper", "tolower", "sprintf", "strtol",
         "strtod", "memset", "exit",
         "fopen", "fclose", "fgetc", "ungetc", "fputs", "fputc",
-        "realloc", "strcmp",
+        "realloc", "strcmp", "__cxa_allocate_exception", "__cxa_throw",
+        "__cxa_begin_catch", "__cxa_end_catch", "__gxx_personality_v0",
+        "__gxx_personality_seh0", "__gxx_personality_sj0", "_Unwind_Resume", "_ZTIi",
     };
     for (const char *R : Reserved) {
         if (Name == R) return true;
@@ -149,6 +152,7 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     if (!F) {
         F = Function::Create(FT, Function::ExternalLinkage, Proto->getName(), &Module);
     }
+    Exceptions.prepareFunction(F);
 
     // Keep the first registration: on a duplicate definition the first one
     // wins and the second is rejected by emitFunctionDef.
@@ -204,7 +208,7 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
 }
 
 static Value *GenerateCall(llvm::Module &Module,
-                           llvm::IRBuilder<> &Builder,
+                           ExceptionHandler &Exceptions,
                            const std::string &CalleeName,
                            const std::vector<llvm::Value*> &Args,
                            bool &HadError) {
@@ -216,21 +220,22 @@ static Value *GenerateCall(llvm::Module &Module,
     }
 
     if (CalleeF->getReturnType()->isVoidTy()) {
-        return Builder.CreateCall(CalleeF, Args);
+        return Exceptions.emitCall(CalleeF, Args);
     }
 
-    return Builder.CreateCall(CalleeF, Args, "calltmp");
+    return Exceptions.emitCall(CalleeF, Args, "calltmp");
 }
 
 llvm::Value *FunctionGen::emitCallExpr(CallExprAST *Call, const std::vector<llvm::Value*> &Args) {
-    return GenerateCall(Module, Builder, Call->getCallee(), Args, HadError);
+    return GenerateCall(Module, Exceptions, Call->getCallee(), Args, HadError);
 }
 
 void FunctionGen::emitCallStmt(CallStmtAST *Call, const std::vector<llvm::Value*> &Args) {
-    GenerateCall(Module, Builder, Call->getCallee(), Args, HadError);
+    GenerateCall(Module, Exceptions, Call->getCallee(), Args, HadError);
 }
 
 void FunctionGen::emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal) {
+    Exceptions.emitReturnCleanup();
     if (RetVal) {
         Builder.CreateRet(RetVal);
     } else {

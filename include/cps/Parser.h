@@ -40,6 +40,7 @@ class Parser {
     std::optional<std::vector<std::unique_ptr<ExprAST>>> ParseExprList(char CloseDelim, bool AllowEmpty);
     void syncToStatementStart();
     std::unique_ptr<StmtAST> ParseIfStmt();
+    std::unique_ptr<StmtAST> ParseTryStmt();
     std::unique_ptr<StmtAST> ParseWhileStmt();
     std::unique_ptr<StmtAST> ParseRepeatStmt();
     std::unique_ptr<StmtAST> ParseForStmt();
