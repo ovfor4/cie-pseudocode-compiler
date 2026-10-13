@@ -66,30 +66,9 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
             return nullptr;
         }
     } else {
-        // Record body: DECLARE-only lines, so nothing here can leak into the
-        // statement chain. One bad field yields one diagnostic; parsing then
-        // resumes at the next field or ENDTYPE.
-        std::vector<RecordFieldDecl> Fields;
-        bool HadFieldError = false;
-        while (CurTok == tok_declare) {
-            if (!ParseRecordField(Fields)) {
-                HadFieldError = true;
-                while (CurTok != tok_declare && CurTok != tok_endtype && CurTok != tok_eof)
-                    getNextToken();
-            }
-        }
-        if (CurTok != tok_endtype) {
-            fprintf(stderr, "error: Expected DECLARE or ENDTYPE in TYPE %s at line %d\n",
-                    Name.c_str(), Lex.getLine());
-            return nullptr; // token left for the outer recovery
-        }
-        getNextToken(); // eat ENDTYPE
-        if (Fields.empty()) {
-            fprintf(stderr, "error: Record TYPE %s has no fields at line %d\n", Name.c_str(), Line);
-            return nullptr;
-        }
-        if (HadFieldError) return nullptr;
-        Decl = std::make_unique<RecordTypeDeclAST>(Name, std::move(Fields));
+        auto Fields = ParseRecordBody(Name, Line, tok_endtype);
+        if (!Fields) return nullptr;
+        Decl = std::make_unique<RecordTypeDeclAST>(Name, std::move(*Fields));
     }
 
     if (!AtTopLevel) {
@@ -99,9 +78,35 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
     return Decl;
 }
 
-// DECLARE <field> : <type> — one record field. Array fields are deferred.
-bool Parser::ParseRecordField(std::vector<RecordFieldDecl> &Out) {
-    getNextToken(); // eat DECLARE
+// Shared record body and field parsing. Fields are data, never statements.
+std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
+    const std::string &Name, int Line, int EndToken) {
+    std::vector<RecordFieldDecl> Fields;
+    bool HadFieldError = false;
+    while (CurTok == tok_declare) {
+        if (!ParseRecordField(Fields, true)) {
+            HadFieldError = true;
+            while (CurTok != tok_declare && CurTok != EndToken && CurTok != tok_eof)
+                getNextToken();
+        }
+    }
+    if (CurTok != EndToken) {
+        fprintf(stderr, "error: Expected DECLARE or ENDTYPE in TYPE %s at line %d\n",
+                Name.c_str(), Lex.getLine());
+        return std::nullopt;
+    }
+    getNextToken(); // eat body terminator
+    if (Fields.empty()) {
+        fprintf(stderr, "error: Record TYPE %s has no fields at line %d\n", Name.c_str(), Line);
+        return std::nullopt;
+    }
+    if (HadFieldError) return std::nullopt;
+    return Fields;
+}
+
+// <field introducer> <field> : <type>. Array fields are deferred.
+bool Parser::ParseRecordField(std::vector<RecordFieldDecl> &Out, bool IsPublic) {
+    getNextToken(); // eat field introducer
     if (CurTok != tok_identifier) {
         fprintf(stderr, "error: Expected field name after DECLARE at line %d\n", Lex.getLine());
         return false;
@@ -125,6 +130,6 @@ bool Parser::ParseRecordField(std::vector<RecordFieldDecl> &Out) {
     std::string TypeName = ParseTypeName(false);
     if (TypeName.empty()) return false;
 
-    Out.push_back({FieldName, TypeName});
+    Out.push_back({FieldName, TypeName, IsPublic});
     return true;
 }

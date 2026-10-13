@@ -1,4 +1,5 @@
 #include "cps/TypeSystem.h"
+#include "cps/TypeAST.h"
 #include "llvm/IR/Constants.h"
 #include <utility>
 
@@ -185,7 +186,7 @@ bool TypeSystem::defineEnum(const std::string &Name,
 }
 
 bool TypeSystem::defineRecord(const std::string &Name,
-                              const std::vector<std::pair<std::string, std::string>> &Fields,
+                              const std::vector<RecordFieldDecl> &Fields,
                               std::string &Err) {
     auto It = Types.find(Name);
     if (It == Types.end() || It->second.Kind != TypeKind::Record) {
@@ -195,7 +196,9 @@ bool TypeSystem::defineRecord(const std::string &Name,
 
     std::vector<Type*> FieldTypes;
     RecordPayload Payload;
-    for (const auto &[FieldName, FieldTypeName] : Fields) {
+    for (const RecordFieldDecl &Field : Fields) {
+        const std::string &FieldName = Field.Name;
+        const std::string &FieldTypeName = Field.TypeName;
         if (Payload.findField(FieldName)) {
             Err = "Duplicate field '" + FieldName + "' in record " + Name;
             return false;
@@ -222,6 +225,7 @@ bool TypeSystem::defineRecord(const std::string &Name,
         RecordFieldInfo FI;
         FI.TypeName = FieldInfo->Name;
         FI.Index = static_cast<unsigned>(FieldTypes.size());
+        FI.IsPublic = Field.IsPublic;
         Payload.Fields.emplace_back(FieldName, FI);
         FieldTypes.push_back(FieldInfo->LLVMType);
     }

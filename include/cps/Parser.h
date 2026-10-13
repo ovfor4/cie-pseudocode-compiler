@@ -49,7 +49,9 @@ class Parser {
     bool ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out);
 
     std::unique_ptr<StmtAST> ParseTypeDecl();
-    bool ParseRecordField(std::vector<RecordFieldDecl> &Out);
+    std::optional<std::vector<RecordFieldDecl>> ParseRecordBody(
+        const std::string &Name, int Line, int EndToken);
+    bool ParseRecordField(std::vector<RecordFieldDecl> &Out, bool IsPublic);
 
     std::unique_ptr<StmtAST> ParseFunction();
     std::unique_ptr<StmtAST> ParseProcedure();

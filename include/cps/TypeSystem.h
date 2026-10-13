@@ -11,6 +11,8 @@
 
 namespace cps {
 
+struct RecordFieldDecl;
+
 // Enum ordinals are 0-based: DECLARE zero-init and array memset(0) then
 // produce the first enumerator, a valid value.
 inline constexpr int64_t kEnumOrdinalBase = 0;
@@ -35,6 +37,7 @@ enum class TypeKind {
 struct RecordFieldInfo {
     std::string TypeName;
     unsigned Index = 0; // struct field index
+    bool IsPublic = true;
 };
 
 struct RecordPayload {
@@ -117,7 +120,7 @@ public:
                     const std::vector<std::string> &Values,
                     std::string &Err);
     bool defineRecord(const std::string &Name,
-                      const std::vector<std::pair<std::string, std::string>> &Fields,
+                      const std::vector<RecordFieldDecl> &Fields,
                       std::string &Err);
     bool definePointer(const std::string &Name,
                        const std::string &PointeeName,

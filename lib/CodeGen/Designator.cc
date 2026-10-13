@@ -58,10 +58,7 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
         } else if (auto *P = dynamic_cast<PointerTypeDeclAST*>(S.get())) {
             Ok = Types->definePointer(P->getName(), P->getPointeeTypeName(), Err);
         } else if (auto *R = dynamic_cast<RecordTypeDeclAST*>(S.get())) {
-            std::vector<std::pair<std::string, std::string>> Fields;
-            for (const RecordFieldDecl &F : R->getFields())
-                Fields.emplace_back(F.Name, F.TypeName);
-            Ok = Types->defineRecord(R->getName(), Fields, Err);
+            Ok = Types->defineRecord(R->getName(), R->getFields(), Err);
         }
         if (!Ok) reportError("%s", Err.c_str());
     }

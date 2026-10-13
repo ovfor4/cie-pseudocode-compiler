@@ -15,6 +15,7 @@ namespace cps {
 struct RecordFieldDecl {
     std::string Name;
     std::string TypeName;
+    bool IsPublic = true; // TYPE fields are always public.
 };
 
 // TYPE <name> = (value1, value2, ...)
