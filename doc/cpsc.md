@@ -20,11 +20,11 @@ Without **-o** or **-r**, replace the source filename's extension with `.ir` and
 :   Save IR to the specified path. May be specified only once. With **-r**, keep this file even if execution fails.
 
 **-r**
-:   Run the compiled program with the runner selected at build time (see BUILD MODES). Without **-o**, do not save permanent IR. The program inherits stdin, stdout and stderr; `INPUT` can read terminal or piped input.
+:   Run the compiled program with the runner selected at build time (see EXECUTION MODES). Without **-o**, do not save permanent IR. The program inherits stdin, stdout and stderr; `INPUT` can read terminal or piped input.
 
-# BUILD MODES
+# EXECUTION MODES
 
-Initial CMake configuration requires **-DCPSC_RUN_MODE=PATH**, **EMBEDDED** or **NONE**. No mode is selected by default. All modes compile to IR using LLVM libraries built into the compiler; NONE disables execution, not IR generation.
+The executable has one of the following execution modes, selected when it was built. All modes can compile to LLVM IR; the mode determines whether and how **-r** runs the program.
 
 **PATH**
 :   Run `lli` from PATH. If it cannot be found, **-r** fails before compilation or output writing. Without **-o**, write temporary IR and delete it afterward, including on execution failure.
