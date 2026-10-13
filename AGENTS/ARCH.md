@@ -102,7 +102,7 @@ do not require Pandoc; `doc`, installation and release packaging do. The modular
 `cmake/Manual.cmake` target defers Pandoc discovery until manual generation, prefers
 the extracted executable, and sets its local runtime/data paths as needed. System
 Pandoc remains the fallback.
-`make -C build release` packages the executable, manual, installer and license
+`make -C build release` packages the executable, all manuals, installer and license
 as `build/cpsc-VERSION-SYSTEM-ARCH.tar.xz`, retaining the configured execution mode.
 `cmake/Release.cmake` reads HEAD at packaging time; VERSION is the commit's UTC
 timestamp (`yyyy-mm-dd-hh-mm-ss`) followed by its short ID. Git is only required
@@ -116,7 +116,11 @@ per-user Start Menu help shortcut. `-SourceDir` selects the artifact directory;
 Windows PowerShell 5.1; its Windows actions have only been reviewed statically.
 The `doc` target uses CMake's `WIN32` target-platform detection: Windows generates
 standalone HTML with inline styles at `build/doc/cpsc.html`; other platforms
-generate `build/doc/cpsc.1`. Both render the same `doc/cpsc.1.md` using Pandoc.
+generate `build/doc/cpsc.1`. The section 1 source is `doc/cpsc.1.md`; section 7 sources are
+`doc/language/cpsc-*.7.md`. `doc` builds every page, preserving the language
+subdirectory, as `.7` on Unix or `.html` on Windows. Sources are discovered with
+CONFIGURE_DEPENDS; per-page commands regenerate only changed pages.
+`cmake/ManualLinks.lua` renders cross-references as man names or local HTML links.
 Windows `mingw32-make -C build install` builds the HTML manual and invokes
 `install.ps1` through Windows PowerShell with the build directory and
 `CMAKE_INSTALL_PREFIX`. The default Windows prefix is the per-user Programs
@@ -125,7 +129,7 @@ The release target explicitly passes the configured Windows flag to
 `cmake/Release.cmake`, since a standalone CMake script otherwise describes the
 host platform. Windows packages `cpsc.exe`, `doc/cpsc.html`, `install.ps1` and
 `LICENSE` as `build/cpsc-VERSION-Windows-ARCH.zip` using CMake's default Deflate
-compression. Unix retains `.tar.xz`, the POSIX installer and the man page.
+compression. Unix retains `.tar.xz`, the POSIX installer and the man pages.
 Linux smoke tests can configure an isolated build with `-DWIN32=TRUE` to exercise
 HTML/ZIP packaging; the resulting renamed Linux executable is only a test fixture,
 not a usable Windows release.

@@ -6,7 +6,9 @@ message(STATUS "Using Pandoc: ${pandoc}")
 
 set(arguments --standalone --from=markdown --to=@cpsc_manual_format@)
 if("@cpsc_manual_format@" STREQUAL "html5")
-    list(APPEND arguments --metadata "title=cpsc manual")
+    get_filename_component(title "${CPSC_MANUAL_SOURCE}" NAME)
+    string(REGEX REPLACE "\\.[17]\\.md$" "" title "${title}")
+    list(APPEND arguments --metadata "title=${title}")
 endif()
 if(pandoc_LOCAL AND IS_DIRECTORY "@CPSC_DEPS_ROOT@/usr/share/pandoc/data")
     list(APPEND arguments "--data-dir=@CPSC_DEPS_ROOT@/usr/share/pandoc/data")
@@ -22,12 +24,14 @@ elseif(pandoc_LOCAL AND UNIX AND NOT APPLE)
     set(ENV{LD_LIBRARY_PATH} "${libraries}")
 endif()
 
-file(MAKE_DIRECTORY "@CMAKE_CURRENT_BINARY_DIR@/doc")
+get_filename_component(output_dir "${CPSC_MANUAL_OUTPUT}" DIRECTORY)
+file(MAKE_DIRECTORY "${output_dir}")
+list(APPEND arguments "--lua-filter=@CMAKE_CURRENT_SOURCE_DIR@/cmake/ManualLinks.lua")
 execute_process(
-    COMMAND "${pandoc}" ${arguments} "@CMAKE_CURRENT_SOURCE_DIR@/doc/cpsc.1.md"
-        --output "@cpsc_manual_file@"
+    COMMAND "${pandoc}" ${arguments} "${CPSC_MANUAL_SOURCE}"
+        --output "${CPSC_MANUAL_OUTPUT}"
     RESULT_VARIABLE result
 )
 if(NOT result EQUAL 0)
-    message(FATAL_ERROR "Pandoc failed to generate @cpsc_manual_file@ (${result})")
+    message(FATAL_ERROR "Pandoc failed to generate ${CPSC_MANUAL_OUTPUT} (${result})")
 endif()

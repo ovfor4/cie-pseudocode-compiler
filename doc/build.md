@@ -185,7 +185,8 @@ export PATH="$PWD/build/deps/root/opt/llvm@18/bin:$PATH"
 
 ## Manual
 
-The quick reference is in [cpsc.1.md](cpsc.1.md). Pandoc is required only for the
+The command-line reference is in [cpsc.1.md](cpsc.1.md); the
+[language overview](language/cpsc-language-overview.7.md) links to the syntax manuals. Pandoc is required only for the
 `doc`, installation and release targets. Recommended local downloads follow;
 an existing system Pandoc works with the same manual-generation command.
 
@@ -224,11 +225,13 @@ cmake --build build --target doc
 ```
 
 CMake selects local Pandoc first, sets its local runtime/data paths as needed,
-and falls back to Pandoc in the system PATH. The output is `build/doc/cpsc.1` on
-Unix and `build/doc/cpsc.html` on Windows. It is regenerated when the source or
-downloaded packages change.
+and falls back to Pandoc in the system PATH. The outputs are `build/doc/cpsc.1` and `build/doc/language/*.7` on Unix,
+or `build/doc/cpsc.html` and `build/doc/language/*.html` on Windows. Each page
+is regenerated when its source, rendering configuration or downloaded packages
+change. New language pages are discovered automatically during the build.
 
-On Unix, open it with `man ./build/doc/cpsc.1`. On Windows, open the standalone,
+On Unix, open the command manual with `man ./build/doc/cpsc.1`, or a syntax
+page with `man ./build/doc/language/cpsc-keyword-if.7`. On Windows, open the standalone,
 offline HTML from PowerShell:
 
 ```powershell

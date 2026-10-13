@@ -21,6 +21,7 @@ if(CPSC_WINDOWS)
     set(cpsc_binary_name cpsc.exe)
     set(cpsc_installer install.ps1)
     set(cpsc_manual cpsc.html)
+    set(cpsc_language_pattern "${CPSC_BINARY_DIR}/doc/language/cpsc-*.html")
     set(cpsc_tar_flags cf)
     set(cpsc_archive_format zip)
 else()
@@ -28,6 +29,7 @@ else()
     set(cpsc_binary_name cpsc)
     set(cpsc_installer install.sh)
     set(cpsc_manual cpsc.1)
+    set(cpsc_language_pattern "${CPSC_BINARY_DIR}/doc/language/cpsc-*.7")
     set(cpsc_tar_flags cJf)
     set(cpsc_archive_format gnutar)
 endif()
@@ -38,6 +40,11 @@ configure_file("${CPSC_EXECUTABLE}" "${cpsc_package_dir}/${cpsc_binary_name}" CO
 file(COPY "${CPSC_SOURCE_DIR}/${cpsc_installer}" "${CPSC_SOURCE_DIR}/LICENSE"
     DESTINATION "${cpsc_package_dir}")
 file(COPY "${CPSC_BINARY_DIR}/doc/${cpsc_manual}" DESTINATION "${cpsc_package_dir}/doc")
+file(GLOB cpsc_language_manuals "${cpsc_language_pattern}")
+if(NOT cpsc_language_manuals)
+    message(FATAL_ERROR "Language manuals are missing; build the doc target first")
+endif()
+file(COPY ${cpsc_language_manuals} DESTINATION "${cpsc_package_dir}/doc/language")
 execute_process(
     COMMAND "${CMAKE_COMMAND}" -E tar "${cpsc_tar_flags}" "${cpsc_archive}"
         "--format=${cpsc_archive_format}" "${cpsc_package_name}"
