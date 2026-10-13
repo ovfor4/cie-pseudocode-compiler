@@ -64,6 +64,17 @@ builds link the C++ runtime statically; MinGW uses `-static`. The tested Debian
 LLVM 18 executable has only libc, libm and the system loader as dynamic dependencies,
 and runs in a minimal chroot without LLVM/lli. Windows EMBEDDED is untested.
 
+On Linux, `make -C build install` builds the manual and calls the POSIX
+`install.sh` to copy `cpsc` and `doc/cpsc.1` into `CMAKE_INSTALL_PREFIX/bin` and
+`CMAKE_INSTALL_PREFIX/share/man/man1` (default prefix `/usr/local`). The script
+also supports `--prefix`, `--source-dir` and `DESTDIR` staging. Ordinary builds
+do not require Pandoc; `doc`, installation and release packaging do.
+`make -C build release` packages the executable, manual, installer and license
+as `build/cpsc-VERSION-SYSTEM-ARCH.tar.xz`, retaining the configured execution mode.
+`cmake/Release.cmake` reads HEAD at packaging time; VERSION is the commit's UTC
+timestamp (`yyyy-mm-dd-hh-mm-ss`) followed by its short ID. Git is only required
+for packaging; recipients can install the extracted archive using just the script.
+
 Build pin: developed and tested against **LLVM 18**. (The historical LLVM 19 breakage —
 `ArithmeticHandler.cc` touching `llvm::Module` through a transitive include — is gone
 now that string concatenation lives in `StringHandler`, but newer LLVM versions remain
@@ -84,6 +95,7 @@ untested.)
 | `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen |
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
 | `tools/driver/EmbeddedRunner.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only MCJIT runner and static support-library selection |
+| `install.sh`, `cmake/Install.cmake.in`, `cmake/Release.cmake` | Artifact installation and versioned binary release packaging |
 
 AST nodes live in `include/cps/AST.h` (+ `FunctionAST.h`, `FileAST.h`, `TypeAST.h`);
 they are pure data with virtual destructors only — no codegen/visitor methods.

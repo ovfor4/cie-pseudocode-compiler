@@ -148,6 +148,52 @@ man ./build/doc/cpsc.1
 You can also run `make doc` inside the configured `build/` directory.
 The output is `build/doc/cpsc.1` and is regenerated when the Markdown source changes.
 
+## Install and release
+
+On Linux, after configuring and building, install the compiler and manual with:
+
+```bash
+sudo make -C build install
+cpsc test.cps -r
+man cpsc
+```
+
+This calls `install.sh` and installs `cpsc` to `/usr/local/bin` and its manual to
+`/usr/local/share/man/man1`. Installation generates the manual automatically and
+requires Pandoc. Ordinary builds still do not require Pandoc.
+
+For installation without sudo, set a writable prefix in the existing build:
+
+```bash
+cmake -S . -B build -DCMAKE_INSTALL_PREFIX="$HOME/.local"
+make -C build install
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+You can also run `./install.sh --source-dir build --prefix "$HOME/.local"`
+directly after building `cpsc` and running `make -C build doc`.
+`DESTDIR` is supported for staging, for example `DESTDIR=/tmp/cpsc-stage make -C build install`.
+
+Create an installation archive with:
+
+```bash
+make -C build release
+```
+
+The output is `build/cpsc-VERSION-SYSTEM-ARCH.tar.xz`. `VERSION` uses HEAD's commit
+time in UTC followed by its short ID: `yyyy-mm-dd-hh-mm-ss-commit`.
+The version is read each time packaging runs. The package uses the current build's
+execution mode and contains `cpsc`, `doc/cpsc.1`, `install.sh` and `LICENSE`.
+Packaging builds the compiler and manual automatically; it requires Git and Pandoc.
+Use `EMBEDDED` when recipients should not need LLVM or `lli` at run time.
+
+Extract the archive with `tar -xJf`, enter the extracted directory, then run
+`sudo ./install.sh`, or `./install.sh --prefix "$HOME/.local"` for a local installation.
+The package installer does not require CMake, Git or Pandoc.
+For a custom prefix, add its `bin` directory to PATH; `man` normally discovers the
+adjacent `share/man` directory from PATH. If your man configuration overrides this,
+use `man -M "$HOME/.local/share/man" cpsc` for the local prefix.
+
 # Note
 
 DO NOT OPEN ANY ISSUES IF YOU COMPILE WITH VISUAL STUDIO OR ANYTHING EXCEPT MINGW-W64 (EVEN WITH MINGW-W64, WINDOWS IS LIKELY TO BE A PROBLEM MAKER)
