@@ -20,7 +20,8 @@
   ],
   "scripts": {
     "check": "node --check src/extension.js && node --check src/indentation.js && node --check src/lexical.js && node --check src/brackets.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "package": "npm run check && npm test && vsce package --no-dependencies"
   },
   "contributes": {
     "languages": [
@@ -57,6 +58,7 @@
     ]
   },
   "devDependencies": {
+    "@vscode/vsce": "^4.0.0",
     "vscode-oniguruma": "^2.0.1",
     "vscode-textmate": "^9.3.2"
   }
