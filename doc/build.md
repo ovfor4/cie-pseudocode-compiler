@@ -5,10 +5,21 @@ see [install.md](install.md).
 
 ## Dependencies
 
-Install CMake, make and Clang as system tools. Download the other dependencies to
-`build/deps/packages/`; CMake extracts them into `build/deps/root/` during
-configuration. Each dependency is searched locally first, then in the system.
-Local LLVM takes precedence over a previously cached system `LLVM_DIR`.
+The commands below recommend installing CMake, make and Clang as system tools
+and downloading LLVM and other dependencies to `build/deps/packages/`. CMake
+extracts downloaded packages into `build/deps/root/` during configuration.
+
+These are setup recommendations, not requirements on where dependencies must
+be installed. Once CMake itself can run, compilers, build tools, libraries and
+optional tools all follow the same lookup rule: local build directories first,
+then the system. A required dependency missing from both locations is an error.
+System-only and mixed installations are supported, including system-installed
+LLVM without any local LLVM download. Local dependencies take precedence over
+previously cached system paths.
+
+CMake searches standard `bin/`, `lib/` and `include/` directories under the build
+directory as well as the extracted package layouts. Compiler and make selection
+follow the same rule as LLVM and Pandoc selection.
 
 Unchanged packages are not extracted again. Keep one version of each package in
 the download directory; remove old archives before downloading a different
@@ -22,14 +33,14 @@ LLVM 18 is the tested version; newer versions remain untested.
 
 ### Linux (Debian/Ubuntu)
 
-Use a distribution repository that provides LLVM 18. Install the build tools:
+Use a distribution repository that provides LLVM 18. Recommended build tools:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends build-essential cmake clang-18
 ```
 
-Download LLVM and its support packages without installing them:
+Recommended LLVM and support-package downloads:
 
 ```bash
 mkdir -p build/deps/packages
@@ -60,7 +71,7 @@ pacman -S --needed \
   mingw-w64-x86_64-clang
 ```
 
-Download the dependencies to the project build directory:
+Recommended dependency downloads to the project build directory:
 
 ```bash
 mkdir -p build/deps/packages
@@ -90,7 +101,7 @@ Use Clang and make from the Xcode Command Line Tools. If they are missing, run
 brew install cmake
 ```
 
-Download the binary bottles to the build directory:
+Recommended binary-bottle downloads to the build directory:
 
 ```bash
 mkdir -p build/deps/packages
@@ -139,9 +150,12 @@ cmake -S . -B build -DCPSC_RUN_MODE=EMBEDDED -DCMAKE_BUILD_TYPE=Release \
 cmake --build build -j4
 ```
 
-Local packages do not need `-DLLVM_DIR`. When no local LLVM is present, CMake uses
-the system search; you can specify `-DLLVM_DIR=/path/to/lib/cmake/llvm` for a
-system installation outside its usual search paths.
+If LLVM and its required support libraries are already installed in the system,
+skip the download steps and use the same build commands. Local and system
+dependencies can also be mixed; the lookup rule applies to each dependency.
+Local packages do not need `-DLLVM_DIR`. You can specify
+`-DLLVM_DIR=/path/to/lib/cmake/llvm` for a system installation outside the usual
+search paths or to select a system LLVM version when several are installed.
 
 Distribute `build/cpsc` (Windows: `build/cpsc.exe`) for `EMBEDDED`. LLVM and its
 required compression/terminal support libraries are linked statically; a missing
@@ -172,7 +186,8 @@ export PATH="$PWD/build/deps/root/opt/llvm@18/bin:$PATH"
 ## Manual
 
 The quick reference is in [cpsc.md](cpsc.md). Pandoc is required only for the
-`doc`, installation and release targets. Download it for your platform:
+`doc`, installation and release targets. Recommended local downloads follow;
+an existing system Pandoc works with the same manual-generation command.
 
 Linux:
 

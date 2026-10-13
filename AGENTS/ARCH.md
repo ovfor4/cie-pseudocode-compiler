@@ -26,7 +26,7 @@ The compiler emits textual IR. Initial configuration must explicitly select
 development libraries to build; NONE still generates IR. Native binaries remain manual:
 
 ```bash
-# First download dependencies as documented in doc/build.md.
+# Prepare dependencies using the recommendations in doc/build.md.
 cmake -S . -B build -DCPSC_RUN_MODE=EMBEDDED \
   -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cmake --build build
@@ -36,11 +36,17 @@ build/cpsc prog.cps -r -o prog.ir # save IR, then run it
 clang-18 prog.ll -o prog && ./prog
 ```
 
-CMake, make and Clang are system tools. Other build dependencies are downloaded
-to the configured build directory's `deps/packages/`. The modular
-`cmake/LocalDependencies.cmake` entry point extracts Debian, MSYS2 and Homebrew
-binary packages into `deps/root/`, then searches each dependency locally before
-falling back to system libraries. Local LLVM overrides a cached system `LLVM_DIR`.
+`doc/build.md` recommends which packages to install and which to download;
+CMake does not enforce that split. The modular `cmake/LocalDependencies.cmake`
+entry point extracts Debian, MSYS2 and Homebrew binary packages from the build
+directory's `deps/packages/` into `deps/root/`. Standard bin/lib/include layouts
+under the build directory are also searched. The shared
+`cmake/FindDependency.cmake` helper searches locally first, then the system, and
+reports missing required dependencies. Compilers, make, LLVM, support libraries,
+Pandoc, Git and installer/relocation tools use the same lookup policy. System-only
+and mixed installations are supported. Local dependencies override cached system
+paths. Build tools are resolved before `project()` enables compiler checks;
+compiler information is refreshed when the selected executable changes.
 Platform modules relocate package paths only inside the extraction directory;
 Homebrew bottles also receive local Cellar/opt links and Mach-O relocation/signing.
 Package hashes skip unchanged extractions; a changed package set rebuilds the
@@ -134,7 +140,9 @@ untested.)
 | `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen |
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
 | `tools/driver/EmbeddedRunner.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only MCJIT runner and static support-library selection |
-| `cmake/LocalDependencies.cmake`, `cmake/*Packages.cmake` | Local package extraction, platform relocation and dependency discovery |
+| `cmake/LocalDependencies.cmake`, `cmake/*Packages.cmake` | Local package extraction and platform relocation |
+| `cmake/DependencyPaths.cmake`, `cmake/FindDependency.cmake` | Shared local paths and local-first/system-fallback lookup |
+| `cmake/BuildTools.cmake`, `cmake/LLVMDependencies.cmake` | Compiler/build tool selection and LLVM dependency discovery |
 | `cmake/Manual.cmake`, `cmake/GenerateManual.cmake.in` | Optional manual generation with local-first Pandoc discovery |
 | `install.sh`, `install.ps1`, `cmake/Install.cmake.in`, `cmake/Release.cmake` | Artifact installation and versioned binary release packaging |
 
