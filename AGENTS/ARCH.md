@@ -84,6 +84,10 @@ Windows PowerShell 5.1; its Windows actions have only been reviewed statically.
 The `doc` target uses CMake's `WIN32` target-platform detection: Windows generates
 standalone HTML with inline styles at `build/doc/cpsc.html`; other platforms
 generate `build/doc/cpsc.1`. Both render the same `doc/cpsc.md` using Pandoc.
+Windows `mingw32-make -C build install` builds the HTML manual and invokes
+`install.ps1` through Windows PowerShell with the build directory and
+`CMAKE_INSTALL_PREFIX`. The default Windows prefix is the per-user Programs
+directory above; explicit prefixes are preserved. Unix still invokes `install.sh`.
 
 Build pin: developed and tested against **LLVM 18**. (The historical LLVM 19 breakage —
 `ArithmeticHandler.cc` touching `llvm::Module` through a transitive include — is gone

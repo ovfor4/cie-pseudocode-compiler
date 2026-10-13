@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.13)
 project(cps_compiler)
 
+if(WIN32 AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    if("$ENV{LOCALAPPDATA}" STREQUAL "")
+        message(FATAL_ERROR "LOCALAPPDATA is unset; specify -DCMAKE_INSTALL_PREFIX explicitly")
+    endif()
+    file(TO_CMAKE_PATH "$ENV{LOCALAPPDATA}/Programs/cpsc" cpsc_default_prefix)
+    set(CMAKE_INSTALL_PREFIX "${cpsc_default_prefix}" CACHE PATH "Installation directory" FORCE)
+endif()
+
 set(CPSC_RUN_MODE "" CACHE STRING "Execution mode: PATH, EMBEDDED or NONE (required)")
 set_property(CACHE CPSC_RUN_MODE PROPERTY STRINGS PATH EMBEDDED NONE)
 if(NOT CPSC_RUN_MODE MATCHES "^(PATH|EMBEDDED|NONE)$")

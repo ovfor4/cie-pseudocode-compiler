@@ -203,8 +203,20 @@ For a custom prefix, add its `bin` directory to PATH; `man` normally discovers t
 adjacent `share/man` directory from PATH. If your man configuration overrides this,
 use `man -M "$HOME/.local/share/man" cpsc` for the local prefix.
 
-On Windows, `install.ps1` installs for the current user without administrator
-rights. Its source directory must contain `cpsc.exe` and `doc/cpsc.html`:
+On Windows, install from an existing MinGW build with:
+
+```powershell
+cmake --build build --target install
+```
+
+This is equivalent to `mingw32-make -C build install`: it generates the HTML
+manual with Pandoc and calls `install.ps1`. The Windows default
+`CMAKE_INSTALL_PREFIX` is `%LOCALAPPDATA%\Programs\cpsc`; an explicitly configured
+prefix is preserved. To change it, run
+`cmake -S . -B build -DCMAKE_INSTALL_PREFIX="D:/My Programs/cpsc"` before installing.
+
+You can also call `install.ps1` directly. It installs for the current user without
+administrator rights. Its source directory must contain `cpsc.exe` and `doc/cpsc.html`:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -SourceDir .\build
