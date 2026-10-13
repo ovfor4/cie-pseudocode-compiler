@@ -183,7 +183,7 @@ You can also run `./install.sh --source-dir build --prefix "$HOME/.local"`
 directly after building `cpsc` and running `make -C build doc`.
 `DESTDIR` is supported for staging, for example `DESTDIR=/tmp/cpsc-stage make -C build install`.
 
-Create an installation archive with:
+On Unix, create an installation archive with:
 
 ```bash
 make -C build release
@@ -231,6 +231,31 @@ the PATH entry. Use `-Prefix 'D:\My Programs\cpsc'` for a custom destination,
 or `-Help` for usage. Windows installation does not support `DESTDIR` staging.
 The PowerShell installer targets Windows PowerShell 5.1 or later and has only
 been reviewed statically; Windows installation still needs testing on Windows.
+
+Create a Windows installation archive from the configured MinGW build with:
+
+```powershell
+cmake --build build --target release
+```
+
+This is equivalent to `mingw32-make -C build release`. Windows produces
+`build/cpsc-VERSION-Windows-ARCH.zip`, using the same UTC commit version as Unix
+and retaining the configured execution mode. The ZIP contains `cpsc.exe`,
+`doc/cpsc.html`, `install.ps1` and `LICENSE` under one top-level directory.
+It uses CMake's default Deflate compression and needs no additional compression
+tool; packaging requires Git and Pandoc, just as on Unix.
+
+Extract the ZIP using Windows Explorer, open PowerShell in the extracted package
+directory, then run:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+Recipients need neither CMake, Git nor Pandoc to install. To check installation,
+open a new terminal, run `Get-Command cpsc` and compile a source with
+`cpsc test.cps`; open Start Menu > cpsc > cpsc Help to check the manual. Running
+the installer again should leave only one entry for its directory in the user PATH.
 
 # Note
 

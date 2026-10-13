@@ -88,6 +88,14 @@ Windows `mingw32-make -C build install` builds the HTML manual and invokes
 `install.ps1` through Windows PowerShell with the build directory and
 `CMAKE_INSTALL_PREFIX`. The default Windows prefix is the per-user Programs
 directory above; explicit prefixes are preserved. Unix still invokes `install.sh`.
+The release target explicitly passes the configured Windows flag to
+`cmake/Release.cmake`, since a standalone CMake script otherwise describes the
+host platform. Windows packages `cpsc.exe`, `doc/cpsc.html`, `install.ps1` and
+`LICENSE` as `build/cpsc-VERSION-Windows-ARCH.zip` using CMake's default Deflate
+compression. Unix retains `.tar.xz`, the POSIX installer and the man page.
+Linux smoke tests can configure an isolated build with `-DWIN32=TRUE` to exercise
+HTML/ZIP packaging; the resulting renamed Linux executable is only a test fixture,
+not a usable Windows release.
 
 Build pin: developed and tested against **LLVM 18**. (The historical LLVM 19 breakage —
 `ArithmeticHandler.cc` touching `llvm::Module` through a transitive include — is gone

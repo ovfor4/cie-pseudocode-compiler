@@ -101,12 +101,17 @@ add_custom_target(doc DEPENDS "${cpsc_manual_file}")
 configure_file(cmake/Install.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/Install.cmake" @ONLY)
 install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/Install.cmake")
 
+set(cpsc_release_system "${CMAKE_SYSTEM_NAME}")
+if(WIN32)
+    set(cpsc_release_system Windows)
+endif()
 add_custom_target(release
     COMMAND "${CMAKE_COMMAND}"
         "-DCPSC_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
         "-DCPSC_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}"
         "-DCPSC_EXECUTABLE=$<TARGET_FILE:cpsc>"
-        "-DCPSC_PLATFORM=${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}"
+        "-DCPSC_PLATFORM=${cpsc_release_system}-${CMAKE_SYSTEM_PROCESSOR}"
+        "-DCPSC_WINDOWS=${WIN32}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Release.cmake"
     DEPENDS cpsc doc
     COMMENT "Packaging cpsc and its manual"
