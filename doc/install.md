@@ -9,12 +9,15 @@ After configuring and building, install the compiler and manual with:
 ```bash
 sudo make -C build install
 cpsc test.cps -r
-man cpsc
+man 1 cpsc
+man 7 cpsc-language-overview
+man 7 cpsc-keyword-if
+man 7 cpsc-function-num_to_str
 ```
 
-This calls `install.sh` and installs `cpsc` to `/usr/local/bin` and its manual to
-`/usr/local/share/man/man1`. Installation generates the manual automatically and
-requires Pandoc. Ordinary builds still do not require Pandoc.
+This calls `install.sh` and installs `cpsc` to `/usr/local/bin` and its manuals to
+`/usr/local/share/cpsc/man/man1` and `/usr/local/share/cpsc/man/man7`.
+Installation generates all manuals automatically and requires Pandoc. Ordinary builds still do not require Pandoc.
 
 For installation without sudo, set a writable prefix in the existing build:
 
@@ -27,6 +30,38 @@ export PATH="$HOME/.local/bin:$PATH"
 You can also run `./install.sh --source-dir build --prefix "$HOME/.local"`
 directly after building `cpsc` and running `make -C build doc`.
 `DESTDIR` is supported for staging, for example `DESTDIR=/tmp/cpsc-stage make -C build install`.
+
+### Manual search path registration
+
+On Linux with man-db, root installation appends a cpsc entry to
+`/etc/manpath.config` (or `/etc/man_db.conf`); installation as an ordinary user
+uses `~/.manpath`. Existing configuration is preserved, and repeated installation
+does not add the same entry again. Linux registration requires a prefix without
+whitespace. Unix prefixes cannot contain colons or newlines.
+
+On macOS, root installation registers the directory in
+`/usr/local/etc/man.d/cpsc.conf`. Without sudo, the installer appends a cpsc
+MANPATH block to `~/.zprofile` for zsh or `~/.bash_profile` for bash, preserving
+existing and default search paths. Open a new login terminal afterward. Other
+shells receive a manual setup hint. For a user installation, global registration
+is optional; the installer recommends these manual commands (adjust the path):
+
+```bash
+sudo mkdir -p /usr/local/etc/man.d
+printf '%s\n' "MANPATH $HOME/.local/share/cpsc/man" | sudo tee -a /usr/local/etc/man.d/cpsc.conf
+```
+
+An explicitly set MANPATH overrides man-db configuration. If you already set it,
+add the cpsc directory and retain a colon to include default system paths:
+
+```bash
+export MANPATH="$HOME/.local/share/cpsc/man:${MANPATH:-}"
+```
+
+DESTDIR staging copies files only and never changes the host's system/user
+manpath or shell configuration. Register the final directory when deploying.
+The installer leaves old shared-directory manuals in place; when upgrading,
+remove the previous `PREFIX/share/man/man1/cpsc.1` yourself if it is obsolete.
 
 On macOS, `install.sh` also removes `com.apple.quarantine` from the installed
 executable when present. An executable without that attribute installs normally;
@@ -50,9 +85,10 @@ Use `EMBEDDED` when recipients should not need LLVM or `lli` at run time.
 Extract the archive with `tar -xJf`, enter the extracted directory, then run
 `sudo ./install.sh`, or `./install.sh --prefix "$HOME/.local"` for a local installation.
 The package installer does not require CMake, Git or Pandoc.
-For a custom prefix, add its `bin` directory to PATH; `man` normally discovers the
-adjacent `share/man` directory from PATH. If your man configuration overrides this,
-use `man -M "$HOME/.local/share/man" cpsc` for the local prefix.
+For a custom prefix, add its `bin` directory to PATH. The installer registers
+`PREFIX/share/cpsc/man` in manpath configuration; it does not rely on automatic
+discovery of an adjacent shared man directory. For explicit lookup, use
+`man -M "$HOME/.local/share/cpsc/man" 7 cpsc-keyword-if`.
 
 ## Windows installation
 
@@ -69,15 +105,17 @@ prefix is preserved. To change it, run
 `cmake -S . -B build -DCMAKE_INSTALL_PREFIX="D:/My Programs/cpsc"` before installing.
 
 You can also call `install.ps1` directly. It installs for the current user without
-administrator rights. Its source directory must contain `cpsc.exe` and `doc/cpsc.html`:
+administrator rights. Its source directory must contain `cpsc.exe`,
+`doc/cpsc.html` and `doc/language/*.html`:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -SourceDir .\build
 ```
 
 The default destination is `%LOCALAPPDATA%\Programs\cpsc`: `cpsc.exe` goes in
-that directory and the HTML manual goes in its `doc` subdirectory. The installer
-adds the directory to the user PATH and creates Start Menu > cpsc > cpsc Help,
+that directory, the command manual goes in `doc`, and syntax manuals go in
+`doc/language`. The command manual links to the language overview and its pages.
+The installer adds the directory to the user PATH and creates Start Menu > cpsc > cpsc Help,
 which opens the manual in the default browser. Open a new terminal afterward;
 existing parent terminals retain their old PATH. Reinstalling does not duplicate
 the PATH entry. Use `-Prefix 'D:\My Programs\cpsc'` for a custom destination,

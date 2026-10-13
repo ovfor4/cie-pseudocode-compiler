@@ -3,7 +3,7 @@
 .SYNOPSIS
 Installs cpsc and its HTML manual for the current user.
 .DESCRIPTION
-Copies cpsc.exe and doc\cpsc.html, creates a Start Menu help shortcut, and
+Copies cpsc.exe, doc\cpsc.html and doc\language\*.html, creates a help shortcut, and
 adds the installation directory to the user PATH. No administrator is needed
 for the default location: %LOCALAPPDATA%\Programs\cpsc.
 .EXAMPLE
@@ -26,7 +26,7 @@ $ErrorActionPreference = 'Stop'
 if ($Help) {
     Write-Output 'Usage: install.ps1 [-Prefix DIR] [-SourceDir DIR] [-Help]'
     Write-Output 'Default destination: %LOCALAPPDATA%\Programs\cpsc'
-    Write-Output 'Source must contain cpsc.exe and doc\cpsc.html; default: script directory.'
+    Write-Output 'Source must contain cpsc.exe, doc\cpsc.html and doc\language\*.html; default: script directory.'
     return
 }
 
@@ -71,16 +71,29 @@ try {
         }
     }
 
+    $sourceLanguageDir = Join-Path $SourceDir 'doc\language'
+    if (-not (Test-Path -LiteralPath $sourceLanguageDir -PathType Container)) {
+        throw "Missing language manuals: $sourceLanguageDir; build the doc target first."
+    }
+    $languageManuals = @(Get-ChildItem -LiteralPath $sourceLanguageDir -Filter 'cpsc-*.html' -File)
+    if ($languageManuals.Count -eq 0) {
+        throw "Missing language manuals: $sourceLanguageDir; build the doc target first."
+    }
+
     $docDir = Join-Path $Prefix 'doc'
+    $languageDir = Join-Path $docDir 'language'
     $targetExe = Join-Path $Prefix 'cpsc.exe'
     $targetManual = Join-Path $docDir 'cpsc.html'
-    foreach ($directory in @($Prefix, $docDir)) {
+    foreach ($directory in @($Prefix, $docDir, $languageDir)) {
         if ((Test-Path -LiteralPath $directory) -and
             -not (Test-Path -LiteralPath $directory -PathType Container)) {
             throw "Installation directory is occupied by a file: $directory"
         }
     }
-    foreach ($file in @($targetExe, $targetManual)) {
+    $targetFiles = @($targetExe, $targetManual) + @($languageManuals | ForEach-Object {
+        Join-Path $languageDir $_.Name
+    })
+    foreach ($file in $targetFiles) {
         if (Test-Path -LiteralPath $file -PathType Container) {
             throw "Installation file is occupied by a directory: $file"
         }
@@ -94,12 +107,18 @@ try {
     $shell = New-Object -ComObject WScript.Shell
 
     # Directory.CreateDirectory treats paths literally, including spaces and brackets.
-    [IO.Directory]::CreateDirectory($docDir) | Out-Null
+    [IO.Directory]::CreateDirectory($languageDir) | Out-Null
     if ($sourceExe -ine $targetExe) {
         Copy-Item -LiteralPath $sourceExe -Destination $targetExe -Force
     }
     if ($sourceManual -ine $targetManual) {
         Copy-Item -LiteralPath $sourceManual -Destination $targetManual -Force
+    }
+    foreach ($manual in $languageManuals) {
+        $destination = Join-Path $languageDir $manual.Name
+        if ($manual.FullName -ine $destination) {
+            Copy-Item -LiteralPath $manual.FullName -Destination $destination -Force
+        }
     }
     [IO.Directory]::CreateDirectory($shortcutDir) | Out-Null
     $shortcut = $shell.CreateShortcut((Join-Path $shortcutDir 'cpsc Help.lnk'))
@@ -117,7 +136,7 @@ try {
         $env:PATH = "$env:PATH;$Prefix"
     }
     Write-Output "Installed $targetExe"
-    Write-Output "Installed $targetManual"
+    Write-Output "Installed $targetManual and $($languageManuals.Count) language manuals in $languageDir"
     Write-Output 'Open the manual from Start Menu > cpsc > cpsc Help.'
     Write-Output 'Open a new terminal to use cpsc by name (existing parent terminals keep their old PATH).'
 }

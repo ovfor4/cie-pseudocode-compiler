@@ -93,9 +93,17 @@ LLVM 18 executable has only libc, libm and the system loader as dynamic dependen
 and runs in a minimal chroot without LLVM/lli. Windows EMBEDDED is untested.
 
 On Linux, `make -C build install` builds the manual and calls the POSIX
-`install.sh` to copy `cpsc` and `doc/cpsc.1` into `CMAKE_INSTALL_PREFIX/bin` and
-`CMAKE_INSTALL_PREFIX/share/man/man1` (default prefix `/usr/local`). The script
-also supports `--prefix`, `--source-dir` and `DESTDIR` staging. On macOS it removes
+`install.sh` to copy `cpsc` into `CMAKE_INSTALL_PREFIX/bin` and all manuals into
+`CMAKE_INSTALL_PREFIX/share/cpsc/man/man1` and `man7` (default prefix `/usr/local`).
+Linux man-db registration appends a deduplicated MANDATORY_MANPATH entry to
+`/etc/manpath.config` or `/etc/man_db.conf` as root, or `~/.manpath` as a user.
+macOS root registration uses `/usr/local/etc/man.d/cpsc.conf`; user installation
+adds a MANPATH block to zsh/bash login configuration and prints optional sudo
+commands for global registration. Existing configuration is preserved. Explicit
+MANPATH settings may need updating; Linux registration rejects whitespace in the
+prefix, and Unix prefixes cannot contain colons/newlines.
+The script also supports `--prefix`, `--source-dir` and `DESTDIR` staging;
+staging never changes host manpath or shell configuration. On macOS it removes
 `com.apple.quarantine` from the installed executable if present; attribute inspection
 or removal failures abort installation with a diagnostic. Ordinary builds
 do not require Pandoc; `doc`, installation and release packaging do. The modular
@@ -108,8 +116,8 @@ as `build/cpsc-VERSION-SYSTEM-ARCH.tar.xz`, retaining the configured execution m
 timestamp (`yyyy-mm-dd-hh-mm-ss`) followed by its short ID. Git is only required
 for packaging; recipients can install the extracted archive using just the script.
 
-The Windows `install.ps1` installs `cpsc.exe` and `doc/cpsc.html` for the current
-user under `%LOCALAPPDATA%\Programs\cpsc` (or `-Prefix`). It appends that directory
+The Windows `install.ps1` installs `cpsc.exe`, `doc/cpsc.html` and
+`doc/language/*.html` for the current user under `%LOCALAPPDATA%\Programs\cpsc` (or `-Prefix`). It appends that directory
 to the user PATH without copying the combined process PATH, and creates a
 per-user Start Menu help shortcut. `-SourceDir` selects the artifact directory;
 `DESTDIR` staging is unsupported on Windows. The script is compatible with
@@ -127,7 +135,7 @@ Windows `mingw32-make -C build install` builds the HTML manual and invokes
 directory above; explicit prefixes are preserved. Unix still invokes `install.sh`.
 The release target explicitly passes the configured Windows flag to
 `cmake/Release.cmake`, since a standalone CMake script otherwise describes the
-host platform. Windows packages `cpsc.exe`, `doc/cpsc.html`, `install.ps1` and
+host platform. Windows packages `cpsc.exe`, `doc/cpsc.html`, `doc/language/*.html`, `install.ps1` and
 `LICENSE` as `build/cpsc-VERSION-Windows-ARCH.zip` using CMake's default Deflate
 compression. Unix retains `.tar.xz`, the POSIX installer and the man pages.
 Linux smoke tests can configure an isolated build with `-DWIN32=TRUE` to exercise
