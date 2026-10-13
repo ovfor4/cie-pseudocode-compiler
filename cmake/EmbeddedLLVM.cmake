@@ -14,10 +14,10 @@ foreach(cpsc_dependency IN LISTS cpsc_support_libs)
         continue()
     endif()
     list(GET cpsc_library_names 0 cpsc_library_name)
-    find_library(CPSC_STATIC_${cpsc_library_name} NAMES ${cpsc_library_names})
+    cpsc_find_library(CPSC_STATIC_${cpsc_library_name} ${cpsc_library_names})
     if(NOT CPSC_STATIC_${cpsc_library_name})
         message(FATAL_ERROR
-            "EMBEDDED requires a static archive for ${cpsc_dependency}; install its development package")
+            "EMBEDDED requires a static archive for ${cpsc_dependency}; download or install its development package")
     endif()
     string(REPLACE "${cpsc_dependency}" "${CPSC_STATIC_${cpsc_library_name}}"
         cpsc_support_libs "${cpsc_support_libs}")
