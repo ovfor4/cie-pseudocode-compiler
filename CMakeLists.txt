@@ -42,3 +42,14 @@ target_link_libraries(cpsc
     CPSLexer 
     ${llvm_libs}
 )
+
+add_custom_command(
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/cpsc.1"
+    COMMAND pandoc --standalone --from=markdown --to=man
+        "${CMAKE_CURRENT_SOURCE_DIR}/doc/cpsc.md"
+        --output "${CMAKE_CURRENT_BINARY_DIR}/cpsc.1"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/doc/cpsc.md"
+    COMMENT "Generating cpsc(1) manual"
+    VERBATIM
+)
+add_custom_target(doc DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cpsc.1")

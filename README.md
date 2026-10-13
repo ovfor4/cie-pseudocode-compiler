@@ -101,6 +101,23 @@ stdin/stdout/stderr, so pseudocode `INPUT` reads from the terminal or piped inpu
 With `-r` alone, no permanent IR is saved; with `-r -o`, the saved IR is kept even
 if execution fails.
 
+## Manual
+
+The command-line quick reference is in `doc/cpsc.md`. Generating the man page
+requires Pandoc; ordinary builds do not.
+
+From the project root on Linux:
+
+```bash
+sudo apt-get install pandoc
+cmake -S . -B build
+make -C build doc
+man ./build/cpsc.1
+```
+
+You can also run `make doc` inside the configured `build/` directory.
+The output is `build/cpsc.1` and is regenerated when the Markdown source changes.
+
 # Note
 
 DO NOT OPEN ANY ISSUES IF YOU COMPILE WITH VISUAL STUDIO OR ANYTHING EXCEPT MINGW-W64 (EVEN WITH MINGW-W64, WINDOWS IS LIKELY TO BE A PROBLEM MAKER)
