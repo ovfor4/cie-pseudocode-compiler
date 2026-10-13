@@ -71,11 +71,19 @@ test programs.
   followed by `.` is swallowed into a REAL literal, so `1.foo` mislexes (only
   already-invalid programs can hit it).
 
+- **CLASS subset (§10).** `CLASS`/`ENDCLASS`/`PUBLIC`/`PRIVATE` are reserved.
+  CLASS is a top-level record-derived value type with mandatory per-field access
+  keywords (no DECLARE). Unlike the guide's default-public rule, omitting access
+  is an error. TYPE fields cannot specify access and remain public. Private fields
+  cannot be accessed externally; whole-value initialization/copying is allowed.
+  CLASS inherits record limitations, including no array fields or empty bodies.
+
 ## Not implemented (9618 features)
 
 CASE OF, CONSTANT, SET types (`SET`/`DEFINE` are reserved with dedicated errors),
 random files (OPENFILE...FOR RANDOM/SEEK/GETRECORD/PUTRECORD — TYPE is done, so these
 are unblocked now; the RANDOM keyword is reserved and gives a dedicated parse error),
 DATE, INPUT into array elements, string escape sequences,
-array-typed record fields, whole-array RETURN. No tests and no CI exist; verify
+array-typed record fields, whole-array RETURN, class methods/constructors/destructors,
+NEW and class inheritance. No compiler tests or CI exist; verify
 changes by compiling sample programs end-to-end (command sequence in `ARCH.md`).

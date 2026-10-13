@@ -84,7 +84,11 @@ enum Token {
     tok_type = -600,
     tok_endtype = -601,
     tok_set = -602,    // reserved: SET types are recognised but not implemented
-    tok_define = -603  // reserved: DEFINE (set literals) likewise
+    tok_define = -603, // reserved: DEFINE (set literals) likewise
+    tok_class = -604,
+    tok_endclass = -605,
+    tok_public = -606,
+    tok_private = -607
 };
 
 class Lexer {

@@ -145,6 +145,11 @@ bool CodeGen::emitLValue(ExprAST *E, LValueInfo &Out) {
                 reportError("Record type %s has no field %s", TypeName.c_str(), A.FieldName.c_str());
                 return false;
             }
+            if (!FI->IsPublic) {
+                reportError("Cannot access private field %s of type %s",
+                            A.FieldName.c_str(), TypeName.c_str());
+                return false;
+            }
             Addr = Builder->CreateStructGEP(Cur->LLVMType, Addr, FI->Index,
                                             TypeName + "." + A.FieldName);
             TypeName = FI->TypeName;

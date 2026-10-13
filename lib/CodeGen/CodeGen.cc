@@ -215,6 +215,7 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
                 const RecordPayload *RP = Cur->asRecord();
                 const RecordFieldInfo *FI = RP ? RP->findField(A.FieldName) : nullptr;
                 if (!FI) return nullptr;
+                if (!FI->IsPublic) return nullptr;
                 TypeName = FI->TypeName;
             } else if (A.Kind == AccessKind::Deref) {
                 const PointerPayload *PP = Cur->asPointer();

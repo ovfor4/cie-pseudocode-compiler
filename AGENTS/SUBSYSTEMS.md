@@ -52,6 +52,15 @@ FileHandler, is deliberately ignorant of user kinds). The enum range check after
 producer (constants, same-name copies, zero-init, memset-0 arrays) is valid by
 construction, which is why 0-based ordinals are load-bearing.
 
+`ClassTypeDeclAST` inherits `RecordTypeDeclAST`: CLASS declarations use the same
+two-pass registration, `TypeKind::Record`, `%record.NAME` layout and value semantics.
+Shared body/field parsing lives in `ParserType.cc`. TYPE fields always have
+`IsPublic = true`; CLASS fields require an explicit PUBLIC/PRIVATE keyword and
+carry that flag through `defineRecord` into `RecordFieldInfo`. Both the static
+designator type walk and `emitLValue` reject private field access, including
+address-of, array elements and pointer dereferences. There is no class method
+context or language-level inheritance yet.
+
 **Runtime checks** (`RuntimeCheck`): array bounds, file misuse, enum ranges, null
 dereferences and array-parameter bounds contracts are checked at their emit sites.
 `ArithmeticHandler` calls `emitDivZeroCheck` before `/`, DIV and MOD; the check accepts

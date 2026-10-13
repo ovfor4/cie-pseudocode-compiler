@@ -60,6 +60,14 @@ public:
     const std::vector<RecordFieldDecl> &getFields() const { return Fields; }
 };
 
+// CLASS <name> with explicitly PUBLIC/PRIVATE fields, ending in ENDCLASS.
+// Storage and value semantics are inherited from record declarations.
+class ClassTypeDeclAST : public RecordTypeDeclAST {
+public:
+    ClassTypeDeclAST(const std::string &Name, std::vector<RecordFieldDecl> Fields)
+        : RecordTypeDeclAST(Name, std::move(Fields)) {}
+};
+
 // ---- Designators: chained accesses usable as lvalue or rvalue (§4.2) ----
 
 enum class AccessKind : uint8_t { Index, Field, Deref };

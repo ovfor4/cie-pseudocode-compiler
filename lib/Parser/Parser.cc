@@ -275,6 +275,7 @@ void Parser::syncToStatementStart() {
         case tok_next: case tok_endfunction: case tok_endprocedure:
         case tok_openfile: case tok_readfile: case tok_writefile: case tok_closefile:
         case tok_type: case tok_define: case tok_endtype:
+        case tok_class: case tok_endclass:
             return;
         default:
             getNextToken();
@@ -601,7 +602,7 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     else if (CurTok == tok_closefile) {
         return ParseCloseFile();
     }
-    else if (CurTok == tok_type) {
+    else if (CurTok == tok_type || CurTok == tok_class) {
         return ParseTypeDecl();
     }
     else if (CurTok == tok_define) {
@@ -611,6 +612,11 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     }
     else if (CurTok == tok_endtype) {
         fprintf(stderr, "error: ENDTYPE without matching TYPE at line %d\n", Lex.getLine());
+        getNextToken();
+        return nullptr;
+    }
+    else if (CurTok == tok_endclass) {
+        fprintf(stderr, "error: ENDCLASS without matching CLASS at line %d\n", Lex.getLine());
         getNextToken();
         return nullptr;
     }

@@ -66,6 +66,30 @@ Save IR and run it:
 cpsc test.cps -r -o result.ir
 ```
 
+# CLASSES
+
+Declare classes at top level. Every field must explicitly specify `PUBLIC` or
+`PRIVATE`, without `DECLARE`:
+
+```text
+CLASS Person
+    PUBLIC Name : STRING
+    PRIVATE Age : INTEGER
+ENDCLASS
+
+DECLARE p : Person
+p.Name <- "Alice"
+OUTPUT p.Name
+```
+
+Classes use record value semantics: zero initialization, whole-value copying,
+arrays, pointers and ordinary function/procedure parameters. Private fields cannot
+be read, written or addressed externally; they are still initialized and copied
+with the whole value. Record `TYPE` fields remain implicitly public and cannot
+specify access levels. Class methods, constructors, destructors, `NEW` and
+`INHERITS` are not supported. Array fields remain unsupported in both records and
+classes.
+
 # EXIT STATUS
 
 **0**
