@@ -539,8 +539,8 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
     }
 }
 
-void CodeGen::print() {
-    TheModule->print(errs(), nullptr);
+void CodeGen::print(raw_ostream &Output) {
+    TheModule->print(Output, nullptr);
 }
 
 Value *CodeGen::emitExpr(ExprAST *Expr) {

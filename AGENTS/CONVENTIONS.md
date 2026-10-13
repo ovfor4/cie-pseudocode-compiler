@@ -15,9 +15,9 @@ identifier. Assignment is `<-` (ASCII only), equality is single `=`, inequality 
 concatenation `&` (reaches the parser as raw ASCII 38 — no token). No escape sequences
 in string/char literals. Comments are `//` to end of line.
 
-**The lexer can run once per process, from stdin only.** `gettok()` keeps its lookahead
-in a function-local `static int LastChar` and calls `getchar()` directly. No re-lexing,
-no file paths, and unit tests can't lex two programs in one process.
+**The lexer reads a caller-owned stream.** Construct it with `Lexer(std::istream &)`;
+the stream must outlive the lexer. Lookahead, line number and error state belong to
+each instance. The driver opens the source file; stdin is not used for compilation.
 
 **Types travel as uppercase `std::string`** (`"INTEGER"`, `"REAL"`, ..., plus
 user-defined names) — never an enum. `TypeSystem` resolves the string to

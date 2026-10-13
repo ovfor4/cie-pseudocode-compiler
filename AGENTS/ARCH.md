@@ -4,8 +4,8 @@
 Kaleidoscope-style design, C++17, no external deps beyond LLVM 18 and libc.
 
 ```
-stdin ──> Lexer ──> Parser ──> vector<unique_ptr<StmtAST>> ──> CodeGen ──> textual LLVM IR on stderr
-        (getchar)  (recursive       (flat program list;         (one llvm::Module "cps_module",
+file ──> Lexer ──> Parser ──> vector<unique_ptr<StmtAST>> ──> CodeGen ──> textual LLVM IR in a file
+        (istream)  (recursive       (flat program list;         (one llvm::Module "cps_module",
                     descent)         FunctionDefAST mixed in)    everything else inside i32 main())
 ```
 
@@ -24,20 +24,21 @@ The compiler stops at textual IR. Making a runnable binary is manual:
 
 ```bash
 mkdir -p build && cd build && cmake -DLLVM_DIR=/usr/lib/llvm-18/cmake .. && make   # build cpsc
-./cpsc < prog.cps 2> prog.ll     # stdin is the ONLY input; IR goes to STDERR
+./cpsc prog.cps -o prog.ll     # default without -o: prog.ir beside the source
 clang-18 prog.ll -o prog && ./prog
 ```
 
-Facts about the driver (`tools/driver/main.cc`) that break naive automation:
+Driver behavior (`tools/driver/main.cc`):
 
-- **No argv.** `./cpsc file.cps` blocks forever on stdin; you must redirect `<`.
-- **IR and error messages share stderr.** A failed compile still dumps (partial) IR,
-  mixed with `Error:` lines that make clang reject the file.
-- **Exit code is non-zero iff a diagnostic was emitted.** Lexer, Parser and CodeGen each
-  track an error flag (`hadError()`); every failure path prints an `Error:` line, and
-  `main` returns 1 when any flag is set. The emitted module is also checked with
-  `verifyModule`, so invalid IR flips the exit code too. Check the exit code — do not
-  grep stderr.
+- One source file, with optional `-o path`; options may precede or follow the source.
+  No stdin source input. No arguments exits silently with status 0 (help TODO).
+- IR is written only after successful parsing, code generation and module
+  verification. Diagnostics stay on stderr; failures do not overwrite existing IR.
+- Lexer, Parser and CodeGen track error flags (`hadError()`); any error, including
+  invalid IR from `verifyModule`, makes the driver return 1. File/argument errors
+  also return 1. Check the exit code rather than grepping stderr.
+- Successful compilation overwrites the output, but paths aliasing the source
+  (including symlinks/hard links) are rejected.
 
 Build pin: developed and tested against **LLVM 18**. (The historical LLVM 19 breakage —
 `ArithmeticHandler.cc` touching `llvm::Module` through a transitive include — is gone

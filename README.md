@@ -83,6 +83,19 @@ mingw32-make
 ```
 
 
+## Usage
+
+```bash
+cpsc test.cps                 # save test.ir beside the source file
+cpsc test.cps -o result.ir    # save IR to the specified path
+lli result.ir                # run the generated IR
+```
+
+Only one source file is supported. Options may appear before or after it.
+With no arguments, `cpsc` exits silently with status 0; help text is planned.
+Diagnostics go to stderr. Failed compilation does not write IR; successful
+compilation overwrites an existing output file, but cannot overwrite the source.
+
 # Note
 
 DO NOT OPEN ANY ISSUES IF YOU COMPILE WITH VISUAL STUDIO OR ANYTHING EXCEPT MINGW-W64 (EVEN WITH MINGW-W64, WINDOWS IS LIKELY TO BE A PROBLEM MAKER)

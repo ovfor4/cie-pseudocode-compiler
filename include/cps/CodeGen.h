@@ -95,7 +95,7 @@ public:
     CodeGen();
     ~CodeGen();
     void compile(const std::vector<std::unique_ptr<StmtAST>> &Statements);
-    void print();
+    void print(llvm::raw_ostream &Output);
     bool hadError() const { return HadError; }
     void reportError(const char *Fmt, ...);
     static bool isBuiltinName(const std::string &Name);

@@ -1,4 +1,5 @@
 #pragma once
+#include <istream>
 #include <string>
 #include <cstdint>
 
@@ -87,9 +88,13 @@ enum Token {
 };
 
 class Lexer {
+    std::istream &Input;
+    int LastChar = ' ';
     int CurrentLine = 1;
     bool HadError = false;
 public:
+    explicit Lexer(std::istream &Input) : Input(Input) {}
+
     std::string IdentifierStr;
     std::string StringVal;
     int64_t NumVal;

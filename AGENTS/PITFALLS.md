@@ -38,8 +38,8 @@ test programs.
   unknown-function calls; OUTPUT reports an error for a nullptr result.
 - The lexer emits no newline tokens; the grammar is purely keyword-delimited. Bare
   `RETURN` is only recognized right before ENDIF/ELSE/ENDFUNCTION/ENDPROCEDURE.
-- Invalid modules still print their IR, but `verifyModule` runs at the end of
-  `compile()` and makes the driver exit non-zero.
+- `verifyModule` runs at the end of `compile()`; invalid modules make the driver
+  exit non-zero without writing IR.
 - The FOR loop variable must be pre-DECLAREd as INTEGER; FOR reuses that alloca. The
   loop direction is decided at run time from the STEP value's sign; STEP is evaluated
   exactly once, before the loop. (The TO expression is still re-evaluated every

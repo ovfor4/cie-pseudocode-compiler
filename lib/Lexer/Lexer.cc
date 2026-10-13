@@ -8,24 +8,22 @@
 using namespace cps;
 
 int Lexer::gettok() {
-    static int LastChar = ' ';
-
     while (isspace(LastChar)) {
         if (LastChar == '\n') CurrentLine++;
-        LastChar = getchar();
+        LastChar = Input.get();
     }
 
     if (LastChar == '"') {
         StringVal.clear();
-        LastChar = getchar();
+        LastChar = Input.get();
 
         while (LastChar != '"' && LastChar != EOF && LastChar != '\n') {
             StringVal += static_cast<char>(LastChar);
-            LastChar = getchar();
+            LastChar = Input.get();
         }
 
         if (LastChar == '"') {
-            LastChar = getchar();
+            LastChar = Input.get();
         } else {
             fprintf(stderr, "Error: Unterminated string literal at line %d\n", CurrentLine);
             HadError = true;
@@ -35,7 +33,7 @@ int Lexer::gettok() {
     }
 
     if (LastChar == '\'') {
-        int CharCode = getchar();
+        int CharCode = Input.get();
         if (CharCode == EOF || CharCode == '\n') {
             fprintf(stderr, "Error: Unterminated char literal at line %d\n", CurrentLine);
             HadError = true;
@@ -46,28 +44,28 @@ int Lexer::gettok() {
             return tok_char_literal;
         }
 
-        int ClosingQuote = getchar();
+        int ClosingQuote = Input.get();
         if (ClosingQuote != '\'') {
             fprintf(stderr, "Error: CHAR literal must contain exactly one character (line %d)\n", CurrentLine);
             HadError = true;
             while (ClosingQuote != EOF && ClosingQuote != '\n' && ClosingQuote != '\'') {
-                ClosingQuote = getchar();
+                ClosingQuote = Input.get();
             }
             CharVal = static_cast<char>(CharCode);
             StringVal.assign(1, CharVal);
-            LastChar = (ClosingQuote == '\'') ? getchar() : ClosingQuote;
+            LastChar = (ClosingQuote == '\'') ? Input.get() : ClosingQuote;
             return tok_char_literal;
         }
 
         CharVal = static_cast<char>(CharCode);
         StringVal.assign(1, CharVal);
-        LastChar = getchar();
+        LastChar = Input.get();
         return tok_char_literal;
     }
 
     if (isalpha(LastChar)) {
         IdentifierStr = static_cast<char>(LastChar);
-        while (isalnum((LastChar = getchar())) || LastChar == '_')
+        while (isalnum((LastChar = Input.get())) || LastChar == '_')
             IdentifierStr += static_cast<char>(LastChar);
 
         if (IdentifierStr == "DECLARE") return tok_declare;
@@ -143,11 +141,11 @@ int Lexer::gettok() {
         bool isReal = false;
         do {
             NumStr += static_cast<char>(LastChar);
-            LastChar = getchar();
+            LastChar = Input.get();
             if (LastChar == '.' && !isReal) {
                 isReal = true;
                 NumStr += '.';
-                LastChar = getchar();
+                LastChar = Input.get();
             }
         } while (isdigit(LastChar));
 
@@ -161,55 +159,55 @@ int Lexer::gettok() {
     }
 
     if (LastChar == '<') {
-        LastChar = getchar();
+        LastChar = Input.get();
         if (LastChar == '-') {
-            LastChar = getchar();
+            LastChar = Input.get();
             return tok_assign;
         }
         if (LastChar == '=') {
-            LastChar = getchar();
+            LastChar = Input.get();
             return tok_le;
         }
         if (LastChar == '>') {
-            LastChar = getchar();
+            LastChar = Input.get();
             return tok_ne;
         }
         return '<';
     }
 
     if (LastChar == '>') {
-        LastChar = getchar();
+        LastChar = Input.get();
         if (LastChar == '=') {
-            LastChar = getchar();
+            LastChar = Input.get();
             return tok_ge;
         }
         return '>';
     }
 
     if (LastChar == '=') {
-        LastChar = getchar();
+        LastChar = Input.get();
         return tok_eq;
     }
 
     if (LastChar == ':') {
-        LastChar = getchar();
+        LastChar = Input.get();
         return tok_colon;
     }
 
-    if (LastChar == '(') { LastChar = getchar(); return '('; }
-    if (LastChar == ')') { LastChar = getchar(); return ')'; }
-    if (LastChar == '[') { LastChar = getchar(); return '['; }
-    if (LastChar == ']') { LastChar = getchar(); return ']'; }
-    if (LastChar == ',') { LastChar = getchar(); return ','; }
-    if (LastChar == '+') { LastChar = getchar(); return '+'; }
-    if (LastChar == '-') { LastChar = getchar(); return '-'; }
-    if (LastChar == '*') { LastChar = getchar(); return '*'; }
+    if (LastChar == '(') { LastChar = Input.get(); return '('; }
+    if (LastChar == ')') { LastChar = Input.get(); return ')'; }
+    if (LastChar == '[') { LastChar = Input.get(); return '['; }
+    if (LastChar == ']') { LastChar = Input.get(); return ']'; }
+    if (LastChar == ',') { LastChar = Input.get(); return ','; }
+    if (LastChar == '+') { LastChar = Input.get(); return '+'; }
+    if (LastChar == '-') { LastChar = Input.get(); return '-'; }
+    if (LastChar == '*') { LastChar = Input.get(); return '*'; }
 
     if (LastChar == '/') {
-        int NextChar = getchar();
+        int NextChar = Input.get();
         if (NextChar == '/') {
             do {
-                LastChar = getchar();
+                LastChar = Input.get();
             } while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
 
             if (LastChar != EOF)
@@ -224,6 +222,6 @@ int Lexer::gettok() {
         return tok_eof;
 
     int ThisChar = LastChar;
-    LastChar = getchar();
+    LastChar = Input.get();
     return ThisChar;
 }
