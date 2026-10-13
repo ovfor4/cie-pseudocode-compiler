@@ -24,7 +24,8 @@ instructions. Do not introduce a complex test framework for routine changes.
 ## Verification
 
 The existing tests check real TextMate tokenization, nested block indentation,
-selection context, idempotence and bracket errors. Keep Unicode offset tests,
+selection context, idempotence, bracket errors, terminal command quoting,
+save cancellation and terminal lifecycle. Keep Unicode offset tests,
 using English text and non-CJK characters such as an emoji.
 
 For changes to editor integration, check in VS Code with a dark theme:
@@ -34,6 +35,14 @@ For changes to editor integration, check in VS Code with a dark theme:
 - Format a selection inside a nested block and check its surrounding context.
 - Check mixed bracket nesting, unmatched left/right brackets, quotes and comments.
 - Repair errors and switch language or files to check decoration cleanup.
+- Click the run button on `.cps`; confirm it is absent on other languages.
+- Run `OUTPUT` and `INPUT`, including paths with spaces and unsaved changes.
+- Read a relative file from the workspace root, then run without a workspace.
+- Close the run terminal and run again to check recreation.
+
+Terminal commands have been exercised in isolated VS Code 1.85.2 on Linux
+with bash and zsh. Windows PowerShell/cmd command construction is covered by
+Node tests; native Windows and macOS execution still needs testing there.
 
 Existing local editor smoke scripts, if present, live under the ignored
 `reference/vscode-smoke/` directory. They are not a required build dependency.
