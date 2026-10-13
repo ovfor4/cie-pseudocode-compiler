@@ -66,6 +66,14 @@ Save IR and run it:
 cpsc test.cps -r -o result.ir
 ```
 
+Build a native program with a C++ linker so the exception runtime is linked:
+
+```sh
+cpsc test.cps -o test.ll
+clang++-18 test.ll -o test
+./test
+```
+
 # EXIT STATUS
 
 **0**
@@ -76,11 +84,15 @@ cpsc test.cps -r -o result.ir
 
 With **-r**, return the executed program's exit status. In PATH mode, failure to launch `lli` or a child-process crash returns 1.
 
+An uncaught program exception returns 1 after printing `Unhandled exception. Program terminated.` to standard output. Runtime check failures are exceptions and can be handled with TRY/CATCH/ENDTRY.
+
 # NOTES
 
 Compiler diagnostics go to stderr. Failed compilation does not write IR. Successful compilation overwrites an existing output file, but an output path that refers to the source file (including a symbolic or hard link) is rejected.
 
 Missing input, including invoking `cpsc` without arguments, reports `cpsc: fatal error: no input files`. Ordinary lexical, syntax and semantic errors use `error:`; failures that prevent compilation, such as file I/O errors, use `fatal error:`. Compilation and argument failures end with one `compilation terminated.` line. Execution-stage failures do not print that line.
+
+Generated IR uses the C++ exception ABI. Native binaries need the C++ runtime; EMBEDDED includes it, while PATH uses the runtime available to `lli`. Exception execution is verified on Linux with LLVM 18; Windows and macOS remain unverified.
 
 # SEE ALSO
 

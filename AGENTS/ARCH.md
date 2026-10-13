@@ -33,7 +33,7 @@ cmake --build build
 build/cpsc prog.cps -o prog.ll # default without -o: prog.ir beside the source
 build/cpsc prog.cps -r         # execute using the selected build mode
 build/cpsc prog.cps -r -o prog.ir # save IR, then run it
-clang-18 prog.ll -o prog && ./prog
+clang++-18 prog.ll -o prog && ./prog
 ```
 
 `doc/build.md` recommends which packages to install and which to download;
@@ -53,6 +53,12 @@ Package hashes skip unchanged extractions; a changed package set rebuilds the
 managed root. Downloads belong to the package-manager commands in `doc/build.md`,
 not to CMake. The Windows Pandoc ZIP is downloaded directly from its official
 release because MSYS2 has no Pandoc package. Only the Linux build is verified.
+
+Generated IR uses the C++ exception ABI; native binaries must link its runtime
+(use `clang++-18`). TRY/CATCH/ENDTRY and bare THROW are compiler extensions.
+Runtime checks throw anonymous exceptions; the final handler in generated main
+prints `Unhandled exception. Program terminated.` to stdout and returns 1.
+Exception execution is verified on Linux with LLVM 18; Windows/macOS are unverified.
 
 Driver behavior (`tools/driver/main.cc`):
 
@@ -79,7 +85,9 @@ Driver behavior (`tools/driver/main.cc`):
   alone uses temporary IR removed on return, including execution failure.
 - In EMBEDDED mode, `-r` uses MCJIT in-process (`tools/driver/EmbeddedRunner.cc`).
   The engine owns a clone of CodeGen's module; CodeGen retains the context and
-  must outlive the engine. The host target is initialized only for execution.
+  must outlive the engine. Static C++ exception ABI symbols are explicitly
+  registered for JIT lookup; MCJIT registers the generated unwind frames.
+  The host target is initialized only for execution.
   No external runner or PATH lookup is used; `-r` alone runs in memory.
 - In NONE mode, `-r` returns 1 before compiling or writing output; ordinary IR
   compilation remains available. Only EMBEDDED links execution-engine components.
@@ -159,7 +167,7 @@ untested.)
 | `lib/Parser/ParserType.cc` | TYPE/ENDTYPE and CLASS/ENDCLASS declarations, shared field parsing, SET/DEFINE reserved stubs |
 | `lib/CodeGen/CodeGen.cc` | Hub: dispatch, coercion, control flow, INPUT/OUTPUT, main() |
 | `lib/CodeGen/Designator.cc` | CodeGen methods for the TYPE system: type pre-pass, `emitLValue`/`loadFromLValue`, `emitCoercedExpr` gate, user-kind binary-op interception |
-| `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen |
+| `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen (including exception emission) |
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
 | `tools/driver/EmbeddedRunner.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only MCJIT runner and static support-library selection |
 | `cmake/LocalDependencies.cmake`, `cmake/*Packages.cmake` | Local package extraction and platform relocation |

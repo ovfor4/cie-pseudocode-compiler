@@ -9,7 +9,8 @@ Details can be found here: [Pseudocode Guide for Teachers](https://www.cambridge
 ## Features
 
 - **LLVM compilation**: Generate LLVM IR and run programs when execution is enabled in the build.
-- **Runtime checks**: Report array bounds errors, division by zero, file misuse, enum range errors and null pointer dereferences.
+- **Runtime checks**: Throw exceptions for array bounds errors, division by zero, file misuse, enum range errors and null pointer dereferences.
+- **Exception handling**: Catch exceptions with stack unwinding using the compiler extensions [TRY/CATCH/ENDTRY and THROW](doc/language/keyword/cpsc-keyword-try.7.md).
 - **Arrays**: Support multiple dimensions and custom lower and upper bounds.
 - **Strings**: Support dynamic strings and built-in string functions.
 - **Functions and procedures**: Pass values, arrays and records by value; procedures also support `BYREF` parameters.

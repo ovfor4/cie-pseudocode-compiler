@@ -16,12 +16,15 @@ Literals include integers, decimal real numbers, TRUE/FALSE, strings in double q
 
 Declare variables before use. See DECLARE for built-in types and arrays, TYPE for records/enumerations/pointers, and CLASS for public/private fields.
 
+The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions with stack unwinding. Runtime check failures can be caught; an uncaught exception prints a generic message and returns status 1. There is no error object or what() support.
+
 # KEYWORDS
 
 - [cpsc-keyword-declare(7)](keyword/cpsc-keyword-declare.7.md): declare variables and arrays.
 - [cpsc-keyword-input(7)](keyword/cpsc-keyword-input.7.md): read a value from standard input.
 - [cpsc-keyword-output(7)](keyword/cpsc-keyword-output.7.md): print values to standard output.
 - [cpsc-keyword-if(7)](keyword/cpsc-keyword-if.7.md): choose between branches.
+- [cpsc-keyword-try(7)](keyword/cpsc-keyword-try.7.md): catch or throw exceptions.
 - [cpsc-keyword-while(7)](keyword/cpsc-keyword-while.7.md): repeat while a condition is true.
 - [cpsc-keyword-repeat(7)](keyword/cpsc-keyword-repeat.7.md): repeat until a condition is true.
 - [cpsc-keyword-for(7)](keyword/cpsc-keyword-for.7.md): iterate over an integer range.
@@ -40,7 +43,7 @@ Declare variables before use. See DECLARE for built-in types and arrays, TYPE fo
 - [cpsc-keyword-div(7)](keyword/cpsc-keyword-div.7.md): perform integer division.
 - [cpsc-keyword-mod(7)](keyword/cpsc-keyword-mod.7.md): find the integer division remainder.
 
-Closing and auxiliary keywords are documented with their main constructs: THEN/ELSE/ENDIF with IF; DO/ENDWHILE with WHILE; UNTIL with REPEAT; TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE; ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE; ENDTYPE with TYPE; PUBLIC/PRIVATE/ENDCLASS with CLASS. TRUE/FALSE are BOOLEAN literals.
+Closing and auxiliary keywords are documented with their main constructs: THEN/ELSE/ENDIF with IF; CATCH/ENDTRY/THROW with TRY; DO/ENDWHILE with WHILE; UNTIL with REPEAT; TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE; ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE; ENDTYPE with TYPE; PUBLIC/PRIVATE/ENDCLASS with CLASS. TRUE/FALSE are BOOLEAN literals.
 
 # BUILT-IN FUNCTIONS
 

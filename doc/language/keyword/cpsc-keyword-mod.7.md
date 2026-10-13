@@ -12,7 +12,7 @@ left MOD right
 
 # DESCRIPTION
 
-Both operands must be INTEGER. Return the remainder after division truncated toward zero; a nonzero remainder has the dividend's sign. A zero divisor terminates execution. MOD has the same precedence as multiplication.
+Both operands must be INTEGER. Return the remainder after division truncated toward zero; a nonzero remainder has the dividend's sign. A zero divisor throws an exception that TRY/CATCH can handle. MOD has the same precedence as multiplication.
 
 # EXAMPLE
 
@@ -22,4 +22,4 @@ OUTPUT 7 MOD 2
 
 # SEE ALSO
 
-[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-div(7)](cpsc-keyword-div.7.md).
+[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-div(7)](cpsc-keyword-div.7.md), [cpsc-keyword-try(7)](cpsc-keyword-try.7.md).

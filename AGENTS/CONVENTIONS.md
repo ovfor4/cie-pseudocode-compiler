@@ -122,7 +122,7 @@ no registered signature is a compile error. Function names get no mangling, so
 BYVAL (§8.1). A BYREF parameter in a FUNCTION is a parse error. **Array
 parameters**: `ARRAY OF T` (rank 1, bounds travel with the argument) or
 `ARRAY[l:u,...] OF T` (literal bounds, any rank, a contract checked at compile
-time when the caller's bounds are constants, else at run time with `[Fatal]`).
+time when the caller's bounds are constants, else at run time by throwing an exception).
 The LLVM ABI flattens each rank-R array parameter into a data `ptr` plus
 `kBoundArgsPerDim` (=2) i64 bounds per dimension; the callee rebuilds its
 `ArrayMetadata` from those (`ArrayHandler::bindArrayParameter` via the binder
@@ -137,4 +137,15 @@ the single source of truth: `emitExpr`'s `CallExprAST` branch checks arity again
 before dispatching to the per-builtin emit branches (still an if-chain, ahead of the
 user-function fallback), and `getExprTypeInfo` reads return types from it. EOF is the
 odd one out: its intercept consumes `CallExprAST::getLine()` (runtime diagnostics) and
-it is the only builtin that touches mutable runtime state and can exit(1) at run time.
+it is the only builtin that touches mutable runtime state and can throw at run time.
+
+**Program exceptions use the C++ ABI; compiler diagnostics do not.**
+`ExceptionHandler` emits anonymous integer exceptions (an internal placeholder),
+`invoke`/`landingpad`/`resume`, and paired `__cxa_begin_catch`/`__cxa_end_catch`.
+Its handler stack and catch depth are keyed by LLVM function, so synthesizing file
+helpers never inherits the caller's catches. User calls, file runtime calls and
+THROW must use `ExceptionHandler::emitCall`; ordinary nonthrowing libc calls stay
+plain calls. RETURN must finish all active catches after evaluating its value.
+`RuntimeCheck::emitCheck` throws without printing. Generated main catches anything
+unhandled, prints the single generic message to stdout, and returns 1. Arrays in
+TRY and CATCH use separate block scopes; scalars retain existing function scope.

@@ -12,7 +12,7 @@ WRITEFILE filename, expression
 
 # DESCRIPTION
 
-Write one value as text followed by a newline. Open the file FOR WRITE or APPEND first. Exactly one data expression is accepted; join strings with `&` when needed. Records, classes, and pointers are unsupported as data.
+Write one value as text followed by a newline. Open the file FOR WRITE or APPEND first. Exactly one data expression is accepted; join strings with `&` when needed. Records, classes, and pointers are unsupported as data. An unopened file or a file opened FOR READ throws an exception that TRY/CATCH can handle.
 
 # EXAMPLE
 
@@ -24,4 +24,4 @@ CLOSEFILE "notes.txt"
 
 # SEE ALSO
 
-[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-openfile(7)](cpsc-keyword-openfile.7.md), [cpsc-keyword-closefile(7)](cpsc-keyword-closefile.7.md), [cpsc-function-num_to_str(7)](../function/cpsc-function-num_to_str.7.md).
+[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-openfile(7)](cpsc-keyword-openfile.7.md), [cpsc-keyword-closefile(7)](cpsc-keyword-closefile.7.md), [cpsc-function-num_to_str(7)](../function/cpsc-function-num_to_str.7.md), [cpsc-keyword-try(7)](cpsc-keyword-try.7.md).

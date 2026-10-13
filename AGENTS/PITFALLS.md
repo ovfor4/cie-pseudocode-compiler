@@ -18,7 +18,7 @@ test programs.
   RETURN arrays. A whole-array variable is also rejected as an operand or as a
   value of its element type (it used to leak its raw data pointer).
 - **Arrays are additionally block-scoped.** An array DECLAREd inside an
-  IF/WHILE/REPEAT/FOR body is not visible after the block ("Undeclared array") —
+  IF/WHILE/REPEAT/FOR/TRY/CATCH body is not visible after the block ("Undeclared array") —
   its buffer setup and bound SSA values live inside the branch, so letting it
   escape meant wild-pointer writes or invalid IR. Scalars remain function-scoped
   (their alloca is hoisted to the entry block); declare at the top of the
@@ -36,7 +36,7 @@ test programs.
   at any new call site) and internally defaults to INTEGER for arithmetic binaries and
   unknown-function calls; OUTPUT reports an error for a nullptr result.
 - The lexer emits no newline tokens; the grammar is purely keyword-delimited. Bare
-  `RETURN` is only recognized right before ENDIF/ELSE/ENDFUNCTION/ENDPROCEDURE.
+  `RETURN` is recognized before block terminators, including CATCH and ENDTRY.
 - `verifyModule` runs at the end of `compile()`; invalid modules make the driver
   exit non-zero without writing IR.
 - The FOR loop variable must be pre-DECLAREd as INTEGER; FOR reuses that alloca. The
@@ -49,11 +49,11 @@ test programs.
   READFILE's target must be a plain STRING variable — no CHAR, no `arr[i]` (mirrors
   INPUT). The CIE guide's empty-line test `IF LineOfText = ""` compares contents.
   At most 16 files open at once. All runtime misuse (not open, wrong mode, reopen,
-  fopen failure, READFILE past EOF) is a `[Fatal] line %d:` exit(1), by design — guard reads with
+  fopen failure, READFILE past EOF) throws an anonymous exception — guard reads with
   `WHILE NOT EOF(...)`. Caveat: the open-file table is keyed by the filename *string*
   (per CIE semantics), so two spellings of one OS path (`"a.txt"` vs `"./a.txt"`) evade
   the already-open check and get two independent buffered streams — reads through the
-  alias can see stale/empty data instead of a Fatal.
+  alias can see stale/empty data instead of an exception.
 
 - **TYPE-system sharp edges (§4).** `TYPE`/`ENDTYPE`/`SET`/`DEFINE` are reserved
   keywords now. Typing is *nominal*: two pointer types with the same pointee, or two
@@ -61,8 +61,8 @@ test programs.
   official guide's own worked example (`^INTEGER` pointed at a `Season` variable) —
   deliberate deviation. Enum OUTPUT prints the 0-based ordinal; a DECLAREd-but-unset
   enum *is* the first enumerator (no uninitialized state). `E ± INTEGER` needs the
-  enum on the left; out-of-range results die `[Fatal]` at run time. There is no NULL
-  literal: pointers zero-init to null, dereferencing one dies `[Fatal]`, and unset-ness
+  enum on the left; out-of-range results throw at run time. There is no NULL
+  literal: pointers zero-init to null, dereferencing one throws, and unset-ness
   is deliberately untestable. `RETURN ^localVar` dangles — documented, unchecked.
   Record STRING fields stay null until read (normalized to `""` per-load, not at copy
   time). Enum value names are globally reserved (they block DECLARE/parameter/function
@@ -77,6 +77,14 @@ test programs.
   is an error. TYPE fields cannot specify access and remain public. Private fields
   cannot be accessed externally; whole-value initialization/copying is allowed.
   CLASS inherits record limitations, including no array fields or empty bodies.
+
+- **Exception extensions.** TRY requires exactly one parameterless CATCH and
+  ENDTRY. Bare THROW raises a new anonymous exception even inside CATCH; there is
+  no rethrow syntax, error object or what(). Runtime checks are catchable;
+  compiler errors are not. Uncaught exceptions print only the generic message
+  and return 1. Native binaries must link the C++ runtime with `clang++-18`.
+  Unwinding does not free heap strings/arrays or close files. Linux LLVM 18 is
+  verified; Windows and macOS exception execution is not.
 
 ## Not implemented (9618 features)
 

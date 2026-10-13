@@ -51,14 +51,17 @@ walk in `getExprTypeInfo`'s designator branch (they must agree) — plus the
 degrade rule in `ParseIdentifierExpr`/`ParseAssignStmt` if the new form can
 collapse to a legacy node.
 
-**New runtime check:** message global + `emitXxxCheck` in `RuntimeCheck` (build an i1
-fail-condition, call `emitErrorAndExit` — it splits the block and leaves the builder at
-the continuation), then call it from the emit site with the AST node's `getLine()`.
-Precedents: `emitIndexCheck` (per-dimension, from ArrayHandler), `emitEnumRangeCheck`
-(after enum ± INTEGER — the only site that can manufacture an invalid ordinal),
-`emitNullDerefCheck` (before every `^` deref), `emitArrayArgBoundsCheck` (bounded
-array-parameter contract). Note that failure messages print to **stdout**
-(`[Fatal] line %d: ...`) and `exit(1)`.
+**New runtime check:** add `emitXxxCheck` in `RuntimeCheck` (build an i1
+fail-condition and call `emitCheck` — it splits the block and leaves the builder at
+the continuation), then call it from the emit site. Failure throws an anonymous
+exception without printing; generated main supplies the uncaught message and
+status 1. Precedents: `emitIndexCheck`, `emitEnumRangeCheck`, `emitNullDerefCheck`,
+`emitArrayArgBoundsCheck` and FileHandler's direct `emitCheck` calls.
+
+**New potentially throwing call:** route it through `ExceptionHandler::emitCall`
+so it invokes the current handler or catch cleanup when needed. Give generated
+functions unwind tables via `prepareFunction`. Exception ABI dependencies must
+also be registered in EmbeddedRunner for static-runtime JIT symbol lookup.
 
 **New libc dependency:** declare via `getOrInsertFunction` in the owning component's
 `setupExternalFunctions()` (re-declaring the same symbol in two handlers is fine — it

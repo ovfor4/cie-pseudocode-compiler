@@ -64,17 +64,29 @@ context or language-level inheritance yet.
 **Runtime checks** (`RuntimeCheck`): array bounds, file misuse, enum ranges, null
 dereferences and array-parameter bounds contracts are checked at their emit sites.
 `ArithmeticHandler` calls `emitDivZeroCheck` before `/`, DIV and MOD; the check accepts
-i64 and double divisors, including both floating-point signed zeros, and exits with
-a `[Fatal]` diagnostic and status 1. The public `emitErrorAndExit(Cond, Msg, ArrayRef<Value*>)`
-overload exists for failure sites whose printf arguments (line, filename) are runtime
-values — FileHandler's helpers use it; the private compile-time-line form delegates to
-it.
+i64 and double divisors, including both floating-point signed zeros.
+`emitCheck(Cond)` splits the block and calls `ExceptionHandler::emitThrow` on failure.
+No check prints an error; source-line parameters remain reserved for future diagnostics.
+
+**Exceptions** (`ExceptionHandler`): holds Context/Builder/Module refs and a map of
+per-function handler stacks and active catch depths. TRY pushes a catch target and
+an entry-block alloca for its exception pointer. A potentially throwing call with
+a handler or active catch emits an `invoke` and a landing pad that finishes catches being left and transfers
+to the nearest handler, or resumes unwinding when only cleanup is needed. CATCH
+uses `__cxa_begin_catch` and removes its own TRY target before emitting its body;
+normal exit and RETURN call `__cxa_end_catch`. Bare THROW always creates a new
+anonymous integer exception, using `_ZTIi` internally without exposing a value.
+Generated main owns the final catch target, prints the generic uncaught message,
+and returns 1. Native binaries require the C++ runtime; EmbeddedRunner explicitly
+registers its statically linked ABI symbols, while MCJIT manages unwind frames.
+This does not change heap-string/array lifetimes or automatically close files.
 
 **Files** (`FileHandler`): text-file runtime for §9.1. StringHandler-shaped leaf —
-holds Context/Builder/Module/RuntimeCheck refs only, never sees CodeGen, AST nodes or
-the symbol table; `CodeGen::emitStmt`'s four file branches (and the EOF builtin
+holds Context/Builder/Module/RuntimeCheck/ExceptionHandler refs only, never sees
+CodeGen, AST nodes or the symbol table; `CodeGen::emitStmt`'s four file branches (and the EOF builtin
 intercept) evaluate/coerce operands and hand over `llvm::Value*`s plus the statement
-line. On first file use, `ensureRuntime()` synthesizes the whole runtime once — the
+line. Calls into throwing helpers go through ExceptionHandler. On first file use,
+`ensureRuntime()` synthesizes the whole runtime once — the
 only module-level helper functions in the project: internal-linkage `__cps_file_find/
 open/read/write/close/eof` plus a 16-slot open-file table (`__cps_file_names/handles/
 modes` parallel globals; mode byte 0 = free). Files are keyed by filename *content*
