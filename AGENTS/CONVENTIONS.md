@@ -3,6 +3,11 @@
 These invariants span modules. Violating any of them breaks code you didn't touch.
 (Overview and build instructions: `ARCH.md`.)
 
+**Project text must be in English.** This applies to documentation, source comments,
+user-facing messages, examples and test fixtures. Unicode test data must not contain
+Chinese text. Keep user instructions in README files concise; put architecture,
+implementation notes and AI guidance in the relevant `AGENTS/` directory.
+
 **Tokens are raw `int`.** `Lexer::gettok()` returns negative values for the `Token`
 enum (`include/cps/Lexer.h`) and non-negative values for literal ASCII chars (`'('`,
 `'+'`, `'<'`). Parser and CodeGen switch on both forms interchangeably; `BinaryExprAST`

@@ -1,3 +1,7 @@
-Refer to all markdown files in `plugin/AGENTS/`
+Refer to all markdown files in `plugin/AGENTS/`.
 
-@AGENTS/HOW_TO_COMMIT.md (apply global commit conventions)
+- `plugin/AGENTS/ARCH.md`: implementation, language rules and upstream reuse.
+- `plugin/AGENTS/DEVELOPMENT.md`: development, verification and packaging.
+
+Apply the global conventions in `AGENTS/CONVENTIONS.md` and
+`AGENTS/HOW_TO_COMMIT.md`.

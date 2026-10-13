@@ -22,7 +22,7 @@ test('comments and quotes are ignored with correct UTF-16 offsets after Unicode 
 	assert.deepEqual(unmatchedBrackets('OUTPUT "[( //" // )]\nOUTPUT \'[\''), []);
 	const unfinished = 'OUTPUT "unfinished [\r\nA[';
 	assert.deepEqual(unmatchedBrackets(unfinished), [unfinished.length - 1]);
-	const unicode = 'OUTPUT "你好😀"\r\nA[';
+	const unicode = 'OUTPUT "Hello😀"\r\nA[';
 	assert.deepEqual(unmatchedBrackets(unicode), [unicode.length - 1]);
 	// Backslashes do not escape CIE quotes.
 	assert.deepEqual(unmatchedBrackets('"x\\"['), [4]);
