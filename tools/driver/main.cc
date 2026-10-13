@@ -3,7 +3,9 @@
 #include "cps/CodeGen.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Program.h"
 #include "llvm/Support/raw_ostream.h"
 #include <fstream>
 #include <string>
@@ -16,9 +18,12 @@ int main(int argc, char **argv) {
 
     std::string InputPath;
     std::string OutputPath;
+    bool Run = false;
     for (int I = 1; I < argc; ++I) {
         std::string Arg = argv[I];
-        if (Arg == "-o") {
+        if (Arg == "-r") {
+            Run = true;
+        } else if (Arg == "-o") {
             if (!OutputPath.empty()) {
                 llvm::errs() << "Error: -o may only be specified once\n";
                 return 1;
@@ -43,7 +48,7 @@ int main(int argc, char **argv) {
         llvm::errs() << "Error: no source file specified\n";
         return 1;
     }
-    if (OutputPath.empty()) {
+    if (OutputPath.empty() && !Run) {
         llvm::SmallString<256> DefaultPath(InputPath);
         llvm::sys::path::replace_extension(DefaultPath, ".ir");
         OutputPath = std::string(DefaultPath);
@@ -75,12 +80,24 @@ int main(int argc, char **argv) {
     if (CG.hadError()) return 1;
 
     std::error_code EC;
-    llvm::raw_fd_ostream Output(OutputPath, EC);
+    int OutputFD;
+    llvm::FileRemover TemporaryOutput;
+    if (OutputPath.empty()) {
+        llvm::SmallString<256> TemporaryPath;
+        EC = llvm::sys::fs::createTemporaryFile("cpsc", "ir", OutputFD, TemporaryPath);
+        if (!EC) {
+            OutputPath = std::string(TemporaryPath);
+            TemporaryOutput.setFile(OutputPath);
+        }
+    } else {
+        EC = llvm::sys::fs::openFileForWrite(OutputPath, OutputFD);
+    }
     if (EC) {
         llvm::errs() << "Error: cannot open output file '" << OutputPath
                      << "': " << EC.message() << "\n";
         return 1;
     }
+    llvm::raw_fd_ostream Output(OutputFD, true);
     CG.print(Output);
     Output.close();
     if (Output.has_error()) {
@@ -89,5 +106,25 @@ int main(int argc, char **argv) {
         Output.clear_error();
         return 1;
     }
-    return 0;
+    if (!Run) return 0;
+
+    auto Lli = llvm::sys::findProgramByName("lli");
+    if (!Lli) {
+        llvm::errs() << "Error: cannot find lli in PATH: " << Lli.getError().message() << "\n";
+        return 1;
+    }
+    llvm::SmallString<256> RunPath(OutputPath);
+    if (auto PathError = llvm::sys::fs::make_absolute(RunPath)) {
+        llvm::errs() << "Error: cannot resolve IR path: " << PathError.message() << "\n";
+        return 1;
+    }
+    std::string ExecutionError;
+    int Result = llvm::sys::ExecuteAndWait(*Lli, {*Lli, RunPath},
+                                         std::nullopt, {}, 0, 0, &ExecutionError);
+    if (Result < 0) {
+        llvm::errs() << "Error: lli execution failed (status " << Result << "): "
+                     << ExecutionError << "\n";
+        return 1;
+    }
+    return Result;
 }

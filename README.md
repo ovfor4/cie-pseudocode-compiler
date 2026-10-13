@@ -88,13 +88,18 @@ mingw32-make
 ```bash
 cpsc test.cps                 # save test.ir beside the source file
 cpsc test.cps -o result.ir    # save IR to the specified path
-lli result.ir                # run the generated IR
+cpsc test.cps -r             # run via lli; delete temporary IR afterward
+cpsc test.cps -r -o result.ir # save IR and run it
 ```
 
 Only one source file is supported. Options may appear before or after it.
 With no arguments, `cpsc` exits silently with status 0; help text is planned.
 Diagnostics go to stderr. Failed compilation does not write IR; successful
 compilation overwrites an existing output file, but cannot overwrite the source.
+`-r` uses `lli` from PATH and returns its exit status. The running program inherits
+stdin/stdout/stderr, so pseudocode `INPUT` reads from the terminal or piped input.
+With `-r` alone, no permanent IR is saved; with `-r -o`, the saved IR is kept even
+if execution fails.
 
 # Note
 

@@ -20,17 +20,19 @@ host-side: the module has no DataLayout string, so every size is a null-GEP
 
 ## Build & run
 
-The compiler stops at textual IR. Making a runnable binary is manual:
+The compiler emits textual IR and can run it through `lli`. Native binaries remain manual:
 
 ```bash
 mkdir -p build && cd build && cmake -DLLVM_DIR=/usr/lib/llvm-18/cmake .. && make   # build cpsc
 ./cpsc prog.cps -o prog.ll     # default without -o: prog.ir beside the source
+./cpsc prog.cps -r             # use lli from PATH; delete temporary IR afterward
+./cpsc prog.cps -r -o prog.ir  # save IR, then run it
 clang-18 prog.ll -o prog && ./prog
 ```
 
 Driver behavior (`tools/driver/main.cc`):
 
-- One source file, with optional `-o path`; options may precede or follow the source.
+- One source file, with optional `-o path` and `-r`; options may precede or follow the source.
   No stdin source input. No arguments exits silently with status 0 (help TODO).
 - IR is written only after successful parsing, code generation and module
   verification. Diagnostics stay on stderr; failures do not overwrite existing IR.
@@ -39,6 +41,10 @@ Driver behavior (`tools/driver/main.cc`):
   also return 1. Check the exit code rather than grepping stderr.
 - Successful compilation overwrites the output, but paths aliasing the source
   (including symlinks/hard links) are rejected.
+- `-r` executes PATH's `lli` using LLVM Support process APIs, with inherited
+  stdin/stdout/stderr and no shell. It returns lli's exit status; missing lli or
+  process-launch/crash failures return 1. `-r` alone uses a temporary IR file
+  removed on return (including execution failure); `-r -o` keeps the saved IR.
 
 Build pin: developed and tested against **LLVM 18**. (The historical LLVM 19 breakage —
 `ArithmeticHandler.cc` touching `llvm::Module` through a transitive include — is gone
