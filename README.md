@@ -37,6 +37,10 @@ IDK WHAT HAPPENDED IT IS 100% AI-GENERATED DO NOT OPEN ANY ISSUES JUST CLONE AND
 
 ## Dependencies
 
+These are build dependencies. All three modes use LLVM to generate IR, so even
+`NONE` requires LLVM development libraries when building the compiler.
+Users of an `EMBEDDED` executable do not need to install LLVM or `lli`.
+
 Linux
 ```bash
 sudo apt-get update
@@ -44,10 +48,15 @@ sudo apt-get install -y \
   build-essential \
   cmake \
   llvm-18-dev \
-  llvm \
-  clang \
-  lld
+  zlib1g-dev \
+  libzstd-dev \
+  libtinfo-dev
 ```
+
+The last three packages supply static support archives for `EMBEDDED` when the
+LLVM package uses them. `PATH` additionally needs `lli` at run time, for example
+from `llvm-18` with `/usr/lib/llvm-18/bin` in PATH. Clang is only needed if you
+want to turn the emitted IR into a native executable yourself.
 
 ---
 
@@ -65,12 +74,28 @@ pacman -S --needed \
 
 ## Build
 
+You must explicitly choose `-DCPSC_RUN_MODE=PATH`, `EMBEDDED`, or `NONE` on
+initial configuration; there is no default. The choice is saved in CMake's cache.
+
+| Mode | Behavior of `-r` |
+|---|---|
+| `PATH` | Run external `lli` from PATH; reject `-r` if it is unavailable. |
+| `EMBEDDED` | Run with the statically linked LLVM engine inside `cpsc`; no PATH lookup. |
+| `NONE` | Reject `-r`; compiling to IR still works. |
+
 Linux
 ```bash
-mkdir build && cd build/
-cmake ..
-make
+cmake -S . -B build -DCPSC_RUN_MODE=EMBEDDED \
+  -DLLVM_DIR=/usr/lib/llvm-18/cmake -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j4
 ```
+
+Distribute `build/cpsc` for `EMBEDDED`. LLVM, the project's libraries and the
+compression/terminal support libraries are linked statically; a missing required
+archive is a configure error. On Linux with GCC/Clang, the C++ runtime is static
+too. The tested Debian/LLVM 18 executable needs only the system libc, libm and
+dynamic loader. It runs pseudocode with `-r` as one executable, without LLVM
+libraries or `lli` installed. Build for the intended operating system and CPU.
 
 ---
 
@@ -78,9 +103,12 @@ mingw-w64 for Windows
 ```bash
 mkdir build && cd build/
 export CMAKE_GENERATOR="MinGW Makefiles"
-cmake ..
+cmake -DCPSC_RUN_MODE=EMBEDDED ..
 mingw32-make
 ```
+
+MinGW uses static linking for `EMBEDDED`; this mode has been verified on Linux,
+and the Windows build has not been tested.
 
 
 ## Usage
@@ -88,7 +116,7 @@ mingw32-make
 ```bash
 cpsc test.cps                 # save test.ir beside the source file
 cpsc test.cps -o result.ir    # save IR to the specified path
-cpsc test.cps -r             # run via lli; delete temporary IR afterward
+cpsc test.cps -r             # run using the selected build mode
 cpsc test.cps -r -o result.ir # save IR and run it
 ```
 
@@ -96,10 +124,13 @@ Only one source file is supported. Options may appear before or after it.
 With no arguments, `cpsc` exits silently with status 0; help text is planned.
 Diagnostics go to stderr. Failed compilation does not write IR; successful
 compilation overwrites an existing output file, but cannot overwrite the source.
-`-r` uses `lli` from PATH and returns its exit status. The running program inherits
+`-r` returns the program's exit status. `PATH` uses external `lli`; `EMBEDDED`
+executes in-process; `NONE` rejects the option. An unavailable runner is rejected
+before compiling or writing IR. The running program inherits
 stdin/stdout/stderr, so pseudocode `INPUT` reads from the terminal or piped input.
-With `-r` alone, no permanent IR is saved; with `-r -o`, the saved IR is kept even
-if execution fails.
+With `-r` alone, no permanent IR is saved (`PATH` deletes its temporary IR;
+`EMBEDDED` runs the in-memory module). With `-r -o`, IR is saved before execution
+and kept even if execution fails.
 
 ## Manual
 
@@ -109,7 +140,7 @@ From the project root on Linux:
 
 ```bash
 sudo apt-get install pandoc
-cmake -S . -B build
+cmake -S . -B build -DCPSC_RUN_MODE=EMBEDDED
 make -C build doc
 man ./build/doc/cpsc.1
 ```

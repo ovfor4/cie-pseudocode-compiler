@@ -20,7 +20,20 @@ Without **-o** or **-r**, replace the source filename's extension with `.ir` and
 :   Save IR to the specified path. May be specified only once. With **-r**, keep this file even if execution fails.
 
 **-r**
-:   Run the compiled program using `lli` from PATH. Without **-o**, use a temporary IR file and delete it afterward, including on execution failure. The program inherits stdin, stdout and stderr; `INPUT` can read terminal or piped input.
+:   Run the compiled program with the runner selected at build time (see BUILD MODES). Without **-o**, do not save permanent IR. The program inherits stdin, stdout and stderr; `INPUT` can read terminal or piped input.
+
+# BUILD MODES
+
+Initial CMake configuration requires **-DCPSC_RUN_MODE=PATH**, **EMBEDDED** or **NONE**. No mode is selected by default. All modes compile to IR using LLVM libraries built into the compiler; NONE disables execution, not IR generation.
+
+**PATH**
+:   Run `lli` from PATH. If it cannot be found, **-r** fails before compilation or output writing. Without **-o**, write temporary IR and delete it afterward, including on execution failure.
+
+**EMBEDDED**
+:   Run the statically linked LLVM engine inside `cpsc`, without looking for `lli` in PATH. Without **-o**, execute the module in memory. Users do not need LLVM or `lli` installed; the executable may still depend on the operating system's C runtime libraries.
+
+**NONE**
+:   Reject **-r** with an error before compilation or output writing. Compilation to IR remains available.
 
 # EXAMPLES
 
@@ -54,9 +67,9 @@ cpsc test.cps -r -o result.ir
 :   Compilation succeeded. Invoking `cpsc` with no arguments also exits silently with status 0.
 
 **1**
-:   An argument, file, compilation or execution-launch error occurred, including when `lli` cannot be found in PATH.
+:   An argument, file, compilation or execution-engine error occurred, including when PATH mode cannot find `lli` or NONE mode receives **-r**.
 
-With **-r**, return `lli`'s exit status. Failure to launch it or a process crash returns 1.
+With **-r**, return the executed program's exit status. In PATH mode, failure to launch `lli` or a child-process crash returns 1.
 
 # NOTES
 

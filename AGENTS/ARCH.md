@@ -1,7 +1,8 @@
 # Architecture
 
 `cpsc` compiles CIE A-Level 9618 pseudocode to LLVM IR. Classic three-stage
-Kaleidoscope-style design, C++17, no external deps beyond LLVM 18 and libc.
+Kaleidoscope-style design, C++17, built with LLVM 18. Execution is selected at
+build time: external lli, an embedded static LLVM engine, or disabled.
 
 ```
 file ──> Lexer ──> Parser ──> vector<unique_ptr<StmtAST>> ──> CodeGen ──> textual LLVM IR in a file
@@ -20,12 +21,15 @@ host-side: the module has no DataLayout string, so every size is a null-GEP
 
 ## Build & run
 
-The compiler emits textual IR and can run it through `lli`. Native binaries remain manual:
+The compiler emits textual IR. Initial configuration must explicitly select
+`CPSC_RUN_MODE=PATH`, `EMBEDDED` or `NONE` (no default). All modes need LLVM
+development libraries to build; NONE still generates IR. Native binaries remain manual:
 
 ```bash
-mkdir -p build && cd build && cmake -DLLVM_DIR=/usr/lib/llvm-18/cmake .. && make   # build cpsc
+mkdir -p build && cd build
+cmake -DCPSC_RUN_MODE=EMBEDDED -DLLVM_DIR=/usr/lib/llvm-18/cmake .. && make
 ./cpsc prog.cps -o prog.ll     # default without -o: prog.ir beside the source
-./cpsc prog.cps -r             # use lli from PATH; delete temporary IR afterward
+./cpsc prog.cps -r             # execute using the selected build mode
 ./cpsc prog.cps -r -o prog.ir  # save IR, then run it
 clang-18 prog.ll -o prog && ./prog
 ```
@@ -41,10 +45,24 @@ Driver behavior (`tools/driver/main.cc`):
   also return 1. Check the exit code rather than grepping stderr.
 - Successful compilation overwrites the output, but paths aliasing the source
   (including symlinks/hard links) are rejected.
-- `-r` executes PATH's `lli` using LLVM Support process APIs, with inherited
-  stdin/stdout/stderr and no shell. It returns lli's exit status; missing lli or
-  process-launch/crash failures return 1. `-r` alone uses a temporary IR file
-  removed on return (including execution failure); `-r -o` keeps the saved IR.
+- In PATH mode, `-r` executes PATH's `lli` using LLVM Support process APIs, with
+  inherited stdin/stdout/stderr and no shell. Missing lli is rejected before
+  compiling or writing output. Process-launch/crash failures return 1. `-r`
+  alone uses temporary IR removed on return, including execution failure.
+- In EMBEDDED mode, `-r` uses MCJIT in-process (`tools/driver/EmbeddedRunner.cc`).
+  The engine owns a clone of CodeGen's module; CodeGen retains the context and
+  must outlive the engine. The host target is initialized only for execution.
+  No external runner or PATH lookup is used; `-r` alone runs in memory.
+- In NONE mode, `-r` returns 1 before compiling or writing output; ordinary IR
+  compilation remains available. Only EMBEDDED links execution-engine components.
+- Both execution modes return the program's exit status and inherit standard
+  streams. `-r -o` saves IR before executing and keeps it on execution failure.
+
+EMBEDDED requires static LLVM archives. `cmake/EmbeddedLLVM.cmake` also selects
+static compression/terminal support archives when LLVM uses them. Linux GCC/Clang
+builds link the C++ runtime statically; MinGW uses `-static`. The tested Debian
+LLVM 18 executable has only libc, libm and the system loader as dynamic dependencies,
+and runs in a minimal chroot without LLVM/lli. Windows EMBEDDED is untested.
 
 Build pin: developed and tested against **LLVM 18**. (The historical LLVM 19 breakage —
 `ArithmeticHandler.cc` touching `llvm::Module` through a transitive include — is gone
@@ -65,6 +83,7 @@ untested.)
 | `lib/CodeGen/Designator.cc` | CodeGen methods for the TYPE system: type pre-pass, `emitLValue`/`loadFromLValue`, `emitCoercedExpr` gate, user-kind binary-op interception |
 | `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen |
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
+| `tools/driver/EmbeddedRunner.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only MCJIT runner and static support-library selection |
 
 AST nodes live in `include/cps/AST.h` (+ `FunctionAST.h`, `FileAST.h`, `TypeAST.h`);
 they are pure data with virtual destructors only — no codegen/visitor methods.
