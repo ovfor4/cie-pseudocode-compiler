@@ -6,26 +6,15 @@ cpsc-language-overview - supported cpsc pseudocode syntax
 
 # DESCRIPTION
 
-Keywords and built-in function names are uppercase and case-sensitive.
-Indentation is for readability; blocks use explicit closing keywords.
-Identifiers begin with a letter and continue with letters,
-digits, or underscores.
+Keywords and built-in function names are uppercase and case-sensitive. Indentation is for readability; blocks use explicit closing keywords. Identifiers begin with a letter and continue with letters, digits, or underscores.
 
-Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`,
-`<`, `>`, `<=`, and `>=`. STRING comparisons compare contents,
-case-sensitively. Use `+`, `-`, `*`, and `/` for arithmetic;
-`/` always returns REAL. Use `&` to join strings.
+Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`, `<`, `>`, `<=`, and `>=`. STRING comparisons compare contents, case-sensitively. Use `+`, `-`, `*`, and `/` for arithmetic; `/` always returns REAL. Use `&` to join strings.
 
-Precedence, from highest to lowest: unary operators, `* / DIV MOD`,
-`+ - &`, comparisons, AND, OR. Parentheses override precedence.
+Precedence, from highest to lowest: unary operators, `* / DIV MOD`, `+ - &`, comparisons, AND, OR. Parentheses override precedence.
 
-Literals include integers, decimal real numbers, TRUE/FALSE, strings in
-double quotes, and single-byte characters in single quotes. Negative
-numbers use unary minus. There are no string or character escape sequences.
-Comments begin with `//` and continue to the end of the line.
+Literals include integers, decimal real numbers, TRUE/FALSE, strings in double quotes, and single-byte characters in single quotes. Negative numbers use unary minus. There are no string or character escape sequences. Comments begin with `//` and continue to the end of the line.
 
-Declare variables before use. See DECLARE for built-in types and arrays,
-TYPE for records/enumerations/pointers, and CLASS for public/private fields.
+Declare variables before use. See DECLARE for built-in types and arrays, TYPE for records/enumerations/pointers, and CLASS for public/private fields.
 
 # KEYWORDS
 
@@ -51,13 +40,7 @@ TYPE for records/enumerations/pointers, and CLASS for public/private fields.
 - [cpsc-keyword-div(7)](keyword/cpsc-keyword-div.7.md): perform integer division.
 - [cpsc-keyword-mod(7)](keyword/cpsc-keyword-mod.7.md): find the integer division remainder.
 
-Closing and auxiliary keywords are documented with their main constructs:
-THEN/ELSE/ENDIF with IF; DO/ENDWHILE with WHILE; UNTIL with REPEAT;
-TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure
-closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE;
-ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE;
-ENDTYPE with TYPE; PUBLIC/PRIVATE/ENDCLASS with CLASS.
-TRUE/FALSE are BOOLEAN literals.
+Closing and auxiliary keywords are documented with their main constructs: THEN/ELSE/ENDIF with IF; DO/ENDWHILE with WHILE; UNTIL with REPEAT; TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE; ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE; ENDTYPE with TYPE; PUBLIC/PRIVATE/ENDCLASS with CLASS. TRUE/FALSE are BOOLEAN literals.
 
 # BUILT-IN FUNCTIONS
 
@@ -76,13 +59,9 @@ TRUE/FALSE are BOOLEAN literals.
 
 # UNSUPPORTED FEATURES
 
-CASE OF, CONSTANT, DATE, SET types and DEFINE, random-file operations
-(RANDOM/SEEK/GETRECORD/PUTRECORD), INT, RAND, INPUT into array elements or
-fields, string escapes, whole-array assignment or return, array fields,
-and class methods/constructors/destructors/inheritance (NEW/INHERITS/SUPER).
+CASE OF, CONSTANT, DATE, SET types and DEFINE, random-file operations (RANDOM/SEEK/GETRECORD/PUTRECORD), INT, RAND, INPUT into array elements or fields, string escapes, whole-array assignment or return, array fields, and class methods/constructors/destructors/inheritance (NEW/INHERITS/SUPER).
 
-The individual pages note relevant differences from the Cambridge 2026
-pseudocode guide. This manual describes the compiler's current support.
+The individual pages note relevant differences from the Cambridge 2026 pseudocode guide. This manual describes the compiler's current support.
 
 # EXAMPLE
 
@@ -97,4 +76,3 @@ ENDIF
 # SEE ALSO
 
 [cpsc(1)](../cpsc.1.md).
-

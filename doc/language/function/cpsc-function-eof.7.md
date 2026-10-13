@@ -12,9 +12,7 @@ EOF(filename : STRING) RETURNS BOOLEAN
 
 # DESCRIPTION
 
-Return true when no further characters remain in a file opened FOR READ.
-The test does not consume the next character. Testing an unopened file or
-a file in the wrong mode terminates execution.
+Return true when no further characters remain in a file opened FOR READ. The test does not consume the next character. Testing an unopened file or a file in the wrong mode terminates execution.
 
 # EXAMPLE
 
@@ -31,4 +29,3 @@ CLOSEFILE "notes.txt"
 # SEE ALSO
 
 [cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-openfile(7)](../keyword/cpsc-keyword-openfile.7.md), [cpsc-keyword-readfile(7)](../keyword/cpsc-keyword-readfile.7.md), [cpsc-keyword-closefile(7)](../keyword/cpsc-keyword-closefile.7.md).
-

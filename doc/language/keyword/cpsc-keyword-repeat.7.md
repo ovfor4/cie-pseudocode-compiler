@@ -14,8 +14,7 @@ UNTIL condition
 
 # DESCRIPTION
 
-Test after each iteration, so the body runs at least once.
-Stop when the condition becomes true. UNTIL belongs to this syntax.
+Test after each iteration, so the body runs at least once. Stop when the condition becomes true. UNTIL belongs to this syntax.
 
 # EXAMPLE
 
@@ -31,4 +30,3 @@ UNTIL Count = 3
 # SEE ALSO
 
 [cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-while(7)](cpsc-keyword-while.7.md), [cpsc-keyword-for(7)](cpsc-keyword-for.7.md).
-

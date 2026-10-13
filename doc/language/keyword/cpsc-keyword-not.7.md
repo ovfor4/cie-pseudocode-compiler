@@ -12,8 +12,7 @@ NOT expression
 
 # DESCRIPTION
 
-Return BOOLEAN with the opposite truth value. NOT is a unary operator;
-parenthesize comparisons, for example `NOT (Count = 0)`.
+Return BOOLEAN with the opposite truth value. NOT is a unary operator; parenthesize comparisons, for example `NOT (Count = 0)`.
 
 # EXAMPLE
 
@@ -24,4 +23,3 @@ OUTPUT NOT (3 = 2)
 # SEE ALSO
 
 [cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-and(7)](cpsc-keyword-and.7.md), [cpsc-keyword-or(7)](cpsc-keyword-or.7.md), [cpsc-keyword-if(7)](cpsc-keyword-if.7.md).
-

@@ -15,15 +15,9 @@ ENDCLASS
 
 # DESCRIPTION
 
-Declare a class at top level with at least one field. Every field explicitly
-requires PUBLIC or PRIVATE, without DECLARE. This differs from guide
-section 10's default-public rule. ENDCLASS closes the declaration.
+Declare a class at top level with at least one field. Every field explicitly requires PUBLIC or PRIVATE, without DECLARE. This differs from guide section 10's default-public rule. ENDCLASS closes the declaration.
 
-Classes use record value semantics: zero initialization, whole-value copying,
-arrays, pointers, and ordinary function/procedure parameters. Only PUBLIC
-fields can be accessed externally. PRIVATE fields still initialize and copy
-with the whole value. Methods, constructors, destructors, NEW, INHERITS,
-and array fields are unsupported.
+Classes use record value semantics: zero initialization, whole-value copying, arrays, pointers, and ordinary function/procedure parameters. Only PUBLIC fields can be accessed externally. PRIVATE fields still initialize and copy with the whole value. Methods, constructors, destructors, NEW, INHERITS, and array fields are unsupported.
 
 # EXAMPLE
 
@@ -40,4 +34,3 @@ OUTPUT PersonValue.Name
 # SEE ALSO
 
 [cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-type(7)](cpsc-keyword-type.7.md), [cpsc-keyword-declare(7)](cpsc-keyword-declare.7.md).
-

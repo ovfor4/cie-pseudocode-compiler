@@ -14,8 +14,7 @@ ENDWHILE
 
 # DESCRIPTION
 
-Test before each iteration; the body may run zero times.
-DO and ENDWHILE belong to this syntax.
+Test before each iteration; the body may run zero times. DO and ENDWHILE belong to this syntax.
 
 # EXAMPLE
 
@@ -31,4 +30,3 @@ ENDWHILE
 # SEE ALSO
 
 [cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-repeat(7)](cpsc-keyword-repeat.7.md), [cpsc-keyword-for(7)](cpsc-keyword-for.7.md).
-

@@ -179,14 +179,9 @@ they are pure data with virtual destructors only — no codegen/visitor methods.
 | `AGENTS/EXTENDING.md` | Adding a statement, builtin, operator, type, runtime check, or libc dependency — exact recipes |
 | `AGENTS/SUBSYSTEMS.md` | Working on arrays, functions/procedures, or runtime checks |
 | `AGENTS/PITFALLS.md` | Verified sharp edges (they *will* bite) and the list of unimplemented 9618 features |
+| `AGENTS/MAN.md` | Editing man Markdown, language manual layout, generation and installation |
 
 ## Language manuals
 
-`doc/cpsc.1.md` documents the command-line interface. Short language manuals live
-in `doc/language/keyword/` as `cpsc-keyword-NAME.7.md` and
-`doc/language/function/` as `cpsc-function-NAME.7.md`; the overview remains
-`doc/language/cpsc-language-overview.7.md`. Filenames are lowercase and preserve underscores.
-Document auxiliary/closing keywords with the main construct, not in separate
-pages. Keep examples small and describe actual compiler support, noting relevant
-differences from the 2026 Cambridge guide in `reference/`. All project text is
-English.
+See [MAN.md](MAN.md) before editing the command or syntax manuals. It defines
+source layout, naming, prose formatting and the small checks needed for changes.
