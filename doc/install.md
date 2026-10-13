@@ -28,6 +28,10 @@ You can also run `./install.sh --source-dir build --prefix "$HOME/.local"`
 directly after building `cpsc` and running `make -C build doc`.
 `DESTDIR` is supported for staging, for example `DESTDIR=/tmp/cpsc-stage make -C build install`.
 
+On macOS, `install.sh` also removes `com.apple.quarantine` from the installed
+executable when present. An executable without that attribute installs normally;
+failure to inspect or remove the attribute is reported as an installation error.
+
 ## Unix release packages
 
 Create an installation archive with:

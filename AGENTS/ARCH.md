@@ -87,7 +87,9 @@ and runs in a minimal chroot without LLVM/lli. Windows EMBEDDED is untested.
 On Linux, `make -C build install` builds the manual and calls the POSIX
 `install.sh` to copy `cpsc` and `doc/cpsc.1` into `CMAKE_INSTALL_PREFIX/bin` and
 `CMAKE_INSTALL_PREFIX/share/man/man1` (default prefix `/usr/local`). The script
-also supports `--prefix`, `--source-dir` and `DESTDIR` staging. Ordinary builds
+also supports `--prefix`, `--source-dir` and `DESTDIR` staging. On macOS it removes
+`com.apple.quarantine` from the installed executable if present; attribute inspection
+or removal failures abort installation with a diagnostic. Ordinary builds
 do not require Pandoc; `doc`, installation and release packaging do. The modular
 `cmake/Manual.cmake` target defers Pandoc discovery until manual generation, prefers
 the extracted executable, and sets its local runtime/data paths as needed. System

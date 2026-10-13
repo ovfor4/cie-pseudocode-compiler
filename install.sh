@@ -56,6 +56,16 @@ install -m 755 "$source_dir/cpsc" "$bin_dir/cpsc" \
 install -m 644 "$source_dir/doc/cpsc.1" "$man_dir/cpsc.1" \
     || die "cannot install the manual to $man_dir; check permissions"
 
+if [ "$(uname -s)" = Darwin ]; then
+    command -v xattr >/dev/null 2>&1 || die "required command not found: xattr"
+    attributes=$(xattr "$bin_dir/cpsc") \
+        || die "cannot read extended attributes of $bin_dir/cpsc"
+    if printf '%s\n' "$attributes" | grep -qx 'com\.apple\.quarantine'; then
+        xattr -d com.apple.quarantine "$bin_dir/cpsc" \
+            || die "cannot remove quarantine from $bin_dir/cpsc; check permissions"
+    fi
+fi
+
 printf 'Installed %s\nInstalled %s\n' "$bin_dir/cpsc" "$man_dir/cpsc.1"
 if [ -z "$destdir" ]; then
     case ":${PATH:-}:" in
