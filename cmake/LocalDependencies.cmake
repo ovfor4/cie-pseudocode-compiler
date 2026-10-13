@@ -27,6 +27,12 @@ foreach(prefix IN LISTS cpsc_local_prefixes)
     list(APPEND CPSC_LOCAL_INCLUDE_DIRS "${prefix}/include/libxml2")
     list(APPEND CPSC_LOCAL_BIN_DIRS "${prefix}/bin")
 endforeach()
+file(GLOB pandoc_directories LIST_DIRECTORIES TRUE "${CPSC_DEPS_ROOT}/pandoc-*")
+foreach(directory IN LISTS pandoc_directories)
+    if(IS_DIRECTORY "${directory}")
+        list(APPEND CPSC_LOCAL_BIN_DIRS "${directory}")
+    endif()
+endforeach()
 if(CMAKE_LIBRARY_ARCHITECTURE)
     list(INSERT CPSC_LOCAL_LIBRARY_DIRS 0
         "${CPSC_DEPS_ROOT}/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}"

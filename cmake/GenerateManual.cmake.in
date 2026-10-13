@@ -1,0 +1,40 @@
+# Pandoc is optional until the doc/install/release target actually needs it.
+set(local_bins "@CPSC_LOCAL_BIN_DIRS@")
+find_program(pandoc NAMES pandoc PATHS ${local_bins} NO_DEFAULT_PATH)
+if(pandoc)
+    set(local_pandoc TRUE)
+else()
+    find_program(pandoc NAMES pandoc)
+endif()
+if(NOT pandoc)
+    message(FATAL_ERROR "Generating the manual requires Pandoc; download it to deps/packages or install it in PATH")
+endif()
+message(STATUS "Using Pandoc: ${pandoc}")
+
+set(arguments --standalone --from=markdown --to=@cpsc_manual_format@)
+if("@cpsc_manual_format@" STREQUAL "html5")
+    list(APPEND arguments --metadata "title=cpsc manual")
+endif()
+if(local_pandoc AND IS_DIRECTORY "@CPSC_DEPS_ROOT@/usr/share/pandoc/data")
+    list(APPEND arguments "--data-dir=@CPSC_DEPS_ROOT@/usr/share/pandoc/data")
+endif()
+
+if(local_pandoc AND WIN32)
+    set(ENV{PATH} "${local_bins};$ENV{PATH}")
+elseif(local_pandoc AND UNIX AND NOT APPLE)
+    string(REPLACE ";" ":" libraries "@CPSC_LOCAL_LIBRARY_DIRS@")
+    if(NOT "$ENV{LD_LIBRARY_PATH}" STREQUAL "")
+        string(APPEND libraries ":$ENV{LD_LIBRARY_PATH}")
+    endif()
+    set(ENV{LD_LIBRARY_PATH} "${libraries}")
+endif()
+
+file(MAKE_DIRECTORY "@CMAKE_CURRENT_BINARY_DIR@/doc")
+execute_process(
+    COMMAND "${pandoc}" ${arguments} "@CMAKE_CURRENT_SOURCE_DIR@/doc/cpsc.md"
+        --output "@cpsc_manual_file@"
+    RESULT_VARIABLE result
+)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Pandoc failed to generate @cpsc_manual_file@ (${result})")
+endif()

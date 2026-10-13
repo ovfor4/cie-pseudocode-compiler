@@ -77,27 +77,7 @@ target_link_libraries(cpsc
     ${llvm_libs}
 )
 
-if(WIN32)
-    set(cpsc_manual_file "${CMAKE_CURRENT_BINARY_DIR}/doc/cpsc.html")
-    set(cpsc_manual_format html5)
-    set(cpsc_manual_options --metadata "title=cpsc manual")
-else()
-    set(cpsc_manual_file "${CMAKE_CURRENT_BINARY_DIR}/doc/cpsc.1")
-    set(cpsc_manual_format man)
-    set(cpsc_manual_options)
-endif()
-add_custom_command(
-    OUTPUT "${cpsc_manual_file}"
-    COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/doc"
-    COMMAND pandoc --standalone --from=markdown "--to=${cpsc_manual_format}"
-        ${cpsc_manual_options}
-        "${CMAKE_CURRENT_SOURCE_DIR}/doc/cpsc.md"
-        --output "${cpsc_manual_file}"
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/doc/cpsc.md"
-    COMMENT "Generating cpsc manual (${cpsc_manual_format})"
-    VERBATIM
-)
-add_custom_target(doc DEPENDS "${cpsc_manual_file}")
+include(cmake/Manual.cmake)
 
 configure_file(cmake/Install.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/Install.cmake" @ONLY)
 install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/Install.cmake")

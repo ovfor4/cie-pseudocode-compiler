@@ -16,6 +16,7 @@ function(cpsc_extract_packages)
         "${CPSC_DEPS_DIR}/packages/*.deb"
         "${CPSC_DEPS_DIR}/packages/*.pkg.tar.*"
         "${CPSC_DEPS_DIR}/packages/*.bottle*.tar.gz"
+        "${CPSC_DEPS_DIR}/packages/pandoc-*-windows-x86_64.zip"
     )
     list(FILTER packages EXCLUDE REGEX "\\.sig$")
     # Homebrew exposes both a cache symlink and its downloads/ target.
