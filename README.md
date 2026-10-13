@@ -134,7 +134,7 @@ and kept even if execution fails.
 
 ## Manual
 
-The command-line quick reference is in `doc/cpsc.md`. Generating the man page requires Pandoc; ordinary builds do not.
+The command-line quick reference is in `doc/cpsc.md`. Generating the manual requires Pandoc; ordinary builds do not.
 
 From the project root on Linux:
 
@@ -146,7 +146,16 @@ man ./build/doc/cpsc.1
 ```
 
 You can also run `make doc` inside the configured `build/` directory.
-The output is `build/doc/cpsc.1` and is regenerated when the Markdown source changes.
+The output is `build/doc/cpsc.1` on Unix and `build/doc/cpsc.html` on Windows,
+and is regenerated when the Markdown source changes. On Windows, install Pandoc,
+then generate and open the standalone HTML manual from PowerShell:
+
+```powershell
+cmake --build build --target doc
+Start-Process .\build\doc\cpsc.html
+```
+
+The HTML contains its own styles and can be read offline in a browser.
 
 ## Install and release
 
