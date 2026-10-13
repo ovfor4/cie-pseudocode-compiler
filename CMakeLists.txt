@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
+include(cmake/LocalDependencies.cmake)
+include(cmake/BuildTools.cmake)
 project(cps_compiler)
 
 if(WIN32 AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -15,7 +17,7 @@ if(NOT CPSC_RUN_MODE MATCHES "^(PATH|EMBEDDED|NONE)$")
     message(FATAL_ERROR "Specify -DCPSC_RUN_MODE=PATH, EMBEDDED or NONE")
 endif()
 
-include(cmake/LocalDependencies.cmake)
+include(cmake/LLVMDependencies.cmake)
 find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
@@ -93,6 +95,7 @@ add_custom_target(release
         "-DCPSC_EXECUTABLE=$<TARGET_FILE:cpsc>"
         "-DCPSC_PLATFORM=${cpsc_release_system}-${CMAKE_SYSTEM_PROCESSOR}"
         "-DCPSC_WINDOWS=${WIN32}"
+        "-DCPSC_LOCAL_BIN_DIRS=${CPSC_LOCAL_BIN_DIRS}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Release.cmake"
     DEPENDS cpsc doc
     COMMENT "Packaging cpsc and its manual"

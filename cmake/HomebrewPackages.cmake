@@ -35,13 +35,10 @@ function(cpsc_prepare_homebrew_packages)
     endforeach()
 
     # Bottles carry placeholder install names; extraction alone is insufficient.
-    find_program(cpsc_otool otool)
-    find_program(cpsc_install_name_tool install_name_tool)
-    find_program(cpsc_codesign codesign)
-    find_program(cpsc_brew brew)
-    if(NOT cpsc_otool OR NOT cpsc_install_name_tool OR NOT cpsc_codesign)
-        message(FATAL_ERROR "Local Homebrew bottles require otool, install_name_tool and codesign")
-    endif()
+    cpsc_find_dependency(PROGRAM cpsc_otool NAMES otool REQUIRED)
+    cpsc_find_dependency(PROGRAM cpsc_install_name_tool NAMES install_name_tool REQUIRED)
+    cpsc_find_dependency(PROGRAM cpsc_codesign NAMES codesign REQUIRED)
+    cpsc_find_dependency(PROGRAM cpsc_brew NAMES brew)
     if(cpsc_brew)
         execute_process(COMMAND "${cpsc_brew}" --prefix
             OUTPUT_VARIABLE system_prefix OUTPUT_STRIP_TRAILING_WHITESPACE

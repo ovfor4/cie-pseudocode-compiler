@@ -1,18 +1,17 @@
 # The ordinary build does not require Pandoc; generate the manual on installation.
+set(CPSC_LOCAL_BIN_DIRS "@CPSC_LOCAL_BIN_DIRS@")
+include("@CPSC_DEPS_MODULE_DIR@/FindDependency.cmake")
 execute_process(
     COMMAND "@CMAKE_COMMAND@" --build "@CMAKE_CURRENT_BINARY_DIR@" --target doc
     RESULT_VARIABLE cpsc_doc_result
 )
 if(NOT cpsc_doc_result STREQUAL "0")
-    message(FATAL_ERROR "Cannot build the manual; make sure Pandoc is installed")
+    message(FATAL_ERROR "Cannot build the manual; Pandoc must be available locally or in PATH")
 endif()
 
 set(cpsc_install_windows "@WIN32@")
 if(cpsc_install_windows)
-    find_program(cpsc_powershell NAMES powershell.exe)
-    if(NOT cpsc_powershell)
-        message(FATAL_ERROR "Windows installation requires Windows PowerShell (powershell.exe)")
-    endif()
+    cpsc_find_dependency(PROGRAM cpsc_powershell NAMES powershell.exe REQUIRED)
     execute_process(
         COMMAND "${cpsc_powershell}" -NoProfile -NonInteractive -ExecutionPolicy Bypass
             -File "@CMAKE_CURRENT_SOURCE_DIR@/install.ps1"
@@ -21,8 +20,9 @@ if(cpsc_install_windows)
         RESULT_VARIABLE cpsc_install_result
     )
 else()
+    cpsc_find_dependency(PROGRAM cpsc_shell NAMES sh bash REQUIRED)
     execute_process(
-        COMMAND sh "@CMAKE_CURRENT_SOURCE_DIR@/install.sh"
+        COMMAND "${cpsc_shell}" "@CMAKE_CURRENT_SOURCE_DIR@/install.sh"
             --source-dir "@CMAKE_CURRENT_BINARY_DIR@"
             --prefix "${CMAKE_INSTALL_PREFIX}"
         RESULT_VARIABLE cpsc_install_result

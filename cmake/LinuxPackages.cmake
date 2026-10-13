@@ -1,9 +1,10 @@
 function(cpsc_prepare_linux_packages)
+    cpsc_find_dependency(PROGRAM cpsc_readlink NAMES readlink REQUIRED)
     # Development packages can contain absolute links to runtime packages.
     file(GLOB_RECURSE files LIST_DIRECTORIES FALSE "${CPSC_DEPS_ROOT}/*")
     foreach(path IN LISTS files)
         if(IS_SYMLINK "${path}")
-            execute_process(COMMAND readlink "${path}" OUTPUT_VARIABLE target
+            execute_process(COMMAND "${cpsc_readlink}" "${path}" OUTPUT_VARIABLE target
                 OUTPUT_STRIP_TRAILING_WHITESPACE RESULT_VARIABLE result)
             if(NOT result EQUAL 0)
                 message(FATAL_ERROR "Cannot read dependency symlink ${path}")
