@@ -30,7 +30,7 @@ Value *StringConversionHandler::emitNumToStr(Value *Num, bool IsReal) {
     if (IsReal) {
         FormatStr = Builder.CreateGlobalStringPtr("%f"); 
     } else {
-        FormatStr = Builder.CreateGlobalStringPtr("%d");
+        FormatStr = Builder.CreateGlobalStringPtr("%lld");
     }
 
     Builder.CreateCall(SprintfFunc, {Buffer, FormatStr, Num});

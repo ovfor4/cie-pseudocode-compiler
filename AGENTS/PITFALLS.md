@@ -29,8 +29,8 @@ test programs.
   must be a variable"; annotate `BYVAL` explicitly.
 - **`/` always yields REAL** (double FDiv), even for two INTEGERs; integer division is
   DIV/MOD only. CHR returns a STRING (2-byte heap buffer), not CHAR. STR_TO_NUM always
-  returns REAL. NUM_TO_STR formats i64 with sprintf `"%d"` — corrupts values over 32
-  bits.
+  returns REAL. NUM_TO_STR formats INTEGER with sprintf `"%lld"` (the full signed
+  i64 range) and REAL with `"%f"`.
 - **`getExprTypeInfo` returns nullptr** for expressions it can't classify (null-check it
   at any new call site) and internally defaults to INTEGER for arithmetic binaries and
   unknown-function calls; OUTPUT reports an error for a nullptr result.
