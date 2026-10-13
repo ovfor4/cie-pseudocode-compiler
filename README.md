@@ -103,8 +103,7 @@ if execution fails.
 
 ## Manual
 
-The command-line quick reference is in `doc/cpsc.md`. Generating the man page
-requires Pandoc; ordinary builds do not.
+The command-line quick reference is in `doc/cpsc.md`. Generating the man page requires Pandoc; ordinary builds do not.
 
 From the project root on Linux:
 
@@ -112,11 +111,11 @@ From the project root on Linux:
 sudo apt-get install pandoc
 cmake -S . -B build
 make -C build doc
-man ./build/cpsc.1
+man ./build/doc/cpsc.1
 ```
 
 You can also run `make doc` inside the configured `build/` directory.
-The output is `build/cpsc.1` and is regenerated when the Markdown source changes.
+The output is `build/doc/cpsc.1` and is regenerated when the Markdown source changes.
 
 # Note
 

@@ -44,12 +44,13 @@ target_link_libraries(cpsc
 )
 
 add_custom_command(
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/cpsc.1"
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/doc/cpsc.1"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/doc"
     COMMAND pandoc --standalone --from=markdown --to=man
         "${CMAKE_CURRENT_SOURCE_DIR}/doc/cpsc.md"
-        --output "${CMAKE_CURRENT_BINARY_DIR}/cpsc.1"
+        --output "${CMAKE_CURRENT_BINARY_DIR}/doc/cpsc.1"
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/doc/cpsc.md"
     COMMENT "Generating cpsc(1) manual"
     VERBATIM
 )
-add_custom_target(doc DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cpsc.1")
+add_custom_target(doc DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/doc/cpsc.1")
