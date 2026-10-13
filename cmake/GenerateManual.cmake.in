@@ -24,7 +24,7 @@ endif()
 
 file(MAKE_DIRECTORY "@CMAKE_CURRENT_BINARY_DIR@/doc")
 execute_process(
-    COMMAND "${pandoc}" ${arguments} "@CMAKE_CURRENT_SOURCE_DIR@/doc/cpsc.md"
+    COMMAND "${pandoc}" ${arguments} "@CMAKE_CURRENT_SOURCE_DIR@/doc/cpsc.1.md"
         --output "@cpsc_manual_file@"
     RESULT_VARIABLE result
 )

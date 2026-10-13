@@ -2,7 +2,7 @@
 
 A compiler for CIE Pseudocode (A Level 9618 Computer Science)
 
-[Usage quick reference](doc/cpsc.md) · [Build guide](doc/build.md) · [Installation and releases](doc/install.md)
+[Usage quick reference](doc/cpsc.1.md) · [Build guide](doc/build.md) · [Installation and releases](doc/install.md)
 
 Details can be found here: [Pseudocode Guide for Teachers](https://www.cambridgeinternational.org/Images/697401-2026-pseudocode-guide-for-teachers.pdf)
 

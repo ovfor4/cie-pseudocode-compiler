@@ -8,7 +8,7 @@ endif()
 
 configure_file("${CMAKE_CURRENT_LIST_DIR}/GenerateManual.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/GenerateManual.cmake" @ONLY)
-set(cpsc_manual_dependencies "${CMAKE_CURRENT_SOURCE_DIR}/doc/cpsc.md"
+set(cpsc_manual_dependencies "${CMAKE_CURRENT_SOURCE_DIR}/doc/cpsc.1.md"
     "${CMAKE_CURRENT_BINARY_DIR}/GenerateManual.cmake"
     "${CPSC_DEPS_MODULE_DIR}/FindDependency.cmake")
 if(EXISTS "${CPSC_DEPS_DIR}/packages.sha256")

@@ -1,6 +1,6 @@
 # Installing and packaging cpsc
 
-To build from source, follow [build.md](build.md). For command-line usage, see [cpsc.md](cpsc.md). Run build commands from the project root; package installation commands run from the extracted package directory.
+To build from source, follow [build.md](build.md). For command-line usage, see [cpsc.1.md](cpsc.1.md). Run build commands from the project root; package installation commands run from the extracted package directory.
 
 ## Linux installation
 

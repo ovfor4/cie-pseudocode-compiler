@@ -66,30 +66,6 @@ Save IR and run it:
 cpsc test.cps -r -o result.ir
 ```
 
-# CLASSES
-
-Declare classes at top level. Every field must explicitly specify `PUBLIC` or
-`PRIVATE`, without `DECLARE`:
-
-```text
-CLASS Person
-    PUBLIC Name : STRING
-    PRIVATE Age : INTEGER
-ENDCLASS
-
-DECLARE p : Person
-p.Name <- "Alice"
-OUTPUT p.Name
-```
-
-Classes use record value semantics: zero initialization, whole-value copying,
-arrays, pointers and ordinary function/procedure parameters. Private fields cannot
-be read, written or addressed externally; they are still initialized and copied
-with the whole value. Record `TYPE` fields remain implicitly public and cannot
-specify access levels. Class methods, constructors, destructors, `NEW` and
-`INHERITS` are not supported. Array fields remain unsupported in both records and
-classes.
-
 # EXIT STATUS
 
 **0**
@@ -105,3 +81,7 @@ With **-r**, return the executed program's exit status. In PATH mode, failure to
 Compiler diagnostics go to stderr. Failed compilation does not write IR. Successful compilation overwrites an existing output file, but an output path that refers to the source file (including a symbolic or hard link) is rejected.
 
 Missing input, including invoking `cpsc` without arguments, reports `cpsc: fatal error: no input files`. Ordinary lexical, syntax and semantic errors use `error:`; failures that prevent compilation, such as file I/O errors, use `fatal error:`. Compilation and argument failures end with one `compilation terminated.` line. Execution-stage failures do not print that line.
+
+# SEE ALSO
+
+[cpsc-language-overview(7)](language/cpsc-language-overview.7.md) describes supported syntax and links to the keyword and built-in function manuals.

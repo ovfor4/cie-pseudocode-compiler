@@ -185,7 +185,7 @@ export PATH="$PWD/build/deps/root/opt/llvm@18/bin:$PATH"
 
 ## Manual
 
-The quick reference is in [cpsc.md](cpsc.md). Pandoc is required only for the
+The quick reference is in [cpsc.1.md](cpsc.1.md). Pandoc is required only for the
 `doc`, installation and release targets. Recommended local downloads follow;
 an existing system Pandoc works with the same manual-generation command.
 

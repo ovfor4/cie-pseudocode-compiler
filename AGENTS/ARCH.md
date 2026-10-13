@@ -116,7 +116,7 @@ per-user Start Menu help shortcut. `-SourceDir` selects the artifact directory;
 Windows PowerShell 5.1; its Windows actions have only been reviewed statically.
 The `doc` target uses CMake's `WIN32` target-platform detection: Windows generates
 standalone HTML with inline styles at `build/doc/cpsc.html`; other platforms
-generate `build/doc/cpsc.1`. Both render the same `doc/cpsc.md` using Pandoc.
+generate `build/doc/cpsc.1`. Both render the same `doc/cpsc.1.md` using Pandoc.
 Windows `mingw32-make -C build install` builds the HTML manual and invokes
 `install.ps1` through Windows PowerShell with the build directory and
 `CMAKE_INSTALL_PREFIX`. The default Windows prefix is the per-user Programs
@@ -167,3 +167,13 @@ they are pure data with virtual destructors only — no codegen/visitor methods.
 | `AGENTS/EXTENDING.md` | Adding a statement, builtin, operator, type, runtime check, or libc dependency — exact recipes |
 | `AGENTS/SUBSYSTEMS.md` | Working on arrays, functions/procedures, or runtime checks |
 | `AGENTS/PITFALLS.md` | Verified sharp edges (they *will* bite) and the list of unimplemented 9618 features |
+
+## Language manuals
+
+`doc/cpsc.1.md` documents the command-line interface. Short language manuals live
+in `doc/language/` as `cpsc-keyword-NAME.7.md`, `cpsc-function-NAME.7.md`, and
+`cpsc-language-overview.7.md`; filenames are lowercase and preserve underscores.
+Document auxiliary/closing keywords with the main construct, not in separate
+pages. Keep examples small and describe actual compiler support, noting relevant
+differences from the 2026 Cambridge guide in `reference/`. All project text is
+English.
