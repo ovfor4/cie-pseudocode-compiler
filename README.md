@@ -194,6 +194,23 @@ For a custom prefix, add its `bin` directory to PATH; `man` normally discovers t
 adjacent `share/man` directory from PATH. If your man configuration overrides this,
 use `man -M "$HOME/.local/share/man" cpsc` for the local prefix.
 
+On Windows, `install.ps1` installs for the current user without administrator
+rights. Its source directory must contain `cpsc.exe` and `doc/cpsc.html`:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -SourceDir .\build
+```
+
+The default destination is `%LOCALAPPDATA%\Programs\cpsc`: `cpsc.exe` goes in
+that directory and the HTML manual goes in its `doc` subdirectory. The installer
+adds the directory to the user PATH and creates Start Menu > cpsc > cpsc Help,
+which opens the manual in the default browser. Open a new terminal afterward;
+existing parent terminals retain their old PATH. Reinstalling does not duplicate
+the PATH entry. Use `-Prefix 'D:\My Programs\cpsc'` for a custom destination,
+or `-Help` for usage. Windows installation does not support `DESTDIR` staging.
+The PowerShell installer targets Windows PowerShell 5.1 or later and has only
+been reviewed statically; Windows installation still needs testing on Windows.
+
 # Note
 
 DO NOT OPEN ANY ISSUES IF YOU COMPILE WITH VISUAL STUDIO OR ANYTHING EXCEPT MINGW-W64 (EVEN WITH MINGW-W64, WINDOWS IS LIKELY TO BE A PROBLEM MAKER)
