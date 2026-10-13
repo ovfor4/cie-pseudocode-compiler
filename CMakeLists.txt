@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.13)
 project(cps_compiler)
 
+set(CPSC_RUN_MODE "" CACHE STRING "Execution mode: PATH or NONE (required)")
+set_property(CACHE CPSC_RUN_MODE PROPERTY STRINGS PATH NONE)
+if(NOT CPSC_RUN_MODE MATCHES "^(PATH|NONE)$")
+    message(FATAL_ERROR "Specify -DCPSC_RUN_MODE=PATH or -DCPSC_RUN_MODE=NONE")
+endif()
+
 find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
@@ -33,9 +39,10 @@ add_library(CPSCodeGen
     lib/CodeGen/FileHandler.cc
 )
 
-llvm_map_components_to_libnames(llvm_libs core support native irreader)
+llvm_map_components_to_libnames(llvm_libs core support)
 
 add_executable(cpsc tools/driver/main.cc)
+target_compile_definitions(cpsc PRIVATE CPSC_RUN_${CPSC_RUN_MODE})
 target_link_libraries(cpsc
     CPSCodeGen 
     CPSParser 

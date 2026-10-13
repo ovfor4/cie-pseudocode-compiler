@@ -48,6 +48,20 @@ int main(int argc, char **argv) {
         llvm::errs() << "Error: no source file specified\n";
         return 1;
     }
+    std::string LliPath;
+    if (Run) {
+#ifdef CPSC_RUN_PATH
+        auto Lli = llvm::sys::findProgramByName("lli");
+        if (!Lli) {
+            llvm::errs() << "Error: -r requires lli in PATH: " << Lli.getError().message() << "\n";
+            return 1;
+        }
+        LliPath = *Lli;
+#else
+        llvm::errs() << "Error: -r is disabled in this build (CPSC_RUN_MODE=NONE)\n";
+        return 1;
+#endif
+    }
     if (OutputPath.empty() && !Run) {
         llvm::SmallString<256> DefaultPath(InputPath);
         llvm::sys::path::replace_extension(DefaultPath, ".ir");
@@ -108,18 +122,14 @@ int main(int argc, char **argv) {
     }
     if (!Run) return 0;
 
-    auto Lli = llvm::sys::findProgramByName("lli");
-    if (!Lli) {
-        llvm::errs() << "Error: cannot find lli in PATH: " << Lli.getError().message() << "\n";
-        return 1;
-    }
+#ifdef CPSC_RUN_PATH
     llvm::SmallString<256> RunPath(OutputPath);
     if (auto PathError = llvm::sys::fs::make_absolute(RunPath)) {
         llvm::errs() << "Error: cannot resolve IR path: " << PathError.message() << "\n";
         return 1;
     }
     std::string ExecutionError;
-    int Result = llvm::sys::ExecuteAndWait(*Lli, {*Lli, RunPath},
+    int Result = llvm::sys::ExecuteAndWait(LliPath, {LliPath, RunPath},
                                          std::nullopt, {}, 0, 0, &ExecutionError);
     if (Result < 0) {
         llvm::errs() << "Error: lli execution failed (status " << Result << "): "
@@ -127,4 +137,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     return Result;
+#else
+    return 0;
+#endif
 }
