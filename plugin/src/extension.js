@@ -4,6 +4,7 @@ const vscode = require('vscode');
 const { indentationEdits } = require('./indentation');
 const { codeOnly } = require('./lexical');
 const { unmatchedBrackets } = require('./brackets');
+const { registerRunner } = require('./runner');
 const languageId = 'cie-pseudocode';
 
 function formatLines(document, startLine, endLine, keepBlankIndent = false) {
@@ -13,6 +14,7 @@ function formatLines(document, startLine, endLine, keepBlankIndent = false) {
 }
 
 function activate(context) {
+	registerRunner(vscode, context);
 	const invalidBracket = vscode.window.createTextEditorDecorationType({
 		dark: { color: '#F44747' }
 	});

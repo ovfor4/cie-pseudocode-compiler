@@ -1,7 +1,7 @@
 {
   "name": "cie-pseudocode",
   "displayName": "CIE Pseudocode",
-  "description": "CIE pseudocode highlighting, Tab indentation and bracket checking for .cps files.",
+  "description": "CIE pseudocode highlighting, Tab indentation, bracket checking and terminal execution for .cps files.",
   "version": "0.1.0",
   "publisher": "ovfor4",
   "author": "_ov4",
@@ -20,11 +20,39 @@
     "Formatters"
   ],
   "scripts": {
-    "check": "node --check src/extension.js && node --check src/indentation.js && node --check src/lexical.js && node --check src/brackets.js",
+    "check": "node --check src/extension.js && node --check src/indentation.js && node --check src/lexical.js && node --check src/brackets.js && node --check src/runner.js",
     "test": "node --test test/*.test.js",
     "package": "npm run check && npm test && vsce package --no-dependencies"
   },
   "contributes": {
+    "commands": [
+      {
+        "command": "cie-pseudocode.runFile",
+        "title": "Run Pseudocode File in Terminal",
+        "enablement": "editorLangId == cie-pseudocode",
+        "icon": "$(play)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "cie-pseudocode.runFile",
+          "when": "editorLangId == cie-pseudocode",
+          "group": "navigation@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "CIE Pseudocode",
+      "properties": {
+        "cie-pseudocode.compilerPath": {
+          "type": "string",
+          "default": "cpsc",
+          "scope": "resource",
+          "description": "Compiler executable name on PATH or full path to cpsc (cpsc.exe on Windows)."
+        }
+      }
+    },
     "languages": [
       {
         "id": "cie-pseudocode",
