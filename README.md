@@ -23,13 +23,15 @@ Details can be found here: [Pseudocode Guide for Teachers](https://www.cambridge
 - **Set types**: Implement `SET` and `DEFINE`.
 - **Other syntax**: Add `CASE OF`, `CONSTANT` and `DATE`.
 
-# Note
+## Note
 
-IDK WHAT HAPPENDED IT IS 100% AI-GENERATED DO NOT OPEN ANY ISSUES JUST CLONE AND FIX IT
+Vibe project. If you have any problems, please open issues. If you want to contribute to this project, please open PR (we never use dual-license because it's scam).
 
-DO NOT OPEN ANY ISSUES IF YOU COMPILE WITH VISUAL STUDIO OR ANYTHING EXCEPT MINGW-W64 (EVEN WITH MINGW-W64, WINDOWS IS LIKELY TO BE A PROBLEM MAKER)
+If you have problems configuring the compiler, please open an issue and leave your eamail or discord, and I will contact you as soon as possible (support is 100% free).
 
-ONLY TESTED ON DEBIAN (AND A BIT MINGW-W64)
+## Legal info
+
+License: AGPL 3.0 or later.
 
 Copyright (C) _ov4
 
@@ -37,4 +39,4 @@ This is free software; see the source for copying conditions.  There is NO warra
 
 ## Contributors
 
-ov4, ChatGPT, Gemini, Claude, et al.
+ov4, Claude, ChatGPT, Gemini, et al.
