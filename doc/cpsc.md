@@ -64,13 +64,15 @@ cpsc test.cps -r -o result.ir
 # EXIT STATUS
 
 **0**
-:   Compilation succeeded. Invoking `cpsc` with no arguments also exits silently with status 0.
+:   Compilation succeeded.
 
 **1**
-:   An argument, file, compilation or execution-engine error occurred, including when PATH mode cannot find `lli` or NONE mode receives **-r**.
+:   An argument, file, compilation or execution-engine error occurred, including missing input, when PATH mode cannot find `lli` or NONE mode receives **-r**.
 
 With **-r**, return the executed program's exit status. In PATH mode, failure to launch `lli` or a child-process crash returns 1.
 
 # NOTES
 
 Compiler diagnostics go to stderr. Failed compilation does not write IR. Successful compilation overwrites an existing output file, but an output path that refers to the source file (including a symbolic or hard link) is rejected.
+
+Missing input, including invoking `cpsc` without arguments, reports `cpsc: fatal error: no input files`. Ordinary lexical, syntax and semantic errors use `error:`; failures that prevent compilation, such as file I/O errors, use `fatal error:`. Compilation and argument failures end with one `compilation terminated.` line. Execution-stage failures do not print that line.

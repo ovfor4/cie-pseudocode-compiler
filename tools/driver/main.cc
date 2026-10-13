@@ -13,12 +13,16 @@
 #include <fstream>
 #include <string>
 
-int main(int argc, char **argv) {
-    if (argc == 1) {
-        // TODO: Print help here when help text is available.
-        return 0;
-    }
+namespace {
 
+int compilationTerminated() {
+    llvm::errs() << "compilation terminated.\n";
+    return 1;
+}
+
+} // namespace
+
+int main(int argc, char **argv) {
     std::string InputPath;
     std::string OutputPath;
     bool Run = false;
@@ -28,28 +32,28 @@ int main(int argc, char **argv) {
             Run = true;
         } else if (Arg == "-o") {
             if (!OutputPath.empty()) {
-                llvm::errs() << "Error: -o may only be specified once\n";
-                return 1;
+                llvm::errs() << "cpsc: error: -o may only be specified once\n";
+                return compilationTerminated();
             }
             if (I + 1 == argc || argv[I + 1][0] == '-' || argv[I + 1][0] == '\0') {
-                llvm::errs() << "Error: -o requires an output path\n";
-                return 1;
+                llvm::errs() << "cpsc: error: -o requires an output path\n";
+                return compilationTerminated();
             }
             OutputPath = argv[++I];
         } else if (Arg.empty() || Arg[0] == '-') {
-            llvm::errs() << "Error: unknown argument '" << Arg << "'\n";
-            return 1;
+            llvm::errs() << "cpsc: error: unknown argument '" << Arg << "'\n";
+            return compilationTerminated();
         } else if (!InputPath.empty()) {
-            llvm::errs() << "Error: only one source file is supported\n";
-            return 1;
+            llvm::errs() << "cpsc: error: only one source file is supported\n";
+            return compilationTerminated();
         } else {
             InputPath = Arg;
         }
     }
 
     if (InputPath.empty()) {
-        llvm::errs() << "Error: no source file specified\n";
-        return 1;
+        llvm::errs() << "cpsc: fatal error: no input files\n";
+        return compilationTerminated();
     }
 #ifdef CPSC_RUN_PATH
     std::string LliPath;
@@ -58,13 +62,13 @@ int main(int argc, char **argv) {
 #ifdef CPSC_RUN_PATH
         auto Lli = llvm::sys::findProgramByName("lli");
         if (!Lli) {
-            llvm::errs() << "Error: -r requires lli in PATH: " << Lli.getError().message() << "\n";
-            return 1;
+            llvm::errs() << "cpsc: fatal error: -r requires lli in PATH: " << Lli.getError().message() << "\n";
+            return compilationTerminated();
         }
         LliPath = *Lli;
 #elif defined(CPSC_RUN_NONE)
-        llvm::errs() << "Error: -r is disabled in this build (CPSC_RUN_MODE=NONE)\n";
-        return 1;
+        llvm::errs() << "cpsc: fatal error: -r is disabled in this build (CPSC_RUN_MODE=NONE)\n";
+        return compilationTerminated();
 #endif
     }
     if (OutputPath.empty() && !Run) {
@@ -75,12 +79,12 @@ int main(int argc, char **argv) {
 
     std::ifstream Input(InputPath, std::ios::binary);
     if (!Input) {
-        llvm::errs() << "Error: cannot open source file '" << InputPath << "'\n";
-        return 1;
+        llvm::errs() << "cpsc: fatal error: cannot open source file '" << InputPath << "'\n";
+        return compilationTerminated();
     }
     if (llvm::sys::fs::equivalent(InputPath, OutputPath)) {
-        llvm::errs() << "Error: output file must not be the source file\n";
-        return 1;
+        llvm::errs() << "cpsc: error: output file must not be the source file\n";
+        return compilationTerminated();
     }
 
     cps::Lexer Lex(Input);
@@ -88,15 +92,15 @@ int main(int argc, char **argv) {
     cps::Parser Parser(Lex);
     auto Statements = Parser.Parse();
     if (Input.bad()) {
-        llvm::errs() << "Error: cannot read source file '" << InputPath << "'\n";
-        return 1;
+        llvm::errs() << "cpsc: fatal error: cannot read source file '" << InputPath << "'\n";
+        return compilationTerminated();
     }
-    if (Lex.hadError() || Parser.hadError()) return 1;
+    if (Lex.hadError() || Parser.hadError()) return compilationTerminated();
 
     cps::CodeGen CG;
     CG.compile(Statements);
 
-    if (CG.hadError()) return 1;
+    if (CG.hadError()) return compilationTerminated();
 
 #ifdef CPSC_RUN_EMBEDDED
     if (Run && OutputPath.empty()) return runEmbedded(CG);
@@ -115,32 +119,32 @@ int main(int argc, char **argv) {
         EC = llvm::sys::fs::openFileForWrite(OutputPath, OutputFD);
     }
     if (EC) {
-        llvm::errs() << "Error: cannot open output file '" << OutputPath
+        llvm::errs() << "cpsc: fatal error: cannot open output file '" << OutputPath
                      << "': " << EC.message() << "\n";
-        return 1;
+        return compilationTerminated();
     }
     llvm::raw_fd_ostream Output(OutputFD, true);
     CG.print(Output);
     Output.close();
     if (Output.has_error()) {
-        llvm::errs() << "Error: cannot write output file '" << OutputPath
+        llvm::errs() << "cpsc: fatal error: cannot write output file '" << OutputPath
                      << "': " << Output.error().message() << "\n";
         Output.clear_error();
-        return 1;
+        return compilationTerminated();
     }
     if (!Run) return 0;
 
 #ifdef CPSC_RUN_PATH
     llvm::SmallString<256> RunPath(OutputPath);
     if (auto PathError = llvm::sys::fs::make_absolute(RunPath)) {
-        llvm::errs() << "Error: cannot resolve IR path: " << PathError.message() << "\n";
+        llvm::errs() << "cpsc: error: cannot resolve IR path: " << PathError.message() << "\n";
         return 1;
     }
     std::string ExecutionError;
     int Result = llvm::sys::ExecuteAndWait(LliPath, {LliPath, RunPath},
                                          std::nullopt, {}, 0, 0, &ExecutionError);
     if (Result < 0) {
-        llvm::errs() << "Error: lli execution failed (status " << Result << "): "
+        llvm::errs() << "cpsc: error: lli execution failed (status " << Result << "): "
                      << ExecutionError << "\n";
         return 1;
     }

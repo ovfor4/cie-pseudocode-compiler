@@ -25,7 +25,7 @@ int Lexer::gettok() {
         if (LastChar == '"') {
             LastChar = Input.get();
         } else {
-            fprintf(stderr, "Error: Unterminated string literal at line %d\n", CurrentLine);
+            fprintf(stderr, "error: Unterminated string literal at line %d\n", CurrentLine);
             HadError = true;
         }
 
@@ -35,7 +35,7 @@ int Lexer::gettok() {
     if (LastChar == '\'') {
         int CharCode = Input.get();
         if (CharCode == EOF || CharCode == '\n') {
-            fprintf(stderr, "Error: Unterminated char literal at line %d\n", CurrentLine);
+            fprintf(stderr, "error: Unterminated char literal at line %d\n", CurrentLine);
             HadError = true;
             CharVal = '?';
             StringVal.assign(1, CharVal);
@@ -46,7 +46,7 @@ int Lexer::gettok() {
 
         int ClosingQuote = Input.get();
         if (ClosingQuote != '\'') {
-            fprintf(stderr, "Error: CHAR literal must contain exactly one character (line %d)\n", CurrentLine);
+            fprintf(stderr, "error: CHAR literal must contain exactly one character (line %d)\n", CurrentLine);
             HadError = true;
             while (ClosingQuote != EOF && ClosingQuote != '\n' && ClosingQuote != '\'') {
                 ClosingQuote = Input.get();

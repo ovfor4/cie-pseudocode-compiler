@@ -56,7 +56,7 @@ bool CodeGen::isBuiltinName(const std::string &Name) {
 void CodeGen::reportError(const char *Fmt, ...) {
     va_list Args;
     va_start(Args, Fmt);
-    fprintf(stderr, "Error: ");
+    fprintf(stderr, "error: ");
     vfprintf(stderr, Fmt, Args);
     fprintf(stderr, "\n");
     va_end(Args);
@@ -536,6 +536,7 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
     }
 
     if (verifyModule(*TheModule, &errs())) {
+        errs() << "fatal error: LLVM module verification failed\n";
         HadError = true;
     }
 }

@@ -10,12 +10,12 @@
 
 int runEmbedded(const cps::CodeGen &CG) {
     if (llvm::InitializeNativeTarget() || llvm::InitializeNativeTargetAsmPrinter()) {
-        llvm::errs() << "Error: cannot initialize the embedded LLVM target\n";
+        llvm::errs() << "error: cannot initialize the embedded LLVM target\n";
         return 1;
     }
     std::string Error;
     if (llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr, &Error)) {
-        llvm::errs() << "Error: cannot load process symbols: " << Error << "\n";
+        llvm::errs() << "error: cannot load process symbols: " << Error << "\n";
         return 1;
     }
     // Keep CodeGen's module and context alive while the engine owns its clone.
@@ -27,17 +27,17 @@ int runEmbedded(const cps::CodeGen &CG) {
     Builder.setMCJITMemoryManager(std::make_unique<llvm::SectionMemoryManager>());
     std::unique_ptr<llvm::ExecutionEngine> Engine(Builder.create());
     if (!Engine) {
-        llvm::errs() << "Error: cannot create the embedded LLVM engine: " << Error << "\n";
+        llvm::errs() << "error: cannot create the embedded LLVM engine: " << Error << "\n";
         return 1;
     }
     Engine->finalizeObject();
     if (Engine->hasError()) {
-        llvm::errs() << "Error: embedded LLVM execution failed: " << Engine->getErrorMessage() << "\n";
+        llvm::errs() << "error: embedded LLVM execution failed: " << Engine->getErrorMessage() << "\n";
         return 1;
     }
     auto MainAddress = Engine->getFunctionAddress("main");
     if (!MainAddress) {
-        llvm::errs() << "Error: embedded LLVM could not resolve main\n";
+        llvm::errs() << "error: embedded LLVM could not resolve main\n";
         return 1;
     }
     auto Main = reinterpret_cast<int (*)()>(MainAddress);

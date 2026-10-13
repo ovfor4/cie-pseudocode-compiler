@@ -24,7 +24,7 @@ static bool isReservedRuntimeName(const std::string &Name) {
 Type *FunctionGen::getLLVMType(const std::string &TypeName) {
     Type *Resolved = Types.getLLVMType(TypeName);
     if (!Resolved) {
-        fprintf(stderr, "Error: Unknown type %s\n", TypeName.c_str());
+        fprintf(stderr, "error: Unknown type %s\n", TypeName.c_str());
         HadError = true;
         return Type::getInt64Ty(Context);
     }
@@ -35,11 +35,11 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
     Function::arg_iterator AI = F->arg_begin();
     for (const ParamDecl &P : Params) {
         if (Types.lookupEnumConstant(P.Name)) {
-            fprintf(stderr, "Error: parameter '%s' collides with an enum value\n", P.Name.c_str());
+            fprintf(stderr, "error: parameter '%s' collides with an enum value\n", P.Name.c_str());
             HadError = true;
         }
         if (Types.resolve(P.Name)) {
-            fprintf(stderr, "Error: parameter '%s' collides with a type name\n", P.Name.c_str());
+            fprintf(stderr, "error: parameter '%s' collides with a type name\n", P.Name.c_str());
             HadError = true;
         }
         Value *ArgVal = &(*AI);
@@ -85,25 +85,25 @@ const FuncSig *FunctionGen::getSignature(const std::string &Name) const {
 
 Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     if (isReservedRuntimeName(Proto->getName())) {
-        fprintf(stderr, "Error: '%s' is a reserved runtime symbol and cannot be a FUNCTION/PROCEDURE name\n",
+        fprintf(stderr, "error: '%s' is a reserved runtime symbol and cannot be a FUNCTION/PROCEDURE name\n",
                 Proto->getName().c_str());
         HadError = true;
         return nullptr;
     }
     if (CodeGen::isBuiltinName(Proto->getName())) {
-        fprintf(stderr, "Error: '%s' is a built-in function and cannot be redefined\n",
+        fprintf(stderr, "error: '%s' is a built-in function and cannot be redefined\n",
                 Proto->getName().c_str());
         HadError = true;
         return nullptr;
     }
     if (Types.lookupEnumConstant(Proto->getName())) {
-        fprintf(stderr, "Error: '%s' is an enum value and cannot be a FUNCTION/PROCEDURE name\n",
+        fprintf(stderr, "error: '%s' is an enum value and cannot be a FUNCTION/PROCEDURE name\n",
                 Proto->getName().c_str());
         HadError = true;
         return nullptr;
     }
     if (Types.resolve(Proto->getName())) {
-        fprintf(stderr, "Error: '%s' is a type name and cannot be a FUNCTION/PROCEDURE name\n",
+        fprintf(stderr, "error: '%s' is a type name and cannot be a FUNCTION/PROCEDURE name\n",
                 Proto->getName().c_str());
         HadError = true;
         return nullptr;
@@ -141,7 +141,7 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     FunctionType *FT = FunctionType::get(RetType, ArgTypes, false);
     Function *F = Module.getFunction(Proto->getName());
     if (F && F->getFunctionType() != FT) {
-        fprintf(stderr, "Error: Function %s conflicts with an existing declaration of a different type\n",
+        fprintf(stderr, "error: Function %s conflicts with an existing declaration of a different type\n",
                 Proto->getName().c_str());
         HadError = true;
         return nullptr;
@@ -174,7 +174,7 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
 
     if (!TheFunction) return nullptr;
     if (!TheFunction->empty()) {
-        fprintf(stderr, "Error: Function %s cannot be redefined.\n", Proto->getName().c_str());
+        fprintf(stderr, "error: Function %s cannot be redefined.\n", Proto->getName().c_str());
         HadError = true;
         return nullptr;
     }
@@ -210,7 +210,7 @@ static Value *GenerateCall(llvm::Module &Module,
                            bool &HadError) {
     Function *CalleeF = Module.getFunction(CalleeName);
     if (!CalleeF) {
-        fprintf(stderr, "Error: Call to undefined function %s\n", CalleeName.c_str());
+        fprintf(stderr, "error: Call to undefined function %s\n", CalleeName.c_str());
         HadError = true;
         return nullptr;
     }

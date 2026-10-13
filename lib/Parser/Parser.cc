@@ -60,7 +60,7 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
         auto Args = ParseExprList(')', true);
         if (!Args) return nullptr;
         if (CurTok == '[' || CurTok == '.' || CurTok == '^') {
-            fprintf(stderr, "Error: record/array/pointer access on a function result is not supported at line %d\n",
+            fprintf(stderr, "error: record/array/pointer access on a function result is not supported at line %d\n",
                     Lex.getLine());
             return nullptr;
         }
@@ -92,7 +92,7 @@ bool Parser::ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out) {
         } else if (CurTok == '.') {
             getNextToken();
             if (CurTok != tok_identifier) {
-                fprintf(stderr, "Error: Expected field name after '.' at line %d\n", Lex.getLine());
+                fprintf(stderr, "error: Expected field name after '.' at line %d\n", Lex.getLine());
                 return false;
             }
             DesignatorAccess A;
@@ -135,14 +135,14 @@ std::string Parser::ParseTypeName(bool AllowVoid) {
     if (CurTok == tok_identifier) {
         std::string TypeName = Lex.IdentifierStr;
         if (!AllowVoid && TypeName == "VOID") {
-            fprintf(stderr, "Error: VOID is not allowed here\n");
+            fprintf(stderr, "error: VOID is not allowed here\n");
             return "";
         }
         getNextToken();
         return TypeName;
     }
 
-    fprintf(stderr, "Error: Unknown type name\n");
+    fprintf(stderr, "error: Unknown type name\n");
     return "";
 }
 
@@ -151,7 +151,7 @@ std::unique_ptr<ExprAST> Parser::ParseParenExpr() {
     auto V = ParseExpression();
     if (!V) return nullptr;
     if (CurTok != ')') {
-        fprintf(stderr, "Error: expected ')'\n");
+        fprintf(stderr, "error: expected ')'\n");
         return nullptr;
     }
     getNextToken();
@@ -183,7 +183,7 @@ std::unique_ptr<ExprAST> Parser::ParsePrimary() {
     }
     case '(':            return ParseParenExpr();
     default:
-        fprintf(stderr, "Error: unknown token '%c' (%d) at line %d when expecting an expression\n", 
+        fprintf(stderr, "error: unknown token '%c' (%d) at line %d when expecting an expression\n",
                 (char)CurTok, CurTok, Lex.getLine());
         return nullptr;
     }
@@ -202,14 +202,14 @@ std::unique_ptr<ExprAST> Parser::ParseUnary() {
         int Line = Lex.getLine();
         getNextToken();
         if (CurTok != tok_identifier) {
-            fprintf(stderr, "Error: '^' (address-of) requires a variable, array element or record field at line %d\n",
+            fprintf(stderr, "error: '^' (address-of) requires a variable, array element or record field at line %d\n",
                     Line);
             return nullptr;
         }
         std::string BaseName = Lex.IdentifierStr;
         getNextToken();
         if (CurTok == '(') {
-            fprintf(stderr, "Error: cannot take the address of a function result at line %d\n", Line);
+            fprintf(stderr, "error: cannot take the address of a function result at line %d\n", Line);
             return nullptr;
         }
         std::vector<DesignatorAccess> Accesses;
@@ -317,7 +317,7 @@ std::optional<std::vector<std::unique_ptr<ExprAST>>> Parser::ParseExprList(char 
 
         if (CurTok == CloseDelim) break;
         if (CurTok != ',') {
-            fprintf(stderr, "Error: Expected ',' or '%c' at line %d\n", CloseDelim, Lex.getLine());
+            fprintf(stderr, "error: Expected ',' or '%c' at line %d\n", CloseDelim, Lex.getLine());
             return std::nullopt;
         }
         getNextToken();
@@ -329,14 +329,14 @@ std::optional<std::vector<std::unique_ptr<ExprAST>>> Parser::ParseExprList(char 
 std::unique_ptr<StmtAST> Parser::ParseDeclare() {
     getNextToken();
     if (CurTok != tok_identifier) {
-        fprintf(stderr, "Error: Expected identifier after DECLARE at line %d\n", Lex.getLine());
+        fprintf(stderr, "error: Expected identifier after DECLARE at line %d\n", Lex.getLine());
         return nullptr;
     }
     std::string Name = Lex.IdentifierStr;
     getNextToken();
 
     if (CurTok != tok_colon) {
-        fprintf(stderr, "Error: Expected ':' after variable name '%s' at line %d\n", Name.c_str(), Lex.getLine());
+        fprintf(stderr, "error: Expected ':' after variable name '%s' at line %d\n", Name.c_str(), Lex.getLine());
         return nullptr;
     }
     getNextToken();
@@ -344,7 +344,7 @@ std::unique_ptr<StmtAST> Parser::ParseDeclare() {
     if (CurTok == tok_array) {
         getNextToken(); 
         if (CurTok != '[') {
-            fprintf(stderr, "Error: Expected '[' after ARRAY\n");
+            fprintf(stderr, "error: Expected '[' after ARRAY\n");
             return nullptr;
         }
         getNextToken();
@@ -356,7 +356,7 @@ std::unique_ptr<StmtAST> Parser::ParseDeclare() {
             if (!Lower) return nullptr;
             
             if (CurTok != tok_colon) {
-                fprintf(stderr, "Error: Expected ':' in array range (e.g. 1:10)\n");
+                fprintf(stderr, "error: Expected ':' in array range (e.g. 1:10)\n");
                 return nullptr;
             }
             getNextToken();
@@ -371,13 +371,13 @@ std::unique_ptr<StmtAST> Parser::ParseDeclare() {
                 getNextToken();
                 continue;
             }
-            fprintf(stderr, "Error: Expected ',' or ']' in array dims\n");
+            fprintf(stderr, "error: Expected ',' or ']' in array dims\n");
             return nullptr;
         }
         getNextToken();
         
         if (CurTok != tok_of) {
-            fprintf(stderr, "Error: Expected OF after array dims\n");
+            fprintf(stderr, "error: Expected OF after array dims\n");
             return nullptr;
         }
         getNextToken();
@@ -404,7 +404,7 @@ std::unique_ptr<StmtAST> Parser::ParseIfStmt() {
     if (!Cond) return nullptr;
 
     if (CurTok != tok_then) {
-        fprintf(stderr, "Error: expected THEN\n");
+        fprintf(stderr, "error: expected THEN\n");
         return nullptr;
     }
     getNextToken();
@@ -418,7 +418,7 @@ std::unique_ptr<StmtAST> Parser::ParseIfStmt() {
     }
 
     if (CurTok != tok_endif) {
-        fprintf(stderr, "Error: expected ENDIF\n");
+        fprintf(stderr, "error: expected ENDIF\n");
         return nullptr;
     }
     getNextToken();
@@ -432,7 +432,7 @@ std::unique_ptr<StmtAST> Parser::ParseWhileStmt() {
     if (!Cond) return nullptr;
 
     if (CurTok != tok_do) {
-        fprintf(stderr, "Error: expected DO after WHILE condition\n");
+        fprintf(stderr, "error: expected DO after WHILE condition\n");
         return nullptr;
     }
     getNextToken();
@@ -440,7 +440,7 @@ std::unique_ptr<StmtAST> Parser::ParseWhileStmt() {
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endwhile});
 
     if (CurTok != tok_endwhile) {
-        fprintf(stderr, "Error: expected ENDWHILE\n");
+        fprintf(stderr, "error: expected ENDWHILE\n");
         return nullptr;
     }
     getNextToken();
@@ -454,7 +454,7 @@ std::unique_ptr<StmtAST> Parser::ParseRepeatStmt() {
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_until});
 
     if (CurTok != tok_until) {
-        fprintf(stderr, "Error: expected UNTIL\n");
+        fprintf(stderr, "error: expected UNTIL\n");
         return nullptr;
     }
     getNextToken();
@@ -468,14 +468,14 @@ std::unique_ptr<StmtAST> Parser::ParseRepeatStmt() {
 std::unique_ptr<StmtAST> Parser::ParseForStmt() {
     getNextToken();
     if (CurTok != tok_identifier) {
-        fprintf(stderr, "Error: expected identifier after FOR\n");
+        fprintf(stderr, "error: expected identifier after FOR\n");
         return nullptr;
     }
     std::string VarName = Lex.IdentifierStr;
     getNextToken();
 
     if (CurTok != tok_assign) {
-        fprintf(stderr, "Error: expected '<-' in FOR loop\n");
+        fprintf(stderr, "error: expected '<-' in FOR loop\n");
         return nullptr;
     }
     getNextToken();
@@ -484,7 +484,7 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
     if (!Start) return nullptr;
 
     if (CurTok != tok_to) {
-        fprintf(stderr, "Error: expected TO in FOR loop\n");
+        fprintf(stderr, "error: expected TO in FOR loop\n");
         return nullptr;
     }
     getNextToken();
@@ -502,18 +502,18 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_next});
 
     if (CurTok != tok_next) {
-        fprintf(stderr, "Error: expected NEXT\n");
+        fprintf(stderr, "error: expected NEXT\n");
         return nullptr;
     }
     getNextToken();
     
     if (CurTok != tok_identifier) {
-        fprintf(stderr, "Error: expected identifier after NEXT (e.g., NEXT %s)\n", VarName.c_str());
+        fprintf(stderr, "error: expected identifier after NEXT (e.g., NEXT %s)\n", VarName.c_str());
         return nullptr;
     }
 
     if (Lex.IdentifierStr != VarName) {
-        fprintf(stderr, "Error: NEXT identifier '%s' does not match FOR variable '%s'\n", 
+        fprintf(stderr, "error: NEXT identifier '%s' does not match FOR variable '%s'\n",
                 Lex.IdentifierStr.c_str(), VarName.c_str());
         return nullptr;
     }
@@ -538,7 +538,7 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     else if (CurTok == tok_input) {
         getNextToken();
         if (CurTok != tok_identifier) {
-            fprintf(stderr, "Error: Expected variable name after INPUT at line %d\n", Lex.getLine());
+            fprintf(stderr, "error: Expected variable name after INPUT at line %d\n", Lex.getLine());
             return nullptr;
         }
         std::string Name = Lex.IdentifierStr;
@@ -548,7 +548,7 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
             // Consume the whole designator so it cannot replay as statements.
             std::vector<DesignatorAccess> Dummy;
             ParseDesignatorSuffix(Dummy);
-            fprintf(stderr, "Error: INPUT target must be a plain variable at line %d\n", Line);
+            fprintf(stderr, "error: INPUT target must be a plain variable at line %d\n", Line);
             return nullptr;
         }
         return std::make_unique<InputStmtAST>(Name);
@@ -605,17 +605,17 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
         return ParseTypeDecl();
     }
     else if (CurTok == tok_define) {
-        fprintf(stderr, "Error: DEFINE (SET literals) is not implemented at line %d\n", Lex.getLine());
+        fprintf(stderr, "error: DEFINE (SET literals) is not implemented at line %d\n", Lex.getLine());
         getNextToken();
         return nullptr;
     }
     else if (CurTok == tok_endtype) {
-        fprintf(stderr, "Error: ENDTYPE without matching TYPE at line %d\n", Lex.getLine());
+        fprintf(stderr, "error: ENDTYPE without matching TYPE at line %d\n", Lex.getLine());
         getNextToken();
         return nullptr;
     }
 
-    fprintf(stderr, "Error: Unexpected token at line %d when expecting a statement\n", Lex.getLine());
+    fprintf(stderr, "error: Unexpected token at line %d when expecting a statement\n", Lex.getLine());
     getNextToken(); // guarantee progress so error recovery cannot loop forever
     return nullptr;
 }
@@ -632,7 +632,7 @@ std::unique_ptr<StmtAST> Parser::ParseAssignStmt() {
     if (!ParseDesignatorSuffix(Accesses)) return nullptr;
 
     if (CurTok != tok_assign) {
-        fprintf(stderr, "Error: Expected '<-' after identifier '%s' at line %d\n", Name.c_str(), Line);
+        fprintf(stderr, "error: Expected '<-' after identifier '%s' at line %d\n", Name.c_str(), Line);
         return nullptr;
     }
     getNextToken();

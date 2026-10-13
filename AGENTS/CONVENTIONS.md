@@ -92,12 +92,15 @@ scope stack. `FunctionGen` saves/clears/restores the table around a function bod
 `emitExpr` walk a linear if-chain of casts. **A statement type missing from the chain is
 silently ignored** — no error. Adding an AST node always means touching these chains.
 
-**Error style everywhere: print an `Error:` line, set the component's error flag, and
+**Compiler error style: print an `error:` line, set the component's error flag, and
 keep compiling.** No exceptions, no exit mid-compile. `Lexer`/`Parser`/`CodeGen` each
 expose `hadError()`; `CodeGen::reportError(fmt, ...)` is the helper for codegen-side
 diagnostics (`ArrayHandler` reaches it through its `CodeGen &` parameter,
 `FunctionGen`/`ArithmeticHandler` hold a `bool &HadError` reference). The driver exits
-non-zero when any flag is set. The parser drops a failed statement and resyncs at the
+non-zero when any flag is set, printing `compilation terminated.` once. Errors that
+prevent compilation (missing input, file I/O or invalid IR) use `fatal error:`.
+Execution-stage errors do not print the compilation termination line.
+The parser drops a failed statement and resyncs at the
 next token that can start a statement or end a block (`syncToStatementStart`), then
 continues; the failure is always diagnosed and reflected in the exit code.
 

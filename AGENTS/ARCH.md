@@ -57,12 +57,17 @@ release because MSYS2 has no Pandoc package. Only the Linux build is verified.
 Driver behavior (`tools/driver/main.cc`):
 
 - One source file, with optional `-o path` and `-r`; options may precede or follow the source.
-  No stdin source input. No arguments exits silently with status 0 (help TODO).
+  No stdin source input. Missing input, including no arguments, prints
+  `cpsc: fatal error: no input files` and `compilation terminated.`, then returns 1.
 - IR is written only after successful parsing, code generation and module
   verification. Diagnostics stay on stderr; failures do not overwrite existing IR.
 - Lexer, Parser and CodeGen track error flags (`hadError()`); any error, including
   invalid IR from `verifyModule`, makes the driver return 1. File/argument errors
-  also return 1. Check the exit code rather than grepping stderr.
+  also return 1. Ordinary compiler errors use `error:`; failures that prevent
+  compilation, such as file I/O errors, use `fatal error:`. The driver prints
+  `compilation terminated.` once on compilation failure, including argument errors.
+  Execution-stage failures do not print that line. Check the exit code rather
+  than grepping stderr.
 - Successful compilation overwrites the output, but paths aliasing the source
   (including symlinks/hard links) are rejected.
 - In PATH mode, `-r` executes PATH's `lli` using LLVM Support process APIs, with
