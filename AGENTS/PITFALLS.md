@@ -5,8 +5,6 @@
 Every bullet below was confirmed against the source, most also by compiling and running
 test programs.
 
-- **STRING `=` / `<>` compares pointer identity, not contents.** No strcmp anywhere;
-  two equal heap strings compare unequal.
 - **OUTPUT takes exactly one expression.** `OUTPUT a, ", ", b` prints `a`, then the
   stray `, ", ", b` produces parse errors (recovery resyncs at the next statement
   start, so following statements survive; the compile still fails). Concatenate with
@@ -48,10 +46,9 @@ test programs.
   keywords now — `DECLARE READ : INTEGER` no longer compiles. `WRITEFILE f, a, b` takes
   exactly two operands (the stray `, b` is a parse error, like multi-expression OUTPUT).
   READFILE's target must be a plain STRING variable — no CHAR, no `arr[i]` (mirrors
-  INPUT). The CIE guide's empty-line test `IF LineOfText = ""` silently fails here
-  because STRING `=` is pointer identity — use `LENGTH(LineOfText) = 0`. At most 16
-  files open at once. All runtime misuse (not open, wrong mode, reopen, fopen failure,
-  READFILE past EOF) is a `[Fatal] line %d:` exit(1), by design — guard reads with
+  INPUT). The CIE guide's empty-line test `IF LineOfText = ""` compares contents.
+  At most 16 files open at once. All runtime misuse (not open, wrong mode, reopen,
+  fopen failure, READFILE past EOF) is a `[Fatal] line %d:` exit(1), by design — guard reads with
   `WHILE NOT EOF(...)`. Caveat: the open-file table is keyed by the filename *string*
   (per CIE semantics), so two spellings of one OS path (`"a.txt"` vs `"./a.txt"`) evade
   the already-open check and get two independent buffered streams — reads through the

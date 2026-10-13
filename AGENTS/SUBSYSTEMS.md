@@ -67,7 +67,7 @@ line. On first file use, `ensureRuntime()` synthesizes the whole runtime once â€
 only module-level helper functions in the project: internal-linkage `__cps_file_find/
 open/read/write/close/eof` plus a 16-slot open-file table (`__cps_file_names/handles/
 modes` parallel globals; mode byte 0 = free). Files are keyed by filename *content*
-(strcmp scan) because STRING `=` is pointer identity; the name pointer is stored as-is
+(strcmp scan), consistent with STRING comparison; the name pointer is stored as-is
 (strings are immutable and never freed). EOF is an fgetc/ungetc peek; READFILE grows a
 malloc/realloc buffer per line and strips one trailing `\r`; fopen modes are text
 `"r"/"w"/"a"` (Windows CRT translates CRLF). File-free programs get byte-identical IR â€”

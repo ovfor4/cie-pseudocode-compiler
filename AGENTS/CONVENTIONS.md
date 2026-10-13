@@ -57,6 +57,13 @@ CHAR = `i8`, STRING = opaque `ptr` to a NUL-terminated buffer. Some code still i
 pseudocode types *backwards* from LLVM types (`getExprTypeInfo`'s fallback,
 `ArithmeticHandler`'s `isIntegerTy(64)` tests), so these widths are ABI.
 
+**Reference storage does not imply address comparison.** Compare values by content;
+only explicitly declared pointer types compare addresses. STRING's six comparison
+operators use `strcmp` in `StringHandler`, dispatched by pseudocode type in CodeGen
+before ArithmeticHandler. Ordering is case-sensitive byte lexicographic order;
+mixed STRING/non-STRING comparisons are errors. Whole-array and record comparisons
+remain unsupported.
+
 **Strings are malloc'd and never freed — by design.** Every string-producing operation
 (`&`, MID/LEFT/RIGHT/LCASE/UCASE, NUM_TO_STR, CHR, READFILE, CHAR/number→STRING
 coercion) mallocs a fresh buffer; string literals and BOOLEAN→STRING coercion instead

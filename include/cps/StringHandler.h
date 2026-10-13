@@ -16,6 +16,7 @@ class StringHandler {
     llvm::FunctionCallee MemCpyFunc;
     llvm::FunctionCallee StrCpyFunc;
     llvm::FunctionCallee StrCatFunc;
+    llvm::FunctionCallee StrCmpFunc;
     llvm::FunctionCallee ToUpperFunc;
     llvm::FunctionCallee ToLowerFunc;
 
@@ -30,6 +31,7 @@ public:
     
     llvm::Value *emitLength(llvm::Value *Str);
     llvm::Value *emitConcat(llvm::Value *LHS, llvm::Value *RHS);
+    llvm::Value *emitCompare(int Op, llvm::Value *LHS, llvm::Value *RHS);
     llvm::Value *emitMid(llvm::Value *Str, llvm::Value *Start, llvm::Value *Len);
     llvm::Value *emitRight(llvm::Value *Str, llvm::Value *Len);
     llvm::Value *emitLeft(llvm::Value *Str, llvm::Value *Len);

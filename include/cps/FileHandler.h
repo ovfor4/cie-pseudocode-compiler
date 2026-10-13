@@ -11,8 +11,8 @@ class RuntimeCheck;
 // Emits the text-file runtime: a fixed-size open-file table plus internal
 // __cps_file_* helper functions, synthesized once on first use so programs
 // without file statements keep their IR unchanged. The table is keyed by
-// filename *content* (strcmp) — pseudocode STRING equality is pointer
-// identity, so the same file may be named by many different buffers.
+// filename *content* (strcmp), so the same file may be named by many
+// different buffers.
 // Leaf module: methods only take and return llvm::Value*s; expression
 // evaluation, type coercion and the symbol table stay in CodeGen.
 class FileHandler {

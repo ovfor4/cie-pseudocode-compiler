@@ -83,7 +83,7 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
             case tok_ge: return Builder.CreateFCmpOGE(LVal, RVal, "sgetmp");
         }
     } else {
-        // Same-type pairs (i64/i64, i8/i8 CHAR, i1/i1, ptr/ptr STRING) go
+        // Same-type pairs (i64/i64, i8/i8 CHAR, i1/i1) go
         // through untouched; mixed integer widths are widened, anything else
         // mismatched is a diagnostic instead of invalid IR.
         Value *L = LHS;

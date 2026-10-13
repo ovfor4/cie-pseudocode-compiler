@@ -637,6 +637,21 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             if (!L || !R) return nullptr;
             return StrHandler->emitConcat(L, R);
         }
+        // STRING and explicit pointers share LLVM's ptr representation;
+        // string comparisons must dispatch on the pseudocode type.
+        switch (Bin->getOp()) {
+        case tok_eq: case tok_ne: case '<': case '>': case tok_le: case tok_ge:
+            if ((LT && LT->isString()) || (RT && RT->isString())) {
+                if (!(LT && LT->isString() && RT && RT->isString())) {
+                    reportError("STRING comparison requires two STRING operands (line %d)", Bin->getLine());
+                    return nullptr;
+                }
+                return StrHandler->emitCompare(Bin->getOp(), L, R);
+            }
+            break;
+        default:
+            break;
+        }
         return ArithHandler->emitBinaryOp(Bin->getOp(), L, R, Bin->getLine());
     }
 

@@ -25,8 +25,9 @@ branches do. Builtins are plain identifiers — nothing is needed in lexer/parse
 **New binary operator:** token (if multi-char) → one line in `BinopPrecedence`
 (Parser ctor; levels: OR=3, AND=5, comparisons=10, `+ - &`=20, `* / DIV MOD`=40;
 precedence must be > 0) → branch in `ArithmeticHandler::emitBinaryOp`, which dispatches
-on raw LLVM operand types. Exception: `&` is intercepted upstream in `CodeGen::emitExpr`
-(operands coerced to STRING, then `StringHandler::emitConcat`).
+on raw LLVM operand types. Exceptions in `CodeGen::emitExpr`: `&` coerces operands
+to STRING then calls `StringHandler::emitConcat`; STRING comparisons require two
+STRING operands by pseudocode type then call `StringHandler::emitCompare`.
 
 **New builtin type:** register in `TypeSystem::registerBuiltins` (sizes are derived —
 never hand-written) + `TypeKind` case in the **exhaustive, default-less switches**:

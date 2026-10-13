@@ -1,4 +1,5 @@
 #include "cps/StringHandler.h"
+#include "cps/Lexer.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Constants.h"
@@ -27,6 +28,9 @@ void StringHandler::setupExternalFunctions() {
                                                  false);
     StrCpyFunc = Module.getOrInsertFunction("strcpy", StrCpyType);
     StrCatFunc = Module.getOrInsertFunction("strcat", StrCpyType);
+    StrCmpFunc = Module.getOrInsertFunction("strcmp",
+        FunctionType::get(Type::getInt32Ty(Context),
+                         {PointerType::getUnqual(Context), PointerType::getUnqual(Context)}, false));
 
     FunctionType *CharCaseType = FunctionType::get(Type::getInt32Ty(Context), {Type::getInt32Ty(Context)}, false);
     ToUpperFunc = Module.getOrInsertFunction("toupper", CharCaseType);
@@ -56,6 +60,24 @@ Value *StringHandler::emitConcat(Value *LHS, Value *RHS) {
     Builder.CreateCall(StrCatFunc, {NewStr, RHS});
 
     return NewStr;
+}
+
+Value *StringHandler::emitCompare(int Op, Value *LHS, Value *RHS) {
+    if (!LHS || !RHS) return nullptr;
+
+    CmpInst::Predicate Pred;
+    switch (Op) {
+    case tok_eq: Pred = CmpInst::ICMP_EQ; break;
+    case tok_ne: Pred = CmpInst::ICMP_NE; break;
+    case '<':    Pred = CmpInst::ICMP_SLT; break;
+    case '>':    Pred = CmpInst::ICMP_SGT; break;
+    case tok_le: Pred = CmpInst::ICMP_SLE; break;
+    case tok_ge: Pred = CmpInst::ICMP_SGE; break;
+    default: return nullptr;
+    }
+
+    Value *Cmp = Builder.CreateCall(StrCmpFunc, {LHS, RHS}, "strcmp_result");
+    return Builder.CreateICmp(Pred, Cmp, ConstantInt::get(Type::getInt32Ty(Context), 0), "str_compare");
 }
 
 // malloc(Len + 1), copy Len bytes from Src + StartIdx, NUL-terminate.
