@@ -17,6 +17,10 @@ function codeOnly(text) {
 		} else if (quote) {
 			if (char === quote) quote = null;
 			result.push(' ');
+		} else if (text.slice(i, i + 3) === "'''") {
+			// The compiler accepts a quote character as a three-quote CHAR literal.
+			result.push(' ', ' ', ' ');
+			i += 2;
 		} else if (char === '"' || char === "'") {
 			quote = char;
 			result.push(' ');

@@ -58,4 +58,5 @@ test('comments, strings, lowercase and keyword prefixes cannot become keywords',
 	assert.ok(grammar.tokenizeLine('IF X THEN', state).tokens[0].scopes.includes(
 		'keyword.control.cie-pseudocode'));
 	assert.ok(scopesAt('OUTPUT "x\\" + 1', '+').includes('keyword.operator.cie-pseudocode'));
+	assert.ok(scopesAt("OUTPUT ''' + 1", '+').includes('keyword.operator.cie-pseudocode'));
 });

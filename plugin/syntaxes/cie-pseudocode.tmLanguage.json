@@ -81,6 +81,10 @@
     "strings": {
       "patterns": [
         {
+          "match": "'''",
+          "name": "string.quoted.single.cie-pseudocode"
+        },
+        {
           "begin": "\"",
           "end": "\"|$",
           "beginCaptures": {
