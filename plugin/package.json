@@ -1,0 +1,36 @@
+{
+  "name": "cie-pseudocode",
+  "displayName": "CIE Pseudocode",
+  "description": "CIE pseudocode highlighting, Tab indentation and bracket checking for .cps files.",
+  "version": "0.1.0",
+  "publisher": "ovfor4",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ovfor4/cie-pseudocode-compiler.git",
+    "directory": "plugin"
+  },
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages", "Formatters"],
+  "scripts": {
+    "check": "node --check src/extension.js",
+    "test": "node --test test/*.test.js"
+  },
+  "contributes": {
+    "languages": [{
+      "id": "cie-pseudocode",
+      "aliases": ["CIE Pseudocode", "cie-pseudocode"],
+      "extensions": [".cps"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "cie-pseudocode",
+      "scopeName": "source.cie-pseudocode",
+      "path": "./syntaxes/cie-pseudocode.tmLanguage.json"
+    }]
+  },
+  "devDependencies": {
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "name": "CIE Pseudocode",
+  "scopeName": "source.cie-pseudocode",
+  "patterns": [
+    {
+      "include": "#line_comment"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "match": "(?<!\\w)(?:IF|THEN|ELSE|ENDIF|WHILE|DO|ENDWHILE|REPEAT|UNTIL|FOR|TO|STEP|NEXT|RETURN|CALL)(?!\\w)",
+      "name": "keyword.control.cie-pseudocode"
+    },
+    {
+      "match": "(?<!\\w)(?:DECLARE|TYPE|ENDTYPE|FUNCTION|ENDFUNCTION|PROCEDURE|ENDPROCEDURE|RETURNS|BYREF|BYVAL|OF)(?!\\w)",
+      "name": "storage.modifier.cie-pseudocode"
+    },
+    {
+      "match": "(?<!\\w)(?:INTEGER|REAL|BOOLEAN|STRING|CHAR|ARRAY)(?!\\w)",
+      "name": "storage.type.cie-pseudocode"
+    },
+    {
+      "match": "(?<!\\w)(?:TRUE|FALSE)(?!\\w)",
+      "name": "constant.language.cie-pseudocode"
+    },
+    {
+      "match": "(?<!\\w)(?:INPUT|OUTPUT|OPENFILE|READFILE|WRITEFILE|CLOSEFILE|READ|WRITE|APPEND)(?!\\w)",
+      "name": "keyword.other.cie-pseudocode"
+    },
+    {
+      "match": "(?<!\\w)(?:LENGTH|MID|RIGHT|LEFT|LCASE|UCASE|ASC|CHR|IS_NUM|NUM_TO_STR|STR_TO_NUM|EOF)(?!\\w)(?=\\s*\\()",
+      "name": "entity.name.function.cie-pseudocode"
+    },
+    {
+      "match": "(?<!\\w)(?:DIV|MOD|AND|OR|NOT)(?!\\w)",
+      "name": "keyword.operator.word.cie-pseudocode"
+    },
+    {
+      "match": "<-|<>|<=|>=|[+*/=&^<>-]",
+      "name": "keyword.operator.cie-pseudocode"
+    },
+    {
+      "match": "(?<!\\w)\\d+(?:\\.\\d*)?(?!\\w)",
+      "name": "constant.numeric.cie-pseudocode"
+    },
+    {
+      "match": "\\b[A-Za-z][A-Za-z0-9_]*(?=\\s*\\()",
+      "name": "entity.name.function.cie-pseudocode"
+    },
+    {
+      "match": "[()]",
+      "name": "punctuation.section.parens.cie-pseudocode"
+    },
+    {
+      "match": "[\\[\\]]",
+      "name": "punctuation.section.brackets.cie-pseudocode"
+    },
+    {
+      "match": ",",
+      "name": "punctuation.separator.delimiter.comma.cie-pseudocode"
+    },
+    {
+      "match": "[:.]",
+      "name": "punctuation.separator.cie-pseudocode"
+    }
+  ],
+  "repository": {
+    "line_comment": {
+      "begin": "(//)",
+      "end": "$",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.comment.cie-pseudocode"
+        }
+      },
+      "endCaptures": {},
+      "name": "comment.line.double-slash.cie-pseudocode",
+      "patterns": []
+    },
+    "strings": {
+      "patterns": [
+        {
+          "begin": "\"",
+          "end": "\"|$",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.cie-pseudocode"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.cie-pseudocode"
+            }
+          },
+          "name": "string.quoted.double.cie-pseudocode",
+          "patterns": []
+        },
+        {
+          "begin": "'",
+          "end": "'|$",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.cie-pseudocode"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.cie-pseudocode"
+            }
+          },
+          "name": "string.quoted.single.cie-pseudocode",
+          "patterns": []
+        }
+      ]
+    }
+  }
+}
