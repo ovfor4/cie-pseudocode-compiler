@@ -76,6 +76,10 @@ interrupt an interactive program with Ctrl+C before running another file.
 Follow the current compiler, rather than implementing every PDF feature:
 
 - Uppercase, case-sensitive keywords; ASCII `<-` assignment; `//` comments.
+- Native C aliases C_INT/C_CHAR/C_STRING/C_DOUBLE and the C_TYPE import keyword
+  use type scopes. C_TYPE's quoted expression remains a string, and casts use
+  ordinary parentheses. `TYPE Name = C_TYPE("...")` is a single-line alias
+  declaration, so it does not open an indentation block.
 - Double-quoted strings and single-quoted characters have no escapes or multiline
   continuation. The compiler accepts `'''` as a quote character literal.
 - Blocks: IF/THEN/ELSE/ENDIF, WHILE/DO/ENDWHILE, REPEAT/UNTIL, FOR/NEXT,

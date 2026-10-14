@@ -29,7 +29,7 @@
       "name": "storage.modifier.cie-pseudocode"
     },
     {
-      "match": "(?<!\\w)(?:INTEGER|REAL|BOOLEAN|STRING|CHAR|ARRAY)(?!\\w)",
+      "match": "(?<!\\w)(?:INTEGER|REAL|BOOLEAN|STRING|CHAR|ARRAY|C_INT|C_CHAR|C_STRING|C_DOUBLE|C_TYPE)(?!\\w)",
       "name": "storage.type.cie-pseudocode"
     },
     {

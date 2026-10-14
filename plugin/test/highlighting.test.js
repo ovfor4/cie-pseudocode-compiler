@@ -33,6 +33,11 @@ test('C++ style scopes distinguish keywords, types, literals, operators and buil
 		['IF Ready THEN', 'IF', 'keyword.control'],
 		['DECLARE X : INTEGER', 'DECLARE', 'storage.modifier'],
 		['DECLARE X : INTEGER', 'INTEGER', 'storage.type'],
+		['DECLARE X : C_INT', 'C_INT', 'storage.type'],
+		['DECLARE X : C_CHAR', 'C_CHAR', 'storage.type'],
+		['DECLARE X : C_STRING', 'C_STRING', 'storage.type'],
+		['OUTPUT (C_DOUBLE)X', 'C_DOUBLE', 'storage.type'],
+		['TYPE Native = C_TYPE("int")', 'C_TYPE', 'storage.type'],
 		['X <- TRUE', 'TRUE', 'constant.language'],
 		['X <- 12.5', '12.5', 'constant.numeric'],
 		['X <- 2 DIV 1', 'DIV', 'keyword.operator.word'],
@@ -72,6 +77,11 @@ test('exception keywords reuse C++ scopes and ignore non-keyword occurrences', (
 test('comments, strings, lowercase and keyword prefixes cannot become keywords', () => {
 	assert.ok(scopesAt('// IF [(', 'IF').some(s => s.startsWith('comment.')));
 	assert.ok(scopesAt('OUTPUT "IF // ["', 'IF').some(s => s.startsWith('string.')));
+	assert.ok(scopesAt('TYPE Native = C_TYPE("C_INT")', 'C_INT').some(s => s.startsWith('string.')));
+	assert.ok(scopesAt('// C_TYPE("int")', 'C_TYPE').some(s => s.startsWith('comment.')));
+	for (const text of ['c_int', 'C_INTValue', 'MyC_INT', 'C_TYPE_1']) {
+		assert.ok(!scopesAt(text, text).some(s => s.startsWith('storage.')), text);
+	}
 	for (const text of ['if X then', 'IFValue <- 1', 'CASE OF X', 'CLASS Example']) {
 		assert.ok(!scopesAt(text, text.split(' ')[0]).some(
 			s => /^(keyword|storage)\./.test(s)), text);
