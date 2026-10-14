@@ -8,6 +8,17 @@
 
 namespace cps {
 
+// TYPE <name> = C_TYPE("<C type expression>")
+class CTypeDeclAST : public StmtAST {
+    std::string Name;
+    std::string Expression;
+public:
+    CTypeDeclAST(std::string Name, std::string Expression)
+        : Name(std::move(Name)), Expression(std::move(Expression)) {}
+    const std::string &getName() const { return Name; }
+    const std::string &getExpression() const { return Expression; }
+};
+
 // ---- User-defined type declarations (CIE 9618 §4.1) ----
 
 // One field of a record TYPE body. Plain data, not a statement node, so the

@@ -112,6 +112,13 @@ bool Parser::ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out) {
 }
 
 std::string Parser::ParseTypeName(bool AllowVoid) {
+    switch (CurTok) {
+    case tok_c_int: getNextToken(); return "C_INT";
+    case tok_c_char: getNextToken(); return "C_CHAR";
+    case tok_c_string: getNextToken(); return "C_STRING";
+    case tok_c_double: getNextToken(); return "C_DOUBLE";
+    default: break;
+    }
     if (CurTok == tok_integer_kw) {
         getNextToken();
         return "INTEGER";

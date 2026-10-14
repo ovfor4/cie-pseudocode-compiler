@@ -34,7 +34,26 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
     if (!IsClass && CurTok == tok_eq) {
         getNextToken();
 
-        if (CurTok == '(') {
+        if (CurTok == tok_c_type) {
+            getNextToken();
+            if (CurTok != '(') {
+                fprintf(stderr, "error: Expected '(' after C_TYPE at line %d\n", Lex.getLine());
+                return nullptr;
+            }
+            getNextToken();
+            if (CurTok != tok_string_literal) {
+                fprintf(stderr, "error: C_TYPE requires a string literal at line %d\n", Lex.getLine());
+                return nullptr;
+            }
+            std::string Expression = Lex.StringVal;
+            getNextToken();
+            if (CurTok != ')') {
+                fprintf(stderr, "error: Expected ')' after C_TYPE string at line %d\n", Lex.getLine());
+                return nullptr;
+            }
+            getNextToken();
+            Decl = std::make_unique<CTypeDeclAST>(Name, Expression);
+        } else if (CurTok == '(') {
             getNextToken();
             std::vector<std::string> Values;
             while (true) {
@@ -65,7 +84,7 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
             getNextToken();
             return nullptr;
         } else {
-            fprintf(stderr, "error: Expected '(' or '^' after '=' in TYPE %s at line %d\n",
+            fprintf(stderr, "error: Expected '(', '^' or C_TYPE after '=' in TYPE %s at line %d\n",
                     Name.c_str(), Lex.getLine());
             return nullptr;
         }

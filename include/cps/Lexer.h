@@ -89,6 +89,11 @@ enum Token {
     tok_endclass = -605,
     tok_public = -606,
     tok_private = -607,
+    tok_c_type = -608,
+    tok_c_int = -609,
+    tok_c_char = -610,
+    tok_c_string = -611,
+    tok_c_double = -612,
 
     tok_try = -700,
     tok_catch = -701,

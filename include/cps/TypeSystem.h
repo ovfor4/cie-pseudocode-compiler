@@ -29,7 +29,9 @@ enum class TypeKind {
     Void,
     Enum,
     Record,
-    Pointer
+    Pointer,
+    CScalar,
+    CPointer
 };
 
 // ---- Per-kind payloads (filled only for the matching TypeKind) ----
@@ -67,6 +69,16 @@ struct TypeInfo {
     RecordPayload Record;   // Kind == Record only
     EnumPayload Enum;       // Kind == Enum only
     PointerPayload Pointer; // Kind == Pointer only
+
+    // C aliases share an identity even when their pseudocode names differ.
+    std::string CIdentity;
+    unsigned CRank = 0;
+    bool CSigned = false;
+    std::string CInputFormat;
+    std::string COutputFormat;
+
+    bool isC() const;
+    bool sameType(const TypeInfo *Other) const;
 
     bool isNumeric() const;
     bool isIntegral() const;
@@ -125,6 +137,10 @@ public:
     bool definePointer(const std::string &Name,
                        const std::string &PointeeName,
                        std::string &Err);
+    bool defineCAlias(const std::string &Name, const std::string &Expression,
+                      std::string &Err);
+    const TypeInfo *importCType(const std::string &Expression, std::string &Err);
+    bool sameType(const std::string &Left, const std::string &Right) const;
 
     const EnumConstant *lookupEnumConstant(const std::string &Name) const;
 

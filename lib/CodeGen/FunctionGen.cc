@@ -117,6 +117,12 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
 
     std::vector<Type*> ArgTypes;
     for (const ParamDecl &P : Proto->getParams()) {
+        const TypeInfo *Info = Types.resolve(P.TypeName);
+        if (Info && Info->isVoid()) {
+            fprintf(stderr, "error: parameter %s cannot have void type\n", P.Name.c_str());
+            HadError = true;
+            return nullptr;
+        }
         ParamSig PS;
         PS.TypeName = P.TypeName;
         PS.IsByRef = P.Mode == PassMode::ByRef;

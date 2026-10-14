@@ -42,7 +42,9 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
 
     for (const auto &S : Statements) {
         bool Ok = true;
-        if (auto *E = dynamic_cast<EnumTypeDeclAST*>(S.get()))
+        if (auto *C = dynamic_cast<CTypeDeclAST*>(S.get()))
+            Ok = Types->defineCAlias(C->getName(), C->getExpression(), Err);
+        else if (auto *E = dynamic_cast<EnumTypeDeclAST*>(S.get()))
             Ok = Types->declareUserType(E->getName(), TypeKind::Enum, Err);
         else if (auto *P = dynamic_cast<PointerTypeDeclAST*>(S.get()))
             Ok = Types->declareUserType(P->getName(), TypeKind::Pointer, Err);
@@ -163,6 +165,11 @@ bool CodeGen::emitLValue(ExprAST *E, LValueInfo &Out) {
                             TypeName.c_str());
                 return false;
             }
+            const TypeInfo *Pointee = resolveType(PP->PointeeTypeName);
+            if (!Pointee || Pointee->isVoid()) {
+                reportError("Cannot dereference a void pointer");
+                return false;
+            }
             Value *P = Builder->CreateLoad(PointerType::getUnqual(*TheContext), Addr, "deref_ptr");
             RuntimeChecker->emitNullDerefCheck(P, D->getLine());
             Addr = P;
@@ -213,6 +220,22 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
 
     const TypeInfo *Src = getExprTypeInfo(E);
 
+    if (Target->isC() || (Src && Src->isC())) {
+        if (auto *Addr = dynamic_cast<AddrOfExprAST*>(E)) {
+            const PointerPayload *PP = Target->asPointer();
+            LValueInfo LV;
+            if (PP && emitLValue(Addr->getTarget(), LV)) {
+                if (Types->sameType(LV.TypeName, PP->PointeeTypeName)) return LV.Addr;
+            }
+            reportError("Address does not match C pointer type %s", Target->Name.c_str());
+            return nullptr;
+        }
+        if (Src && Src->sameType(Target) && !Target->isVoid()) return emitExpr(E);
+        reportError("Cannot implicitly convert %s to %s; use an explicit cast",
+                    Src ? Src->Name.c_str() : "expression", Target->Name.c_str());
+        return nullptr;
+    }
+
     if (Target->isUserKind()) {
         // ^x into a pointer target is structural: the pointee type name must
         // match the pointer type's declared pointee exactly (strict — the
@@ -226,7 +249,7 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
             }
             LValueInfo LV;
             if (!emitLValue(Addr->getTarget(), LV)) return nullptr;
-            if (LV.TypeName != PP->PointeeTypeName) {
+            if (!Types->sameType(LV.TypeName, PP->PointeeTypeName)) {
                 reportError("%s is a pointer to %s and cannot point at a value of type %s",
                             Target->Name.c_str(), PP->PointeeTypeName.c_str(), LV.TypeName.c_str());
                 return nullptr;

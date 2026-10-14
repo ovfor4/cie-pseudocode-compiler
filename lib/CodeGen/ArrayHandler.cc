@@ -321,7 +321,7 @@ bool ArrayHandler::emitArrayArgument(ExprAST *ArgExpr,
                        Callee.c_str(), ElemTypeName.c_str());
         return false;
     }
-    if (Meta->ElementTypeName != ElemTypeName) {
+    if (!CG.resolveType(Meta->ElementTypeName)->sameType(CG.resolveType(ElemTypeName))) {
         CG.reportError("Array argument %s to %s must have element type %s (got %s)",
                        Var->getName().c_str(), Callee.c_str(),
                        ElemTypeName.c_str(), Meta->ElementTypeName.c_str());

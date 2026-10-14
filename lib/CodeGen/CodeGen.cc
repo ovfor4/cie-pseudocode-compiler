@@ -262,6 +262,7 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
 
         const TypeInfo *L = getExprTypeInfo(Bin->getLHS());
         const TypeInfo *R = getExprTypeInfo(Bin->getRHS());
+        if ((L && L->isC()) || (R && R->isC())) return nullptr;
         // Enum arithmetic: E +/- INTEGER (enum on the left) yields the enum;
         // every other user-kind combination has no type (emission rejects it).
         if ((L && L->isUserKind()) || (R && R->isUserKind())) {
@@ -387,6 +388,8 @@ Value *CodeGen::coerceValueToType(Value *Val, const TypeInfo *TargetInfo) {
         case TypeKind::Enum:
         case TypeKind::Record:
         case TypeKind::Pointer:
+        case TypeKind::CScalar:
+        case TypeKind::CPointer:
             reportError("Internal: a %s value reached representation coercion without a name-level check",
                         TargetInfo->Name.c_str());
             return nullptr;
@@ -505,6 +508,11 @@ void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewli
 
     case TypeKind::Pointer:
         reportError("Cannot OUTPUT a value of pointer type %s", Info->Name.c_str());
+        return;
+
+    case TypeKind::CScalar:
+    case TypeKind::CPointer:
+        reportError("OUTPUT is not supported for type %s", Info->Name.c_str());
         return;
 
     case TypeKind::Void:
@@ -644,6 +652,10 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         // '&' path: their admissible operations are decided by name here.
         const TypeInfo *LT = getExprTypeInfo(Bin->getLHS());
         const TypeInfo *RT = getExprTypeInfo(Bin->getRHS());
+        if ((LT && LT->isC()) || (RT && RT->isC())) {
+            reportError("C operators require explicit support for their operand types");
+            return nullptr;
+        }
         if ((LT && LT->isUserKind()) || (RT && RT->isUserKind())) {
             return emitUserKindBinaryOp(Bin, LT, RT);
         }
@@ -719,7 +731,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         }
         if (Name == "ASC") {
             const TypeInfo *ArgType = getExprTypeInfo(Call->getArgs()[0].get());
-            if (ArgType && ArgType->isUserKind()) {
+            if (ArgType && (ArgType->isUserKind() || ArgType->isC())) {
                 reportError("ASC expects a CHAR or STRING (got %s)", ArgType->Name.c_str());
                 return nullptr;
             }
@@ -747,7 +759,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         }
         if (Name == "NUM_TO_STR") {
             const TypeInfo *ArgType = getExprTypeInfo(Call->getArgs()[0].get());
-            if (ArgType && ArgType->isUserKind()) {
+            if (ArgType && (ArgType->isUserKind() || ArgType->isC())) {
                 reportError("NUM_TO_STR expects a number (got %s)", ArgType->Name.c_str());
                 return nullptr;
             }
@@ -850,7 +862,7 @@ bool CodeGen::marshalCallArgs(const std::string &Callee,
                 return false;
             }
             // BYREF aliases the storage, so the types must match exactly.
-            if (Info->TypeName != TypeName) {
+            if (!Types->sameType(Info->TypeName, TypeName)) {
                 reportError("BYREF argument %s to %s must be of type %s (got %s)",
                             Var->getName().c_str(), Callee.c_str(),
                             TypeName.c_str(), Info->TypeName.c_str());
@@ -1093,11 +1105,11 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             reportError("RETURN is only allowed inside a FUNCTION or PROCEDURE");
             return;
         }
-        if (Sig->ReturnTypeName == "VOID" && Ret->getRetVal()) {
+        if (F->getReturnType()->isVoidTy() && Ret->getRetVal()) {
             reportError("RETURN with a value is only allowed in a FUNCTION");
             return;
         }
-        if (Sig->ReturnTypeName != "VOID" && !Ret->getRetVal()) {
+        if (!F->getReturnType()->isVoidTy() && !Ret->getRetVal()) {
             reportError("RETURN in a FUNCTION requires a value");
             return;
         }
@@ -1293,7 +1305,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     // TYPE declarations are registered by compile()'s pre-pass (the parser
     // guarantees they are top-level); nothing is emitted here.
     if (dynamic_cast<EnumTypeDeclAST*>(Stmt) || dynamic_cast<PointerTypeDeclAST*>(Stmt) ||
-        dynamic_cast<RecordTypeDeclAST*>(Stmt)) {
+        dynamic_cast<RecordTypeDeclAST*>(Stmt) || dynamic_cast<CTypeDeclAST*>(Stmt)) {
         return;
     }
     if (auto *DA = dynamic_cast<DesignatorAssignStmtAST*>(Stmt)) {

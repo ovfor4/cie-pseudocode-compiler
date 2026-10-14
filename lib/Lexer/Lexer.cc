@@ -74,6 +74,11 @@ int Lexer::gettok() {
         if (IdentifierStr == "REAL")    return tok_real_kw;
         if (IdentifierStr == "STRING")  return tok_string_kw;
         if (IdentifierStr == "CHAR")    return tok_char_kw;
+        if (IdentifierStr == "C_TYPE") return tok_c_type;
+        if (IdentifierStr == "C_INT") return tok_c_int;
+        if (IdentifierStr == "C_CHAR") return tok_c_char;
+        if (IdentifierStr == "C_STRING") return tok_c_string;
+        if (IdentifierStr == "C_DOUBLE") return tok_c_double;
 
         if (IdentifierStr == "TRUE") return tok_true;
         if (IdentifierStr == "FALSE") return tok_false;
