@@ -69,10 +69,16 @@ bool checkLliVersion(llvm::StringRef LliPath) {
 int main(int argc, char **argv) {
     for (int I = 1; I < argc; ++I) {
         if (std::string(argv[I]) == "-h") {
+            llvm::outs() << "CIE Pseudocode Compiler is licensed under AGPL 3.0 or later. This is free software; see the source for copying conditions. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n";
+            llvm::outs() << "The source is available here: github.com/ovfor4/cie-pseudocode-compiler\n";
+            llvm::outs() << "Please leave a star on GitHub if you find it helpful, so that the project can be more popular\n";
+            llvm::outs() << "\n";
+            llvm::outs() << "\n";
+
 #ifdef _WIN32
-            llvm::outs() << "See Start Menu > cpsc > cpsc Help for HTML help.\n";
+            llvm::outs() << "See \'Start Menu > cpsc > cpsc Help\' for HTML help.\n";
 #else
-            llvm::outs() << "See man 1 cpsc for help.\n";
+            llvm::outs() << "See \'man 1 cpsc\' for help.\n";
 #endif
             return 0;
         }
