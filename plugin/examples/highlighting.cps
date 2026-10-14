@@ -39,3 +39,9 @@ ENDPROCEDURE
 OPENFILE "example.txt" FOR WRITE
 WRITEFILE "example.txt", Text
 CLOSEFILE "example.txt"
+
+TRY
+	THROW
+CATCH
+	OUTPUT "Caught an exception"
+ENDTRY

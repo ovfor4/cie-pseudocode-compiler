@@ -1,7 +1,10 @@
 # Third-party notices
 
 Language configuration and comment/string grammar structures are adapted from
-Microsoft VS Code’s built-in C++ extension:
+Microsoft VS Code’s built-in C++ extension. Exception keywords reuse its
+`keyword.control.try.cpp`, `keyword.control.catch.cpp` and
+`keyword.control.throw.cpp` scopes; ENDTRY uses the TRY scope.
+
 https://github.com/microsoft/vscode/tree/main/extensions/cpp
 
 MIT License

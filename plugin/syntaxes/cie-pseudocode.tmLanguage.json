@@ -9,6 +9,18 @@
       "include": "#strings"
     },
     {
+      "match": "(?<!\\w)(?:TRY|ENDTRY)(?!\\w)",
+      "name": "keyword.control.try.cpp"
+    },
+    {
+      "match": "(?<!\\w)CATCH(?!\\w)",
+      "name": "keyword.control.catch.cpp"
+    },
+    {
+      "match": "(?<!\\w)THROW(?!\\w)",
+      "name": "keyword.control.throw.cpp"
+    },
+    {
       "match": "(?<!\\w)(?:IF|THEN|ELSE|ENDIF|WHILE|DO|ENDWHILE|REPEAT|UNTIL|FOR|TO|STEP|NEXT|RETURN|CALL)(?!\\w)",
       "name": "keyword.control.cie-pseudocode"
     },

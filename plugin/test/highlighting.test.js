@@ -53,6 +53,22 @@ test('both assignment characters share the C++ assignment scope', () => {
 	assert.ok(!scopesAt('X - 1', '-').includes('keyword.operator.assignment.cpp'));
 });
 
+test('exception keywords reuse C++ scopes and ignore non-keyword occurrences', () => {
+	for (const [word, scope] of [
+		['TRY', 'keyword.control.try.cpp'],
+		['CATCH', 'keyword.control.catch.cpp'],
+		['THROW', 'keyword.control.throw.cpp'],
+		['ENDTRY', 'keyword.control.try.cpp']
+	]) {
+		assert.ok(scopesAt(word, word).includes(scope));
+		assert.ok(scopesAt(`// ${word}`, word).some(s => s.startsWith('comment.')));
+		assert.ok(scopesAt(`OUTPUT "${word}"`, word).some(s => s.startsWith('string.')));
+		for (const text of [word.toLowerCase(), `${word}Value`, `My${word}`, `${word}_1`]) {
+			assert.ok(!scopesAt(text, text).some(s => s.startsWith('keyword.')), text);
+		}
+	}
+});
+
 test('comments, strings, lowercase and keyword prefixes cannot become keywords', () => {
 	assert.ok(scopesAt('// IF [(', 'IF').some(s => s.startsWith('comment.')));
 	assert.ok(scopesAt('OUTPUT "IF // ["', 'IF').some(s => s.startsWith('string.')));
