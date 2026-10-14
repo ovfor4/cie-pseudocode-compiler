@@ -180,6 +180,29 @@ on Linux. LLVM 23 uses `CreateGlobalString` for opaque string pointers,
 `hasTerminator()` for block termination checks (its `getTerminator()` requires an
 existing terminator), and an explicit `llvm::Triple` for the embedded target.
 
+## Nightly builds
+
+`.github/workflows/nightly-build.yml` runs on every push to `main`, without path
+filters. A shared concurrency group cancels superseded runs. The cleanup job
+requires the existing `nightly-build` release and deletes all uploaded assets,
+including paginated results, before either build starts. It never creates or
+deletes the release and preserves its tag, title and notes. GitHub's generated
+source downloads remain available.
+
+Compiler and plugin jobs run independently on Ubuntu 24.04 x86_64, checking out
+the push SHA. The compiler uses LLVM/Clang 23 from apt.llvm.org, Release and
+EMBEDDED settings, Pandoc, and the existing `release` target. It extracts and
+checks the archive, then runs a small OUTPUT program with the packaged binary.
+The plugin uses Node.js 22, `npm ci --ignore-scripts` and `npm run package`, then
+checks VSIX contents. Each job uploads directly after its own checks pass;
+failure in one does not block the other. No Actions artifacts are uploaded.
+Cleanup and uploads check main's current SHA to avoid modifying nightly for a
+superseded push. The workflow uses `GITHUB_TOKEN` with `contents: write`.
+Compiler package names retain the existing commit-based version; the VSIX uses
+`plugin/package.json`'s version. Before committing workflow changes, run
+actionlint, simulate release API calls, and smoke-test the packages locally;
+do not modify the real release for local verification.
+
 ## Layout
 
 | Path | Contents |

@@ -103,5 +103,7 @@ random files (OPENFILE...FOR RANDOM/SEEK/GETRECORD/PUTRECORD — TYPE is done, s
 are unblocked now; the RANDOM keyword is reserved and gives a dedicated parse error),
 DATE, INPUT into array elements, string escape sequences,
 array-typed record fields, whole-array RETURN, class methods/constructors/destructors,
-NEW and class inheritance. No compiler tests or CI exist; verify
-changes by compiling sample programs end-to-end (command sequence in `ARCH.md`).
+NEW and class inheritance. There is no dedicated compiler test suite; nightly CI
+smoke-tests the packaged EMBEDDED compiler and runs the existing plugin tests.
+Verify compiler changes by compiling sample programs end-to-end (command
+sequence in `ARCH.md`).
