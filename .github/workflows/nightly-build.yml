@@ -160,6 +160,86 @@ jobs:
           fi
           gh release upload "$CPSC_NIGHTLY_TAG" build/cpsc-*-Darwin-arm64.tar.xz --clobber
 
+  windows:
+    name: Windows x86_64 compiler
+    needs: clean
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Install LLVM 23 and build dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            curl
+            git
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-clang
+            mingw-w64-x86_64-llvm
+            mingw-w64-x86_64-libffi
+            mingw-w64-x86_64-libxml2
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-zstd
+
+      - name: Download Pandoc for Windows
+        shell: msys2 {0}
+        run: |
+          mkdir -p build/deps/packages
+          curl -fL --retry 3 \
+            -o build/deps/packages/pandoc-3.12.1-windows-x86_64.zip \
+            https://github.com/jgm/pandoc/releases/download/3.12.1/pandoc-3.12.1-windows-x86_64.zip
+
+      - name: Build the embedded release package
+        shell: msys2 {0}
+        run: |
+          cmake -S . -B build -G "MinGW Makefiles" \
+            -DCMAKE_BUILD_TYPE=Release -DCPSC_RUN_MODE=EMBEDDED \
+            -DCMAKE_C_COMPILER="$(cygpath -m /mingw64/bin/clang.exe)" \
+            -DCMAKE_CXX_COMPILER="$(cygpath -m /mingw64/bin/clang++.exe)" \
+            -DLLVM_DIR="$(cygpath -m /mingw64/lib/cmake/llvm)" \
+            -DCMAKE_PREFIX_PATH="$(cygpath -m /mingw64)"
+          cmake --build build --target release --parallel 4
+
+      - name: Smoke test the packaged compiler
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem -Path build/cpsc-*-Windows-*.zip -File)
+          if ($packages.Count -ne 1) { throw 'Expected one Windows compiler package' }
+          $smokeDir = Join-Path $env:RUNNER_TEMP 'cpsc-smoke'
+          Expand-Archive -LiteralPath $packages[0].FullName -DestinationPath $smokeDir
+          $packageDir = Join-Path $smokeDir $packages[0].BaseName
+          foreach ($file in @('cpsc.exe', 'install.ps1', 'LICENSE', 'doc/cpsc.html', 'doc/language/cpsc-language-overview.html')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $packageDir $file) -PathType Leaf)) {
+              throw "Missing package file: $file"
+            }
+          }
+          $source = Join-Path $env:RUNNER_TEMP 'nightly-smoke.cps'
+          Set-Content -LiteralPath $source -Value 'OUTPUT "nightly smoke"' -Encoding ascii
+          $savedPath = $env:PATH
+          try {
+            $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+            $output = & (Join-Path $packageDir 'cpsc.exe') $source -r
+            if ($LASTEXITCODE -ne 0) { throw "Compiler smoke test failed: $LASTEXITCODE" }
+            if (($output -join "`n") -cne 'nightly smoke') { throw "Unexpected output: $output" }
+          } finally {
+            $env:PATH = $savedPath
+          }
+
+      - name: Upload the Windows package
+        run: |
+          latest_sha=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$latest_sha" != "$GITHUB_SHA" ]]; then
+            echo "This push has been superseded; skipping upload."
+            exit 0
+          fi
+          gh release upload "$CPSC_NIGHTLY_TAG" build/cpsc-*-Windows-*.zip --clobber
+
   plugin:
     name: VS Code extension
     needs: clean
