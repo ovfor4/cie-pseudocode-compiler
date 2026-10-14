@@ -49,11 +49,11 @@ function activate(context) {
 		}),
 		vscode.languages.registerOnTypeFormattingEditProvider(languageId, {
 			provideOnTypeFormattingEdits(document, position, char) {
-				if (char !== '\n' && !/^\s*(?:ELSE|ENDIF|ENDWHILE|UNTIL|NEXT|ENDFUNCTION|ENDPROCEDURE|ENDTYPE)\b/.test(
+				if (char !== '\n' && !/^\s*(?:ELSE|ENDIF|ENDWHILE|UNTIL|NEXT|ENDFUNCTION|ENDPROCEDURE|ENDTYPE|CATCH|ENDTRY)\b/.test(
 					codeOnly(document.lineAt(position.line).text))) return [];
 				return formatLines(document, position.line, position.line, char === '\n');
 			}
-		}, '\n', 'E', 'F', 'L', 'T', 'N')
+		}, '\n', 'E', 'F', 'L', 'T', 'N', 'H', 'Y')
 	);
 	refreshBrackets();
 }

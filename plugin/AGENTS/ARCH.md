@@ -13,7 +13,8 @@ there is no compiler library or cpptools integration.
   comments, brackets, quote pairs and identifiers.
 - `syntaxes/cie-pseudocode.tmLanguage.json` adapts small C++ comment, quote and
   comma rules and uses the same general token scope categories. CIE keyword,
-  builtin, number and operator patterns are locally defined.
+  builtin, number and operator patterns are locally defined. Exception keywords
+  reuse C++ try/catch/throw scopes, with ENDTRY sharing the TRY scope.
 - cpptools was consulted for provider registration. Its formatter and language
   server are not called, imported or bundled. This extension is not a cpptools
   fork. The formatting API accepts locally computed edits; it does not implement
@@ -78,7 +79,9 @@ Follow the current compiler, rather than implementing every PDF feature:
 - Double-quoted strings and single-quoted characters have no escapes or multiline
   continuation. The compiler accepts `'''` as a quote character literal.
 - Blocks: IF/THEN/ELSE/ENDIF, WHILE/DO/ENDWHILE, REPEAT/UNTIL, FOR/NEXT,
-  FUNCTION/ENDFUNCTION, PROCEDURE/ENDPROCEDURE and record TYPE/ENDTYPE.
+  FUNCTION/ENDFUNCTION, PROCEDURE/ENDPROCEDURE, record TYPE/ENDTYPE and
+  TRY/CATCH/ENDTRY. CATCH aligns with TRY and starts another indented body;
+  ENDTRY closes the block. Bare THROW does not change indentation depth.
 - Separate THEN and DO lines activate the pending block once. Enum and pointer
   `TYPE Name = ...` declarations do not open a record block.
 - Builtins: LENGTH, MID, RIGHT, LEFT, LCASE, UCASE, ASC, CHR, IS_NUM, NUM_TO_STR,

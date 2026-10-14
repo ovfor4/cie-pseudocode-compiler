@@ -24,6 +24,36 @@ test('split THEN/DO, single-line TYPE, comments and strings do not add extra lev
 	assert.deepEqual(lineDepths(lines), [0, 0, 0, 0, 1, 1, 2, 2, 1, 0, 0, 0]);
 });
 
+test('try and catch bodies nest with existing blocks and THROW keeps their depth', () => {
+	const lines = [
+		'PROCEDURE Demo()', 'TRY', 'IF Ready THEN', 'THROW', 'ENDIF',
+		'CATCH', 'TRY', 'THROW', 'CATCH', 'WHILE Ready DO', 'THROW',
+		'ENDWHILE', 'ENDTRY', 'ENDTRY', 'OUTPUT "Done"', 'ENDPROCEDURE'
+	];
+	assert.deepEqual(lineDepths(lines), [0, 1, 2, 3, 2, 1, 2, 3, 2, 3, 4, 3, 2, 1, 1, 0]);
+	assert.deepEqual(lineDepths([
+		'CATCH', 'ENDTRY', 'try', 'TRYValue <- 1', 'TRY // CATCH ENDTRY',
+		'// ENDTRY', 'OUTPUT "CATCH ENDTRY"', 'CATCH // TRY', 'THROW',
+		'ENDTRY', 'OUTPUT "Done"'
+	]), [0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0]);
+});
+
+test('catch selection uses earlier TRY context and formatting is idempotent', () => {
+	const lines = ['IF Ready THEN', '  TRY', ' THROW', '    CATCH',
+		' OUTPUT "Caught"', '   ENDTRY', 'ENDIF'];
+	const edits = indentationEdits(lines, 3, 5);
+	assert.deepEqual(edits, [
+		{ line: 3, length: 4, text: '\t' },
+		{ line: 4, length: 1, text: '\t\t' },
+		{ line: 5, length: 3, text: '\t' }
+	]);
+	for (const edit of edits) lines[edit.line] = edit.text + lines[edit.line].slice(edit.length);
+	assert.equal(lines[1], '  TRY');
+	assert.equal(lines[2], ' THROW');
+	assert.equal(lines[4], '\t\tOUTPUT "Caught"');
+	assert.deepEqual(indentationEdits(lines, 3, 5), []);
+});
+
 test('range formatting reads earlier context, preserves text and is idempotent', () => {
 	const lines = ['IF X THEN', '   WHILE Y DO', ' OUTPUT "x"  // keep spaces', ' ENDWHILE', 'ENDIF'];
 	const edits = indentationEdits(lines, 2, 3);
@@ -38,7 +68,10 @@ test('range formatting reads earlier context, preserves text and is idempotent',
 });
 
 test('blank lines are empty when formatted and indented at the caret after Enter', () => {
-	const lines = ['IF X THEN', '   '];
-	assert.deepEqual(indentationEdits(lines, 1, 1), [{ line: 1, length: 3, text: '' }]);
-	assert.deepEqual(indentationEdits(lines, 1, 1, true), [{ line: 1, length: 3, text: '\t' }]);
+	for (const header of [['IF X THEN'], ['TRY'], ['TRY', 'THROW', 'CATCH']]) {
+		const lines = [...header, '   '];
+		const line = header.length;
+		assert.deepEqual(indentationEdits(lines, line, line), [{ line, length: 3, text: '' }]);
+		assert.deepEqual(indentationEdits(lines, line, line, true), [{ line, length: 3, text: '\t' }]);
+	}
 });

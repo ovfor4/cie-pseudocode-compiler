@@ -3,7 +3,7 @@
 const { codeOnly } = require('./lexical');
 const closers = {
 	ENDIF: 'IF', ENDWHILE: 'WHILE', UNTIL: 'REPEAT', NEXT: 'FOR',
-	ENDFUNCTION: 'FUNCTION', ENDPROCEDURE: 'PROCEDURE', ENDTYPE: 'TYPE'
+	ENDFUNCTION: 'FUNCTION', ENDPROCEDURE: 'PROCEDURE', ENDTYPE: 'TYPE', ENDTRY: 'TRY'
 };
 
 function lineDepths(lines) {
@@ -12,13 +12,14 @@ function lineDepths(lines) {
 	return lines.map(line => {
 		const code = codeOnly(line).trim();
 		const keyword = /^([A-Za-z][A-Za-z0-9_]*)\b/.exec(code)?.[1];
-		if (closers[keyword] || keyword === 'ELSE') {
-			const kind = keyword === 'ELSE' ? 'IF' : closers[keyword];
+		const branch = keyword === 'ELSE' ? 'IF' : keyword === 'CATCH' ? 'TRY' : null;
+		if (closers[keyword] || branch) {
+			const kind = branch || closers[keyword];
 			const index = stack.findLastIndex(block => block.kind === kind);
 			if (index >= 0) {
 				stack.length = index;
 				const current = depth();
-				if (keyword === 'ELSE') stack.push({ kind: 'IF', active: true });
+				if (branch) stack.push({ kind, active: true });
 				return current;
 			}
 			// Incomplete code should still format without negative indentation.
@@ -32,7 +33,7 @@ function lineDepths(lines) {
 		} else if (keyword === 'IF' || keyword === 'WHILE') {
 			stack.push({ kind: keyword, active: new RegExp(
 				keyword === 'IF' ? '\\bTHEN\\b' : '\\bDO\\b').test(code) });
-		} else if (['FOR', 'REPEAT', 'FUNCTION', 'PROCEDURE'].includes(keyword)) {
+		} else if (['FOR', 'REPEAT', 'FUNCTION', 'PROCEDURE', 'TRY'].includes(keyword)) {
 			stack.push({ kind: keyword, active: true });
 		} else if (/^TYPE\s+[A-Za-z][A-Za-z0-9_]*$/.test(code)) {
 			stack.push({ kind: 'TYPE', active: true });
