@@ -96,6 +96,70 @@ jobs:
           fi
           gh release upload "$CPSC_NIGHTLY_TAG" build/cpsc-*-Linux-x86_64.tar.xz --clobber
 
+  macos:
+    name: macOS arm64 compiler
+    needs: clean
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Install LLVM 23 and packaging dependencies
+        run: |
+          test "$(uname -m)" = arm64
+          brew install llvm@23 pandoc zlib zstd ncurses
+          test -x "$(brew --prefix llvm@23)/bin/clang++"
+
+      - name: Build the embedded release package
+        run: |
+          llvm_prefix=$(brew --prefix llvm@23)
+          zlib_prefix=$(brew --prefix zlib)
+          zstd_prefix=$(brew --prefix zstd)
+          ncurses_prefix=$(brew --prefix ncurses)
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release -DCPSC_RUN_MODE=EMBEDDED \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+            -DCMAKE_C_COMPILER="$llvm_prefix/bin/clang" \
+            -DCMAKE_CXX_COMPILER="$llvm_prefix/bin/clang++" \
+            -DLLVM_DIR="$llvm_prefix/lib/cmake/llvm" \
+            -DCMAKE_PREFIX_PATH="$llvm_prefix;$zlib_prefix;$zstd_prefix;$ncurses_prefix"
+          cmake --build build --target release --parallel 3
+
+      - name: Smoke test the packaged compiler
+        run: |
+          packages=(build/cpsc-*-Darwin-arm64.tar.xz)
+          test "${#packages[@]}" -eq 1
+          mkdir -p "$RUNNER_TEMP/cpsc-smoke"
+          tar -xJf "${packages[0]}" -C "$RUNNER_TEMP/cpsc-smoke"
+          package_name=$(basename "${packages[0]}" .tar.xz)
+          package_dir="$RUNNER_TEMP/cpsc-smoke/$package_name"
+          test -x "$package_dir/cpsc"
+          test -f "$package_dir/install.sh"
+          test -f "$package_dir/LICENSE"
+          test -f "$package_dir/doc/cpsc.1"
+          test -f "$package_dir/doc/language/cpsc-language-overview.7"
+          test "$(lipo -archs "$package_dir/cpsc")" = arm64
+          while IFS= read -r library; do
+            case "$library" in
+              /usr/lib/*|/System/Library/*|/Library/Apple/System/Library/*) ;;
+              *) echo "Unexpected runtime dependency: $library" >&2; exit 1 ;;
+            esac
+          done < <(otool -L "$package_dir/cpsc" | tail -n +2 | awk '{print $1}')
+          printf '%s\n' 'OUTPUT "nightly smoke"' > "$RUNNER_TEMP/nightly-smoke.cps"
+          output=$(env -i PATH=/usr/bin:/bin "$package_dir/cpsc" "$RUNNER_TEMP/nightly-smoke.cps" -r)
+          test "$output" = 'nightly smoke'
+
+      - name: Upload the macOS package
+        run: |
+          latest_sha=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$latest_sha" != "$GITHUB_SHA" ]]; then
+            echo "This push has been superseded; skipping upload."
+            exit 0
+          fi
+          gh release upload "$CPSC_NIGHTLY_TAG" build/cpsc-*-Darwin-arm64.tar.xz --clobber
+
   plugin:
     name: VS Code extension
     needs: clean
