@@ -1,0 +1,156 @@
+name: Nightly build
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly-build
+  cancel-in-progress: true
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+  CPSC_NIGHTLY_TAG: nightly-build
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  clean:
+    name: Clear nightly attachments
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Delete all existing release assets
+        run: |
+          latest_sha=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$latest_sha" != "$GITHUB_SHA" ]]; then
+            echo "This push has been superseded; leaving the release untouched."
+            exit 1
+          fi
+          release_id=$(gh api "repos/$GH_REPO/releases/tags/$CPSC_NIGHTLY_TAG" --jq '.id')
+          gh api --paginate "repos/$GH_REPO/releases/$release_id/assets?per_page=100" \
+            --jq '.[].id' > "$RUNNER_TEMP/nightly-asset-ids"
+          while IFS= read -r asset_id; do
+            gh api --method DELETE "repos/$GH_REPO/releases/assets/$asset_id"
+          done < "$RUNNER_TEMP/nightly-asset-ids"
+
+  compiler:
+    name: Linux x86_64 compiler
+    needs: clean
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Install LLVM 23 and packaging dependencies
+        run: |
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/cpsc-llvm.gpg > /dev/null
+          printf '%s\n' \
+            'deb [signed-by=/usr/share/keyrings/cpsc-llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' \
+            | sudo tee /etc/apt/sources.list.d/cpsc-llvm.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake clang-23 llvm-23-dev \
+            zlib1g-dev libzstd-dev libncurses-dev libedit-dev pandoc
+
+      - name: Build the embedded release package
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release -DCPSC_RUN_MODE=EMBEDDED \
+            -DCMAKE_C_COMPILER=clang-23 -DCMAKE_CXX_COMPILER=clang++-23 \
+            -DLLVM_DIR=/usr/lib/llvm-23/lib/cmake/llvm
+          cmake --build build --target release --parallel 4
+
+      - name: Smoke test the packaged compiler
+        run: |
+          packages=(build/cpsc-*-Linux-x86_64.tar.xz)
+          test "${#packages[@]}" -eq 1
+          mkdir -p "$RUNNER_TEMP/cpsc-smoke"
+          tar -xJf "${packages[0]}" -C "$RUNNER_TEMP/cpsc-smoke"
+          package_name=$(basename "${packages[0]}" .tar.xz)
+          package_dir="$RUNNER_TEMP/cpsc-smoke/$package_name"
+          test -x "$package_dir/cpsc"
+          test -f "$package_dir/install.sh"
+          test -f "$package_dir/LICENSE"
+          test -f "$package_dir/doc/cpsc.1"
+          test -f "$package_dir/doc/language/cpsc-language-overview.7"
+          printf '%s\n' 'OUTPUT "nightly smoke"' > "$RUNNER_TEMP/nightly-smoke.cps"
+          output=$(env -i PATH=/usr/bin:/bin "$package_dir/cpsc" "$RUNNER_TEMP/nightly-smoke.cps" -r)
+          test "$output" = 'nightly smoke'
+
+      - name: Upload the compiler package
+        run: |
+          latest_sha=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$latest_sha" != "$GITHUB_SHA" ]]; then
+            echo "This push has been superseded; skipping upload."
+            exit 0
+          fi
+          gh release upload "$CPSC_NIGHTLY_TAG" build/cpsc-*-Linux-x86_64.tar.xz --clobber
+
+  plugin:
+    name: VS Code extension
+    needs: clean
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+
+      - name: Install development dependencies
+        working-directory: plugin
+        run: npm ci --ignore-scripts
+
+      - name: Check, test and package the extension
+        working-directory: plugin
+        run: npm run package
+
+      - name: Check VSIX contents
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          packages = list(Path("plugin").glob("*.vsix"))
+          assert len(packages) == 1, "Expected one VSIX package"
+          with ZipFile(packages[0]) as package:
+              names = set(package.namelist())
+          required = {
+              "extension/package.json",
+              "extension/src/extension.js",
+              "extension/src/indentation.js",
+              "extension/src/lexical.js",
+              "extension/src/brackets.js",
+              "extension/src/runner.js",
+              "extension/syntaxes/cie-pseudocode.tmLanguage.json",
+              "extension/language-configuration.json",
+              "extension/readme.md",
+              "extension/LICENSE.txt",
+              "extension/ThirdPartyNotices.md",
+          }
+          assert required <= names, f"Missing VSIX files: {required - names}"
+          excluded = {"AGENTS", "AGENTS.md", "test", "node_modules"}
+          assert not any(excluded.intersection(Path(name).parts) for name in names), "Unexpected development files in VSIX"
+          PY
+
+      - name: Upload the VSIX
+        run: |
+          latest_sha=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$latest_sha" != "$GITHUB_SHA" ]]; then
+            echo "This push has been superseded; skipping upload."
+            exit 0
+          fi
+          gh release upload "$CPSC_NIGHTLY_TAG" plugin/*.vsix --clobber
