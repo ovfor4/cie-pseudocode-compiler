@@ -32,7 +32,7 @@ Without **-o** or **-r**, replace the source filename's extension with `.ir` and
 The executable has one of the following execution modes, selected when it was built. All modes can compile to LLVM IR; the mode determines whether and how **-r** runs the program.
 
 **PATH**
-:   Run `lli` from PATH. If it cannot be found, **-r** fails before compilation or output writing. Without **-o**, write temporary IR and delete it afterward, including on execution failure.
+:   Run `lli` from LLVM 23 in PATH. With **-r**, check the selected executable's version before compilation or output writing; a missing executable, a different major version or a failed or unrecognized version check is a fatal error. Version detection has a five-second timeout. Without **-r**, no external tools are checked. This mode does not invoke or check `clang` or `clang++`. Without **-o**, write temporary IR and delete it afterward, including on execution failure.
 
 **EMBEDDED**
 :   Run the statically linked LLVM engine inside `cpsc`, without looking for `lli` in PATH. Without **-o**, execute the module in memory. Users do not need LLVM or `lli` installed; the executable may still depend on the operating system's C runtime libraries.
@@ -70,7 +70,7 @@ Build a native program with a C++ linker so the exception runtime is linked:
 
 ```sh
 cpsc test.cps -o test.ll
-clang++-18 test.ll -o test
+clang++-23 test.ll -o test
 ./test
 ```
 
@@ -80,7 +80,7 @@ clang++-18 test.ll -o test
 :   Compilation succeeded, or **-h** printed the documentation entry point.
 
 **1**
-:   An argument, file, compilation or execution-engine error occurred, including missing input, when PATH mode cannot find `lli` or NONE mode receives **-r**.
+:   An argument, file, compilation or execution-engine error occurred, including missing input, when PATH mode cannot validate `lli` from LLVM 23 or NONE mode receives **-r**.
 
 With **-r**, return the executed program's exit status. In PATH mode, failure to launch `lli` or a child-process crash returns 1.
 
@@ -92,7 +92,7 @@ Compiler diagnostics go to stderr. Failed compilation does not write IR. Success
 
 Missing input, including invoking `cpsc` without arguments, reports `cpsc: fatal error: no input files`. Ordinary lexical, syntax and semantic errors use `error:`; failures that prevent compilation, such as file I/O errors, use `fatal error:`. Compilation and argument failures end with one `compilation terminated.` line. Execution-stage failures do not print that line.
 
-Generated IR uses the C++ exception ABI. Native binaries need the C++ runtime; EMBEDDED includes it, while PATH uses the runtime available to `lli`. Exception execution is verified on Linux with LLVM 18; Windows and macOS remain unverified.
+Generated IR uses the C++ exception ABI. Native binaries need the C++ runtime; EMBEDDED includes it, while PATH uses the runtime available to `lli`. Exception execution is verified on Linux with LLVM 23; Windows and macOS remain unverified.
 
 # SEE ALSO
 

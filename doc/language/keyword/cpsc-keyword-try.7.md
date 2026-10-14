@@ -26,7 +26,7 @@ THROW takes no argument and always raises a new anonymous exception. An exceptio
 
 Runtime checks throw the same anonymous exceptions for division by zero, array index errors, null pointer dereferences, invalid enumeration values, array-parameter bounds mismatches, and file misuse. Compiler errors cannot be caught. A caught exception prints nothing automatically. If no handler catches an exception, the program prints `Unhandled exception. Program terminated.` to standard output and returns status 1.
 
-Arrays declared inside either body remain local to that block. Stack unwinding does not automatically free heap strings or arrays, close files, or run user-defined destructors. Exception execution is verified on Linux with LLVM 18; Windows and macOS remain unverified.
+Arrays declared inside either body remain local to that block. Stack unwinding does not automatically free heap strings or arrays, close files, or run user-defined destructors. Exception execution is verified on Linux with LLVM 23; Windows and macOS remain unverified.
 
 # EXAMPLE
 

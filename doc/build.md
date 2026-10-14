@@ -15,11 +15,14 @@ optional tools all follow the same lookup rule: local build directories first,
 then the system. A required dependency missing from both locations is an error.
 System-only and mixed installations are supported, including system-installed
 LLVM without any local LLVM download. Local dependencies take precedence over
-previously cached system paths.
+previously cached system paths, except for an explicitly selected compiler.
 
 CMake searches standard `bin/`, `lib/` and `include/` directories under the build
 directory as well as the extracted package layouts. Compiler and make selection
-follow the same rule as LLVM and Pandoc selection.
+follow the same rule as LLVM and Pandoc selection unless a compiler is supplied
+through `CMAKE_C_COMPILER`, `CMAKE_CXX_COMPILER` (including cached values), or
+the initial `CC`/`CXX` environment. Supplied compilers are preserved and checked.
+Default discovery prefers `clang-23` and `clang++-23`, then `clang` and `clang++`.
 
 Unchanged packages are not extracted again. Keep one version of each package in
 the download directory; remove old archives before downloading a different
@@ -29,15 +32,21 @@ instead. Removing the build directory also removes its downloaded dependencies.
 
 All three execution modes need LLVM development libraries to build, including
 `NONE`. Users of an `EMBEDDED` executable do not need LLVM or `lli`.
-LLVM 18 is the tested version; newer versions remain untested.
+CMake strictly requires LLVM development libraries and both C/C++ compilers to
+have major version 23. The compilers must be upstream Clang; GCC and AppleClang
+are rejected. Any 23.x release is accepted; 22 and 24 are rejected. LLVM/Clang
+23.1.3 is verified on Linux; Windows and macOS remain unverified.
+
+When upgrading an existing build, replace its old LLVM packages and explicitly
+select Clang 23 for both cached compiler paths, or use a fresh build directory.
 
 ### Linux (Debian/Ubuntu)
 
-Use a distribution repository that provides LLVM 18. Recommended build tools:
+Use a distribution repository that provides LLVM 23. Recommended build tools:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends build-essential cmake clang-18
+sudo apt-get install -y --no-install-recommends build-essential cmake clang-23
 ```
 
 Recommended LLVM and support-package downloads:
@@ -47,8 +56,8 @@ mkdir -p build/deps/packages
 (
   cd build/deps/packages
   apt-get download \
-    llvm-18-dev llvm-18 llvm-18-runtime llvm-18-tools llvm-18-linker-tools \
-    libllvm18 libclang-cpp18 libz3-dev libz3-4 \
+    llvm-23-dev llvm-23 llvm-23-runtime llvm-23-tools llvm-23-linker-tools \
+    libllvm23 libclang-cpp23 libz3-dev libz3-4 \
     libffi-dev libffi8 libxml2-dev libxml2 \
     zlib1g-dev zlib1g libzstd-dev libzstd1 libncurses-dev libtinfo6
 )
@@ -90,12 +99,13 @@ pacman -Sw --noconfirm --cachedir "$PWD/build/deps/packages" \
 `-Sw` downloads packages without installing them; omit `--needed` here so that
 already installed dependencies are also downloaded. CMake keeps the packages'
 `mingw64/` layout under `build/deps/root/`. MSYS2 supplies its current LLVM
-version. Windows builds have only been reviewed statically.
+version; check that it is 23. Windows builds have only been reviewed statically.
 
 ### macOS (Homebrew)
 
-Use Clang and make from the Xcode Command Line Tools. If they are missing, run
-`xcode-select --install`. Install CMake with Homebrew:
+Install the Xcode Command Line Tools for the macOS SDK, make and package
+relocation tools with `xcode-select --install` if needed. The LLVM bottle below
+provides Clang 23. Install CMake with Homebrew:
 
 ```bash
 brew install cmake
@@ -106,10 +116,12 @@ Recommended binary-bottle downloads to the build directory:
 ```bash
 mkdir -p build/deps/packages
 HOMEBREW_CACHE="$PWD/build/deps/packages" brew fetch --force-bottle \
-  llvm@18 zlib zstd ncurses lz4 xz
+  llvm zlib zstd ncurses lz4 xz
 ```
 
-This requires binary bottles available for your macOS version and CPU; source
+[Homebrew's `llvm` formula](https://formulae.brew.sh/formula/llvm) currently
+provides 23; verify the downloaded version before configuring. This requires
+binary bottles available for your macOS version and CPU; source
 archives are not used. CMake extracts the bottles into a local `Cellar/`, creates
 local `opt/` links and relocates their CMake and dynamic-library paths using the
 Command Line Tools. The macOS build has only been reviewed statically.
@@ -121,7 +133,7 @@ initial configuration; there is no default. The choice is saved in CMake's cache
 
 | Mode | Behavior of `-r` |
 |---|---|
-| `PATH` | Run external `lli` from PATH; reject `-r` if it is unavailable. |
+| `PATH` | Run external `lli` from LLVM 23 in PATH; reject `-r` before compilation if it is missing or its version cannot be validated. |
 | `EMBEDDED` | Run with the statically linked LLVM engine inside `cpsc`; no PATH lookup. |
 | `NONE` | Reject `-r`; compiling to IR still works. |
 
@@ -129,7 +141,7 @@ Linux:
 
 ```bash
 cmake -S . -B build -DCPSC_RUN_MODE=EMBEDDED -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18
+  -DCMAKE_C_COMPILER=clang-23 -DCMAKE_CXX_COMPILER=clang++-23
 cmake --build build -j4
 ```
 
@@ -146,7 +158,8 @@ macOS:
 
 ```bash
 cmake -S . -B build -DCPSC_RUN_MODE=EMBEDDED -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
+  -DCMAKE_C_COMPILER="$PWD/build/deps/root/opt/llvm/bin/clang" \
+  -DCMAKE_CXX_COMPILER="$PWD/build/deps/root/opt/llvm/bin/clang++"
 cmake --build build -j4
 ```
 
@@ -155,20 +168,26 @@ skip the download steps and use the same build commands. Local and system
 dependencies can also be mixed; the lookup rule applies to each dependency.
 Local packages do not need `-DLLVM_DIR`. You can specify
 `-DLLVM_DIR=/path/to/lib/cmake/llvm` for a system installation outside the usual
-search paths or to select a system LLVM version when several are installed.
+search paths or to select LLVM 23 when several system versions are installed.
+For a system Homebrew installation, select the compilers under
+`$(brew --prefix llvm)/bin` instead of the extracted paths above.
 
 Distribute `build/cpsc` (Windows: `build/cpsc.exe`) for `EMBEDDED`. LLVM and its
 required compression/terminal support libraries are linked statically; a missing
 required archive is a configure error. Linux also links the C++ runtime statically,
-and MinGW uses static linking. The tested Debian/LLVM 18 executable needs only
+and MinGW uses static linking. The tested Debian/LLVM 23 executable needs only
 the system libc, libm and dynamic loader. Build for the intended OS and CPU.
 
-For `PATH` mode, add the extracted `lli` directory to your shell's PATH after
-configuration. On Linux, also expose its downloaded runtime libraries:
+For `PATH` mode, add the extracted LLVM 23 `lli` directory to your shell's PATH
+after configuration. Only `-r` checks the selected `lli --version`, with a
+five-second timeout. Missing, wrong or unrecognized versions fail before source
+compilation or IR output. Compiling without `-r` does not check external tools;
+execution does not invoke or check `clang`/`clang++`. On Linux, also expose its
+downloaded runtime libraries:
 
 ```bash
-export PATH="$PWD/build/deps/root/usr/lib/llvm-18/bin:$PATH"
-export LD_LIBRARY_PATH="$PWD/build/deps/root/usr/lib/$(cc -print-multiarch)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export PATH="$PWD/build/deps/root/usr/lib/llvm-23/bin:$PATH"
+export LD_LIBRARY_PATH="$PWD/build/deps/root/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 ```
 
 MSYS2 MINGW64:
@@ -180,7 +199,7 @@ export PATH="$PWD/build/deps/root/mingw64/bin:$PATH"
 macOS:
 
 ```bash
-export PATH="$PWD/build/deps/root/opt/llvm@18/bin:$PATH"
+export PATH="$PWD/build/deps/root/opt/llvm/bin:$PATH"
 ```
 
 ## Manual

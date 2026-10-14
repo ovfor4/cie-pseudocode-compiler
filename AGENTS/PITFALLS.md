@@ -82,8 +82,8 @@ test programs.
   ENDTRY. Bare THROW raises a new anonymous exception even inside CATCH; there is
   no rethrow syntax, error object or what(). Runtime checks are catchable;
   compiler errors are not. Uncaught exceptions print only the generic message
-  and return 1. Native binaries must link the C++ runtime with `clang++-18`.
-  Unwinding does not free heap strings/arrays or close files. Linux LLVM 18 is
+  and return 1. Native binaries must link the C++ runtime with `clang++-23`.
+  Unwinding does not free heap strings/arrays or close files. Linux LLVM 23 is
   verified; Windows and macOS exception execution is not.
 
 - **C type extensions.** C_STRING is a raw char pointer, not a STRING: explicitly
@@ -93,7 +93,7 @@ test programs.
   require casts even for literals. C scalar arithmetic uses native promotions,
   but / always returns REAL. Cast aliases must precede their use. long double
   may have padding; sizeof does not identify its floating-point format. Native
-  C support is verified on Linux LLVM 18; cross-target and EXTERN are unsupported.
+  C support is verified on Linux LLVM 23; cross-target and EXTERN are unsupported.
 
 ## Not implemented (9618 features)
 

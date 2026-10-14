@@ -11,7 +11,7 @@ unique_ptr children, move ctor, raw-ptr getters) → `ParseXxx` in
 `ParseExprList(close, allowEmpty)`; add the new statement's leading keyword to
 `syncToStatementStart`) → `dynamic_cast` branch in `CodeGen::emitStmt`. Guard every
 fall-through branch in control-flow codegen with
-`if (!Builder->GetInsertBlock()->getTerminator())` — a RETURN in the body may have
+`if (!Builder->GetInsertBlock()->hasTerminator())` — a RETURN in the body may have
 already terminated the block.
 
 **New builtin function:** add a `{Name, Arity, ReturnTypeName}` row to the static

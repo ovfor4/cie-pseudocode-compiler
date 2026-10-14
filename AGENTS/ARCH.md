@@ -1,7 +1,8 @@
 # Architecture
 
 `cpsc` compiles CIE A-Level 9618 pseudocode to LLVM IR. Classic three-stage
-Kaleidoscope-style design, C++17, built with LLVM 18. Execution is selected at
+Kaleidoscope-style design, C++17, built with LLVM 23 and Clang 23. CMake rejects
+other major versions and non-Clang compilers. Execution is selected at
 build time: external lli, an embedded static LLVM engine, or disabled.
 
 ```
@@ -38,12 +39,12 @@ development libraries to build; NONE still generates IR. Native binaries remain 
 ```bash
 # Prepare dependencies using the recommendations in doc/build.md.
 cmake -S . -B build -DCPSC_RUN_MODE=EMBEDDED \
-  -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+  -DCMAKE_C_COMPILER=clang-23 -DCMAKE_CXX_COMPILER=clang++-23
 cmake --build build
 build/cpsc prog.cps -o prog.ll # default without -o: prog.ir beside the source
 build/cpsc prog.cps -r         # execute using the selected build mode
 build/cpsc prog.cps -r -o prog.ir # save IR, then run it
-clang++-18 prog.ll -o prog && ./prog
+clang++-23 prog.ll -o prog && ./prog
 ```
 
 `doc/build.md` recommends which packages to install and which to download;
@@ -55,8 +56,11 @@ under the build directory are also searched. The shared
 reports missing required dependencies. Compilers, make, LLVM, support libraries,
 Pandoc, Git and installer/relocation tools use the same lookup policy. System-only
 and mixed installations are supported. Local dependencies override cached system
-paths. Build tools are resolved before `project()` enables compiler checks;
-compiler information is refreshed when the selected executable changes.
+paths except for supplied compilers. Cached or explicit CMake compiler paths and
+initial CC/CXX selections are preserved and validated; default discovery prefers
+clang-23/clang++-23, then unversioned clang/clang++. Build tools are resolved before
+`project()` enables compiler checks; compiler information is refreshed when the
+selected executable changes.
 Platform modules relocate package paths only inside the extraction directory;
 Homebrew bottles also receive local Cellar/opt links and Mach-O relocation/signing.
 Package hashes skip unchanged extractions; a changed package set rebuilds the
@@ -65,10 +69,10 @@ not to CMake. The Windows Pandoc ZIP is downloaded directly from its official
 release because MSYS2 has no Pandoc package. Only the Linux build is verified.
 
 Generated IR uses the C++ exception ABI; native binaries must link its runtime
-(use `clang++-18`). TRY/CATCH/ENDTRY and bare THROW are compiler extensions.
+(use `clang++-23`). TRY/CATCH/ENDTRY and bare THROW are compiler extensions.
 Runtime checks throw anonymous exceptions; the final handler in generated main
 prints `Unhandled exception. Program terminated.` to stdout and returns 1.
-Exception execution is verified on Linux with LLVM 18; Windows/macOS are unverified.
+Exception execution is verified on Linux with LLVM 23; Windows/macOS are unverified.
 
 Driver behavior (`tools/driver/main.cc`):
 
@@ -91,8 +95,11 @@ Driver behavior (`tools/driver/main.cc`):
   (including symlinks/hard links) are rejected.
 - In PATH mode, `-r` executes PATH's `lli` using LLVM Support process APIs, with
   inherited stdin/stdout/stderr and no shell. Missing lli is rejected before
-  compiling or writing output. Process-launch/crash failures return 1. `-r`
-  alone uses temporary IR removed on return, including execution failure.
+  compiling or writing output. The selected `lli --version` must identify LLVM 23
+  and succeed within five seconds; other or unrecognized versions fail before
+  source compilation. Without `-r`, no external tools are checked; clang/clang++
+  are never invoked or checked by this mode. Process-launch/crash failures return 1.
+  `-r` alone uses temporary IR removed on return, including execution failure.
 - In EMBEDDED mode, `-r` uses MCJIT in-process (`tools/driver/EmbeddedRunner.cc`).
   The engine owns a clone of CodeGen's module; CodeGen retains the context and
   must outlive the engine. Static C++ exception ABI symbols are explicitly
@@ -105,10 +112,10 @@ Driver behavior (`tools/driver/main.cc`):
   streams. `-r -o` saves IR before executing and keeps it on execution failure.
 
 EMBEDDED requires static LLVM archives. `cmake/EmbeddedLLVM.cmake` also selects
-static compression/terminal support archives when LLVM uses them. Linux GCC/Clang
+static compression/terminal support archives when LLVM uses them. Linux Clang
 builds link the C++ runtime statically; MinGW uses `-static`. The tested Debian
-LLVM 18 executable has only libc, libm and the system loader as dynamic dependencies,
-and runs in a minimal chroot without LLVM/lli. Windows EMBEDDED is untested.
+LLVM 23 executable has only libc, libm and the system loader as dynamic dependencies.
+Windows EMBEDDED is untested.
 
 On Linux, `make -C build install` builds the manual and calls the POSIX
 `install.sh` to copy `cpsc` into `CMAKE_INSTALL_PREFIX/bin` and all manuals into
@@ -160,10 +167,10 @@ Linux smoke tests can configure an isolated build with `-DWIN32=TRUE` to exercis
 HTML/ZIP packaging; the resulting renamed Linux executable is only a test fixture,
 not a usable Windows release.
 
-Build pin: developed and tested against **LLVM 18**. (The historical LLVM 19 breakage —
-`ArithmeticHandler.cc` touching `llvm::Module` through a transitive include — is gone
-now that string concatenation lives in `StringHandler`, but newer LLVM versions remain
-untested.)
+Build pin: **LLVM 23 and upstream Clang 23** (any 23.x release); 23.1.3 is verified
+on Linux. LLVM 23 uses `CreateGlobalString` for opaque string pointers,
+`hasTerminator()` for block termination checks (its `getTerminator()` requires an
+existing terminator), and an explicit `llvm::Triple` for the embedded target.
 
 ## Layout
 
