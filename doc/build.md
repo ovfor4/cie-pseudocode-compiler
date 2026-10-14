@@ -260,15 +260,20 @@ macOS:
 HOMEBREW_CACHE="$PWD/build/deps/packages" brew fetch --force-bottle pandoc gmp
 ```
 
-Windows has no MSYS2 Pandoc package. Download the official x86_64 ZIP from
-PowerShell, without running an installer:
+Windows has no MSYS2 Pandoc package. After configuring the build above, run
+these commands in the MSYS2 MINGW64 shell to download the official x86_64 ZIP
+and generate the manual without running an installer:
 
-```powershell
-New-Item -ItemType Directory -Force build/deps/packages | Out-Null
-$release = Invoke-RestMethod https://api.github.com/repos/jgm/pandoc/releases/latest
-$asset = $release.assets | Where-Object { $_.name -like 'pandoc-*-windows-x86_64.zip' }
-Invoke-WebRequest -UseBasicParsing $asset.browser_download_url -OutFile "build/deps/packages/$($asset.name)"
+```bash
+mkdir -p build/deps/packages
+wget -O build/deps/packages/pandoc-3.12.1-windows-x86_64.zip \
+  https://github.com/jgm/pandoc/releases/download/3.12.1/pandoc-3.12.1-windows-x86_64.zip
+cmake -S . -B build
+mingw32-make -C build doc
 ```
+
+CMake extracts the ZIP into `build/deps/root/` during reconfiguration and finds
+the local Pandoc automatically.
 
 The ZIP is provided on the [official Pandoc download page](https://pandoc.org/installing.html).
 
