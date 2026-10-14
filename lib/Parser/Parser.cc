@@ -155,6 +155,23 @@ std::string Parser::ParseTypeName(bool AllowVoid) {
 
 std::unique_ptr<ExprAST> Parser::ParseParenExpr() {
     getNextToken();
+    bool IsType = CurTok == tok_integer_kw || CurTok == tok_real_kw ||
+        CurTok == tok_boolean_kw || CurTok == tok_string_kw || CurTok == tok_char_kw ||
+        CurTok == tok_c_int || CurTok == tok_c_char || CurTok == tok_c_string ||
+        CurTok == tok_c_double ||
+        (CurTok == tok_identifier && TypeNames.count(Lex.IdentifierStr));
+    if (IsType) {
+        std::string TypeName = ParseTypeName();
+        if (TypeName.empty()) return nullptr;
+        if (CurTok != ')') {
+            fprintf(stderr, "error: Expected ')' after cast type at line %d\n", Lex.getLine());
+            return nullptr;
+        }
+        getNextToken();
+        auto Operand = ParseUnary();
+        if (!Operand) return nullptr;
+        return std::make_unique<CastExprAST>(TypeName, std::move(Operand));
+    }
     auto V = ParseExpression();
     if (!V) return nullptr;
     if (CurTok != ')') {
@@ -226,12 +243,10 @@ std::unique_ptr<ExprAST> Parser::ParseUnary() {
     }
 
     if (CurTok == '-') {
-        int Line = Lex.getLine();
         getNextToken();
         auto Operand = ParseUnary();
         if (!Operand) return nullptr;
-        auto Zero = std::make_unique<IntegerExprAST>(0);
-        return std::make_unique<BinaryExprAST>('-', std::move(Zero), std::move(Operand), Line);
+        return std::make_unique<UnaryExprAST>('-', std::move(Operand));
     }
 
     return ParsePrimary();

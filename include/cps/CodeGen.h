@@ -20,6 +20,7 @@ namespace cps {
 class ArrayHandler;
 class FileHandler;
 class ExceptionHandler;
+class CastExprAST;
 
 class CodeGen {
     std::unique_ptr<llvm::LLVMContext> TheContext;
@@ -66,6 +67,9 @@ class CodeGen {
     bool isWholeArrayVar(ExprAST *Expr) const;
     const TypeInfo *getExprTypeInfo(ExprAST *Expr) const;
     llvm::Value *coerceValueToType(llvm::Value *Val, const TypeInfo *TargetInfo);
+    llvm::Value *convertNumericValue(llvm::Value *Val, const TypeInfo *Source,
+                                     const TypeInfo *Target);
+    llvm::Value *emitCast(CastExprAST *Cast);
 
     // TYPE-system helpers (Designator.cc).
     void runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements);

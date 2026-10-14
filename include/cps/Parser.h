@@ -10,6 +10,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <set>
 
 namespace cps {
 
@@ -20,6 +21,10 @@ class Parser {
     unsigned BlockDepth = 0; // ParseBlock nesting; 1 = top level
 
     std::map<int, int> BinopPrecedence;
+    std::set<std::string> TypeNames = {
+        "INTEGER", "REAL", "BOOLEAN", "STRING", "CHAR", "VOID",
+        "C_INT", "C_CHAR", "C_STRING", "C_DOUBLE"
+    };
 
     int getNextToken();
     int GetTokPrecedence();

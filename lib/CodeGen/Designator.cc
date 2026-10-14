@@ -231,6 +231,9 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
             return nullptr;
         }
         if (Src && Src->sameType(Target) && !Target->isVoid()) return emitExpr(E);
+        if (Src && Src->Kind == TypeKind::CScalar && Target->Kind == TypeKind::CScalar &&
+            !Src->isVoid() && !Target->isVoid())
+            return convertNumericValue(emitExpr(E), Src, Target);
         reportError("Cannot implicitly convert %s to %s; use an explicit cast",
                     Src ? Src->Name.c_str() : "expression", Target->Name.c_str());
         return nullptr;

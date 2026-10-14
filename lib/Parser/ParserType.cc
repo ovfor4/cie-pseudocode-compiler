@@ -101,6 +101,7 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
         fprintf(stderr, "error: %s declarations are only allowed at top level at line %d\n", Keyword, Line);
         return nullptr;
     }
+    TypeNames.insert(Name);
     return Decl;
 }
 

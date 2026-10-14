@@ -8,6 +8,16 @@
 
 namespace cps {
 
+class CastExprAST : public ExprAST {
+    std::string TypeName;
+    std::unique_ptr<ExprAST> Operand;
+public:
+    CastExprAST(std::string TypeName, std::unique_ptr<ExprAST> Operand)
+        : TypeName(std::move(TypeName)), Operand(std::move(Operand)) {}
+    const std::string &getTypeName() const { return TypeName; }
+    ExprAST *getOperand() const { return Operand.get(); }
+};
+
 // TYPE <name> = C_TYPE("<C type expression>")
 class CTypeDeclAST : public StmtAST {
     std::string Name;

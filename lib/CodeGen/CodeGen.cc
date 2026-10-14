@@ -185,6 +185,8 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
     if (dynamic_cast<BooleanExprAST*>(Expr)) return resolveType("BOOLEAN");
     if (dynamic_cast<CharExprAST*>(Expr)) return resolveType("CHAR");
     if (dynamic_cast<StringExprAST*>(Expr)) return resolveType("STRING");
+    if (auto *Cast = dynamic_cast<CastExprAST*>(Expr))
+        return resolveType(Cast->getTypeName());
 
     if (auto *Var = dynamic_cast<VariableExprAST*>(Expr)) {
         const SymbolInfo *Info = getSymbolInfo(Var->getName());
@@ -240,7 +242,10 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
         if (Unary->getOp() == tok_not) {
             return resolveType("BOOLEAN");
         }
-        return getExprTypeInfo(Unary->getOperand());
+        const TypeInfo *Operand = getExprTypeInfo(Unary->getOperand());
+        if (Operand && !Operand->isC() && !Operand->isUserKind())
+            return Operand->isReal() ? resolveType("REAL") : resolveType("INTEGER");
+        return nullptr;
     }
 
     if (auto *Bin = dynamic_cast<BinaryExprAST*>(Expr)) {
@@ -572,6 +577,7 @@ void CodeGen::print(raw_ostream &Output) {
 }
 
 Value *CodeGen::emitExpr(ExprAST *Expr) {
+    if (auto *Cast = dynamic_cast<CastExprAST*>(Expr)) return emitCast(Cast);
     if (!Expr) return nullptr;
 
     if (auto *Num = dynamic_cast<IntegerExprAST*>(Expr)) {
@@ -631,6 +637,17 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             Value *Operand = emitCoercedExpr(Unary->getOperand(), resolveType("BOOLEAN"));
             if (!Operand) return nullptr;
             return Builder->CreateNot(Operand, "nottmp");
+        }
+        if (Unary->getOp() == '-') {
+            const TypeInfo *Info = getExprTypeInfo(Unary->getOperand());
+            if (!Info || Info->isC() || Info->isUserKind() || Info->isString() || Info->isVoid()) {
+                reportError("Unary '-' requires a supported numeric operand");
+                return nullptr;
+            }
+            Value *Operand = emitExpr(Unary->getOperand());
+            if (!Operand) return nullptr;
+            return ArithHandler->emitBinaryOp('-', ConstantInt::get(Type::getInt64Ty(*TheContext), 0),
+                                             Operand, 0);
         }
         return nullptr;
     }
