@@ -189,13 +189,17 @@ including paginated results, before either build starts. It never creates or
 deletes the release and preserves its tag, title and notes. GitHub's generated
 source downloads remain available.
 
-Compiler and plugin jobs run independently on Ubuntu 24.04 x86_64, checking out
-the push SHA. The compiler uses LLVM/Clang 23 from apt.llvm.org, Release and
-EMBEDDED settings, Pandoc, and the existing `release` target. It extracts and
-checks the archive, then runs a small OUTPUT program with the packaged binary.
-The plugin uses Node.js 22, `npm ci --ignore-scripts` and `npm run package`, then
-checks VSIX contents. Each job uploads directly after its own checks pass;
-failure in one does not block the other. No Actions artifacts are uploaded.
+The Linux compiler and plugin jobs use Ubuntu 24.04 x86_64; the macOS compiler
+job uses a macOS 15 arm64 runner. All three check out the push SHA and run
+independently after cleanup. Both compiler jobs use LLVM/Clang 23, Release and
+EMBEDDED settings, Pandoc, and the existing `release` target. Linux obtains its
+toolchain from apt.llvm.org; macOS uses Homebrew's LLVM 23. Each job extracts
+and checks its archive, then runs a small OUTPUT program with the packaged
+binary. The macOS check also verifies arm64 and rejects non-system dynamic
+libraries. The plugin uses Node.js 22, `npm ci --ignore-scripts` and
+`npm run package`, then checks VSIX contents. Each job uploads directly after
+its own checks pass; failure in one does not block the others. No Actions
+artifacts are uploaded.
 Cleanup and uploads check main's current SHA to avoid modifying nightly for a
 superseded push. The workflow uses `GITHUB_TOKEN` with `contents: write`.
 Compiler package names retain the existing commit-based version; the VSIX uses

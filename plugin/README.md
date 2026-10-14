@@ -6,7 +6,7 @@ VS Code support for this project's `.cps` files. Requires VS Code 1.85 or newer 
 
 ## Install
 
-Download the VSIX from [Nightly Build](https://github.com/ovfor4/cie-pseudocode-compiler/releases/tag/nightly-build). The same release provides the Linux x86_64 compiler with execution support.
+Download the VSIX from [Nightly Build](https://github.com/ovfor4/cie-pseudocode-compiler/releases/tag/nightly-build). The same release provides Linux x86_64 and macOS 15+ Apple Silicon compiler packages with execution support.
 
 In the Extensions panel, choose **... > Install from VSIX...** and select `cie-pseudocode-0.1.0.vsix`, or run:
 
