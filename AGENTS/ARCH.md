@@ -131,7 +131,7 @@ Pandoc remains the fallback.
 `make -C build release` packages the executable, all manuals, installer and license
 as `build/cpsc-VERSION-SYSTEM-ARCH.tar.xz`, retaining the configured execution mode.
 `cmake/Release.cmake` reads HEAD at packaging time; VERSION is the commit's UTC
-timestamp (`yyyy-mm-dd-hh-mm-ss`) followed by its short ID. Git is only required
+timestamp (`yyyymmdd-hhmmss`) followed by its short ID. Git is only required
 for packaging; recipients can install the extracted archive using just the script.
 
 The Windows `install.ps1` installs `cpsc.exe`, `doc/cpsc.html` and

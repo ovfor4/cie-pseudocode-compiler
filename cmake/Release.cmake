@@ -13,7 +13,7 @@ if(NOT cpsc_git_result STREQUAL "0" OR NOT cpsc_revision MATCHES "^([0-9]+):([0-
 endif()
 set(ENV{SOURCE_DATE_EPOCH} "${CMAKE_MATCH_1}")
 set(cpsc_short_id "${CMAKE_MATCH_2}")
-string(TIMESTAMP cpsc_commit_time "%Y-%m-%d-%H-%M-%S" UTC)
+string(TIMESTAMP cpsc_commit_time "%Y%m%d-%H%M%S" UTC)
 set(cpsc_package_name "cpsc-${cpsc_commit_time}-${cpsc_short_id}-${CPSC_PLATFORM}")
 set(cpsc_package_dir "${CPSC_BINARY_DIR}/release/${cpsc_package_name}")
 if(CPSC_WINDOWS)

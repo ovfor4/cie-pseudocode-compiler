@@ -76,7 +76,7 @@ make -C build release
 ```
 
 The output is `build/cpsc-VERSION-SYSTEM-ARCH.tar.xz`. `VERSION` uses HEAD's commit
-time in UTC followed by its short ID: `yyyy-mm-dd-hh-mm-ss-commit`.
+time in UTC followed by its short ID: `yyyymmdd-hhmmss-commit`.
 The version is read each time packaging runs. The package uses the current build's
 execution mode and contains `cpsc`, `doc/cpsc.1`, `doc/language/**/*.7`, `install.sh` and `LICENSE`.
 Packaging builds the compiler and manual automatically; it requires Git and Pandoc.
