@@ -201,7 +201,7 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
         StmtEmitter(Stmt.get());
     }
 
-    if (!Builder.GetInsertBlock()->getTerminator()) {
+    if (!Builder.GetInsertBlock()->hasTerminator()) {
         if (Proto->getReturnType() == "VOID") {
             Builder.CreateRetVoid();
         } else {

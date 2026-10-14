@@ -38,7 +38,7 @@ void StringHandler::setupExternalFunctions() {
 }
 
 Value *StringHandler::createLiteral(const std::string &Val) {
-    return Builder.CreateGlobalStringPtr(Val);
+    return Builder.CreateGlobalString(Val);
 }
 
 Value *StringHandler::emitLength(Value *Str) {

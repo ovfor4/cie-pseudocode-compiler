@@ -6,6 +6,7 @@
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/TargetParser/Host.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include <cxxabi.h>
 #include <typeinfo>
@@ -54,7 +55,7 @@ int runEmbedded(const cps::CodeGen &CG) {
     registerExceptionSymbols();
     // Keep CodeGen's module and context alive while the engine owns its clone.
     auto Module = llvm::CloneModule(CG.getModule());
-    Module->setTargetTriple(llvm::sys::getProcessTriple());
+    Module->setTargetTriple(llvm::Triple(llvm::sys::getProcessTriple()));
     llvm::EngineBuilder Builder(std::move(Module));
     Builder.setEngineKind(llvm::EngineKind::JIT);
     Builder.setErrorStr(&Error);

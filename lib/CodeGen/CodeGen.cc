@@ -121,18 +121,18 @@ void CodeGen::SetupExternalFunctions() {
                                                  false);
     MallocFunc = TheModule->getOrInsertFunction("malloc", MallocType);
 
-    PrintfFormatStr = Builder->CreateGlobalStringPtr("%lld\n", "fmt_nl", 0, TheModule.get());
-    PrintfFloatFormatStr = Builder->CreateGlobalStringPtr("%f\n", "fmt_flt", 0, TheModule.get());
-    PrintfStringFormatStr = Builder->CreateGlobalStringPtr("%s\n", "fmt_str", 0, TheModule.get());
-    PrintfCharFormatStr = Builder->CreateGlobalStringPtr("%c\n", "fmt_chr", 0, TheModule.get());
+    PrintfFormatStr = Builder->CreateGlobalString("%lld\n", "fmt_nl", 0, TheModule.get());
+    PrintfFloatFormatStr = Builder->CreateGlobalString("%f\n", "fmt_flt", 0, TheModule.get());
+    PrintfStringFormatStr = Builder->CreateGlobalString("%s\n", "fmt_str", 0, TheModule.get());
+    PrintfCharFormatStr = Builder->CreateGlobalString("%c\n", "fmt_chr", 0, TheModule.get());
 
-    ScanfFormatStr = Builder->CreateGlobalStringPtr("%lld", "fmt_in", 0, TheModule.get());
-    ScanfFloatFormatStr = Builder->CreateGlobalStringPtr("%lf", "fmt_in_flt", 0, TheModule.get());
-    ScanfStringFormatStr = Builder->CreateGlobalStringPtr("%s", "fmt_in_str", 0, TheModule.get());
+    ScanfFormatStr = Builder->CreateGlobalString("%lld", "fmt_in", 0, TheModule.get());
+    ScanfFloatFormatStr = Builder->CreateGlobalString("%lf", "fmt_in_flt", 0, TheModule.get());
+    ScanfStringFormatStr = Builder->CreateGlobalString("%s", "fmt_in_str", 0, TheModule.get());
 
-    TrueStr = Builder->CreateGlobalStringPtr("TRUE", "str_true", 0, TheModule.get());
-    FalseStr = Builder->CreateGlobalStringPtr("FALSE", "str_false", 0, TheModule.get());
-    EmptyStringStr = Builder->CreateGlobalStringPtr("", "str_empty", 0, TheModule.get());
+    TrueStr = Builder->CreateGlobalString("TRUE", "str_true", 0, TheModule.get());
+    FalseStr = Builder->CreateGlobalString("FALSE", "str_false", 0, TheModule.get());
+    EmptyStringStr = Builder->CreateGlobalString("", "str_empty", 0, TheModule.get());
 
     Arrays->setupExternalFunctions();
 }
@@ -462,7 +462,7 @@ void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewli
     case TypeKind::Real:
         Fmt = AppendNewline
             ? PrintfFloatFormatStr
-            : Builder->CreateGlobalStringPtr("%f", "fmt_flt_inline", 0, TheModule.get());
+            : Builder->CreateGlobalString("%f", "fmt_flt_inline", 0, TheModule.get());
         Args.push_back(Fmt);
         Args.push_back(Val);
         break;
@@ -471,7 +471,7 @@ void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewli
         Value *BoolVal = coerceValueToType(Val, resolveType("BOOLEAN"));
         Fmt = AppendNewline
             ? PrintfStringFormatStr
-            : Builder->CreateGlobalStringPtr("%s", "fmt_str_inline", 0, TheModule.get());
+            : Builder->CreateGlobalString("%s", "fmt_str_inline", 0, TheModule.get());
         Args.push_back(Fmt);
         Args.push_back(Builder->CreateSelect(BoolVal, TrueStr, FalseStr));
         break;
@@ -481,7 +481,7 @@ void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewli
         Value *StrVal = emitStringNullGuard(Val);
         Fmt = AppendNewline
             ? PrintfStringFormatStr
-            : Builder->CreateGlobalStringPtr("%s", "fmt_str_inline", 0, TheModule.get());
+            : Builder->CreateGlobalString("%s", "fmt_str_inline", 0, TheModule.get());
         Args.push_back(Fmt);
         Args.push_back(StrVal);
         break;
@@ -492,7 +492,7 @@ void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewli
         Value *Promoted = Builder->CreateZExt(CharVal, Type::getInt32Ty(*TheContext), "char_for_printf");
         Fmt = AppendNewline
             ? PrintfCharFormatStr
-            : Builder->CreateGlobalStringPtr("%c", "fmt_chr_inline", 0, TheModule.get());
+            : Builder->CreateGlobalString("%c", "fmt_chr_inline", 0, TheModule.get());
         Args.push_back(Fmt);
         Args.push_back(Promoted);
         break;
@@ -503,7 +503,7 @@ void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewli
         Value *IntVal = Info->isEnum() ? Val : coerceValueToType(Val, resolveType("INTEGER"));
         Fmt = AppendNewline
             ? PrintfFormatStr
-            : Builder->CreateGlobalStringPtr("%lld", "fmt_int_inline", 0, TheModule.get());
+            : Builder->CreateGlobalString("%lld", "fmt_int_inline", 0, TheModule.get());
         Args.push_back(Fmt);
         Args.push_back(IntVal);
         break;
@@ -558,7 +558,7 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
         emitStmt(Stmt.get());
     }
 
-    if (!Builder->GetInsertBlock()->getTerminator()) {
+    if (!Builder->GetInsertBlock()->hasTerminator()) {
         Builder->CreateRet(ConstantInt::get(*TheContext, APInt(32, 0)));
     }
 
@@ -566,7 +566,7 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
     Builder->SetInsertPoint(UnhandledBB);
     Exceptions->beginCatch(Exception);
     Exceptions->endCatch();
-    Value *Msg = Builder->CreateGlobalStringPtr("Unhandled exception. Program terminated.\n",
+    Value *Msg = Builder->CreateGlobalString("Unhandled exception. Program terminated.\n",
                                                "err_unhandled", 0, TheModule.get());
     Builder->CreateCall(PrintfFunc, {Msg});
     Builder->CreateRet(ConstantInt::get(Type::getInt32Ty(*TheContext), 1));
@@ -922,14 +922,14 @@ void CodeGen::emitTryStmt(TryStmtAST *Stmt) {
     Exceptions->pushHandler(CatchBB);
     for (const auto &S : Stmt->getBody()) emitStmt(S.get());
     auto *Exception = Exceptions->popHandler();
-    if (!Builder->GetInsertBlock()->getTerminator()) Builder->CreateBr(AfterBB);
+    if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(AfterBB);
     Arrays->exchangeTable(SavedArrays);
 
     Builder->SetInsertPoint(CatchBB);
     Exceptions->beginCatch(Exception);
     for (const auto &S : Stmt->getCatchBody()) emitStmt(S.get());
     Exceptions->endCatch();
-    if (!Builder->GetInsertBlock()->getTerminator()) Builder->CreateBr(AfterBB);
+    if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(AfterBB);
     Arrays->exchangeTable(std::move(SavedArrays));
     Builder->SetInsertPoint(AfterBB);
 }
@@ -950,12 +950,12 @@ void CodeGen::emitIfStmt(IfStmtAST *Stmt) {
     auto SavedArrays = Arrays->snapshotTable();
     Builder->SetInsertPoint(ThenBB);
     for (const auto &S : Stmt->getThenStmts()) emitStmt(S.get());
-    if (!Builder->GetInsertBlock()->getTerminator()) Builder->CreateBr(MergeBB);
+    if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(MergeBB);
     Arrays->exchangeTable(SavedArrays);
 
     Builder->SetInsertPoint(ElseBB);
     for (const auto &S : Stmt->getElseStmts()) emitStmt(S.get());
-    if (!Builder->GetInsertBlock()->getTerminator()) Builder->CreateBr(MergeBB);
+    if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(MergeBB);
     Arrays->exchangeTable(std::move(SavedArrays));
 
     Builder->SetInsertPoint(MergeBB);
@@ -982,7 +982,7 @@ void CodeGen::emitWhileStmt(WhileStmtAST *Stmt) {
     for (const auto &S : Stmt->getBody()) emitStmt(S.get());
     Arrays->exchangeTable(std::move(SavedArrays));
 
-    if (!Builder->GetInsertBlock()->getTerminator())
+    if (!Builder->GetInsertBlock()->hasTerminator())
         Builder->CreateBr(CondBB);
 
     Builder->SetInsertPoint(AfterBB);
@@ -1002,7 +1002,7 @@ void CodeGen::emitRepeatStmt(RepeatStmtAST *Stmt) {
     Builder->SetInsertPoint(LoopBB);
     for (const auto &S : Stmt->getBody()) emitStmt(S.get());
     Arrays->exchangeTable(std::move(SavedArrays));
-    if (!Builder->GetInsertBlock()->getTerminator())
+    if (!Builder->GetInsertBlock()->hasTerminator())
         Builder->CreateBr(CondBB);
 
     Builder->SetInsertPoint(CondBB);
@@ -1070,7 +1070,7 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
     Builder->SetInsertPoint(LoopBB);
     for (const auto &S : Stmt->getBody()) emitStmt(S.get());
     Arrays->exchangeTable(std::move(SavedArrays));
-    if (!Builder->GetInsertBlock()->getTerminator())
+    if (!Builder->GetInsertBlock()->hasTerminator())
         Builder->CreateBr(IncBB);
 
     Builder->SetInsertPoint(IncBB);
@@ -1102,7 +1102,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
 
     // Keep diagnosing statements after RETURN/THROW without appending code
     // to a terminated block or making those statements reachable.
-    if (Builder->GetInsertBlock()->getTerminator()) {
+    if (Builder->GetInsertBlock()->hasTerminator()) {
         auto *F = Builder->GetInsertBlock()->getParent();
         Builder->SetInsertPoint(BasicBlock::Create(*TheContext, "unreachable_code", F));
     }
@@ -1224,7 +1224,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             Builder->CreateCall(ScanfFunc, Args);
             Builder->CreateStore(Mem, Info->Storage);
         } else if (TypeInfo->isChar()) {
-            Value *CharFmt = Builder->CreateGlobalStringPtr(" %c", "fmt_in_char", 0, TheModule.get());
+            Value *CharFmt = Builder->CreateGlobalString(" %c", "fmt_in_char", 0, TheModule.get());
             Args.push_back(CharFmt);
             Args.push_back(Info->Storage);
             Builder->CreateCall(ScanfFunc, Args);

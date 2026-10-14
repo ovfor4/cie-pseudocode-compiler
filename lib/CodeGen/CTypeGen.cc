@@ -179,7 +179,7 @@ void CodeGen::emitCOutput(Value *Val, const TypeInfo *Info, bool AppendNewline) 
         Val = convertNumericValue(Val, Info, Types->promoteCScalar(Info));
     }
     if (AppendNewline) Format += '\n';
-    Value *Fmt = Builder->CreateGlobalStringPtr(Format, "fmt_c_output", 0, TheModule.get());
+    Value *Fmt = Builder->CreateGlobalString(Format, "fmt_c_output", 0, TheModule.get());
     Builder->CreateCall(PrintfFunc, {Fmt, Val});
 }
 
@@ -193,13 +193,13 @@ void CodeGen::emitCInput(const SymbolInfo *Symbol, const TypeInfo *Info) {
         AllocaInst *Temp = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
                                                  NativeInt->LLVMType, "c_bool_input");
         Builder->CreateStore(Types->getZeroValue("C_INT"), Temp);
-        Value *Fmt = Builder->CreateGlobalStringPtr("%d", "fmt_c_input_bool", 0, TheModule.get());
+        Value *Fmt = Builder->CreateGlobalString("%d", "fmt_c_input_bool", 0, TheModule.get());
         Builder->CreateCall(ScanfFunc, {Fmt, Temp});
         Value *Input = Builder->CreateLoad(NativeInt->LLVMType, Temp);
         Value *Bool = convertNumericValue(Input, NativeInt, Info);
         Builder->CreateStore(Bool, Symbol->Storage);
         return;
     }
-    Value *Fmt = Builder->CreateGlobalStringPtr(Info->CInputFormat, "fmt_c_input", 0, TheModule.get());
+    Value *Fmt = Builder->CreateGlobalString(Info->CInputFormat, "fmt_c_input", 0, TheModule.get());
     Builder->CreateCall(ScanfFunc, {Fmt, Symbol->Storage});
 }

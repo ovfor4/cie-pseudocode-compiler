@@ -69,7 +69,7 @@ void ExceptionHandler::endCatch() {
     auto &Depth = States[Builder.GetInsertBlock()->getParent()].CatchDepth;
     assert(Depth != 0);
     --Depth;
-    if (!Builder.GetInsertBlock()->getTerminator()) Builder.CreateCall(EndCatch);
+    if (!Builder.GetInsertBlock()->hasTerminator()) Builder.CreateCall(EndCatch);
 }
 
 void ExceptionHandler::emitReturnCleanup() {

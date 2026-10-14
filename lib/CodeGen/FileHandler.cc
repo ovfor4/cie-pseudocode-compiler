@@ -55,9 +55,9 @@ void FileHandler::setupGlobals() {
 
     // Text mode on purpose (no "b"): on Windows the CRT translates CRLF<->LF,
     // which is exactly what line-oriented READFILE/WRITEFILE want.
-    ModeReadStr = Builder.CreateGlobalStringPtr("r", "file_mode_r", 0, &Module);
-    ModeWriteStr = Builder.CreateGlobalStringPtr("w", "file_mode_w", 0, &Module);
-    ModeAppendStr = Builder.CreateGlobalStringPtr("a", "file_mode_a", 0, &Module);
+    ModeReadStr = Builder.CreateGlobalString("r", "file_mode_r", 0, &Module);
+    ModeWriteStr = Builder.CreateGlobalString("w", "file_mode_w", 0, &Module);
+    ModeAppendStr = Builder.CreateGlobalString("a", "file_mode_a", 0, &Module);
 }
 
 void FileHandler::ensureRuntime() {

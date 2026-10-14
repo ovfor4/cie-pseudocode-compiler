@@ -3,6 +3,15 @@ include(cmake/LocalDependencies.cmake)
 include(cmake/BuildTools.cmake)
 project(cps_compiler)
 
+foreach(language C CXX)
+    if(NOT CMAKE_${language}_COMPILER_ID STREQUAL "Clang"
+            OR CMAKE_${language}_COMPILER_VERSION VERSION_LESS 23
+            OR NOT CMAKE_${language}_COMPILER_VERSION VERSION_LESS 24)
+        message(FATAL_ERROR
+            "cpsc requires Clang 23 for ${language}; found ${CMAKE_${language}_COMPILER_ID} ${CMAKE_${language}_COMPILER_VERSION} (${CMAKE_${language}_COMPILER})")
+    endif()
+endforeach()
+
 if(WIN32 AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     if("$ENV{LOCALAPPDATA}" STREQUAL "")
         message(FATAL_ERROR "LOCALAPPDATA is unset; specify -DCMAKE_INSTALL_PREFIX explicitly")
@@ -19,6 +28,9 @@ endif()
 
 include(cmake/LLVMDependencies.cmake)
 find_package(LLVM REQUIRED CONFIG)
+if(NOT LLVM_VERSION_MAJOR EQUAL 23)
+    message(FATAL_ERROR "cpsc requires LLVM 23; found LLVM ${LLVM_PACKAGE_VERSION} (${LLVM_DIR})")
+endif()
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
@@ -70,7 +82,7 @@ if(CPSC_RUN_MODE STREQUAL "EMBEDDED")
     target_sources(cpsc PRIVATE tools/driver/EmbeddedRunner.cc)
     if(MINGW)
         target_link_options(cpsc PRIVATE -static)
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND UNIX AND NOT APPLE)
+    elseif(UNIX AND NOT APPLE)
         target_link_options(cpsc PRIVATE -static-libstdc++ -static-libgcc -Wl,--as-needed)
     endif()
 endif()

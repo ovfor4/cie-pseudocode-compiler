@@ -28,9 +28,9 @@ Value *StringConversionHandler::emitNumToStr(Value *Num, bool IsReal) {
 
     Value *FormatStr;
     if (IsReal) {
-        FormatStr = Builder.CreateGlobalStringPtr("%f"); 
+        FormatStr = Builder.CreateGlobalString("%f");
     } else {
-        FormatStr = Builder.CreateGlobalStringPtr("%lld");
+        FormatStr = Builder.CreateGlobalString("%lld");
     }
 
     Builder.CreateCall(SprintfFunc, {Buffer, FormatStr, Num});
