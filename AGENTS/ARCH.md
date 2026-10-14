@@ -117,6 +117,9 @@ EMBEDDED requires static LLVM archives. `cmake/EmbeddedLLVM.cmake` also selects
 static compression/terminal support archives when LLVM uses them. Linux Clang
 builds link the C++ runtime statically; MinGW uses `-static`. The tested Debian
 LLVM 23 executable has only libc, libm and the system loader as dynamic dependencies.
+macOS EMBEDDED links with `-dead_strip_dylibs` to omit unused dylibs inherited
+from LLVM's support interface, including Homebrew's Z3. Keep the nightly package's
+non-system dependency check; required dylibs are not removed by this option.
 Windows EMBEDDED is untested.
 
 Windows build instructions retain MSYS2 MINGW64. Its LLVM/Clang package names
