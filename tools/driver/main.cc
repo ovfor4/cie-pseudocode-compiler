@@ -7,6 +7,10 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
+#ifdef CPSC_RUN_PATH
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Regex.h"
+#endif
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/raw_ostream.h"
@@ -19,6 +23,46 @@ int compilationTerminated() {
     llvm::errs() << "compilation terminated.\n";
     return 1;
 }
+
+#ifdef CPSC_RUN_PATH
+bool checkLliVersion(llvm::StringRef LliPath) {
+    llvm::SmallString<256> VersionPath;
+    if (auto EC = llvm::sys::fs::createTemporaryFile("cpsc-lli-version", "txt", VersionPath)) {
+        llvm::errs() << "cpsc: fatal error: cannot check lli version: " << EC.message() << "\n";
+        return false;
+    }
+    llvm::FileRemover TemporaryVersion(VersionPath);
+    std::string ExecutionError;
+    int Result = llvm::sys::ExecuteAndWait(LliPath, {LliPath, "--version"},
+        std::nullopt, {llvm::StringRef(""), llvm::StringRef(VersionPath), llvm::StringRef("")},
+        5, 0, &ExecutionError);
+    if (Result != 0) {
+        llvm::errs() << "cpsc: fatal error: cannot check lli version at '" << LliPath
+                     << "' (status " << Result << ")";
+        if (!ExecutionError.empty()) llvm::errs() << ": " << ExecutionError;
+        llvm::errs() << "\n";
+        return false;
+    }
+    auto Version = llvm::MemoryBuffer::getFile(VersionPath);
+    if (!Version) {
+        llvm::errs() << "cpsc: fatal error: cannot read lli version: "
+                     << Version.getError().message() << "\n";
+        return false;
+    }
+    llvm::SmallVector<llvm::StringRef, 2> Matches;
+    if (!llvm::Regex("LLVM version ([0-9]+)\\.").match((*Version)->getBuffer(), &Matches)) {
+        llvm::errs() << "cpsc: fatal error: cannot identify LLVM version of lli at '"
+                     << LliPath << "'; LLVM 23 is required\n";
+        return false;
+    }
+    if (Matches[1] != "23") {
+        llvm::errs() << "cpsc: fatal error: -r requires lli from LLVM 23; found LLVM "
+                     << Matches[1] << " at '" << LliPath << "'\n";
+        return false;
+    }
+    return true;
+}
+#endif
 
 } // namespace
 
@@ -73,10 +117,11 @@ int main(int argc, char **argv) {
 #ifdef CPSC_RUN_PATH
         auto Lli = llvm::sys::findProgramByName("lli");
         if (!Lli) {
-            llvm::errs() << "cpsc: fatal error: -r requires lli in PATH: " << Lli.getError().message() << "\n";
+            llvm::errs() << "cpsc: fatal error: -r requires lli from LLVM 23 in PATH: " << Lli.getError().message() << "\n";
             return compilationTerminated();
         }
         LliPath = *Lli;
+        if (!checkLliVersion(LliPath)) return compilationTerminated();
 #elif defined(CPSC_RUN_NONE)
         llvm::errs() << "cpsc: fatal error: -r is disabled in this build (CPSC_RUN_MODE=NONE)\n";
         return compilationTerminated();
