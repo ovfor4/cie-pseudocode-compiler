@@ -1,3 +1,4 @@
 Refer to all markdown files in `AGENTS/`
 
-@AGENTS/ARCH.md
+@AGENTS/HOW_TO_COMMIT.md
+@AGENTS/*
