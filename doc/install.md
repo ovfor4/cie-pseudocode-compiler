@@ -2,7 +2,7 @@
 
 To build from source, follow [build.md](build.md). For command-line usage, see [cpsc.1.md](cpsc.1.md). Run build commands from the project root; package installation commands run from the extracted package directory.
 
-The [Nightly Build](https://github.com/ovfor4/cie-pseudocode-compiler/releases/tag/nightly-build) provides EMBEDDED release archives for Linux x86_64 and macOS 15+ Apple Silicon, plus the VS Code extension. The macOS archive is named `cpsc-VERSION-Darwin-arm64.tar.xz`; use the Unix release package instructions below after extraction.
+The [Nightly Build](https://github.com/ovfor4/cie-pseudocode-compiler/releases/tag/nightly-build) provides EMBEDDED release archives for Linux x86_64, Windows x86_64 and macOS 15+ Apple Silicon, plus the VS Code extension. The macOS archive is named `cpsc-VERSION-Darwin-arm64.tar.xz`; use the Unix release package instructions below after extraction. For Windows, download `cpsc-VERSION-Windows-ARCH.zip` and follow the Windows release package instructions below; no LLVM or MSYS2 installation is required to run it.
 
 ## Linux installation
 

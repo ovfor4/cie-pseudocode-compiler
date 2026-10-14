@@ -193,13 +193,19 @@ deletes the release and preserves its tag, title and notes. GitHub's generated
 source downloads remain available.
 
 The Linux compiler and plugin jobs use Ubuntu 24.04 x86_64; the macOS compiler
-job uses a macOS 15 arm64 runner. All three check out the push SHA and run
-independently after cleanup. Both compiler jobs use LLVM/Clang 23, Release and
-EMBEDDED settings, Pandoc, and the existing `release` target. Linux obtains its
-toolchain from apt.llvm.org; macOS uses Homebrew's LLVM 23. Each job extracts
-and checks its archive, then runs a small OUTPUT program with the packaged
-binary. The macOS check also verifies arm64 and rejects non-system dynamic
-libraries. The plugin uses Node.js 22, `npm ci --ignore-scripts` and
+job uses a macOS 15 arm64 runner, and Windows uses Windows Server 2025 x86_64.
+All four check out the push SHA and run independently after cleanup. All three
+compiler jobs use LLVM/Clang 23, Release and EMBEDDED settings, Pandoc, and the
+existing `release` target. Linux obtains its toolchain from apt.llvm.org; macOS
+uses Homebrew's LLVM 23. Windows uses `msys2/setup-msys2@v2` with MINGW64,
+MSYS2 LLVM/Clang packages, explicit native compiler and LLVM paths, and the
+MinGW Makefiles generator. It downloads the official Pandoc 3.12.1 Windows
+x86_64 ZIP into `build/deps/packages/` for CMake to extract. Each compiler job
+extracts and checks its archive, then runs a small OUTPUT program with the
+packaged binary. Windows checks its ZIP in PowerShell with PATH limited to
+Windows system directories, excluding MSYS2 and LLVM. The macOS check also
+verifies arm64 and rejects non-system dynamic libraries. The plugin uses
+Node.js 22, `npm ci --ignore-scripts` and
 `npm run package`, then checks VSIX contents. Each job uploads directly after
 its own checks pass; failure in one does not block the others. No Actions
 artifacts are uploaded.
