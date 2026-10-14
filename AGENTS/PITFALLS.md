@@ -82,7 +82,8 @@ test programs.
   ENDTRY. Bare THROW raises a new anonymous exception even inside CATCH; there is
   no rethrow syntax, error object or what(). Runtime checks are catchable;
   compiler errors are not. Uncaught exceptions print only the generic message
-  and return 1. Native binaries must link the C++ runtime with `clang++-23`.
+  and return 1. Native binaries must link the C++ runtime with LLVM 23's
+  `clang++` (`clang++-23` on Debian/Ubuntu).
   Unwinding does not free heap strings/arrays or close files. Linux LLVM 23 is
   verified; Windows and macOS exception execution is not.
 

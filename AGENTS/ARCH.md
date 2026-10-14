@@ -34,7 +34,8 @@ uses C++ promotions, except that / always returns pseudocode REAL.
 
 The compiler emits textual IR. Initial configuration must explicitly select
 `CPSC_RUN_MODE=PATH`, `EMBEDDED` or `NONE` (no default). All modes need LLVM
-development libraries to build; NONE still generates IR. Native binaries remain manual:
+development libraries to build; NONE still generates IR. Native binaries remain manual.
+The following commands use Debian/Ubuntu's versioned compiler names:
 
 ```bash
 # Prepare dependencies using the recommendations in doc/build.md.
@@ -69,7 +70,8 @@ not to CMake. The Windows Pandoc ZIP is downloaded directly from its official
 release because MSYS2 has no Pandoc package. Only the Linux build is verified.
 
 Generated IR uses the C++ exception ABI; native binaries must link its runtime
-(use `clang++-23`). TRY/CATCH/ENDTRY and bare THROW are compiler extensions.
+(use LLVM 23's `clang++`, or `clang++-23` on Debian/Ubuntu).
+TRY/CATCH/ENDTRY and bare THROW are compiler extensions.
 Runtime checks throw anonymous exceptions; the final handler in generated main
 prints `Unhandled exception. Program terminated.` to stdout and returns 1.
 Exception execution is verified on Linux with LLVM 23; Windows/macOS are unverified.
@@ -116,6 +118,12 @@ static compression/terminal support archives when LLVM uses them. Linux Clang
 builds link the C++ runtime statically; MinGW uses `-static`. The tested Debian
 LLVM 23 executable has only libc, libm and the system loader as dynamic dependencies.
 Windows EMBEDDED is untested.
+
+Windows build instructions retain MSYS2 MINGW64. Its LLVM/Clang package names
+and compiler executable names are unversioned; CMake still requires major 23.
+The build guide explicitly selects `/mingw64/bin/clang.exe` and `clang++.exe`
+through `cygpath -m`. MINGW64 Clang retains the GNU linker and C++ library;
+switching to CLANG64 would also change the C/C++ runtime and is a separate task.
 
 On Linux, `make -C build install` builds the manual and calls the POSIX
 `install.sh` to copy `cpsc` into `CMAKE_INSTALL_PREFIX/bin` and all manuals into

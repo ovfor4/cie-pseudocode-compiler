@@ -66,11 +66,11 @@ Save IR and run it:
 cpsc test.cps -r -o result.ir
 ```
 
-Build a native program with a C++ linker so the exception runtime is linked:
+Build a native program with Clang 23's C++ driver so the exception runtime is linked. Use `clang++` from the LLVM 23 installation; Debian/Ubuntu also provides the versioned name `clang++-23`. MSYS2 MINGW64 and Homebrew use the unversioned name.
 
 ```sh
 cpsc test.cps -o test.ll
-clang++-23 test.ll -o test
+clang++ test.ll -o test
 ./test
 ```
 

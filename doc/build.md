@@ -80,6 +80,29 @@ pacman -S --needed \
   mingw-w64-x86_64-clang
 ```
 
+Confirm that both installed compilers report major version 23:
+
+```bash
+/mingw64/bin/clang.exe --version
+/mingw64/bin/clang++.exe --version
+```
+
+The [MINGW64 Clang package](https://packages.msys2.org/packages/mingw-w64-x86_64-clang)
+and [LLVM package](https://packages.msys2.org/packages/mingw-w64-x86_64-llvm)
+currently provide 23.1.3. MSYS2 keeps these package names unversioned; its
+compiler executables are `clang.exe` and `clang++.exe`, not `clang-23.exe` or
+`clang++-23.exe`. CMake rejects another major version even when the package
+name is unchanged. MINGW64 Clang uses the GNU linker and C++ library supplied
+by its package dependencies; cpsc itself is compiled with Clang 23.
+
+Before downloading LLVM, confirm that these repository packages' `Version`
+fields all start with `23.`:
+
+```bash
+pacman -Si mingw-w64-x86_64-llvm \
+  mingw-w64-x86_64-llvm-libs mingw-w64-x86_64-llvm-tools
+```
+
 Recommended dependency downloads to the project build directory:
 
 ```bash
@@ -150,9 +173,16 @@ MSYS2 MINGW64:
 ```bash
 cmake -S . -B build -G "MinGW Makefiles" \
   -DCPSC_RUN_MODE=EMBEDDED -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+  -DCMAKE_C_COMPILER="$(cygpath -m /mingw64/bin/clang.exe)" \
+  -DCMAKE_CXX_COMPILER="$(cygpath -m /mingw64/bin/clang++.exe)"
 mingw32-make -C build -j4
 ```
+
+These explicit paths select the MINGW64 compilers checked above. `cygpath -m`
+converts the MSYS2 paths for native Windows CMake. Configuration must report
+Clang 23 for both compilers and `Found LLVM 23.x` for the selected development
+libraries. Use the MINGW64 packages throughout; do not mix CLANG64 or UCRT64
+libraries into this build.
 
 macOS:
 
@@ -195,6 +225,11 @@ MSYS2 MINGW64:
 ```bash
 export PATH="$PWD/build/deps/root/mingw64/bin:$PATH"
 ```
+
+In this shell, `lli.exe --version` should identify LLVM 23. `cpsc -r` validates
+the same PATH executable automatically before compiling the source. When
+running from PowerShell or Command Prompt, add the Windows path to this `bin`
+directory to that terminal's PATH so its DLLs can also be found.
 
 macOS:
 
