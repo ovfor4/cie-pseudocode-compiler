@@ -30,6 +30,18 @@ user-defined names) — never an enum. `TypeSystem` resolves the string to
 identifier as a type name except `VOID` (rejected outside a RETURNS clause via its
 `AllowVoid` flag); other unknown types only fail (softly) in CodeGen.
 
+**C aliases are structural within the C domain.** `CIdentity` retains the canonical
+C base type and pointer levels independently of the alias `Name`. Use `sameType`
+for storage compatibility (including BYREF and array arguments); never equate C
+types just because their LLVM types or widths match. CScalar/CPointer values are
+handled by CTypeGen, not the legacy representation coercions. Cross-domain
+assignments, arguments and operators require explicit casts, including literals.
+Plain C char uses native signedness; pseudocode CHAR stays unsigned. Numeric
+conversions use source signedness, and native floating formats use numeric_limits.
+Allocation sizes still use LLVM sizeof; native C type widths use build-compiler
+sizeof. C alias declarations precede casts using their names; the parser tracks
+declared type names to distinguish `(Type)operand` from `(expression)`.
+
 **User-kind typing is nominal, and checked upstream only.** Enum/Record/Pointer
 identity is name equality (`P1 = ^INTEGER` and `P2 = ^INTEGER` are incompatible;
 same-layout records too). Their LLVM representations are indistinguishable from

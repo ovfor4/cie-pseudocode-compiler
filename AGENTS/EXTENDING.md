@@ -45,6 +45,14 @@ OUTPUT/INPUT/WRITEFILE/file-name operands, FOR variables, builtin args,
 `getExprTypeInfo` classification. Everything not explicitly admitted must be a
 compile error.
 
+**Native C types:** add representation/format metadata in TypeSystem's native
+registration, using compiler-derived facts rather than fixed widths. Preserve
+canonical CIdentity and alias compatibility. Update CTypeGen conversions,
+promotions and I/O together; never let native C operands fall through to the
+legacy ArithmeticHandler or representation-only coercions. C_TYPE parses a
+string import, not an ordinary function call. Casts are CastExprAST values;
+their type must be recognized by both emission and getExprTypeInfo.
+
 **New designator access form:** `AccessKind` case in `TypeAST.h` +
 `ParseDesignatorSuffix` + the walk in `CodeGen::emitLValue` **and** the static
 walk in `getExprTypeInfo`'s designator branch (they must agree) — plus the

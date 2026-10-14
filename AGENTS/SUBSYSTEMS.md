@@ -64,7 +64,7 @@ context or language-level inheritance yet.
 **Runtime checks** (`RuntimeCheck`): array bounds, file misuse, enum ranges, null
 dereferences and array-parameter bounds contracts are checked at their emit sites.
 `ArithmeticHandler` calls `emitDivZeroCheck` before `/`, DIV and MOD; the check accepts
-i64 and double divisors, including both floating-point signed zeros.
+integer and floating-point divisors, including both floating-point signed zeros.
 `emitCheck(Cond)` splits the block and calls `ExceptionHandler::emitThrow` on failure.
 No check prints an error; source-line parameters remain reserved for future diagnostics.
 

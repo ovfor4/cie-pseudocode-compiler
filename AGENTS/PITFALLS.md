@@ -86,6 +86,15 @@ test programs.
   Unwinding does not free heap strings/arrays or close files. Linux LLVM 18 is
   verified; Windows and macOS exception execution is not.
 
+- **C type extensions.** C_STRING is a raw char pointer, not a STRING: explicitly
+  cast to STRING for printing or builtins. C aliases share canonical CIdentity;
+  do not use LLVM widths to recover signedness or nominal type identity. Plain
+  char's signedness is native, unlike pseudocode CHAR. C/pseudocode conversions
+  require casts even for literals. C scalar arithmetic uses native promotions,
+  but / always returns REAL. Cast aliases must precede their use. long double
+  may have padding; sizeof does not identify its floating-point format. Native
+  C support is verified on Linux LLVM 18; cross-target and EXTERN are unsupported.
+
 ## Not implemented (9618 features)
 
 CASE OF, CONSTANT, SET types (`SET`/`DEFINE` are reserved with dedicated errors),

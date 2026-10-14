@@ -12,6 +12,8 @@ Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`, `<`, `>`, 
 
 Precedence, from highest to lowest: unary operators, `* / DIV MOD`, `+ - &`, comparisons, AND, OR. Parentheses override precedence.
 
+Parenthesized type casts, such as (C_INT)Number, have unary precedence. C_INT, C_CHAR, C_STRING and C_DOUBLE are native C aliases; TYPE name = C_TYPE("...") imports other supported C base types and pointers. Conversions between C and pseudocode types must be explicit. These are compiler extensions; see [cpsc-keyword-c_type(7)](keyword/cpsc-keyword-c_type.7.md).
+
 Literals include integers, decimal real numbers, TRUE/FALSE, strings in double quotes, and single-byte characters in single quotes. Negative numbers use unary minus. There are no string or character escape sequences. Comments begin with `//` and continue to the end of the line.
 
 Declare variables before use. See DECLARE for built-in types and arrays, TYPE for records/enumerations/pointers, and CLASS for public/private fields.
@@ -36,6 +38,7 @@ The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions 
 - [cpsc-keyword-writefile(7)](keyword/cpsc-keyword-writefile.7.md): write a line to a text file.
 - [cpsc-keyword-closefile(7)](keyword/cpsc-keyword-closefile.7.md): close a text file.
 - [cpsc-keyword-type(7)](keyword/cpsc-keyword-type.7.md): define enumerations, pointers, and records.
+- [cpsc-keyword-c_type(7)](keyword/cpsc-keyword-c_type.7.md): import native C types and explicitly cast values.
 - [cpsc-keyword-class(7)](keyword/cpsc-keyword-class.7.md): define a class with public and private fields.
 - [cpsc-keyword-and(7)](keyword/cpsc-keyword-and.7.md): combine conditions with logical AND.
 - [cpsc-keyword-or(7)](keyword/cpsc-keyword-or.7.md): combine conditions with logical OR.

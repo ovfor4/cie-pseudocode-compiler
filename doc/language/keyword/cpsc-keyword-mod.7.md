@@ -14,6 +14,8 @@ left MOD right
 
 Both operands must be INTEGER. Return the remainder after division truncated toward zero; a nonzero remainder has the dividend's sign. A zero divisor throws an exception that TRY/CATCH can handle. MOD has the same precedence as multiplication.
 
+Two C integer operands are also accepted, using C++ integer promotions and signed/unsigned conversion rules. A signed result follows truncation toward zero; an unsigned result uses unsigned division. Mixing C and pseudocode operands requires an explicit cast. See [cpsc-keyword-c_type(7)](cpsc-keyword-c_type.7.md).
+
 # EXAMPLE
 
 ```text

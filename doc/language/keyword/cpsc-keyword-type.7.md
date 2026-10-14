@@ -9,6 +9,7 @@ cpsc-keyword-type - define enumerations, pointers, and records
 ```text
 TYPE name = (value, ...)
 TYPE name = ^type
+TYPE name = C_TYPE("C type expression")
 TYPE name
     DECLARE field : type
 ENDTYPE
@@ -21,6 +22,8 @@ Define types at top level. Enumeration values have globally reserved names; OUTP
 A prefix caret takes an address (`^variable`); a suffix caret dereferences a pointer (`pointer^`). Pointee types must match exactly, even where guide section 4.2's example mixes types. Pointers start null; dereferencing null throws an exception. There is no NULL literal. Avoid pointers to local variables after the function returns.
 
 Records contain one or more DECLARE fields and end with ENDTYPE. Access fields with a dot. Whole records copy by value; array fields are unsupported. Distinct user-defined type names remain distinct types. SET/DEFINE are reserved but unsupported.
+
+C_TYPE imports a native C type as an alias. Unlike the original enumerations, records and pointer declarations, C aliases with the same underlying C type are interchangeable. See [cpsc-keyword-c_type(7)](cpsc-keyword-c_type.7.md) for supported types and explicit casts.
 
 # EXAMPLE
 

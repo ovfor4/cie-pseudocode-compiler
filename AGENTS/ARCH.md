@@ -15,9 +15,19 @@ INTEGER = `i64`, REAL = `double`, BOOLEAN = `i1`, CHAR = `i8`, STRING = opaque `
 to a NUL-terminated buffer. User-defined types (§4): enum = `i64` (0-based ordinal),
 pointer = opaque `ptr`, record = named struct `%record.NAME`. Enum/pointer are
 LLVM-identical to INTEGER/STRING **by design** — their identity lives in the type
-*name*, enforced upstream (see CONVENTIONS.md). Byte sizes are never computed
-host-side: the module has no DataLayout string, so every size is a null-GEP
+*name*, enforced upstream (see CONVENTIONS.md). Allocation byte sizes are never computed
+host-side: the module has no DataLayout string, so every allocation size is a null-GEP
 `sizeof` constant (`TypeSystem::getSizeOfConstant`) folded by the backend.
+
+C_INT/C_CHAR/C_STRING/C_DOUBLE alias native int/char/char*/double. C_TYPE string
+imports cover standard C integer/real types, _Bool, void and object pointers.
+CScalar/CPointer identities are canonical C types, not pseudocode alias names;
+native widths and signedness come from sizeof/type traits, while floating formats
+come from numeric_limits (long double size alone is insufficient). Programs use
+the compiler's build ABI; cross-target emission and EXTERN are not implemented.
+CTypeGen handles typed numeric conversions, casts, native arithmetic and I/O.
+Crossing C/pseudocode domains requires a cast, including literals. C arithmetic
+uses C++ promotions, except that / always returns pseudocode REAL.
 
 ## Build & run
 
@@ -167,6 +177,7 @@ untested.)
 | `lib/Parser/ParserType.cc` | TYPE/ENDTYPE and CLASS/ENDCLASS declarations, shared field parsing, SET/DEFINE reserved stubs |
 | `lib/CodeGen/CodeGen.cc` | Hub: dispatch, coercion, control flow, INPUT/OUTPUT, main() |
 | `lib/CodeGen/Designator.cc` | CodeGen methods for the TYPE system: type pre-pass, `emitLValue`/`loadFromLValue`, `emitCoercedExpr` gate, user-kind binary-op interception |
+| `lib/CodeGen/CTypeGen.cc` | CodeGen methods for native C scalar conversions, casts, arithmetic and input/output |
 | `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen (including exception emission) |
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
 | `tools/driver/EmbeddedRunner.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only MCJIT runner and static support-library selection |
