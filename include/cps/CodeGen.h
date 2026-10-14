@@ -70,6 +70,9 @@ class CodeGen {
     llvm::Value *convertNumericValue(llvm::Value *Val, const TypeInfo *Source,
                                      const TypeInfo *Target);
     llvm::Value *emitCast(CastExprAST *Cast);
+    llvm::Value *emitCBinaryOp(BinaryExprAST *Bin, const TypeInfo *Left, const TypeInfo *Right);
+    void emitCOutput(llvm::Value *Val, const TypeInfo *Info, bool AppendNewline);
+    void emitCInput(const SymbolInfo *Symbol, const TypeInfo *Info);
 
     // TYPE-system helpers (Designator.cc).
     void runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements);

@@ -53,19 +53,21 @@ const RecordFieldInfo *RecordPayload::findField(const std::string &Name) const {
 }
 
 bool TypeInfo::isNumeric() const {
-    return Kind == TypeKind::Integer || Kind == TypeKind::Real;
+    return Kind == TypeKind::Integer || Kind == TypeKind::Real ||
+        (Kind == TypeKind::CScalar && !isVoid());
 }
 
 bool TypeInfo::isIntegral() const {
-    return Kind == TypeKind::Integer || Kind == TypeKind::Char;
+    return Kind == TypeKind::Integer || Kind == TypeKind::Char ||
+        (Kind == TypeKind::CScalar && LLVMType->isIntegerTy());
 }
 
 bool TypeInfo::isReal() const {
-    return Kind == TypeKind::Real;
+    return Kind == TypeKind::Real || (Kind == TypeKind::CScalar && LLVMType->isFloatingPointTy());
 }
 
 bool TypeInfo::isBoolean() const {
-    return Kind == TypeKind::Boolean;
+    return Kind == TypeKind::Boolean || CIdentity == "_Bool";
 }
 
 bool TypeInfo::isString() const {
@@ -73,7 +75,7 @@ bool TypeInfo::isString() const {
 }
 
 bool TypeInfo::isChar() const {
-    return Kind == TypeKind::Char;
+    return Kind == TypeKind::Char || CIdentity == "char";
 }
 
 bool TypeInfo::isVoid() const {
@@ -105,10 +107,11 @@ bool TypeInfo::isOutputtable() const {
     case TypeKind::Char:
     case TypeKind::Enum: // prints its ordinal
         return true;
+    case TypeKind::CScalar:
+        return !isVoid();
     case TypeKind::Void:
     case TypeKind::Record:
     case TypeKind::Pointer:
-    case TypeKind::CScalar:
     case TypeKind::CPointer:
         return false;
     }
@@ -207,6 +210,29 @@ void TypeSystem::registerBuiltins() {
 bool TypeSystem::sameType(const std::string &Left, const std::string &Right) const {
     const TypeInfo *L = resolve(Left);
     return L && L->sameType(resolve(Right));
+}
+
+const TypeInfo *TypeSystem::promoteCScalar(const TypeInfo *Info) const {
+    if (!Info || Info->Kind != TypeKind::CScalar || Info->isVoid()) return nullptr;
+    if (Info->CRank >= 4) return Info;
+    const TypeInfo *Int = resolve(cTypeName("int"));
+    unsigned Width = Info->LLVMType->getIntegerBitWidth();
+    unsigned IntWidth = Int->LLVMType->getIntegerBitWidth();
+    return Width < IntWidth || (Width == IntWidth && Info->CSigned)
+        ? Int : resolve(cTypeName("unsigned int"));
+}
+
+const TypeInfo *TypeSystem::commonCScalar(const TypeInfo *Left, const TypeInfo *Right) const {
+    const TypeInfo *L = promoteCScalar(Left);
+    const TypeInfo *R = promoteCScalar(Right);
+    if (!L || !R) return nullptr;
+    if (L->isReal() || R->isReal() || L->CSigned == R->CSigned)
+        return L->CRank >= R->CRank ? L : R;
+    const TypeInfo *S = L->CSigned ? L : R;
+    const TypeInfo *U = L->CSigned ? R : L;
+    if (U->CRank >= S->CRank) return U;
+    if (S->LLVMType->getIntegerBitWidth() > U->LLVMType->getIntegerBitWidth()) return S;
+    return resolve(cTypeName("unsigned " + S->CIdentity));
 }
 
 const TypeInfo *TypeSystem::importCType(const std::string &Expression, std::string &Err) {

@@ -23,7 +23,7 @@ void RuntimeCheck::emitCheck(Value *Condition) {
 
 void RuntimeCheck::emitDivZeroCheck(Value *Divisor, int Line) {
     Value *IsZero;
-    if (Divisor->getType()->isDoubleTy()) {
+    if (Divisor->getType()->isFloatingPointTy()) {
         IsZero = Builder.CreateFCmpOEQ(Divisor, ConstantFP::get(Divisor->getType(), 0.0), "is_zero");
     } else {
         IsZero = Builder.CreateICmpEQ(Divisor, ConstantInt::get(Divisor->getType(), 0), "is_zero");

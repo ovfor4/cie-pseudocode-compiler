@@ -141,6 +141,8 @@ public:
                       std::string &Err);
     const TypeInfo *importCType(const std::string &Expression, std::string &Err);
     bool sameType(const std::string &Left, const std::string &Right) const;
+    const TypeInfo *promoteCScalar(const TypeInfo *Info) const;
+    const TypeInfo *commonCScalar(const TypeInfo *Left, const TypeInfo *Right) const;
 
     const EnumConstant *lookupEnumConstant(const std::string &Name) const;
 

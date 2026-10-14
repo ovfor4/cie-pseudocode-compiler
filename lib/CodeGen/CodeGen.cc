@@ -243,6 +243,7 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
             return resolveType("BOOLEAN");
         }
         const TypeInfo *Operand = getExprTypeInfo(Unary->getOperand());
+        if (Operand && Operand->isC()) return Types->promoteCScalar(Operand);
         if (Operand && !Operand->isC() && !Operand->isUserKind())
             return Operand->isReal() ? resolveType("REAL") : resolveType("INTEGER");
         return nullptr;
@@ -261,13 +262,15 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
                 return resolveType("BOOLEAN");
             case '&':
                 return resolveType("STRING");
+            case '/':
+                return resolveType("REAL");
             default:
                 break;
         }
 
         const TypeInfo *L = getExprTypeInfo(Bin->getLHS());
         const TypeInfo *R = getExprTypeInfo(Bin->getRHS());
-        if ((L && L->isC()) || (R && R->isC())) return nullptr;
+        if ((L && L->isC()) || (R && R->isC())) return Types->commonCScalar(L, R);
         // Enum arithmetic: E +/- INTEGER (enum on the left) yields the enum;
         // every other user-kind combination has no type (emission rejects it).
         if ((L && L->isUserKind()) || (R && R->isUserKind())) {
@@ -516,6 +519,8 @@ void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewli
         return;
 
     case TypeKind::CScalar:
+        emitCOutput(Val, Info, AppendNewline);
+        return;
     case TypeKind::CPointer:
         reportError("OUTPUT is not supported for type %s", Info->Name.c_str());
         return;
@@ -634,12 +639,26 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
 
     if (auto *Unary = dynamic_cast<UnaryExprAST*>(Expr)) {
         if (Unary->getOp() == tok_not) {
-            Value *Operand = emitCoercedExpr(Unary->getOperand(), resolveType("BOOLEAN"));
+            const TypeInfo *Info = getExprTypeInfo(Unary->getOperand());
+            Value *Operand = Info && Info->isC()
+                ? convertNumericValue(emitExpr(Unary->getOperand()), Info, resolveType("BOOLEAN"))
+                : emitCoercedExpr(Unary->getOperand(), resolveType("BOOLEAN"));
+            if (Info && Info->Kind == TypeKind::CPointer) {
+                reportError("NOT does not support C pointer operands");
+                return nullptr;
+            }
             if (!Operand) return nullptr;
             return Builder->CreateNot(Operand, "nottmp");
         }
         if (Unary->getOp() == '-') {
             const TypeInfo *Info = getExprTypeInfo(Unary->getOperand());
+            if (Info && Info->Kind == TypeKind::CScalar && !Info->isVoid()) {
+                const TypeInfo *Promoted = Types->promoteCScalar(Info);
+                Value *Operand = convertNumericValue(emitExpr(Unary->getOperand()), Info, Promoted);
+                if (!Operand) return nullptr;
+                return Promoted->isReal() ? Builder->CreateFNeg(Operand, "c_neg")
+                                          : Builder->CreateNeg(Operand, "c_neg");
+            }
             if (!Info || Info->isC() || Info->isUserKind() || Info->isString() || Info->isVoid()) {
                 reportError("Unary '-' requires a supported numeric operand");
                 return nullptr;
@@ -670,8 +689,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         const TypeInfo *LT = getExprTypeInfo(Bin->getLHS());
         const TypeInfo *RT = getExprTypeInfo(Bin->getRHS());
         if ((LT && LT->isC()) || (RT && RT->isC())) {
-            reportError("C operators require explicit support for their operand types");
-            return nullptr;
+            return emitCBinaryOp(Bin, LT, RT);
         }
         if ((LT && LT->isUserKind()) || (RT && RT->isUserKind())) {
             return emitUserKindBinaryOp(Bin, LT, RT);
@@ -1184,7 +1202,9 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
         }
 
         std::vector<Value*> Args;
-        if (TypeInfo->isReal()) {
+        if (TypeInfo->isC()) {
+            emitCInput(Info, TypeInfo);
+        } else if (TypeInfo->isReal()) {
             Args.push_back(ScanfFloatFormatStr);
             Args.push_back(Info->Storage);
             Builder->CreateCall(ScanfFunc, Args);

@@ -77,3 +77,129 @@ Value *CodeGen::emitCast(CastExprAST *Cast) {
     reportError("Cannot cast %s to %s", Source->Name.c_str(), Target->Name.c_str());
     return nullptr;
 }
+
+Value *CodeGen::emitCBinaryOp(BinaryExprAST *Bin, const TypeInfo *Left, const TypeInfo *Right) {
+    int Op = Bin->getOp();
+    if (!Left || !Right || !Left->isC() || !Right->isC()) {
+        reportError("C and pseudocode operands require an explicit cast (line %d)", Bin->getLine());
+        return nullptr;
+    }
+    if (Left->isPointer() || Right->isPointer()) {
+        if (Left->Kind != TypeKind::CPointer || Right->Kind != TypeKind::CPointer ||
+            !Left->sameType(Right) || (Op != tok_eq && Op != tok_ne)) {
+            reportError("C pointers support only = and <> between the same C pointer type");
+            return nullptr;
+        }
+        Value *L = emitExpr(Bin->getLHS());
+        Value *R = emitExpr(Bin->getRHS());
+        if (!L || !R) return nullptr;
+        return Op == tok_eq ? Builder->CreateICmpEQ(L, R, "c_ptr_eq")
+                            : Builder->CreateICmpNE(L, R, "c_ptr_ne");
+    }
+    const TypeInfo *Common = Types->commonCScalar(Left, Right);
+    if (!Common) {
+        reportError("C arithmetic requires scalar operands");
+        return nullptr;
+    }
+    if (Op == '&' || ((Op == tok_div || Op == tok_mod) && !Common->isIntegral())) {
+        reportError("Operator is not supported for these C operand types (line %d)", Bin->getLine());
+        return nullptr;
+    }
+    Value *L = emitExpr(Bin->getLHS());
+    Value *R = emitExpr(Bin->getRHS());
+    if (!L || !R) return nullptr;
+    if (Op == tok_and || Op == tok_or) {
+        L = convertNumericValue(L, Left, resolveType("BOOLEAN"));
+        R = convertNumericValue(R, Right, resolveType("BOOLEAN"));
+        return Op == tok_and ? Builder->CreateAnd(L, R, "c_and")
+                             : Builder->CreateOr(L, R, "c_or");
+    }
+    // '/' is a pseudocode operator even with C operands: real division,
+    // yielding the existing REAL type rather than a native integer quotient.
+    if (Op == '/') {
+        L = convertNumericValue(L, Left, resolveType("REAL"));
+        R = convertNumericValue(R, Right, resolveType("REAL"));
+        RuntimeChecker->emitDivZeroCheck(R, Bin->getLine());
+        return Builder->CreateFDiv(L, R, "c_real_div");
+    }
+    L = convertNumericValue(L, Left, Common);
+    R = convertNumericValue(R, Right, Common);
+    if (Common->isReal()) {
+        switch (Op) {
+        case '+': return Builder->CreateFAdd(L, R, "c_add");
+        case '-': return Builder->CreateFSub(L, R, "c_sub");
+        case '*': return Builder->CreateFMul(L, R, "c_mul");
+        case tok_eq: return Builder->CreateFCmpOEQ(L, R, "c_eq");
+        case tok_ne: return Builder->CreateFCmpUNE(L, R, "c_ne");
+        case '<': return Builder->CreateFCmpOLT(L, R, "c_lt");
+        case '>': return Builder->CreateFCmpOGT(L, R, "c_gt");
+        case tok_le: return Builder->CreateFCmpOLE(L, R, "c_le");
+        case tok_ge: return Builder->CreateFCmpOGE(L, R, "c_ge");
+        }
+    } else {
+        switch (Op) {
+        case '+': return Builder->CreateAdd(L, R, "c_add");
+        case '-': return Builder->CreateSub(L, R, "c_sub");
+        case '*': return Builder->CreateMul(L, R, "c_mul");
+        case tok_div: case tok_mod:
+            RuntimeChecker->emitDivZeroCheck(R, Bin->getLine());
+            if (Op == tok_div)
+                return Common->CSigned ? Builder->CreateSDiv(L, R, "c_div")
+                                       : Builder->CreateUDiv(L, R, "c_div");
+            return Common->CSigned ? Builder->CreateSRem(L, R, "c_mod")
+                                   : Builder->CreateURem(L, R, "c_mod");
+        case tok_eq: return Builder->CreateICmpEQ(L, R, "c_eq");
+        case tok_ne: return Builder->CreateICmpNE(L, R, "c_ne");
+        case '<': return Common->CSigned ? Builder->CreateICmpSLT(L, R, "c_lt")
+                                        : Builder->CreateICmpULT(L, R, "c_lt");
+        case '>': return Common->CSigned ? Builder->CreateICmpSGT(L, R, "c_gt")
+                                        : Builder->CreateICmpUGT(L, R, "c_gt");
+        case tok_le: return Common->CSigned ? Builder->CreateICmpSLE(L, R, "c_le")
+                                          : Builder->CreateICmpULE(L, R, "c_le");
+        case tok_ge: return Common->CSigned ? Builder->CreateICmpSGE(L, R, "c_ge")
+                                          : Builder->CreateICmpUGE(L, R, "c_ge");
+        }
+    }
+    reportError("Unsupported operator for C operands (line %d)", Bin->getLine());
+    return nullptr;
+}
+
+void CodeGen::emitCOutput(Value *Val, const TypeInfo *Info, bool AppendNewline) {
+    if (Info->isVoid()) {
+        reportError("Cannot OUTPUT a void value");
+        return;
+    }
+    std::string Format = Info->COutputFormat;
+    if (Info->isBoolean()) {
+        Format = "%s";
+        Val = Builder->CreateSelect(Val, TrueStr, FalseStr);
+    } else if (Info->CIdentity == "float") {
+        Val = convertNumericValue(Val, Info, resolveType("C_DOUBLE"));
+    } else if (Info->isIntegral()) {
+        Val = convertNumericValue(Val, Info, Types->promoteCScalar(Info));
+    }
+    if (AppendNewline) Format += '\n';
+    Value *Fmt = Builder->CreateGlobalStringPtr(Format, "fmt_c_output", 0, TheModule.get());
+    Builder->CreateCall(PrintfFunc, {Fmt, Val});
+}
+
+void CodeGen::emitCInput(const SymbolInfo *Symbol, const TypeInfo *Info) {
+    if (Info->Kind != TypeKind::CScalar || Info->isVoid()) {
+        reportError("INPUT is not supported for C pointer or void type %s", Info->Name.c_str());
+        return;
+    }
+    if (Info->isBoolean()) {
+        const TypeInfo *NativeInt = resolveType("C_INT");
+        AllocaInst *Temp = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
+                                                 NativeInt->LLVMType, "c_bool_input");
+        Builder->CreateStore(Types->getZeroValue("C_INT"), Temp);
+        Value *Fmt = Builder->CreateGlobalStringPtr("%d", "fmt_c_input_bool", 0, TheModule.get());
+        Builder->CreateCall(ScanfFunc, {Fmt, Temp});
+        Value *Input = Builder->CreateLoad(NativeInt->LLVMType, Temp);
+        Value *Bool = convertNumericValue(Input, NativeInt, Info);
+        Builder->CreateStore(Bool, Symbol->Storage);
+        return;
+    }
+    Value *Fmt = Builder->CreateGlobalStringPtr(Info->CInputFormat, "fmt_c_input", 0, TheModule.get());
+    Builder->CreateCall(ScanfFunc, {Fmt, Symbol->Storage});
+}
