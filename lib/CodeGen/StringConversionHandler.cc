@@ -12,8 +12,8 @@ void StringConversionHandler::setupExternalFunctions() {
     FunctionType *SprintfType = FunctionType::get(Type::getInt32Ty(Context), {PointerType::getUnqual(Context), PointerType::getUnqual(Context)}, true);
     SprintfFunc = Module.getOrInsertFunction("sprintf", SprintfType);
 
-    FunctionType *StrtolType = FunctionType::get(Type::getInt64Ty(Context), {PointerType::getUnqual(Context), PointerType::getUnqual(Context), Type::getInt32Ty(Context)}, false);
-    StrtolFunc = Module.getOrInsertFunction("strtol", StrtolType);
+    FunctionType *StrtollType = FunctionType::get(Type::getInt64Ty(Context), {PointerType::getUnqual(Context), PointerType::getUnqual(Context), Type::getInt32Ty(Context)}, false);
+    StrtollFunc = Module.getOrInsertFunction("strtoll", StrtollType);
 
     FunctionType *StrtodType = FunctionType::get(Type::getDoubleTy(Context), {PointerType::getUnqual(Context), PointerType::getUnqual(Context)}, false);
     StrtodFunc = Module.getOrInsertFunction("strtod", StrtodType);
@@ -43,7 +43,7 @@ Value *StringConversionHandler::emitStrToNum(Value *Str, bool AsReal) {
         return Builder.CreateCall(StrtodFunc, {Str, NullPtr}, "str_to_real");
     } else {
         Value *Base = ConstantInt::get(Type::getInt32Ty(Context), 10);
-        return Builder.CreateCall(StrtolFunc, {Str, NullPtr, Base}, "str_to_int");
+        return Builder.CreateCall(StrtollFunc, {Str, NullPtr, Base}, "str_to_int");
     }
 }
 

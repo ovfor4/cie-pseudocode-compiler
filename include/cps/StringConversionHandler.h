@@ -11,7 +11,7 @@ class StringConversionHandler {
     llvm::Module &Module;
 
     llvm::FunctionCallee SprintfFunc;
-    llvm::FunctionCallee StrtolFunc;
+    llvm::FunctionCallee StrtollFunc;
     llvm::FunctionCallee StrtodFunc;
     llvm::FunctionCallee MallocFunc;
 
