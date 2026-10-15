@@ -1,4 +1,5 @@
 #include "cps/StringConversionHandler.h"
+#include <limits>
 
 using namespace llvm;
 using namespace cps;
@@ -9,8 +10,8 @@ StringConversionHandler::StringConversionHandler(LLVMContext &Ctx, IRBuilder<> &
 }
 
 void StringConversionHandler::setupExternalFunctions() {
-    FunctionType *SprintfType = FunctionType::get(Type::getInt32Ty(Context), {PointerType::getUnqual(Context), PointerType::getUnqual(Context)}, true);
-    SprintfFunc = Module.getOrInsertFunction("sprintf", SprintfType);
+    FunctionType *SnprintfType = FunctionType::get(Type::getInt32Ty(Context), {PointerType::getUnqual(Context), Type::getInt64Ty(Context), PointerType::getUnqual(Context)}, true);
+    SnprintfFunc = Module.getOrInsertFunction("snprintf", SnprintfType);
 
     FunctionType *StrtollType = FunctionType::get(Type::getInt64Ty(Context), {PointerType::getUnqual(Context), PointerType::getUnqual(Context), Type::getInt32Ty(Context)}, false);
     StrtollFunc = Module.getOrInsertFunction("strtoll", StrtollType);
@@ -23,7 +24,9 @@ void StringConversionHandler::setupExternalFunctions() {
 }
 
 Value *StringConversionHandler::emitNumToStr(Value *Num, bool IsReal) {
-    Value *AllocSize = ConstantInt::get(Type::getInt64Ty(Context), 64);
+    // Allow an extra integer digit, sign, decimal point, six fractional digits and NUL.
+    Value *AllocSize = ConstantInt::get(Type::getInt64Ty(Context),
+                                       IsReal ? std::numeric_limits<double>::max_exponent10 + 10 : 64);
     Value *Buffer = Builder.CreateCall(MallocFunc, AllocSize, "num_str_buf");
 
     Value *FormatStr;
@@ -33,7 +36,7 @@ Value *StringConversionHandler::emitNumToStr(Value *Num, bool IsReal) {
         FormatStr = Builder.CreateGlobalString("%lld");
     }
 
-    Builder.CreateCall(SprintfFunc, {Buffer, FormatStr, Num});
+    Builder.CreateCall(SnprintfFunc, {Buffer, AllocSize, FormatStr, Num});
     return Buffer;
 }
 

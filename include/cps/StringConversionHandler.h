@@ -10,7 +10,7 @@ class StringConversionHandler {
     llvm::IRBuilder<> &Builder;
     llvm::Module &Module;
 
-    llvm::FunctionCallee SprintfFunc;
+    llvm::FunctionCallee SnprintfFunc;
     llvm::FunctionCallee StrtollFunc;
     llvm::FunctionCallee StrtodFunc;
     llvm::FunctionCallee MallocFunc;

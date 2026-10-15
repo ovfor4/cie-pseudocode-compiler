@@ -8,11 +8,13 @@
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
 #include "llvm/Transforms/Utils/Cloning.h"
+#include <cstdio>
+#include <cstdlib>
 #include <cxxabi.h>
 #include <typeinfo>
 #include <unwind.h>
 
-// Static C++ runtime symbols are not available through dlsym. Register their
+// Static runtime symbols are not available through dlsym. Register their
 // actual addresses so the JIT and its unwind tables use the host's runtime.
 extern "C" int
 #if defined(__SEH__)
@@ -24,8 +26,13 @@ __gxx_personality_v0
 #endif
 (int, _Unwind_Action, _Unwind_Exception_Class, _Unwind_Exception *, _Unwind_Context *);
 
-static void registerExceptionSymbols() {
+static void registerRuntimeSymbols() {
     using llvm::sys::DynamicLibrary;
+#ifdef __MINGW32__
+    // Use the same CRT aliases as native IR linking, including its stdio formatting.
+    DynamicLibrary::AddSymbol("snprintf", reinterpret_cast<void *>(&__ms_snprintf));
+    DynamicLibrary::AddSymbol("strtoll", reinterpret_cast<void *>(&std::strtoll));
+#endif
     DynamicLibrary::AddSymbol("__cxa_allocate_exception", reinterpret_cast<void *>(&__cxxabiv1::__cxa_allocate_exception));
     DynamicLibrary::AddSymbol("__cxa_throw", reinterpret_cast<void *>(&__cxxabiv1::__cxa_throw));
     DynamicLibrary::AddSymbol("__cxa_begin_catch", reinterpret_cast<void *>(&__cxxabiv1::__cxa_begin_catch));
@@ -52,7 +59,7 @@ int runEmbedded(const cps::CodeGen &CG) {
         llvm::errs() << "error: cannot load process symbols: " << Error << "\n";
         return 1;
     }
-    registerExceptionSymbols();
+    registerRuntimeSymbols();
     // Keep CodeGen's module and context alive while the engine owns its clone.
     auto Module = llvm::CloneModule(CG.getModule());
     Module->setTargetTriple(llvm::Triple(llvm::sys::getProcessTriple()));

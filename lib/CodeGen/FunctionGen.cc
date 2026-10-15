@@ -11,7 +11,7 @@ using namespace cps;
 static bool isReservedRuntimeName(const std::string &Name) {
     static const char *Reserved[] = {
         "main", "printf", "scanf", "malloc", "free", "strlen", "memcpy",
-        "strcpy", "strcat", "toupper", "tolower", "sprintf", "strtol", "strtoll",
+        "strcpy", "strcat", "toupper", "tolower", "sprintf", "snprintf", "strtol", "strtoll",
         "strtod", "memset", "exit",
         "fopen", "fclose", "fgetc", "ungetc", "fputs", "fputc",
         "realloc", "strcmp", "__cxa_allocate_exception", "__cxa_throw",
