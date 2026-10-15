@@ -8,16 +8,46 @@
 using namespace llvm;
 using namespace cps;
 
-RuntimeCheck::RuntimeCheck(LLVMContext &C, IRBuilder<> &B, ExceptionHandler &EH)
-    : TheContext(C), Builder(B), Exceptions(EH) {}
+RuntimeCheck::RuntimeCheck(Module &M, LLVMContext &C, IRBuilder<> &B, ExceptionHandler &EH)
+    : TheModule(M), TheContext(C), Builder(B), Exceptions(EH) {
+    setupExternalFunctions();
+}
 
-void RuntimeCheck::emitCheck(Value *Condition) {
+void RuntimeCheck::setupExternalFunctions() {
+    std::vector<Type*> PrintfArgs;
+    PrintfArgs.push_back(PointerType::getUnqual(TheContext));
+    FunctionType *PrintfType = FunctionType::get(Type::getInt32Ty(TheContext), PrintfArgs, true);
+    PrintfFunc = TheModule.getOrInsertFunction("printf", PrintfType);
+
+    DivZeroMsg = Builder.CreateGlobalString("[Fatal] line %d: Division by zero\n", "err_div_zero", 0, &TheModule);
+    OutOfBoundsMsg = Builder.CreateGlobalString("[Fatal] line %d: Array index out of bounds\n", "err_bounds", 0, &TheModule);
+    EnumRangeMsg = Builder.CreateGlobalString("[Fatal] line %d: Value out of range for enum %s\n", "err_enum_range", 0, &TheModule);
+    NullDerefMsg = Builder.CreateGlobalString("[Fatal] line %d: Dereference of an unset pointer\n", "err_null_deref", 0, &TheModule);
+    ArrayArgBoundsMsg = Builder.CreateGlobalString(
+        "[Fatal] line %d: Array argument bounds [%lld:%lld] do not match the declared parameter bounds [%lld:%lld]\n",
+        "err_arr_arg_bounds", 0, &TheModule);
+}
+
+void RuntimeCheck::emitCheck(Value *Condition, Value *Msg, int Line) {
+    emitCheck(Condition, Msg, {ConstantInt::get(TheContext, APInt(32, Line))});
+}
+
+void RuntimeCheck::emitCheck(Value *Condition, Value *Msg, ArrayRef<Value *> FmtArgs) {
     Function *TheFunction = Builder.GetInsertBlock()->getParent();
+
     BasicBlock *FailBB = BasicBlock::Create(TheContext, "check_fail", TheFunction);
     BasicBlock *ContBB = BasicBlock::Create(TheContext, "check_cont", TheFunction);
+
     Builder.CreateCondBr(Condition, FailBB, ContBB);
+
     Builder.SetInsertPoint(FailBB);
+    std::vector<Value*> PrintArgs;
+    PrintArgs.push_back(Msg);
+    PrintArgs.insert(PrintArgs.end(), FmtArgs.begin(), FmtArgs.end());
+    Builder.CreateCall(PrintfFunc, PrintArgs);
+
     Exceptions.emitThrow();
+
     Builder.SetInsertPoint(ContBB);
 }
 
@@ -28,7 +58,7 @@ void RuntimeCheck::emitDivZeroCheck(Value *Divisor, int Line) {
     } else {
         IsZero = Builder.CreateICmpEQ(Divisor, ConstantInt::get(Divisor->getType(), 0), "is_zero");
     }
-    emitCheck(IsZero);
+    emitCheck(IsZero, DivZeroMsg, Line);
 }
 
 void RuntimeCheck::emitIndexCheck(Value *Index, Value *Lower, Value *Upper, int Line) {
@@ -36,7 +66,7 @@ void RuntimeCheck::emitIndexCheck(Value *Index, Value *Lower, Value *Upper, int 
     Value *TooHigh = Builder.CreateICmpSGT(Index, Upper, "too_high");
     Value *OutOfBounds = Builder.CreateOr(TooLow, TooHigh, "out_of_bounds");
 
-    emitCheck(OutOfBounds);
+    emitCheck(OutOfBounds, OutOfBoundsMsg, Line);
 }
 
 void RuntimeCheck::emitEnumRangeCheck(Value *Ordinal, uint64_t ValueCount,
@@ -48,14 +78,16 @@ void RuntimeCheck::emitEnumRangeCheck(Value *Ordinal, uint64_t ValueCount,
     Value *TooHigh = Builder.CreateICmpSGE(Ordinal, Hi, "enum_too_high");
     Value *OutOfRange = Builder.CreateOr(TooLow, TooHigh, "enum_out_of_range");
 
-    emitCheck(OutOfRange);
+    Value *NameStr = Builder.CreateGlobalString(TypeName, "enum_name", 0, &TheModule);
+    emitCheck(OutOfRange, EnumRangeMsg,
+              {ConstantInt::get(TheContext, APInt(32, Line)), NameStr});
 }
 
 void RuntimeCheck::emitNullDerefCheck(Value *Ptr, int Line) {
     Value *IsNull = Builder.CreateICmpEQ(Ptr,
                                          ConstantPointerNull::get(PointerType::getUnqual(TheContext)),
                                          "ptr_is_null");
-    emitCheck(IsNull);
+    emitCheck(IsNull, NullDerefMsg, Line);
 }
 
 void RuntimeCheck::emitArrayArgBoundsCheck(Value *ActualLower, Value *ActualUpper,
@@ -67,5 +99,7 @@ void RuntimeCheck::emitArrayArgBoundsCheck(Value *ActualLower, Value *ActualUppe
     Value *HiDiff = Builder.CreateICmpNE(ActualUpper, DeclHi, "arg_hi_ne");
     Value *Mismatch = Builder.CreateOr(LoDiff, HiDiff, "arg_bounds_ne");
 
-    emitCheck(Mismatch);
+    emitCheck(Mismatch, ArrayArgBoundsMsg,
+              {ConstantInt::get(TheContext, APInt(32, Line)),
+               ActualLower, ActualUpper, DeclLo, DeclHi});
 }

@@ -18,7 +18,7 @@ Literals include integers, decimal real numbers, TRUE/FALSE, strings in double q
 
 Declare variables before use. See DECLARE for built-in types and arrays, TYPE for records/enumerations/pointers, and CLASS for public/private fields.
 
-The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions with stack unwinding. Runtime check failures can be caught; an uncaught exception prints a generic message and returns status 1. There is no error object or what() support.
+The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions with stack unwinding. Runtime check failures print the source line and error reason to standard output before throwing and can be caught. An uncaught exception also prints a generic termination message and returns status 1. There is no error object or what() support.
 
 # KEYWORDS
 

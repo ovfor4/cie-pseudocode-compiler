@@ -38,6 +38,10 @@ class FileHandler {
 
     llvm::Value *ModeReadStr = nullptr, *ModeWriteStr = nullptr, *ModeAppendStr = nullptr;
 
+    llvm::Value *ErrOpenFail = nullptr, *ErrAlreadyOpen = nullptr, *ErrTableFull = nullptr,
+                *ErrNotOpen = nullptr, *ErrNotRead = nullptr, *ErrNotWrite = nullptr,
+                *ErrPastEof = nullptr;
+
     // synthesized helpers (internal linkage; pseudocode identifiers cannot
     // start with '_', so these names are un-collidable)
     llvm::Function *FindFn = nullptr, *OpenFn = nullptr, *ReadFn = nullptr,

@@ -158,6 +158,7 @@ Its handler stack and catch depth are keyed by LLVM function, so synthesizing fi
 helpers never inherits the caller's catches. User calls, file runtime calls and
 THROW must use `ExceptionHandler::emitCall`; ordinary nonthrowing libc calls stay
 plain calls. RETURN must finish all active catches after evaluating its value.
-`RuntimeCheck::emitCheck` throws without printing. Generated main catches anything
-unhandled, prints the single generic message to stdout, and returns 1. Arrays in
-TRY and CATCH use separate block scopes; scalars retain existing function scope.
+`RuntimeCheck::emitCheck` prints the source line and error reason to stdout before
+throwing. Generated main catches anything unhandled, prints the generic termination
+message to stdout, and returns 1. Explicit bare THROW prints no diagnostic itself.
+Arrays in TRY and CATCH use separate block scopes; scalars retain existing function scope.

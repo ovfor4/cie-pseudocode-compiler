@@ -58,6 +58,21 @@ void FileHandler::setupGlobals() {
     ModeReadStr = Builder.CreateGlobalString("r", "file_mode_r", 0, &Module);
     ModeWriteStr = Builder.CreateGlobalString("w", "file_mode_w", 0, &Module);
     ModeAppendStr = Builder.CreateGlobalString("a", "file_mode_a", 0, &Module);
+
+    ErrOpenFail = Builder.CreateGlobalString(
+        "[Fatal] line %d: Cannot open file '%s'\n", "err_file_open", 0, &Module);
+    ErrAlreadyOpen = Builder.CreateGlobalString(
+        "[Fatal] line %d: File '%s' is already open\n", "err_file_already_open", 0, &Module);
+    ErrTableFull = Builder.CreateGlobalString(
+        "[Fatal] line %d: Too many open files\n", "err_file_table_full", 0, &Module);
+    ErrNotOpen = Builder.CreateGlobalString(
+        "[Fatal] line %d: File '%s' is not open\n", "err_file_not_open", 0, &Module);
+    ErrNotRead = Builder.CreateGlobalString(
+        "[Fatal] line %d: File '%s' is not open for READ\n", "err_file_not_read", 0, &Module);
+    ErrNotWrite = Builder.CreateGlobalString(
+        "[Fatal] line %d: File '%s' is not open for WRITE\n", "err_file_not_write", 0, &Module);
+    ErrPastEof = Builder.CreateGlobalString(
+        "[Fatal] line %d: Read past end of file '%s'\n", "err_file_past_eof", 0, &Module);
 }
 
 void FileHandler::ensureRuntime() {
@@ -95,11 +110,11 @@ Value *FileHandler::emitSlotGEP(GlobalVariable *Table, Type *ElemTy, Value *Idx)
 }
 
 // Shared prologue of every helper that operates on an already-open file:
-// look the name up, throw on a miss, return the slot index.
+// look the name up, report and throw on a miss, return the slot index.
 Value *FileHandler::emitLookupOrFail(Value *Name, Value *Line) {
     Value *Idx = Builder.CreateCall(FindFn, {Name}, "slot");
     Value *NotOpen = Builder.CreateICmpSLT(Idx, ConstantInt::get(Context, APInt(64, 0)), "not_open");
-    Checker.emitCheck(NotOpen);
+    Checker.emitCheck(NotOpen, ErrNotOpen, {Line, Name});
     return Idx;
 }
 
@@ -171,7 +186,7 @@ void FileHandler::buildOpenFn() {
 
     Value *Existing = Builder.CreateCall(FindFn, {Name}, "existing");
     Value *AlreadyOpen = Builder.CreateICmpSGE(Existing, ConstantInt::get(Context, APInt(64, 0)), "already_open");
-    Checker.emitCheck(AlreadyOpen);
+    Checker.emitCheck(AlreadyOpen, ErrAlreadyOpen, {Line, Name});
 
     // First-free-slot scan; SlotVar stays -1 when the table is full.
     AllocaInst *IdxVar = Builder.CreateAlloca(I64, nullptr, "idx");
@@ -208,7 +223,7 @@ void FileHandler::buildOpenFn() {
     Builder.SetInsertPoint(AfterBB);
     Value *Slot = Builder.CreateLoad(I64, SlotVar, "free_slot");
     Value *NoFree = Builder.CreateICmpSLT(Slot, ConstantInt::get(Context, APInt(64, 0)), "table_full");
-    Checker.emitCheck(NoFree);
+    Checker.emitCheck(NoFree, ErrTableFull, {Line});
 
     // Branch-free fopen-mode selection: 1 -> "r", 2 -> "w", 3 -> "a".
     Value *IsWrite = Builder.CreateICmpEQ(Mode, ConstantInt::get(I8, uint8_t(FileMode::Write)));
@@ -218,7 +233,7 @@ void FileHandler::buildOpenFn() {
 
     Value *Handle = Builder.CreateCall(FopenFunc, {Name, ModeStr}, "handle");
     Value *OpenFailed = Builder.CreateICmpEQ(Handle, ConstantPointerNull::get(PtrTy), "open_failed");
-    Checker.emitCheck(OpenFailed);
+    Checker.emitCheck(OpenFailed, ErrOpenFail, {Line, Name});
 
     Builder.CreateStore(Name, emitSlotGEP(FileNames, PtrTy, Slot));
     Builder.CreateStore(Handle, emitSlotGEP(FileHandles, PtrTy, Slot));
@@ -244,13 +259,13 @@ void FileHandler::buildReadFn() {
     Value *Idx = emitLookupOrFail(Name, Line);
     Value *Mode = Builder.CreateLoad(I8, emitSlotGEP(FileModes, I8, Idx), "mode");
     Value *NotRead = Builder.CreateICmpNE(Mode, ConstantInt::get(I8, uint8_t(FileMode::Read)), "not_read");
-    Checker.emitCheck(NotRead);
+    Checker.emitCheck(NotRead, ErrNotRead, {Line, Name});
     Value *Handle = Builder.CreateLoad(PtrTy, emitSlotGEP(FileHandles, PtrTy, Idx), "handle");
 
     Value *MinusOne = ConstantInt::get(Context, APInt(32, -1, /*isSigned=*/true));
     Value *Peek = Builder.CreateCall(FgetcFunc, {Handle}, "peek");
     Value *AtEof = Builder.CreateICmpEQ(Peek, MinusOne, "at_eof");
-    Checker.emitCheck(AtEof);
+    Checker.emitCheck(AtEof, ErrPastEof, {Line, Name});
     Builder.CreateCall(UngetcFunc, {Peek, Handle});
 
     // Growing buffer: cap doubles, always leaving room for byte + NUL.
@@ -348,7 +363,7 @@ void FileHandler::buildWriteFn() {
     Value *Idx = emitLookupOrFail(Name, Line);
     Value *Mode = Builder.CreateLoad(I8, emitSlotGEP(FileModes, I8, Idx), "mode");
     Value *IsReadMode = Builder.CreateICmpEQ(Mode, ConstantInt::get(I8, uint8_t(FileMode::Read)), "read_only");
-    Checker.emitCheck(IsReadMode);
+    Checker.emitCheck(IsReadMode, ErrNotWrite, {Line, Name});
 
     Value *Handle = Builder.CreateLoad(PtrTy, emitSlotGEP(FileHandles, PtrTy, Idx), "handle");
     Builder.CreateCall(FputsFunc, {Data, Handle});
@@ -394,7 +409,7 @@ void FileHandler::buildEofFn() {
     Value *Idx = emitLookupOrFail(Name, Line);
     Value *Mode = Builder.CreateLoad(I8, emitSlotGEP(FileModes, I8, Idx), "mode");
     Value *NotRead = Builder.CreateICmpNE(Mode, ConstantInt::get(I8, uint8_t(FileMode::Read)), "not_read");
-    Checker.emitCheck(NotRead);
+    Checker.emitCheck(NotRead, ErrNotRead, {Line, Name});
 
     Value *Handle = Builder.CreateLoad(PtrTy, emitSlotGEP(FileHandles, PtrTy, Idx), "handle");
     Value *Ch = Builder.CreateCall(FgetcFunc, {Handle}, "c");

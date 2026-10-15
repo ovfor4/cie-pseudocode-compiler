@@ -84,7 +84,7 @@ clang++ test.ll -o test
 
 With **-r**, return the executed program's exit status. In PATH mode, failure to launch `lli` or a child-process crash returns 1.
 
-An uncaught program exception returns 1 after printing `Unhandled exception. Program terminated.` to standard output. Runtime check failures are exceptions and can be handled with TRY/CATCH/ENDTRY.
+An uncaught program exception returns 1 after printing `Unhandled exception. Program terminated.` to standard output. Runtime check failures print the source line and error reason to standard output before throwing and can be handled with TRY/CATCH/ENDTRY.
 
 # NOTES
 

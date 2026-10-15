@@ -72,7 +72,8 @@ release because MSYS2 has no Pandoc package. Only the Linux build is verified.
 Generated IR uses the C++ exception ABI; native binaries must link its runtime
 (use LLVM 23's `clang++`, or `clang++-23` on Debian/Ubuntu).
 TRY/CATCH/ENDTRY and bare THROW are compiler extensions.
-Runtime checks throw anonymous exceptions; the final handler in generated main
+Runtime checks print the source line and error reason to stdout before throwing
+anonymous exceptions; the final handler in generated main
 prints `Unhandled exception. Program terminated.` to stdout and returns 1.
 Exception execution is verified on Linux with LLVM 23; Windows/macOS are unverified.
 

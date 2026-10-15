@@ -71,7 +71,7 @@ CodeGen::CodeGen() {
 
     Types = std::make_unique<TypeSystem>(*TheContext);
     Exceptions = std::make_unique<ExceptionHandler>(*TheContext, *Builder, *TheModule);
-    RuntimeChecker = std::make_unique<RuntimeCheck>(*TheContext, *Builder, *Exceptions);
+    RuntimeChecker = std::make_unique<RuntimeCheck>(*TheModule, *TheContext, *Builder, *Exceptions);
 
     Arrays = std::make_unique<ArrayHandler>(*TheContext,
                                             *Builder,

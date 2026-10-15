@@ -60,10 +60,11 @@ degrade rule in `ParseIdentifierExpr`/`ParseAssignStmt` if the new form can
 collapse to a legacy node.
 
 **New runtime check:** add `emitXxxCheck` in `RuntimeCheck` (build an i1
-fail-condition and call `emitCheck` — it splits the block and leaves the builder at
-the continuation), then call it from the emit site. Failure throws an anonymous
-exception without printing; generated main supplies the uncaught message and
-status 1. Precedents: `emitIndexCheck`, `emitEnumRangeCheck`, `emitNullDerefCheck`,
+fail-condition and call `emitCheck` with a diagnostic format and arguments — it
+splits the block and leaves the builder at the continuation), then call it from
+the emit site. Failure prints the source line and error reason to stdout before
+throwing an anonymous exception; generated main supplies the uncaught message
+and status 1. Precedents: `emitIndexCheck`, `emitEnumRangeCheck`, `emitNullDerefCheck`,
 `emitArrayArgBoundsCheck` and FileHandler's direct `emitCheck` calls.
 
 **New potentially throwing call:** route it through `ExceptionHandler::emitCall`
