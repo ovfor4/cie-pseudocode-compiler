@@ -333,7 +333,7 @@ int runEmbedded(const cps::CodeGen &CG) {
                      << llvm::toString(JTMBOrErr.takeError()) << "\n";
         return 1;
     }
-    JTMBOrErr->setCodeModel(llvm::CodeModel::Small);
+    JTMBOrErr->setCodeModel(llvm::CodeModel::Large);
     JTMBOrErr->setRelocationModel(llvm::Reloc::PIC_);
 
     llvm::orc::LLJITBuilder Builder;
