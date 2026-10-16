@@ -157,6 +157,13 @@ public:
                 G.findExternalSymbolByName(G.intern("__ImageBase"));
             if (!ImageBaseExt)
                 return Error::success();
+            // Platform graphs carry LLJIT-internal symbols; leave their
+            // own base alone or materialization sees it twice.
+            if (G.findDefinedSymbolByName(
+                    G.intern("__lljit.platform_support_instance")) ||
+                G.findExternalSymbolByName(
+                    G.intern("__lljit.platform_support_instance")))
+                return Error::success();
             jitlink::Block *Low = nullptr;
             for (auto &Sec : G.sections()) {
                 for (auto *B : Sec.blocks()) {
