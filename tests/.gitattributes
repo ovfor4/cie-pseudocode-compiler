@@ -1,0 +1,2 @@
+# Preserve the deliberate CRLF and missing final newline in this input fixture.
+i/text-files/files/input.txt -text whitespace=cr-at-eol

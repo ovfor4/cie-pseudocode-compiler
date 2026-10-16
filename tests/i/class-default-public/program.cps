@@ -1,0 +1,6 @@
+CLASS Box
+    Value : INTEGER
+ENDCLASS
+DECLARE B : Box
+B.Value <- 7
+OUTPUT B.Value

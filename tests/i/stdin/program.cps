@@ -1,0 +1,9 @@
+DECLARE N : INTEGER
+DECLARE Flag : BOOLEAN
+DECLARE Letter : CHAR
+DECLARE Text : STRING
+INPUT N
+INPUT Flag
+INPUT Letter
+INPUT Text
+OUTPUT N, ":", Flag, ":", Letter, ":", Text

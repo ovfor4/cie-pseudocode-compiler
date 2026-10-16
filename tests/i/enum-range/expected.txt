@@ -1,0 +1,3 @@
+[Fatal] line 5: Value out of range for enum Season
+enum caught
+TRUE

@@ -1,0 +1,9 @@
+CONSTANT Limit = 3
+FUNCTION ReadLimit() RETURNS INTEGER
+    RETURN Limit
+ENDFUNCTION
+IF TRUE THEN
+    CONSTANT Limit = 7
+    OUTPUT Limit
+ENDIF
+OUTPUT Limit, ":", ReadLimit()

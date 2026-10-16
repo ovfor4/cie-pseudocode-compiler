@@ -1,0 +1,21 @@
+PROCEDURE Fail()
+    THROW
+ENDPROCEDURE
+FUNCTION CatchAndReturn() RETURNS INTEGER
+    TRY
+        CALL Fail()
+    CATCH
+        RETURN 7
+    ENDTRY
+    RETURN 0
+ENDFUNCTION
+OUTPUT CatchAndReturn()
+TRY
+    TRY
+        THROW
+    CATCH
+        THROW
+    ENDTRY
+CATCH
+    OUTPUT "outer catch"
+ENDTRY
