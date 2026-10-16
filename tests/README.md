@@ -1,12 +1,12 @@
 # Compiler tests
 
-Enable tests in an existing configured build (Perl with core Digest::SHA is additionally required):
+Enable tests in an existing configured build (tests need only Perl with core modules):
 
 ```sh
 cmake -S . -B build -DBUILD_TESTING=ON
 cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure --parallel 2
-python3 tests/summarize.py build/test-results
+perl tests/summarize.pl build/test-results
 ```
 
 Use `ctest --test-dir build -L '^ii$' --output-on-failure` for one suite, or `-R '^i/arrays$'` for one case. CTest returns failure if any case fails; it continues through the other cases. [Historical failures and coverage gaps](FAILURES.md) are intentionally visible, with no expected-failure exemptions.

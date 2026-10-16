@@ -32,7 +32,7 @@ instead. Removing the build directory also removes its downloaded dependencies.
 
 All three execution modes need LLVM, Clang and LLD 23 development libraries, Python 3.9 or newer, and the native C/C++ development libraries to build, including `NONE`. Users of an `EMBEDDED` executable do not need LLVM or `lli`.
 
-Compiler tests are optional (`-DBUILD_TESTING=ON`) and additionally need Perl with its core Digest::SHA module. See [the test instructions](../tests/README.md) for running CTest and replaying random inputs. CI enables the complete suite on every compiler platform.
+Compiler tests are optional (`-DBUILD_TESTING=ON`) and need only Perl with core modules (Digest::SHA, JSON::PP). See [the test instructions](../tests/README.md) for running CTest and replaying random inputs. CI enables the complete suite on every compiler platform.
 
 CMake strictly requires LLVM development libraries and both C/C++ compilers to
 have major version 23. The compilers must be upstream Clang; GCC and AppleClang

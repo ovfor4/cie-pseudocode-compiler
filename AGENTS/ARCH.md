@@ -256,7 +256,7 @@ source downloads remain available.
 The Linux compiler and plugin jobs use Ubuntu 24.04 x86_64; the macOS compiler
 job uses a macOS 15 arm64 runner, and Windows uses Windows Server 2025 x86_64.
 All four check out the push SHA and run independently after cleanup. All three
-compiler jobs use LLVM/Clang/LLD 23, Python, Release and EMBEDDED settings, Pandoc, and the
+compiler jobs use LLVM/Clang/LLD 23, Python (build-time), Release and EMBEDDED settings, Pandoc, and the
 existing `release` target. Linux obtains its toolchain from apt.llvm.org; macOS
 uses Homebrew's LLVM 23 and builds matching static LLD with the helper above. Windows uses `msys2/setup-msys2@v2` with MINGW64,
 MSYS2 LLVM/Clang packages, explicit native compiler and LLVM paths, and the
@@ -269,7 +269,7 @@ verifies arm64 and rejects non-system dynamic libraries. The plugin uses
 Node.js 22, `npm ci --ignore-scripts` and
 `npm run package`, then checks VSIX contents. Each job uploads directly after
 its own checks pass; failure in one does not block the others. Compiler jobs enable
-BUILD_TESTING, install Perl and run all CTest cases with the push SHA as seed before
+BUILD_TESTING, install Perl for the tests and run all CTest cases with the push SHA as seed before
 their package smoke checks and uploads. Failed tests retain inputs and logs as
 Actions artifacts for 14 days; test summaries appear even on failure. See TESTING.md.
 Cleanup and uploads check main's current SHA to avoid modifying nightly for a
