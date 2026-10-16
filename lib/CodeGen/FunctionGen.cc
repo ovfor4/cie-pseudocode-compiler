@@ -178,7 +178,7 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
 }
 
 Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
-                                       const std::function<void(StmtAST*)> &StmtEmitter) {
+                                       const std::function<void(StmtAST*)> &StmtEmitter, unsigned ScopeID) {
     PrototypeAST *Proto = FuncAST->getProto();
     Function *TheFunction = emitPrototype(Proto);
 
@@ -194,8 +194,15 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
 
     std::map<std::string, SymbolInfo> OldSymbols = Symbols;
     Symbols.clear();
+    for (const auto &[Name, Info] : OldSymbols) {
+        if (Info.ConstantValue && Info.ScopeID == 0) Symbols.emplace(Name, Info);
+    }
 
     createArgumentAllocas(TheFunction, Proto->getParams());
+    for (const auto &P : Proto->getParams()) {
+        auto It = Symbols.find(P.Name);
+        if (It != Symbols.end()) It->second.ScopeID = ScopeID;
+    }
 
     for (const auto &Stmt : FuncAST->getBody()) {
         StmtEmitter(Stmt.get());

@@ -9,7 +9,8 @@ unique_ptr children, move ctor, raw-ptr getters) → `ParseXxx` in
 the matching `Parser*.cc` file + branch in `ParseStatementImpl` (block statements parse their body with
 `ParseBlock({terminator tokens})`; control-flow parsers live in `ParserControlFlow.cc`; comma-separated expression lists use
 `ParseExprList(close, allowEmpty)`; add the new statement's leading keyword to
-`syncToStatementStart`) → `dynamic_cast` branch in `CodeGen::emitStmt`. Guard every
+`syncToStatementStart`) → `dynamic_cast` branch in `CodeGen::emitStmt`. Emit statement bodies through `emitScopedBlock`
+so constants cannot escape their lexical block. Guard every
 fall-through branch in control-flow codegen with
 `if (!Builder->GetInsertBlock()->hasTerminator())` — a RETURN in the body may have
 already terminated the block.

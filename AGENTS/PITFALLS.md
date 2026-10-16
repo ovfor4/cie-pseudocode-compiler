@@ -35,9 +35,11 @@ test programs.
 - **`getExprTypeInfo` returns nullptr** for expressions it can't classify (null-check it
   at any new call site) and internally defaults to INTEGER for arithmetic binaries and
   unknown-function calls; OUTPUT reports an error for a nullptr result.
+- **CONSTANT** accepts only literals (including negative numeric literals), never expressions or other names. Constants have lexical block scope and may shadow outer names; bindings hiding constants are restored on block exit too. Only previously declared top-level constants are inherited by functions. Constants have no writable storage: assignment, INPUT, READFILE targets, FOR variables, BYREF and address-of are rejected.
 - **CASE OF** reads its selector once and tests expression labels in source order, with inclusive TO ranges and an optional final OTHERWISE. Label headers occupy their own source line; bodies may begin after the colon or on subsequent lines. Comparisons reuse ordinary operator rules; records and whole arrays are unsupported.
-- The lexer emits no newline tokens; the grammar is purely keyword-delimited. Bare
-  `RETURN` is recognized before block terminators, including CATCH and ENDTRY.
+- The lexer emits no newline tokens; most grammar is keyword-delimited, while CASE
+  uses token line information to recognize labels. Bare `RETURN` is recognized
+  before block terminators and the next CASE label.
 - `verifyModule` runs at the end of `compile()`; invalid modules make the driver
   exit non-zero without writing IR.
 - The FOR loop variable must be pre-DECLAREd as INTEGER; FOR reuses that alloca. The
@@ -101,7 +103,7 @@ test programs.
 
 ## Not implemented (9618 features)
 
-CONSTANT, SET types (`SET`/`DEFINE` are reserved with dedicated errors),
+SET types (`SET`/`DEFINE` are reserved with dedicated errors),
 random files (OPENFILE...FOR RANDOM/SEEK/GETRECORD/PUTRECORD — TYPE is done, so these
 are unblocked now; the RANDOM keyword is reserved and gives a dedicated parse error),
 DATE, INPUT into array elements, string escape sequences,

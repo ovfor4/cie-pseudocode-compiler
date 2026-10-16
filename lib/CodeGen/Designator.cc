@@ -54,6 +54,7 @@ bool CodeGen::emitLValue(ExprAST *E, LValueInfo &Out) {
             }
             return false;
         }
+        if (!requireWritable(*Info, Var->getName())) return false;
         if (Info->IsArray) {
             reportError("Whole array %s is not an assignable location; index it", Var->getName().c_str());
             return false;
@@ -84,6 +85,7 @@ bool CodeGen::emitLValue(ExprAST *E, LValueInfo &Out) {
         return false;
     }
 
+    if (!requireWritable(*Info, D->getBaseName())) return false;
     const auto &Accesses = D->getAccesses();
     Value *Addr = Info->Storage;
     std::string TypeName = Info->TypeName;

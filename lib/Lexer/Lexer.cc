@@ -70,6 +70,7 @@ int Lexer::readToken() {
         while (isalnum((LastChar = Input.get())) || LastChar == '_')
             IdentifierStr += static_cast<char>(LastChar);
 
+        if (IdentifierStr == "CONSTANT") return tok_constant;
         if (IdentifierStr == "DECLARE") return tok_declare;
         if (IdentifierStr == "INTEGER") return tok_integer_kw;
         if (IdentifierStr == "BOOLEAN") return tok_boolean_kw;

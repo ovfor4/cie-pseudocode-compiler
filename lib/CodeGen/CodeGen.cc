@@ -117,7 +117,7 @@ void CodeGen::registerSymbol(const std::string &Name,
                              Value *Storage,
                              const std::string &TypeName,
                              bool IsArray) {
-    Symbols[Name] = {Storage, TypeName, IsArray};
+    Symbols[Name] = {Storage, TypeName, IsArray, nullptr, ConstantScopes.back().ID};
 }
 
 const SymbolInfo *CodeGen::getSymbolInfo(const std::string &Name) const {
@@ -243,6 +243,7 @@ bool CodeGen::marshalCallArgs(const std::string &Callee,
                 reportError("Unknown variable %s in BYREF call", Var->getName().c_str());
                 return false;
             }
+            if (!requireWritable(*Info, Var->getName())) return false;
             // BYREF aliases the storage, so the types must match exactly.
             if (!Types->sameType(Info->TypeName, TypeName)) {
                 reportError("BYREF argument %s to %s must be of type %s (got %s)",

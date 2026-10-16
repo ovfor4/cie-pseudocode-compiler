@@ -106,6 +106,8 @@ struct SymbolInfo {
     llvm::Value *Storage = nullptr;
     std::string TypeName;
     bool IsArray = false;
+    llvm::Constant *ConstantValue = nullptr; // Non-null for CONSTANT; no storage.
+    unsigned ScopeID = 0;
 };
 
 class TypeSystem {

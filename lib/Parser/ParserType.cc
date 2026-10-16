@@ -297,3 +297,36 @@ std::unique_ptr<StmtAST> Parser::ParseDeclare() {
         return std::make_unique<DeclareStmtAST>(Name, TypeStr);
     }
 }
+
+std::unique_ptr<StmtAST> Parser::ParseConstant() {
+    int Line = Lex.getLine();
+    getNextToken();
+    if (CurTok != tok_identifier) {
+        fprintf(stderr, "error: Expected identifier after CONSTANT at line %d\n", Line);
+        return nullptr;
+    }
+    std::string Name = Lex.IdentifierStr;
+    getNextToken();
+    if (CurTok != tok_eq) {
+        fprintf(stderr, "error: Expected '=' in CONSTANT declaration at line %d\n", Line);
+        return nullptr;
+    }
+    getNextToken();
+    bool Negative = CurTok == '-';
+    if (Negative) getNextToken();
+    bool Numeric = CurTok == tok_number_int || CurTok == tok_number_real;
+    bool Literal = Numeric || CurTok == tok_true || CurTok == tok_false ||
+                   CurTok == tok_string_literal || CurTok == tok_char_literal;
+    if (!Literal || (Negative && !Numeric)) {
+        fprintf(stderr, "error: CONSTANT initializer must be a literal at line %d\n", Line);
+        return nullptr;
+    }
+    auto Value = ParsePrimary();
+    if (!Value) return nullptr;
+    if (Negative) Value = std::make_unique<UnaryExprAST>('-', std::move(Value));
+    if (GetTokPrecedence() >= 0) {
+        fprintf(stderr, "error: CONSTANT initializer must be a literal, not an expression, at line %d\n", Line);
+        return nullptr;
+    }
+    return std::make_unique<ConstantStmtAST>(std::move(Name), std::move(Value));
+}

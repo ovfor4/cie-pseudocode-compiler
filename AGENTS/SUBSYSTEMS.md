@@ -34,7 +34,7 @@ map (`FunctionGen::getSignature`); `CodeGen::marshalCallArgs` dispatches call ar
 on those *declared* `ParamSig`s, and `getExprTypeInfo` reads return types from the same
 map. Top-level prototypes are pre-registered at the start of `compile()` (after the
 TYPE pre-pass), so calls may precede definitions; calling a name with no signature is a
-compile error (no extern is fabricated). Body emission is inverted: CodeGen injects a
+compile error (no extern is fabricated). Functions inherit previously declared top-level CONSTANT values; local constants use the same Symbols table with lexical binding restoration. Body emission is inverted: CodeGen injects a
 `StmtEmitter` callback, and must restore its own insert point (and the exchanged
 ArrayTable) afterwards.
 

@@ -256,6 +256,8 @@ void CodeGen::emitDeclareStmt(DeclareStmtAST *Stmt) {
         return;
     }
 
+    if (!prepareSymbolDeclaration(Stmt->getName())) return;
+
     Function *TheFunction = Builder->GetInsertBlock()->getParent();
     AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Info->LLVMType, Stmt->getName());
 

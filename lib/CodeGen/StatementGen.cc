@@ -17,9 +17,12 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
         // to the emitting function), mirroring FunctionGen's Symbols handling.
         auto SavedArrays = Arrays->exchangeTable({});
 
+        auto SavedScopes = std::move(ConstantScopes);
+        ConstantScopes = {{NextScopeID++, {}}};
         FuncGen->emitFunctionDef(FuncDef, [this](StmtAST *S) {
             this->emitStmt(S);
-        });
+        }, ConstantScopes.back().ID);
+        ConstantScopes = std::move(SavedScopes);
 
         Arrays->exchangeTable(std::move(SavedArrays));
         if (SavedBlock) Builder->SetInsertPoint(SavedBlock);
@@ -83,6 +86,11 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
         return;
     }
 
+    if (auto *Const = dynamic_cast<ConstantStmtAST*>(Stmt)) {
+        emitConstantStmt(Const);
+        return;
+    }
+
     if (auto *Decl = dynamic_cast<DeclareStmtAST*>(Stmt)) {
         emitDeclareStmt(Decl);
         return;
@@ -98,6 +106,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             }
             return;
         }
+        if (!requireWritable(*Info, Assign->getName())) return;
         if (Info->IsArray) {
             reportError("Cannot assign array %s without indices", Assign->getName().c_str());
             return;
@@ -116,6 +125,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             reportError("Unknown variable name %s", In->getName().c_str());
             return;
         }
+        if (!requireWritable(*Info, In->getName())) return;
         if (Info->IsArray) {
             reportError("INPUT for entire array %s is not supported", In->getName().c_str());
             return;
@@ -204,6 +214,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             reportError("Unknown variable name %s", Read->getVarName().c_str());
             return;
         }
+        if (!requireWritable(*Info, Read->getVarName())) return;
         if (Info->IsArray) {
             reportError("READFILE into entire array %s is not supported", Read->getVarName().c_str());
             return;

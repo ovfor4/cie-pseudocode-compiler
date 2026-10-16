@@ -12,14 +12,14 @@ void CodeGen::emitTryStmt(TryStmtAST *Stmt) {
     auto SavedArrays = Arrays->snapshotTable();
 
     Exceptions->pushHandler(CatchBB);
-    for (const auto &S : Stmt->getBody()) emitStmt(S.get());
+    emitScopedBlock(Stmt->getBody());
     auto *Exception = Exceptions->popHandler();
     if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(AfterBB);
     Arrays->exchangeTable(SavedArrays);
 
     Builder->SetInsertPoint(CatchBB);
     Exceptions->beginCatch(Exception);
-    for (const auto &S : Stmt->getCatchBody()) emitStmt(S.get());
+    emitScopedBlock(Stmt->getCatchBody());
     Exceptions->endCatch();
     if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(AfterBB);
     Arrays->exchangeTable(std::move(SavedArrays));
@@ -41,12 +41,12 @@ void CodeGen::emitIfStmt(IfStmtAST *Stmt) {
     // inside the branch, so a declaration must not survive it.
     auto SavedArrays = Arrays->snapshotTable();
     Builder->SetInsertPoint(ThenBB);
-    for (const auto &S : Stmt->getThenStmts()) emitStmt(S.get());
+    emitScopedBlock(Stmt->getThenStmts());
     if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(MergeBB);
     Arrays->exchangeTable(SavedArrays);
 
     Builder->SetInsertPoint(ElseBB);
-    for (const auto &S : Stmt->getElseStmts()) emitStmt(S.get());
+    emitScopedBlock(Stmt->getElseStmts());
     if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(MergeBB);
     Arrays->exchangeTable(std::move(SavedArrays));
 
@@ -71,7 +71,7 @@ void CodeGen::emitWhileStmt(WhileStmtAST *Stmt) {
     // Arrays declared in the body are block-scoped (see emitIfStmt).
     auto SavedArrays = Arrays->snapshotTable();
     Builder->SetInsertPoint(LoopBB);
-    for (const auto &S : Stmt->getBody()) emitStmt(S.get());
+    emitScopedBlock(Stmt->getBody());
     Arrays->exchangeTable(std::move(SavedArrays));
 
     if (!Builder->GetInsertBlock()->hasTerminator())
@@ -92,7 +92,7 @@ void CodeGen::emitRepeatStmt(RepeatStmtAST *Stmt) {
     // Arrays declared in the body are block-scoped (see emitIfStmt).
     auto SavedArrays = Arrays->snapshotTable();
     Builder->SetInsertPoint(LoopBB);
-    for (const auto &S : Stmt->getBody()) emitStmt(S.get());
+    emitScopedBlock(Stmt->getBody());
     Arrays->exchangeTable(std::move(SavedArrays));
     if (!Builder->GetInsertBlock()->hasTerminator())
         Builder->CreateBr(CondBB);
@@ -115,6 +115,7 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
         reportError("Unknown variable in FOR loop %s", VarName.c_str());
         return;
     }
+    if (!requireWritable(*Symbol, VarName)) return;
     if (Symbol->TypeName != "INTEGER") {
         reportError("FOR loop variable %s must be INTEGER", VarName.c_str());
         return;
@@ -160,7 +161,7 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
     // Arrays declared in the body are block-scoped (see emitIfStmt).
     auto SavedArrays = Arrays->snapshotTable();
     Builder->SetInsertPoint(LoopBB);
-    for (const auto &S : Stmt->getBody()) emitStmt(S.get());
+    emitScopedBlock(Stmt->getBody());
     Arrays->exchangeTable(std::move(SavedArrays));
     if (!Builder->GetInsertBlock()->hasTerminator())
         Builder->CreateBr(IncBB);
@@ -223,7 +224,7 @@ void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
             }
         }
         Builder->SetInsertPoint(Body);
-        for (const auto &S : Branch.Body) emitStmt(S.get());
+        emitScopedBlock(Branch.Body);
         if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(After);
         Arrays->exchangeTable(SavedArrays);
         Builder->SetInsertPoint(Next);

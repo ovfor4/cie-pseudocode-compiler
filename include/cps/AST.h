@@ -105,6 +105,16 @@ public:
 
 class ThrowStmtAST : public StmtAST {};
 
+class ConstantStmtAST : public StmtAST {
+    std::string Name;
+    std::unique_ptr<ExprAST> Value;
+public:
+    ConstantStmtAST(std::string Name, std::unique_ptr<ExprAST> Value)
+        : Name(std::move(Name)), Value(std::move(Value)) {}
+    const std::string &getName() const { return Name; }
+    ExprAST *getValue() const { return Value.get(); }
+};
+
 class DeclareStmtAST : public StmtAST {
     std::string Name;
     std::string Type;

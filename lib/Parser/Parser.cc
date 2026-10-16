@@ -45,7 +45,7 @@ std::vector<std::unique_ptr<StmtAST>> Parser::Parse() {
 void Parser::syncToStatementStart() {
     while (CurTok != tok_eof) {
         switch (CurTok) {
-        case tok_declare: case tok_identifier: case tok_input: case tok_output:
+        case tok_constant: case tok_declare: case tok_identifier: case tok_input: case tok_output:
         case tok_case: case tok_endcase: case tok_otherwise:
         case tok_if: case tok_while: case tok_repeat: case tok_for:
         case tok_function: case tok_procedure: case tok_call: case tok_return:
@@ -98,6 +98,7 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
         getNextToken();
         return nullptr;
     }
+    if (CurTok == tok_constant) return ParseConstant();
     if (CurTok == tok_declare) {
         return ParseDeclare();
     }

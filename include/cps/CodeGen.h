@@ -13,6 +13,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace cps {
@@ -27,6 +28,16 @@ class CodeGen {
     std::unique_ptr<llvm::Module> TheModule;
     std::unique_ptr<llvm::IRBuilder<>> Builder;
     std::map<std::string, SymbolInfo> Symbols;
+    struct ConstantScope {
+        unsigned ID;
+        std::map<std::string, std::optional<SymbolInfo>> Saved;
+    };
+    std::vector<ConstantScope> ConstantScopes = {{0, {}}};
+    unsigned NextScopeID = 1;
+    void emitScopedBlock(const std::vector<std::unique_ptr<StmtAST>> &Body);
+    bool prepareSymbolDeclaration(const std::string &Name, bool IsConstant = false);
+    bool requireWritable(const SymbolInfo &Info, const std::string &Name);
+    void emitConstantStmt(ConstantStmtAST *Stmt);
     std::unique_ptr<TypeSystem> Types;
 
     std::unique_ptr<ArrayHandler> Arrays;

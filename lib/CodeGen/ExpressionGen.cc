@@ -45,6 +45,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             reportError("Unknown variable name %s", Var->getName().c_str());
             return nullptr;
         }
+        if (Info->ConstantValue) return Info->ConstantValue;
         if (Info->IsArray) {
             return Info->Storage;
         }

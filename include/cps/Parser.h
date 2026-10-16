@@ -57,6 +57,7 @@ class Parser {
     std::unique_ptr<StmtAST> ParseForStmt();
     
     std::unique_ptr<StmtAST> ParseDeclare();
+    std::unique_ptr<StmtAST> ParseConstant();
     std::unique_ptr<StmtAST> ParseAssignStmt();
     bool ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out);
 

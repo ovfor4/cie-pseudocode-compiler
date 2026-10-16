@@ -14,6 +14,7 @@ enum Token {
     tok_input = -4,
     tok_output = -5,
     
+    tok_constant = -43,
     tok_case = -40,
     tok_endcase = -41,
     tok_otherwise = -42,

@@ -33,6 +33,8 @@ void ArrayHandler::setupExternalFunctions() {
 }
 
 const ArrayMetadata *ArrayHandler::getMetadata(const std::string &Name) const {
+    auto Symbol = Symbols->find(Name);
+    if (Symbol == Symbols->end() || !Symbol->second.IsArray) return nullptr;
     auto It = ArrayTable.find(Name);
     if (It == ArrayTable.end()) {
         return nullptr;
@@ -92,6 +94,8 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
         CG.reportError("'%s' is a type name and cannot be declared as an array", Name.c_str());
         return;
     }
+
+    if (!CG.prepareSymbolDeclaration(Name)) return;
 
     std::vector<Value*> Lows;
     std::vector<Value*> Highs;

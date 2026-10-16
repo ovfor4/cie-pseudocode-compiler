@@ -22,6 +22,7 @@ The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions 
 
 # KEYWORDS
 
+- [cpsc-keyword-constant(7)](keyword/cpsc-keyword-constant.7.md): declare a named literal with block scope.
 - [cpsc-keyword-declare(7)](keyword/cpsc-keyword-declare.7.md): declare variables and arrays.
 - [cpsc-keyword-input(7)](keyword/cpsc-keyword-input.7.md): read a value from standard input.
 - [cpsc-keyword-output(7)](keyword/cpsc-keyword-output.7.md): print values to standard output.
@@ -66,7 +67,7 @@ Closing and auxiliary keywords are documented with their main constructs: THEN/E
 
 # UNSUPPORTED FEATURES
 
-CONSTANT, DATE, SET types and DEFINE, random-file operations (RANDOM/SEEK/GETRECORD/PUTRECORD), INT, RAND, INPUT into array elements or fields, string escapes, whole-array assignment or return, array fields, and class methods/constructors/destructors/inheritance (NEW/INHERITS/SUPER).
+DATE, SET types and DEFINE, random-file operations (RANDOM/SEEK/GETRECORD/PUTRECORD), INT, RAND, INPUT into array elements or fields, string escapes, whole-array assignment or return, array fields, and class methods/constructors/destructors/inheritance (NEW/INHERITS/SUPER).
 
 The individual pages note relevant differences from the Cambridge 2026 pseudocode guide. This manual describes the compiler's current support.
 

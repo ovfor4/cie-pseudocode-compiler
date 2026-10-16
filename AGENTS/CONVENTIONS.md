@@ -93,12 +93,19 @@ only `realloc`); `CodeGen` also keeps its own `MallocFunc` for the char→STRING
 and INPUT STRING buffers — declared in `SetupExternalFunctions`, never fetched with a
 bare `getFunction("malloc")`.
 
-**One flat symbol namespace, one table.** `Symbols` (name → `SymbolInfo{Storage,
-TypeName, IsArray}`) in CodeGen is the only symbol table; register through
-`registerSymbol()` (or directly, as `FunctionGen::createArgumentAllocas` does for
-parameters) and read storage through `getNamedValue()`/`getSymbolInfo()`. There is no
-scope stack. `FunctionGen` saves/clears/restores the table around a function body, but
-`ArrayHandler::ArrayTable` is *not* scoped (see `PITFALLS.md`).
+**One symbol namespace, one table.** `Symbols` (name → `SymbolInfo{Storage,
+TypeName, IsArray, ConstantValue, ScopeID}`) in CodeGen is the only symbol table.
+A non-null ConstantValue denotes a read-only CONSTANT with no Storage. Read it
+through `emitExpr`; all writable/address-taking paths must reject it through
+`requireWritable`. Register variables through `registerSymbol()` (parameters are
+also bound directly by FunctionGen). `prepareSymbolDeclaration` diagnoses
+same-scope conflicts involving constants before declaration emission. Unique
+scope IDs distinguish sibling blocks; `emitScopedBlock` restores only bindings
+introduced by constants or hiding constants, preserving other variables' existing
+function-wide visibility. FunctionGen saves/restores Symbols and inherits only
+previously visible top-level constants (ScopeID 0). CodeGen isolates constant
+scope bookkeeping and array metadata around each function body. Arrays also
+restore metadata at control-flow block exits.
 
 **Dispatch is by `dynamic_cast` chain, not virtual methods.** `CodeGen::emitStmt` and
 `emitExpr` walk a linear if-chain of casts. **A statement type missing from the chain is

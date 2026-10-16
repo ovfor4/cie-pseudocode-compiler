@@ -81,7 +81,7 @@ public:
 
     llvm::Function *emitPrototype(PrototypeAST *Proto);
 
-    llvm::Function *emitFunctionDef(FunctionDefAST *FuncAST, const std::function<void(StmtAST*)> &StmtEmitter);
+    llvm::Function *emitFunctionDef(FunctionDefAST *FuncAST, const std::function<void(StmtAST*)> &StmtEmitter, unsigned ScopeID);
 
     llvm::Value *emitCallExpr(CallExprAST *Call, const std::vector<llvm::Value*> &Args);
     
