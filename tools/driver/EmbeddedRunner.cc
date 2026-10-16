@@ -23,19 +23,21 @@
 #include "llvm/ExecutionEngine/Orc/LinkGraphLinkingLayer.h"
 #include "llvm/ExecutionEngine/Orc/Shared/WrapperFunctionUtils.h"
 #include "llvm/Support/Endian.h"
+#endif
 
 namespace {
 
+#if defined(_WIN32) && defined(__x86_64__)
 // In-process COFF/SEH support for the MinGW x86_64 JIT.
 //
 // The full upstream COFFPlatform starts the VC runtime loading machinery,
 // which does not apply to the current MinGW build. This plugin provides only
 // the linking and registration pieces needed for in-process execution:
 // a per-graph __ImageBase shared by relocations and SEH registration,
-// preservation of .pdata/.xdata, GOT/stub construction for external calls
-// via the x86_64 utilities, and RtlAddFunctionTable registration through
-// JITLink allocation actions. Exception propagation still uses the existing
-// C++ ABI, LLVM exception instructions and platform unwinder.
+// JITLink stubs for the GNU personality symbols referenced from .xdata,
+// and RtlAddFunctionTable/RtlDeleteFunctionTable via JITLink allocation
+// actions. Exception propagation still uses the existing C++ ABI, LLVM
+// exception instructions and platform unwinder.
 
 static llvm::Error registerSEHTable(llvm::orc::ExecutorAddrRange TableRange,
                                      llvm::orc::ExecutorAddr ImageBase) {
@@ -226,29 +228,42 @@ public:
         (void)MR;
     }
 
-    llvm::Error notifyFailed(llvm::orc::MaterializationResponsibility &MR) override {
-        (void)MR;
+    llvm::Error notifyFailed(llvm::orc::MaterializationResponsibility &) override {
         return llvm::Error::success();
     }
 
-    llvm::Error notifyRemovingResources(llvm::orc::JITDylib &JD,
-                                        llvm::orc::ResourceKey K) override {
-        (void)JD;
-        (void)K;
+    llvm::Error notifyRemovingResources(llvm::orc::JITDylib &,
+                                        llvm::orc::ResourceKey) override {
         return llvm::Error::success();
     }
 
-    void notifyTransferringResources(llvm::orc::JITDylib &JD,
-                                     llvm::orc::ResourceKey DstKey,
-                                     llvm::orc::ResourceKey SrcKey) override {
-        (void)JD;
-        (void)DstKey;
-        (void)SrcKey;
-    }
+    void notifyTransferringResources(llvm::orc::JITDylib &,
+                                     llvm::orc::ResourceKey,
+                                     llvm::orc::ResourceKey) override {}
 };
+#endif
+
+// Embedded JITLink object layer. Created before LLJIT takes ownership so
+// runEmbedded keeps only the execution flow. COFF flags stay conditional on
+// the object format; other formats use LLVM defaults.
+static std::unique_ptr<llvm::orc::ObjectLinkingLayer>
+createEmbeddedObjectLayer(llvm::orc::ExecutionSession &ES,
+                          llvm::jitlink::JITLinkMemoryManager &MM,
+                          const llvm::Triple &TT) {
+    auto Layer =
+        std::make_unique<llvm::orc::ObjectLinkingLayer>(ES, MM);
+    if (TT.isOSBinFormatCOFF()) {
+        Layer->setOverrideObjectFlagsWithResponsibilityFlags(true);
+        Layer->setAutoClaimResponsibilityForObjectSymbols(true);
+    }
+#if defined(_WIN32) && defined(__x86_64__)
+    if (TT.isOSBinFormatCOFF() && TT.getArch() == llvm::Triple::x86_64)
+        Layer->addPlugin(std::make_shared<MinGWSEHRegistrationPlugin>());
+#endif
+    return Layer;
+}
 
 } // namespace
-#endif
 
 // Static runtime symbols are not available through dlsym. Provide their
 // actual addresses so the JIT and its unwind tables use the host's runtime.
@@ -339,13 +354,17 @@ int runEmbedded(const cps::CodeGen &CG) {
     JTMBOrErr->setRelocationModel(llvm::Reloc::PIC_);
 
     llvm::orc::LLJITBuilder Builder;
+    const llvm::Triple LayerTriple = JTMBOrErr->getTargetTriple();
     Builder.setJITTargetMachineBuilder(std::move(*JTMBOrErr));
     // Use JITLink explicitly so Windows COFF does not fall back to RuntimeDyld.
+    // The factory configures COFF flags and the SEH plugin before LLJIT owns
+    // the layer.
     Builder.setObjectLinkingLayerCreator(
-        [](llvm::orc::ExecutionSession &ES,
-           llvm::jitlink::JITLinkMemoryManager &MM)
+        [LayerTriple](llvm::orc::ExecutionSession &ES,
+                      llvm::jitlink::JITLinkMemoryManager &MM)
             -> llvm::Expected<std::unique_ptr<llvm::orc::ObjectLayer>> {
-            return std::make_unique<llvm::orc::ObjectLinkingLayer>(ES, MM);
+            return std::unique_ptr<llvm::orc::ObjectLayer>(
+                createEmbeddedObjectLayer(ES, MM, LayerTriple));
         });
 
     auto JITOrErr = Builder.create();
@@ -355,29 +374,6 @@ int runEmbedded(const cps::CodeGen &CG) {
         return 1;
     }
     std::unique_ptr<llvm::orc::LLJIT> J = std::move(*JITOrErr);
-
-    // LLJIT's default layer sets these for COFF; our custom JITLink layer
-    // must do the same or IR-added modules report Unexpected definitions
-    // for backend-added symbols like __ImageBase.
-    if (J->getTargetTriple().isOSBinFormatCOFF()) {
-        if (auto *COFFObjLayer = llvm::dyn_cast<llvm::orc::ObjectLinkingLayer>(
-                &J->getObjLinkingLayer())) {
-            COFFObjLayer->setOverrideObjectFlagsWithResponsibilityFlags(true);
-            COFFObjLayer->setAutoClaimResponsibilityForObjectSymbols(true);
-        }
-    }
-
-#if defined(_WIN32) && defined(__x86_64__)
-    // Register MinGW SEH tables through JITLink; failures surface as link
-    // errors below and prevent entry to JIT code.
-    if (auto *ObjLayer = llvm::dyn_cast<llvm::orc::ObjectLinkingLayer>(
-            &J->getObjLinkingLayer()))
-        ObjLayer->addPlugin(std::make_shared<MinGWSEHRegistrationPlugin>());
-    else {
-        llvm::errs() << "error: embedded LLVM engine does not use JITLink\n";
-        return 1;
-    }
-#endif
 
     if (auto Err = defineRuntimeSymbols(*J)) {
         llvm::errs() << "error: cannot define embedded runtime symbols: "
