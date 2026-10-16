@@ -5,8 +5,8 @@ set(CPSC_TEST_COUNT 10000 CACHE STRING "Random records per differential group")
 
 add_test(NAME harness COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_runner.py")
-add_test(NAME generators COMMAND "${Python3_EXECUTABLE}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/check_generators.py" "${PERL_EXECUTABLE}")
+add_test(NAME generators COMMAND "${PERL_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/check_generators.pl" "${PERL_EXECUTABLE}")
 foreach(suite i ii iii)
     file(GLOB cases CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${suite}/*/case.json")
     foreach(manifest IN LISTS cases)
