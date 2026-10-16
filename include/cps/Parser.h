@@ -16,7 +16,10 @@ namespace cps {
 
 class Parser {
     Lexer &Lex;
-    int CurTok;
+    int CurTok = tok_eof;
+    bool StartsLine = true;
+    bool ParsingCaseLabel = false;
+    std::vector<unsigned> CaseBodyDepths;
     unsigned NumErrors = 0;
     unsigned BlockDepth = 0; // ParseBlock nesting; 1 = top level
 
@@ -41,7 +44,10 @@ class Parser {
 
     std::unique_ptr<StmtAST> ParseStatement();
     std::unique_ptr<StmtAST> ParseStatementImpl();
-    std::vector<std::unique_ptr<StmtAST>> ParseBlock(std::initializer_list<int> Terminators);
+    std::vector<std::unique_ptr<StmtAST>> ParseBlock(std::initializer_list<int> Terminators, bool CaseBody = false);
+    bool isCaseLabel();
+    bool atCaseBoundary();
+    std::unique_ptr<StmtAST> ParseCaseStmt();
     std::optional<std::vector<std::unique_ptr<ExprAST>>> ParseExprList(char CloseDelim, bool AllowEmpty);
     void syncToStatementStart();
     std::unique_ptr<StmtAST> ParseIfStmt();

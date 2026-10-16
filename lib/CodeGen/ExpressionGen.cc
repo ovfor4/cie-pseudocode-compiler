@@ -117,38 +117,9 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         // '&' path: their admissible operations are decided by name here.
         const TypeInfo *LT = getExprTypeInfo(Bin->getLHS());
         const TypeInfo *RT = getExprTypeInfo(Bin->getRHS());
-        if ((LT && LT->isC()) || (RT && RT->isC())) {
-            return emitCBinaryOp(Bin, LT, RT);
-        }
-        if ((LT && LT->isUserKind()) || (RT && RT->isUserKind())) {
-            return emitUserKindBinaryOp(Bin, LT, RT);
-        }
-
         Value *L = emitExpr(Bin->getLHS());
         Value *R = emitExpr(Bin->getRHS());
-        if (!L || !R) return nullptr;
-        if (Bin->getOp() == '&') {
-            L = coerceValueToType(L, resolveType("STRING"));
-            R = coerceValueToType(R, resolveType("STRING"));
-            if (!L || !R) return nullptr;
-            return StrHandler->emitConcat(L, R);
-        }
-        // STRING and explicit pointers share LLVM's ptr representation;
-        // string comparisons must dispatch on the pseudocode type.
-        switch (Bin->getOp()) {
-        case tok_eq: case tok_ne: case '<': case '>': case tok_le: case tok_ge:
-            if ((LT && LT->isString()) || (RT && RT->isString())) {
-                if (!(LT && LT->isString() && RT && RT->isString())) {
-                    reportError("STRING comparison requires two STRING operands (line %d)", Bin->getLine());
-                    return nullptr;
-                }
-                return StrHandler->emitCompare(Bin->getOp(), L, R);
-            }
-            break;
-        default:
-            break;
-        }
-        return ArithHandler->emitBinaryOp(Bin->getOp(), L, R, Bin->getLine());
+        return emitBinaryOp(Bin->getOp(), L, LT, R, RT, Bin->getLine());
     }
 
     if (auto *Call = dynamic_cast<CallExprAST*>(Expr)) {
@@ -270,4 +241,32 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
     }
 
     return nullptr;
+}
+
+// Ordinary binary expressions and CASE use the same typed operations.
+Value *CodeGen::emitBinaryOp(int Op, Value *L, const TypeInfo *LT,
+                             Value *R, const TypeInfo *RT, int Line) {
+    if (!L || !R) return nullptr;
+    if ((LT && LT->isC()) || (RT && RT->isC()))
+        return emitCBinaryOp(Op, L, LT, R, RT, Line);
+    if ((LT && LT->isUserKind()) || (RT && RT->isUserKind()))
+        return emitUserKindBinaryOp(Op, L, LT, R, RT, Line);
+    if (Op == '&') {
+        L = coerceValueToType(L, resolveType("STRING"));
+        R = coerceValueToType(R, resolveType("STRING"));
+        return L && R ? StrHandler->emitConcat(L, R) : nullptr;
+    }
+    switch (Op) {
+    case tok_eq: case tok_ne: case '<': case '>': case tok_le: case tok_ge:
+        if ((LT && LT->isString()) || (RT && RT->isString())) {
+            if (!(LT && LT->isString() && RT && RT->isString())) {
+                reportError("STRING comparison requires two STRING operands (line %d)", Line);
+                return nullptr;
+            }
+            return StrHandler->emitCompare(Op, L, R);
+        }
+        break;
+    default: break;
+    }
+    return ArithHandler->emitBinaryOp(Op, L, R, Line);
 }

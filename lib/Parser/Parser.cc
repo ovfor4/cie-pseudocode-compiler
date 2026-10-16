@@ -29,7 +29,10 @@ Parser::Parser(Lexer &L) : Lex(L) {
 }
 
 int Parser::getNextToken() {
-    return CurTok = Lex.gettok();
+    int PreviousLine = CurTok == tok_eof ? 0 : Lex.getLine();
+    CurTok = Lex.gettok();
+    StartsLine = Lex.getLine() != PreviousLine;
+    return CurTok;
 }
 
 std::vector<std::unique_ptr<StmtAST>> Parser::Parse() {
@@ -43,6 +46,7 @@ void Parser::syncToStatementStart() {
     while (CurTok != tok_eof) {
         switch (CurTok) {
         case tok_declare: case tok_identifier: case tok_input: case tok_output:
+        case tok_case: case tok_endcase: case tok_otherwise:
         case tok_if: case tok_while: case tok_repeat: case tok_for:
         case tok_function: case tok_procedure: case tok_call: case tok_return:
         case tok_else: case tok_endif: case tok_endwhile: case tok_until:
@@ -58,7 +62,7 @@ void Parser::syncToStatementStart() {
     }
 }
 
-std::vector<std::unique_ptr<StmtAST>> Parser::ParseBlock(std::initializer_list<int> Terminators) {
+std::vector<std::unique_ptr<StmtAST>> Parser::ParseBlock(std::initializer_list<int> Terminators, bool CaseBody) {
     auto AtTerminator = [&] {
         for (int T : Terminators) {
             if (CurTok == T) return true;
@@ -67,14 +71,16 @@ std::vector<std::unique_ptr<StmtAST>> Parser::ParseBlock(std::initializer_list<i
     };
 
     ++BlockDepth; // 1 = top level (Parse() calls ParseBlock({}))
+    if (CaseBody) CaseBodyDepths.push_back(BlockDepth);
     std::vector<std::unique_ptr<StmtAST>> Body;
-    while (!AtTerminator() && CurTok != tok_eof) {
+    while (!AtTerminator() && CurTok != tok_eof && !(CaseBody && isCaseLabel())) {
         if (auto Stmt = ParseStatement()) {
             Body.push_back(std::move(Stmt));
         } else {
             syncToStatementStart();
         }
     }
+    if (CaseBody) CaseBodyDepths.pop_back();
     --BlockDepth;
     return Body;
 }
@@ -86,6 +92,12 @@ std::unique_ptr<StmtAST> Parser::ParseStatement() {
 }
 
 std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
+    if (CurTok == tok_case) return ParseCaseStmt();
+    if (CurTok == tok_endcase || CurTok == tok_otherwise) {
+        fprintf(stderr, "error: Unexpected CASE terminator at line %d\n", Lex.getLine());
+        getNextToken();
+        return nullptr;
+    }
     if (CurTok == tok_declare) {
         return ParseDeclare();
     }

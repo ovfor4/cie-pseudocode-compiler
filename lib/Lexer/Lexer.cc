@@ -7,11 +7,13 @@
 
 using namespace cps;
 
-int Lexer::gettok() {
+int Lexer::readToken() {
     while (isspace(LastChar)) {
         if (LastChar == '\n') CurrentLine++;
         LastChar = Input.get();
     }
+
+    TokenLine = CurrentLine;
 
     if (LastChar == '"') {
         StringVal.clear();
@@ -85,6 +87,10 @@ int Lexer::gettok() {
 
         if (IdentifierStr == "INPUT") return tok_input;
         if (IdentifierStr == "OUTPUT") return tok_output;
+
+        if (IdentifierStr == "CASE") return tok_case;
+        if (IdentifierStr == "ENDCASE") return tok_endcase;
+        if (IdentifierStr == "OTHERWISE") return tok_otherwise;
 
         if (IdentifierStr == "IF") return tok_if;
         if (IdentifierStr == "THEN") return tok_then;
@@ -225,7 +231,7 @@ int Lexer::gettok() {
             } while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
 
             if (LastChar != EOF)
-                return gettok();
+                return readToken();
         } else {
             LastChar = NextChar;
             return '/';
@@ -238,4 +244,40 @@ int Lexer::gettok() {
     int ThisChar = LastChar;
     LastChar = Input.get();
     return ThisChar;
+}
+
+Lexer::TokenData Lexer::captureToken(int Kind) const {
+    return {Kind, TokenLine, IdentifierStr, StringVal, NumVal, RealVal, CharVal};
+}
+
+void Lexer::restoreToken(const TokenData &Token) {
+    TokenLine = Token.Line;
+    IdentifierStr = Token.Identifier;
+    StringVal = Token.String;
+    NumVal = Token.Integer;
+    RealVal = Token.Real;
+    CharVal = Token.Character;
+}
+
+int Lexer::gettok() {
+    if (Lookahead.empty()) return readToken();
+    auto Token = std::move(Lookahead.front());
+    Lookahead.pop_front();
+    restoreToken(Token);
+    return Token.Kind;
+}
+
+int Lexer::peekToken(unsigned Offset) {
+    auto Current = captureToken(0);
+    while (Lookahead.size() <= Offset) {
+        int Kind = readToken();
+        Lookahead.push_back(captureToken(Kind));
+    }
+    restoreToken(Current);
+    return Lookahead[Offset].Kind;
+}
+
+int Lexer::peekLine(unsigned Offset) {
+    peekToken(Offset);
+    return Lookahead[Offset].Line;
 }

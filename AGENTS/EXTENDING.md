@@ -24,8 +24,8 @@ branches do. Builtins are plain identifiers — nothing is needed in lexer/parse
 
 **New binary operator:** token (if multi-char) → one line in `BinopPrecedence`
 (Parser ctor; levels: OR=3, AND=5, comparisons=10, `+ - &`=20, `* / DIV MOD`=40;
-precedence must be > 0) → branch in `ArithmeticHandler::emitBinaryOp`, which dispatches
-on raw LLVM operand types. Exceptions in `CodeGen::emitExpr`: `&` coerces operands
+precedence must be > 0) → branch in the shared `CodeGen::emitBinaryOp` value dispatcher or its `ArithmeticHandler::emitBinaryOp` leaf, which dispatches
+on raw LLVM operand types. Exceptions in `CodeGen::emitBinaryOp`: `&` coerces operands
 to STRING then calls `StringHandler::emitConcat`; STRING comparisons require two
 STRING operands by pseudocode type then call `StringHandler::emitCompare`.
 

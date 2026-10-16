@@ -78,10 +78,10 @@ Value *CodeGen::emitCast(CastExprAST *Cast) {
     return nullptr;
 }
 
-Value *CodeGen::emitCBinaryOp(BinaryExprAST *Bin, const TypeInfo *Left, const TypeInfo *Right) {
-    int Op = Bin->getOp();
+Value *CodeGen::emitCBinaryOp(int Op, Value *L, const TypeInfo *Left,
+                               Value *R, const TypeInfo *Right, int Line) {
     if (!Left || !Right || !Left->isC() || !Right->isC()) {
-        reportError("C and pseudocode operands require an explicit cast (line %d)", Bin->getLine());
+        reportError("C and pseudocode operands require an explicit cast (line %d)", Line);
         return nullptr;
     }
     if (Left->isPointer() || Right->isPointer()) {
@@ -90,9 +90,6 @@ Value *CodeGen::emitCBinaryOp(BinaryExprAST *Bin, const TypeInfo *Left, const Ty
             reportError("C pointers support only = and <> between the same C pointer type");
             return nullptr;
         }
-        Value *L = emitExpr(Bin->getLHS());
-        Value *R = emitExpr(Bin->getRHS());
-        if (!L || !R) return nullptr;
         return Op == tok_eq ? Builder->CreateICmpEQ(L, R, "c_ptr_eq")
                             : Builder->CreateICmpNE(L, R, "c_ptr_ne");
     }
@@ -102,12 +99,9 @@ Value *CodeGen::emitCBinaryOp(BinaryExprAST *Bin, const TypeInfo *Left, const Ty
         return nullptr;
     }
     if (Op == '&' || ((Op == tok_div || Op == tok_mod) && !Common->isIntegral())) {
-        reportError("Operator is not supported for these C operand types (line %d)", Bin->getLine());
+        reportError("Operator is not supported for these C operand types (line %d)", Line);
         return nullptr;
     }
-    Value *L = emitExpr(Bin->getLHS());
-    Value *R = emitExpr(Bin->getRHS());
-    if (!L || !R) return nullptr;
     if (Op == tok_and || Op == tok_or) {
         L = convertNumericValue(L, Left, resolveType("BOOLEAN"));
         R = convertNumericValue(R, Right, resolveType("BOOLEAN"));
@@ -119,7 +113,7 @@ Value *CodeGen::emitCBinaryOp(BinaryExprAST *Bin, const TypeInfo *Left, const Ty
     if (Op == '/') {
         L = convertNumericValue(L, Left, resolveType("REAL"));
         R = convertNumericValue(R, Right, resolveType("REAL"));
-        RuntimeChecker->emitDivZeroCheck(R, Bin->getLine());
+        RuntimeChecker->emitDivZeroCheck(R, Line);
         return Builder->CreateFDiv(L, R, "c_real_div");
     }
     L = convertNumericValue(L, Left, Common);
@@ -142,7 +136,7 @@ Value *CodeGen::emitCBinaryOp(BinaryExprAST *Bin, const TypeInfo *Left, const Ty
         case '-': return Builder->CreateSub(L, R, "c_sub");
         case '*': return Builder->CreateMul(L, R, "c_mul");
         case tok_div: case tok_mod:
-            RuntimeChecker->emitDivZeroCheck(R, Bin->getLine());
+            RuntimeChecker->emitDivZeroCheck(R, Line);
             if (Op == tok_div)
                 return Common->CSigned ? Builder->CreateSDiv(L, R, "c_div")
                                        : Builder->CreateUDiv(L, R, "c_div");
@@ -160,7 +154,7 @@ Value *CodeGen::emitCBinaryOp(BinaryExprAST *Bin, const TypeInfo *Left, const Ty
                                           : Builder->CreateICmpUGE(L, R, "c_ge");
         }
     }
-    reportError("Unsupported operator for C operands (line %d)", Bin->getLine());
+    reportError("Unsupported operator for C operands (line %d)", Line);
     return nullptr;
 }
 

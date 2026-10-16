@@ -144,3 +144,89 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
 
     return std::make_unique<ForStmtAST>(VarName, std::move(Start), std::move(End), std::move(Step), std::move(Body));
 }
+
+// A label begins a source line and ends in ':' on that line. Lookahead
+// preserves token payloads; assignments and statement keywords are not labels.
+bool Parser::isCaseLabel() {
+    if (!StartsLine) return false;
+    int Line = Lex.getLine();
+    int Depth = 0;
+    for (unsigned I = 0;; ++I) {
+        int T = I == 0 ? CurTok : Lex.peekToken(I - 1);
+        int TokenLine = I == 0 ? Line : Lex.peekLine(I - 1);
+        if (TokenLine != Line) return false;
+        if (T == tok_colon) return Depth == 0;
+        switch (T) {
+        case '(': case '[': ++Depth; break;
+        case ')': case ']': if (--Depth < 0) return false; break;
+        case tok_identifier: case tok_number_int: case tok_number_real:
+        case tok_string_literal: case tok_char_literal: case tok_true: case tok_false:
+        case tok_integer_kw: case tok_real_kw: case tok_boolean_kw:
+        case tok_string_kw: case tok_char_kw: case tok_c_int: case tok_c_char:
+        case tok_c_string: case tok_c_double:
+        case tok_to: case tok_otherwise: case tok_and: case tok_or: case tok_not:
+        case tok_eq: case tok_ne: case tok_le: case tok_ge: case tok_div: case tok_mod:
+        case '+': case '-': case '*': case '/': case '&': case '^':
+        case '<': case '>': case '.': case ',': break;
+        default: return false;
+        }
+    }
+}
+
+bool Parser::atCaseBoundary() {
+    return !ParsingCaseLabel && !CaseBodyDepths.empty() &&
+           CaseBodyDepths.back() == BlockDepth && isCaseLabel();
+}
+
+std::unique_ptr<StmtAST> Parser::ParseCaseStmt() {
+    getNextToken();
+    if (CurTok != tok_of) {
+        fprintf(stderr, "error: Expected OF after CASE at line %d\n", Lex.getLine());
+        return nullptr;
+    }
+    getNextToken();
+    if (CurTok != tok_identifier) {
+        fprintf(stderr, "error: Expected identifier after CASE OF at line %d\n", Lex.getLine());
+        return nullptr;
+    }
+    std::string Selector = Lex.IdentifierStr;
+    getNextToken();
+    std::vector<CaseBranch> Branches;
+    bool SeenOtherwise = false;
+    while (CurTok != tok_endcase && CurTok != tok_eof) {
+        if (SeenOtherwise || !isCaseLabel()) {
+            fprintf(stderr, "error: Expected CASE label on a new line (OTHERWISE must be last) at line %d\n", Lex.getLine());
+            return nullptr;
+        }
+        CaseBranch Branch;
+        Branch.Line = Lex.getLine();
+        if (CurTok == tok_otherwise) {
+            SeenOtherwise = true;
+            getNextToken();
+        } else {
+            bool Saved = ParsingCaseLabel;
+            ParsingCaseLabel = true;
+            Branch.Lower = ParseExpression();
+            if (Branch.Lower && CurTok == tok_to) {
+                getNextToken();
+                Branch.Upper = ParseExpression();
+                if (!Branch.Upper) Branch.Lower.reset();
+            }
+            ParsingCaseLabel = Saved;
+            if (!Branch.Lower) return nullptr;
+        }
+        if (CurTok != tok_colon) {
+            fprintf(stderr, "error: Expected ':' after CASE label at line %d\n", Lex.getLine());
+            return nullptr;
+        }
+        getNextToken();
+        Branch.Body = ParseBlock({tok_endcase}, true);
+        Branches.push_back(std::move(Branch));
+    }
+    if (CurTok != tok_endcase || Branches.empty()) {
+        fprintf(stderr, "error: Expected nonempty CASE and ENDCASE at line %d\n", Lex.getLine());
+        return nullptr;
+    }
+    getNextToken();
+    return std::make_unique<CaseStmtAST>(std::move(Selector), std::move(Branches));
+}

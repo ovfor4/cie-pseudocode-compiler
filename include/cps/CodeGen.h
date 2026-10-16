@@ -70,13 +70,17 @@ class CodeGen {
     llvm::Value *convertNumericValue(llvm::Value *Val, const TypeInfo *Source,
                                      const TypeInfo *Target);
     llvm::Value *emitCast(CastExprAST *Cast);
-    llvm::Value *emitCBinaryOp(BinaryExprAST *Bin, const TypeInfo *Left, const TypeInfo *Right);
+    llvm::Value *emitBinaryOp(int Op, llvm::Value *L, const TypeInfo *LT,
+                              llvm::Value *R, const TypeInfo *RT, int Line);
+    llvm::Value *emitCBinaryOp(int Op, llvm::Value *L, const TypeInfo *Left,
+                               llvm::Value *R, const TypeInfo *Right, int Line);
     void emitCOutput(llvm::Value *Val, const TypeInfo *Info, bool AppendNewline);
     void emitCInput(const SymbolInfo *Symbol, const TypeInfo *Info);
 
     // TYPE-system registration (Designator.cc) and operators (TypeCheckGen.cc).
     void runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements);
-    llvm::Value *emitUserKindBinaryOp(BinaryExprAST *Bin, const TypeInfo *LT, const TypeInfo *RT);
+    llvm::Value *emitUserKindBinaryOp(int Op, llvm::Value *L, const TypeInfo *LT,
+                                      llvm::Value *R, const TypeInfo *RT, int Line);
 
     // An addressable location and the pseudocode type stored there.
     struct LValueInfo {
@@ -95,6 +99,7 @@ class CodeGen {
     void emitDeclareStmt(DeclareStmtAST *Stmt);
     void emitOutputValue(llvm::Value *Val, const TypeInfo *TypeInfo, bool AppendNewline = true);
 
+    void emitCaseStmt(CaseStmtAST *Stmt);
     void emitIfStmt(IfStmtAST *Stmt);
     void emitTryStmt(TryStmtAST *Stmt);
     void emitWhileStmt(WhileStmtAST *Stmt);

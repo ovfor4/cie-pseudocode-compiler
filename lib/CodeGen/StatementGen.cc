@@ -248,6 +248,10 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
         return;
     }
 
+    if (auto *Case = dynamic_cast<CaseStmtAST*>(Stmt)) {
+        emitCaseStmt(Case);
+        return;
+    }
     if (auto *IfStmt = dynamic_cast<IfStmtAST*>(Stmt)) {
         emitIfStmt(IfStmt);
         return;

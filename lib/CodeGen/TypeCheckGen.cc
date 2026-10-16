@@ -121,8 +121,8 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
 // Binary operators with at least one Enum/Record/Pointer operand. Decides
 // admissibility by type name and emits directly; ArithmeticHandler stays
 // ignorant of user kinds.
-Value *CodeGen::emitUserKindBinaryOp(BinaryExprAST *Bin, const TypeInfo *LT, const TypeInfo *RT) {
-    int Op = Bin->getOp();
+Value *CodeGen::emitUserKindBinaryOp(int Op, Value *L, const TypeInfo *LT,
+                                      Value *R, const TypeInfo *RT, int Line) {
     const char *LName = LT ? LT->Name.c_str() : "?";
     const char *RName = RT ? RT->Name.c_str() : "?";
 
@@ -135,9 +135,6 @@ Value *CodeGen::emitUserKindBinaryOp(BinaryExprAST *Bin, const TypeInfo *LT, con
     if ((LT && LT->isPointer()) || (RT && RT->isPointer())) {
         bool SameName = LT && RT && LT->isPointer() && RT->isPointer() && LT->Name == RT->Name;
         if (SameName && (Op == tok_eq || Op == tok_ne)) {
-            Value *L = emitExpr(Bin->getLHS());
-            Value *R = emitExpr(Bin->getRHS());
-            if (!L || !R) return nullptr;
             return Op == tok_eq ? Builder->CreateICmpEQ(L, R, "ptr_eq")
                                 : Builder->CreateICmpNE(L, R, "ptr_ne");
         }
@@ -152,9 +149,6 @@ Value *CodeGen::emitUserKindBinaryOp(BinaryExprAST *Bin, const TypeInfo *LT, con
     switch (Op) {
     case tok_eq: case tok_ne: case '<': case '>': case tok_le: case tok_ge: {
         if (!BothSameEnum) break;
-        Value *L = emitExpr(Bin->getLHS());
-        Value *R = emitExpr(Bin->getRHS());
-        if (!L || !R) return nullptr;
         switch (Op) {
         case tok_eq: return Builder->CreateICmpEQ(L, R, "enum_eq");
         case tok_ne: return Builder->CreateICmpNE(L, R, "enum_ne");
@@ -170,13 +164,10 @@ Value *CodeGen::emitUserKindBinaryOp(BinaryExprAST *Bin, const TypeInfo *LT, con
         // The one legal arithmetic shape (guide §4.2): enum on the left,
         // INTEGER on the right, result checked against the enum's range.
         if (!(LT && LT->isEnum() && RT && RT->Kind == TypeKind::Integer)) break;
-        Value *L = emitExpr(Bin->getLHS());
-        Value *R = emitExpr(Bin->getRHS());
-        if (!L || !R) return nullptr;
         Value *Res = Op == '+' ? Builder->CreateAdd(L, R, "enum_step")
                                : Builder->CreateSub(L, R, "enum_step");
         RuntimeChecker->emitEnumRangeCheck(Res, LT->asEnum()->ValueNames.size(),
-                                           LT->Name, Bin->getLine());
+                                           LT->Name, Line);
         return Res;
     }
 

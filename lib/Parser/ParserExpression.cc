@@ -5,6 +5,7 @@
 using namespace cps;
 
 int Parser::GetTokPrecedence() {
+    if (atCaseBoundary()) return -1;
     if (BinopPrecedence.find(CurTok) == BinopPrecedence.end()) return -1;
     int TokPrec = BinopPrecedence[CurTok];
     if (TokPrec <= 0) return -1;
@@ -28,7 +29,7 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
     int Line = Lex.getLine();
     getNextToken();
 
-    if (CurTok == '(') {
+    if (CurTok == '(' && !atCaseBoundary()) {
         getNextToken();
         auto Args = ParseExprList(')', true);
         if (!Args) return nullptr;
@@ -54,6 +55,7 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
 // Postfix accessor chain after an identifier: '[' exprs ']' | '.' IDENT | '^'
 bool Parser::ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out) {
     while (true) {
+        if (atCaseBoundary()) return true;
         if (CurTok == '[') {
             getNextToken();
             auto Indices = ParseExprList(']', false);

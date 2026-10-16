@@ -259,9 +259,9 @@ do not modify the real release for local verification.
 | Path | Contents |
 |---|---|
 | `include/cps/` | All headers, included as `"cps/Foo.h"` |
-| `lib/Lexer/Lexer.cc` | Entire lexer: one function, `Lexer::gettok()` |
+| `lib/Lexer/Lexer.cc` | Token scanning and payload-preserving lookahead; `gettok()` consumes and `peekToken`/`peekLine` inspect buffered tokens |
 | `lib/Parser/Parser.cc` | Entry point, statement dispatch, assignment parsing and error recovery |
-| `lib/Parser/ParserExpression.cc`, `ParserControlFlow.cc` | Expressions/designators and control-flow statement parsing |
+| `lib/Parser/ParserExpression.cc`, `ParserControlFlow.cc` | Expressions/designators and control-flow statement parsing (including ordered CASE branches) |
 | `lib/Parser/ParserFunction.cc` | FUNCTION/PROCEDURE/CALL/RETURN + parameter-list parsing |
 | `lib/Parser/ParserFile.cc` | OPENFILE/READFILE/WRITEFILE/CLOSEFILE parsing |
 | `lib/Parser/ParserType.cc` | Type names, variable/array declarations, TYPE/ENDTYPE and CLASS/ENDCLASS declarations, shared field parsing, SET/DEFINE reserved stubs |

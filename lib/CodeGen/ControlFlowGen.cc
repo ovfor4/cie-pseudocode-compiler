@@ -173,3 +173,61 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
 
     Builder->SetInsertPoint(AfterBB);
 }
+
+void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
+    VariableExprAST Selector(Stmt->getSelector());
+    if (isWholeArrayVar(&Selector)) {
+        reportError("CASE selector cannot be a whole array");
+        return;
+    }
+    const TypeInfo *SelectorType = getExprTypeInfo(&Selector);
+    Value *Selected = emitExpr(&Selector);
+    if (!Selected || !SelectorType) return;
+
+    auto *F = Builder->GetInsertBlock()->getParent();
+    F->addFnAttr("no-jump-tables", "true");
+    auto *After = BasicBlock::Create(*TheContext, "case_cont", F);
+    auto SavedArrays = Arrays->snapshotTable();
+    for (const auto &Branch : Stmt->getBranches()) {
+        auto *Body = BasicBlock::Create(*TheContext, "case_body", F);
+        auto *Next = BasicBlock::Create(*TheContext, "case_next", F);
+        auto Compare = [&](int Op, ExprAST *Label) -> Value * {
+            if (isWholeArrayVar(Label)) {
+                reportError("CASE label cannot be a whole array");
+                return nullptr;
+            }
+            const TypeInfo *LabelType = getExprTypeInfo(Label);
+            if (!LabelType) {
+                reportError("Cannot determine CASE label type at line %d", Branch.Line);
+                return nullptr;
+            }
+            Value *LabelValue = emitExpr(Label);
+            return emitBinaryOp(Op, Selected, SelectorType, LabelValue, LabelType, Branch.Line);
+        };
+        if (!Branch.Lower) {
+            Builder->CreateBr(Body);
+        } else {
+            Value *Match = Compare(Branch.Upper ? tok_ge : tok_eq, Branch.Lower.get());
+            if (!Match) {
+                // Finish the CFG even after a diagnostic; the driver discards it.
+                Builder->CreateBr(Next);
+            } else if (Branch.Upper) {
+                auto *Upper = BasicBlock::Create(*TheContext, "case_upper", F);
+                Builder->CreateCondBr(Match, Upper, Next);
+                Builder->SetInsertPoint(Upper);
+                Match = Compare(tok_le, Branch.Upper.get());
+                if (Match) Builder->CreateCondBr(Match, Body, Next);
+                else Builder->CreateBr(Next);
+            } else {
+                Builder->CreateCondBr(Match, Body, Next);
+            }
+        }
+        Builder->SetInsertPoint(Body);
+        for (const auto &S : Branch.Body) emitStmt(S.get());
+        if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(After);
+        Arrays->exchangeTable(SavedArrays);
+        Builder->SetInsertPoint(Next);
+    }
+    Builder->CreateBr(After);
+    Builder->SetInsertPoint(After);
+}

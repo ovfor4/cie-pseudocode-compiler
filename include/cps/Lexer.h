@@ -2,6 +2,7 @@
 #include <istream>
 #include <string>
 #include <cstdint>
+#include <deque>
 
 namespace cps {
 
@@ -13,6 +14,10 @@ enum Token {
     tok_input = -4,
     tok_output = -5,
     
+    tok_case = -40,
+    tok_endcase = -41,
+    tok_otherwise = -42,
+
     tok_if = -6,
     tok_then = -7,
     tok_else = -8,
@@ -105,18 +110,32 @@ class Lexer {
     std::istream &Input;
     int LastChar = ' ';
     int CurrentLine = 1;
+    int TokenLine = 1;
     bool HadError = false;
+    struct TokenData {
+        int Kind, Line;
+        std::string Identifier, String;
+        int64_t Integer;
+        double Real;
+        char Character;
+    };
+    std::deque<TokenData> Lookahead;
+    int readToken();
+    TokenData captureToken(int Kind) const;
+    void restoreToken(const TokenData &Token);
 public:
     explicit Lexer(std::istream &Input) : Input(Input) {}
 
     std::string IdentifierStr;
     std::string StringVal;
-    int64_t NumVal;
-    double RealVal;
+    int64_t NumVal = 0;
+    double RealVal = 0;
     char CharVal = '\0';
 
     int gettok();
-    int getLine() const { return CurrentLine; }
+    int peekToken(unsigned Offset = 0);
+    int peekLine(unsigned Offset = 0);
+    int getLine() const { return TokenLine; }
     bool hadError() const { return HadError; }
 };
 

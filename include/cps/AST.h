@@ -168,6 +168,22 @@ public:
     const std::vector<std::unique_ptr<ExprAST>> &getExprs() const { return Exprs; }
 };
 
+struct CaseBranch {
+    std::unique_ptr<ExprAST> Lower, Upper; // Null Lower denotes OTHERWISE.
+    std::vector<std::unique_ptr<StmtAST>> Body;
+    int Line;
+};
+
+class CaseStmtAST : public StmtAST {
+    std::string Selector;
+    std::vector<CaseBranch> Branches;
+public:
+    CaseStmtAST(std::string Selector, std::vector<CaseBranch> Branches)
+        : Selector(std::move(Selector)), Branches(std::move(Branches)) {}
+    const std::string &getSelector() const { return Selector; }
+    const std::vector<CaseBranch> &getBranches() const { return Branches; }
+};
+
 class IfStmtAST : public StmtAST {
     std::unique_ptr<ExprAST> Cond;
     std::vector<std::unique_ptr<StmtAST>> ThenStmts;
