@@ -268,7 +268,7 @@ do not modify the real release for local verification.
 | `lib/CodeGen/CodeGen.cc` | Initialization, symbols, call arguments and main() compilation |
 | `lib/CodeGen/ExpressionGen.cc`, `StatementGen.cc`, `ControlFlowGen.cc` | Expression/statement dispatch and control-flow emission |
 | `lib/CodeGen/ValueTypeGen.cc`, `OutputGen.cc`, `Builtins.h` | Expression typing, coercion/declarations, scalar output and the shared builtin table |
-| `lib/CodeGen/Designator.cc` | CodeGen methods for the TYPE system: type pre-pass, `emitLValue`/`loadFromLValue`, `emitCoercedExpr` gate, user-kind binary-op interception |
+| `lib/CodeGen/Designator.cc`, `TypeCheckGen.cc` | TYPE pre-pass and lvalue access; type admission and user-kind binary operators |
 | `lib/CodeGen/CTypeGen.cc` | CodeGen methods for native C scalar conversions, casts, arithmetic and input/output |
 | `lib/CodeGen/NativeTypeSystem.cc` | Builtin registration, native C type imports/aliases and scalar promotion |
 | `lib/CodeGen/FileHandler.cc`, `FileRuntimeIO.cc` | File runtime setup/lookup/open and call entry points; read/write/close/EOF helper bodies |

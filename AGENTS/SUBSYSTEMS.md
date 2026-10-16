@@ -38,7 +38,9 @@ compile error (no extern is fabricated). Body emission is inverted: CodeGen inje
 `StmtEmitter` callback, and must restore its own insert point (and the exchanged
 ArrayTable) afterwards.
 
-**User types** (`TypeSystem` + `Designator.cc`): TYPE declarations are top-level only
+**User types** (`TypeSystem` + `Designator.cc` + `TypeCheckGen.cc`):
+`Designator.cc` owns the type pre-pass and lvalue access; `TypeCheckGen.cc` owns
+type admission and user-kind binary operators. TYPE declarations are top-level only
 and registered by `CodeGen::runTypePrePass` in two passes — `declareUserType` reserves
 every name (records become opaque named structs, so pointer pointees may
 forward-reference: `TYPE NodePtr = ^Node` before `TYPE Node`), then

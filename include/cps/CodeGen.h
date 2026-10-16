@@ -74,7 +74,7 @@ class CodeGen {
     void emitCOutput(llvm::Value *Val, const TypeInfo *Info, bool AppendNewline);
     void emitCInput(const SymbolInfo *Symbol, const TypeInfo *Info);
 
-    // TYPE-system helpers (Designator.cc).
+    // TYPE-system registration (Designator.cc) and operators (TypeCheckGen.cc).
     void runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements);
     llvm::Value *emitUserKindBinaryOp(BinaryExprAST *Bin, const TypeInfo *LT, const TypeInfo *RT);
 
@@ -120,7 +120,7 @@ public:
     // Name-level admission gate for Enum/Record/Pointer plus the existing
     // representation coercion for builtin targets. The ONLY door through
     // which assignments, BYVAL args, RETURN values and file/builtin operands
-    // may produce a typed value. (Designator.cc)
+    // may produce a typed value. (TypeCheckGen.cc)
     llvm::Value *emitCoercedExpr(ExprAST *E, const TypeInfo *TargetInfo);
 
     const TypeInfo *resolveType(const std::string &TypeName) const;
