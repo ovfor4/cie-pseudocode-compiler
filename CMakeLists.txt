@@ -71,6 +71,7 @@ add_library(CPSCodeGen STATIC
     lib/CodeGen/TypeSystem.cc
     lib/CodeGen/NativeTypeSystem.cc
     lib/CodeGen/FileHandler.cc
+    lib/CodeGen/FileRuntimeIO.cc
 )
 
 llvm_map_components_to_libnames(llvm_libs core support native passes)

@@ -82,7 +82,9 @@ and returns 1. Native binaries require the C++ runtime; EmbeddedRunner explicitl
 registers its statically linked ABI symbols, while MCJIT manages unwind frames.
 This does not change heap-string/array lifetimes or automatically close files.
 
-**Files** (`FileHandler`): text-file runtime for §9.1. StringHandler-shaped leaf —
+**Files** (`FileHandler`): text-file runtime for §9.1.
+`FileHandler.cc` owns setup, lookup/open and emission entry points;
+`FileRuntimeIO.cc` builds the read/write/close/EOF helpers. StringHandler-shaped leaf —
 holds Context/Builder/Module/RuntimeCheck/ExceptionHandler refs only, never sees
 CodeGen, AST nodes or the symbol table; `CodeGen::emitStmt`'s four file branches (and the EOF builtin
 intercept) evaluate/coerce operands and hand over `llvm::Value*`s plus the statement
