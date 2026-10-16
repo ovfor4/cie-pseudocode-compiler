@@ -8,6 +8,7 @@ Baseline: Linux x86_64, Clang/LLVM 23.1.3, Release EMBEDDED, compiler sources at
 |---|---|---|
 | i/class-default-public | Omitted access defaults to public (CIE p. 28). | Rejects the field unless PUBLIC/PRIVATE is explicit. |
 | i/identifier-case | Identifier lookup is case insensitive (CIE p. 7). | Reports the differently cased variable as unknown. |
+| i/integer-boundaries | The minimum i64 literal is -9223372036854775808. | Silently produces -9223372036854775807; reading the same value through INPUT works. |
 | i/standard-while | Accept WHILE condition without DO (CIE p. 21). | Requires DO. |
 | iii/argument-count | Wrong argument count, line 4. | Correct cause, no line. |
 | iii/builtin-arity | LENGTH arity, line 2. | Correct cause, no line. |
@@ -19,7 +20,7 @@ Baseline: Linux x86_64, Clang/LLVM 23.1.3, Release EMBEDDED, compiler sources at
 | iii/nominal-type-mismatch | Incompatible named pointers, line 7. | Correct cause, no line. |
 | iii/unknown-name | Undeclared name, line 2. | Correct cause, no line. |
 
-Both native and `-r` compilation expose the three i-group failures. All nine iii-group failures occur with both native/IR output requests, whether the destination was absent or already contained a sentinel. Failed compilation preserves the destination in these cases. The remaining 33 compiler cases passed locally, including seven groups of 10,000 random records plus 36 boundary records (70,036 total inputs, each checked through native and embedded execution).
+Both native and `-r` paths expose the four i-group failures. All nine iii-group failures occur with both native/IR output requests, whether the destination was absent or already contained a sentinel. Failed compilation preserves the destination in these cases. The remaining 32 compiler cases passed locally, including seven groups of 10,000 random records plus 36 boundary records (70,036 total inputs, each checked through native and embedded execution).
 
 The baseline test seed and exact command results are retained in `build/test-results`; subsequent CI reports use their own explicit push SHA. Platform results from Actions are the authority for Windows/macOS verification; local Linux results do not establish their behavior.
 

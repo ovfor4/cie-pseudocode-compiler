@@ -9,3 +9,4 @@ OUTPUT Lo + 1
 OUTPUT Hi + Lo
 OUTPUT Lo < 0, ":", Hi > 0, ":", Lo < Hi
 OUTPUT Hi DIV 1, ":", Lo DIV 1, ":", Lo MOD 1
+OUTPUT -9223372036854775808
