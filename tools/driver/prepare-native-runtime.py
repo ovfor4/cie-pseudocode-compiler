@@ -100,7 +100,7 @@ def main():
                 dependency = Path(token)
                 if not dependency.is_file():
                     dependency = resolve(":" + token)
-                return resource(dependency)
+                return '"' + resource(dependency) + '"'
 
             data = re.sub(pattern, relocate, text).encode()
             scripts.add(name)
