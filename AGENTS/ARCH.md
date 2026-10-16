@@ -118,6 +118,11 @@ Driver behavior (`tools/driver/main.cc`):
   On macOS the JIT explicitly emits DWARF unwind frames even when compact
   unwind records would suffice for native linking; MCJIT does not register
   compact unwind records. macOS execution still needs platform verification.
+  Windows x86_64 reserves contiguous JIT memory and registers relocated COFF
+  `.pdata` tables with `RtlAddFunctionTable`, using RuntimeDyld's lowest-section
+  image base. Tables are unregistered before their memory is released, and
+  registration failures stop execution. Windows execution still needs platform
+  verification.
   The host target is initialized for native output or embedded execution.
   No external runner or PATH lookup is used; `-r` alone runs in memory.
 - In NONE mode, `-r` returns 1 before compiling or writing output; native and IR

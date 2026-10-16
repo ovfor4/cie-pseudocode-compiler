@@ -14,6 +14,73 @@
 #include <cxxabi.h>
 #include <typeinfo>
 #include <unwind.h>
+#if defined(_WIN32) && defined(__x86_64__)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <limits>
+#include <vector>
+
+namespace {
+
+// RuntimeDyld relocates COFF unwind entries relative to the lowest loaded
+// section. Keep sections together and give Windows that same image base.
+class WindowsJITMemoryManager final : public llvm::SectionMemoryManager {
+    uintptr_t ImageBase = std::numeric_limits<uintptr_t>::max();
+    std::vector<PRUNTIME_FUNCTION> FunctionTables;
+    std::string Error;
+
+    uint8_t *recordSection(uint8_t *Address, uintptr_t Size) {
+        auto Base = reinterpret_cast<uintptr_t>(Address);
+        if (Address && Size && Base < ImageBase) ImageBase = Base;
+        return Address;
+    }
+
+public:
+    WindowsJITMemoryManager() : SectionMemoryManager(nullptr, true) {}
+    ~WindowsJITMemoryManager() override { deregisterEHFrames(); }
+
+    uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
+                                 unsigned SectionID, llvm::StringRef Name) override {
+        return recordSection(SectionMemoryManager::allocateCodeSection(
+            Size, Alignment, SectionID, Name), Size);
+    }
+
+    uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
+                                 unsigned SectionID, llvm::StringRef Name,
+                                 bool IsReadOnly) override {
+        return recordSection(SectionMemoryManager::allocateDataSection(
+            Size, Alignment, SectionID, Name, IsReadOnly), Size);
+    }
+
+    void registerEHFrames(uint8_t *Address, uint64_t, size_t Size) override {
+        if (!Size || !Error.empty()) return;
+        if (Size % sizeof(RUNTIME_FUNCTION) ||
+            Size / sizeof(RUNTIME_FUNCTION) > std::numeric_limits<DWORD>::max() ||
+            ImageBase == std::numeric_limits<uintptr_t>::max()) {
+            Error = "invalid embedded SEH function table";
+            return;
+        }
+        auto *Table = reinterpret_cast<PRUNTIME_FUNCTION>(Address);
+        if (!RtlAddFunctionTable(Table, static_cast<DWORD>(Size / sizeof(RUNTIME_FUNCTION)),
+                                 static_cast<DWORD64>(ImageBase))) {
+            Error = "cannot register embedded SEH function table";
+            return;
+        }
+        FunctionTables.push_back(Table);
+    }
+
+    void deregisterEHFrames() override {
+        for (auto *Table : FunctionTables) RtlDeleteFunctionTable(Table);
+        FunctionTables.clear();
+    }
+
+    const std::string &getError() const { return Error; }
+};
+
+} // namespace
+#endif
 
 // Static runtime symbols are not available through dlsym. Register their
 // actual addresses so the JIT and its unwind tables use the host's runtime.
@@ -73,13 +140,27 @@ int runEmbedded(const cps::CodeGen &CG) {
     Options.MCOptions.EmitDwarfUnwind = llvm::EmitDwarfUnwindType::Always;
     Builder.setTargetOptions(Options);
 #endif
+#if defined(_WIN32) && defined(__x86_64__)
+    auto MemoryManager = std::make_unique<WindowsJITMemoryManager>();
+    auto *WindowsMemory = MemoryManager.get();
+    Builder.setMCJITMemoryManager(std::move(MemoryManager));
+#else
     Builder.setMCJITMemoryManager(std::make_unique<llvm::SectionMemoryManager>());
+#endif
     std::unique_ptr<llvm::ExecutionEngine> Engine(Builder.create());
     if (!Engine) {
         llvm::errs() << "error: cannot create the embedded LLVM engine: " << Error << "\n";
         return 1;
     }
     Engine->finalizeObject();
+#if defined(_WIN32) && defined(__x86_64__)
+    // MCJIT does not propagate memory-manager registration failures.
+    if (!WindowsMemory->getError().empty()) {
+        llvm::errs() << "error: embedded LLVM execution failed: "
+                     << WindowsMemory->getError() << "\n";
+        return 1;
+    }
+#endif
     if (Engine->hasError()) {
         llvm::errs() << "error: embedded LLVM execution failed: " << Engine->getErrorMessage() << "\n";
         return 1;
