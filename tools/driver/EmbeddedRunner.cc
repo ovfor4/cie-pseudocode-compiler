@@ -276,10 +276,36 @@ __gxx_personality_v0
 extern "C" void __cps_jit_noop__main() {}
 #endif
 
-// MinGW inserts ___chkstk_ms stack probes into large frames. dlsym cannot see
-// this static runtime symbol, so reference it weakly: null on platforms
-// without it, host address where present. Same code on all platforms.
-extern "C" void ___chkstk_ms() __attribute__((weak));
+// MinGW emits ___chkstk_ms stack probes for large frames with a custom
+// convention (size in %eax, result in %rax, all else preserved). Never
+// reference the host probe by name: a weak reference marks the host import
+// weak on COFF and segfaults the compiler itself. Provide a JIT-only probe
+// under a unique name and map the JIT symbol to it. Same code on all
+// platforms; the stub is unused where the backend never emits the probe.
+#if defined(__x86_64__)
+extern "C" __attribute__((naked)) void __cps_jit_chkstk_ms() {
+    __asm__ volatile(
+        "pushq %rcx\n\t"
+        "pushq %rax\n\t"
+        "cmpq $0x1000, %rax\n\t"
+        "leaq 0x18(%rsp), %rcx\n\t"
+        "jb 1f\n\t"
+        "0:\n\t"
+        "subq $0x1000, %rcx\n\t"
+        "orq $0, (%rcx)\n\t"
+        "subq $0x1000, %rax\n\t"
+        "cmpq $0x1000, %rax\n\t"
+        "ja 0b\n\t"
+        "1:\n\t"
+        "subq %rax, %rcx\n\t"
+        "orq $0, (%rcx)\n\t"
+        "popq %rax\n\t"
+        "popq %rcx\n\t"
+        "ret\n\t");
+}
+#else
+extern "C" void __cps_jit_chkstk_ms() {}
+#endif
 
 static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
     llvm::orc::SymbolMap Symbols;
@@ -322,9 +348,8 @@ static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
     Symbols[Intern("__main")] =
         ExecutorSymbolDef::fromPtr(&__cps_jit_noop__main);
 #endif
-    if (___chkstk_ms)
-        Symbols[Intern("___chkstk_ms")] =
-            ExecutorSymbolDef::fromPtr(reinterpret_cast<void *>(&___chkstk_ms));
+    Symbols[Intern("___chkstk_ms")] =
+        ExecutorSymbolDef::fromPtr(&__cps_jit_chkstk_ms);
     return J.getMainJITDylib().define(
         llvm::orc::absoluteSymbols(std::move(Symbols)));
 }
