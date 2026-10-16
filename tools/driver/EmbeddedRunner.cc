@@ -4,10 +4,12 @@
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
 #include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/TargetSelect.h"
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <cxxabi.h>
 #include <typeinfo>
 #include <unwind.h>
@@ -132,35 +134,37 @@ public:
             return Error::success();
         });
 
-        // Define a per-graph __ImageBase and build stubs for externals.
+        // Build GOT/stub entries for externals. Host runtime calls reach
+        // their far addresses through these under the large code model.
         Config.PostPrunePasses.push_back([](LinkGraph &G) -> Error {
             using namespace llvm::jitlink::x86_64;
-            // External calls and personality references use the generic
-            // x86_64 pointer and stub builders.
             GOTTableManager GOT(G);
             PLTTableManager PLT(G, GOT);
             visitExistingEdges(G, GOT, PLT);
+            return Error::success();
+        });
 
+        // COFF unwind tables use 32-bit image-relative addresses, so the
+        // image base must sit at or below the lowest JIT address. Alias the
+        // external __ImageBase to the lowest defined block once addresses
+        // are final; a trailing zero block would push RVAs negative.
+        Config.PostAllocationPasses.push_back([](LinkGraph &G) -> Error {
             auto *ImageBaseExt =
                 G.findExternalSymbolByName(G.intern("__ImageBase"));
-            auto *PDataSec = G.findSectionByName(".pdata");
-            if (!ImageBaseExt && !PDataSec)
+            if (!ImageBaseExt)
                 return Error::success();
-            // One base per graph so relocations and SEH registration agree.
-            Section *BaseSec = G.findSectionByName("__image_base");
-            if (!BaseSec)
-                BaseSec = &G.createSection("__image_base", orc::MemProt::Read);
-            static const char ZeroContent[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-            auto &BaseBlock = G.createContentBlock(
-                *BaseSec, ArrayRef<char>(ZeroContent, sizeof(ZeroContent)),
-                orc::ExecutorAddr(), 8, 0);
-            if (ImageBaseExt) {
-                G.makeDefined(*ImageBaseExt, BaseBlock, 0, 8,
-                              Linkage::Strong, Scope::Default, true);
-            } else {
-                G.addDefinedSymbol(BaseBlock, 0, "__ImageBase", 8,
-                                   Linkage::Strong, Scope::Default, false, true);
+            jitlink::Block *Low = nullptr;
+            for (auto &Sec : G.sections()) {
+                for (auto *B : Sec.blocks()) {
+                    if (!Low || B->getAddress() < Low->getAddress())
+                        Low = B;
+                }
             }
+            if (!Low)
+                return make_error<JITLinkError>(
+                    "missing embedded __ImageBase content");
+            G.makeDefined(*ImageBaseExt, *Low, 0, 8, Linkage::Strong,
+                          Scope::Default, true);
             return Error::success();
         });
 
@@ -427,6 +431,46 @@ int runEmbedded(const cps::CodeGen &CG) {
     if (auto Err = TSM.withModuleDo([&](llvm::Module &M) -> llvm::Error {
             M.setTargetTriple(J->getTargetTriple());
             M.setDataLayout(J->getDataLayout());
+            // COFF unwind tables address the personality by 32-bit RVA, so
+            // it must live near JIT code. Route through a JIT-local stub;
+            // the stub's own call to the host runtime uses 64-bit. Same
+            // code on all platforms; only COFF needs it.
+            if (J->getTargetTriple().isOSBinFormatCOFF()) {
+                for (const char *RealName :
+                     {"__gxx_personality_seh0", "__gxx_personality_sj0",
+                      "__gxx_personality_v0"}) {
+                    llvm::Function *Real = M.getFunction(RealName);
+                    if (!Real)
+                        continue;
+                    bool Used = false;
+                    for (auto &F : M.functions()) {
+                        if (F.getPersonalityFn() &&
+                            F.getPersonalityFn()->stripPointerCasts() == Real) {
+                            Used = true;
+                            break;
+                        }
+                    }
+                    if (!Used)
+                        continue;
+                    std::string FwdName = std::string("__cps_jit_") + RealName;
+                    if (M.getFunction(FwdName))
+                        continue;
+                    llvm::Function *Fwd = llvm::Function::Create(
+                        Real->getFunctionType(),
+                        llvm::GlobalValue::InternalLinkage, FwdName, M);
+                    llvm::BasicBlock *BB = llvm::BasicBlock::Create(
+                        M.getContext(), "", Fwd);
+                    llvm::IRBuilder<> B(BB);
+                    llvm::CallInst *C = B.CreateCall(Real, {});
+                    C->setTailCall();
+                    B.CreateRet(C);
+                    for (auto &F : M.functions()) {
+                        if (F.getPersonalityFn() &&
+                            F.getPersonalityFn()->stripPointerCasts() == Real)
+                            F.setPersonalityFn(Fwd);
+                    }
+                }
+            }
             return llvm::Error::success();
         })) {
         llvm::errs() << "error: cannot configure the embedded JIT module: "
