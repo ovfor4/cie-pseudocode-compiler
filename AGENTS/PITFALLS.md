@@ -90,8 +90,7 @@ test programs.
   Native binaries must link the C++ runtime with LLVM 23's `clang++`
   (`clang++-23` on Debian/Ubuntu).
   Unwinding does not free heap strings/arrays or close files. Embedded ORC
-  execution with LLVM 23 is verified on Linux; Windows and macOS exception
-  execution awaits CI verification.
+  execution with LLVM 23 is verified on Linux, Windows and macOS.
 
 - **C type extensions.** C_STRING is a raw char pointer, not a STRING: explicitly
   cast to STRING for printing or builtins. C aliases share canonical CIdentity;
