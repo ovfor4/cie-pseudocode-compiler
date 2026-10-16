@@ -276,6 +276,11 @@ __gxx_personality_v0
 extern "C" void __cps_jit_noop__main() {}
 #endif
 
+// MinGW inserts ___chkstk_ms stack probes into large frames. dlsym cannot see
+// this static runtime symbol, so reference it weakly: null on platforms
+// without it, host address where present. Same code on all platforms.
+extern "C" void ___chkstk_ms() __attribute__((weak));
+
 static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
     llvm::orc::SymbolMap Symbols;
     auto Intern = [&](llvm::StringRef Name) { return J.mangleAndIntern(Name); };
@@ -317,6 +322,9 @@ static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
     Symbols[Intern("__main")] =
         ExecutorSymbolDef::fromPtr(&__cps_jit_noop__main);
 #endif
+    if (___chkstk_ms)
+        Symbols[Intern("___chkstk_ms")] =
+            ExecutorSymbolDef::fromPtr(reinterpret_cast<void *>(&___chkstk_ms));
     return J.getMainJITDylib().define(
         llvm::orc::absoluteSymbols(std::move(Symbols)));
 }
