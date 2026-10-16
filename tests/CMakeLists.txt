@@ -19,8 +19,8 @@ foreach(suite i ii iii)
             target_compile_features(${reference_target} PRIVATE cxx_std_17)
             list(APPEND reference_args --reference "$<TARGET_FILE:${reference_target}>")
         endif()
-        add_test(NAME "${suite}/${case_name}" COMMAND "${Python3_EXECUTABLE}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/run.py"
+        add_test(NAME "${suite}/${case_name}" COMMAND "${PERL_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/run.pl"
             --case "${manifest}" --cpsc "$<TARGET_FILE:cpsc>"
             --run-mode "${CPSC_RUN_MODE}" --perl "${PERL_EXECUTABLE}"
             --seed "${CPSC_TEST_SEED}" --count "${CPSC_TEST_COUNT}"
