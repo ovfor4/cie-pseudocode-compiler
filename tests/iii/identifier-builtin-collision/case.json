@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "'lENGTH'\\ is\\ a\\ built\\-in\\ function\\ and\\ cannot\\ be\\ redefined",
+      "line": 1
+    }
+  ]
+}

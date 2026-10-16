@@ -2,6 +2,7 @@
 #include "cps/CodeGen.h"
 #include "cps/ExceptionHandler.h"
 #include <cstdio>
+#include <cstdarg>
 
 using namespace llvm;
 using namespace cps;
@@ -19,16 +20,26 @@ static bool isReservedRuntimeName(const std::string &Name) {
         "__gxx_personality_seh0", "__gxx_personality_sj0", "_Unwind_Resume", "_ZTIi",
     };
     for (const char *R : Reserved) {
-        if (Name == R) return true;
+        if (sameIdentifier(Name, R)) return true;
     }
     return false;
+}
+
+void FunctionGen::reportError(const char *Fmt, ...) {
+    va_list Args;
+    va_start(Args, Fmt);
+    fprintf(stderr, "error: ");
+    vfprintf(stderr, Fmt, Args);
+    if (DiagnosticLine) fprintf(stderr, " at line %d", DiagnosticLine);
+    fprintf(stderr, "\n");
+    va_end(Args);
+    HadError = true;
 }
 
 Type *FunctionGen::getLLVMType(const std::string &TypeName) {
     Type *Resolved = Types.getLLVMType(TypeName);
     if (!Resolved) {
-        fprintf(stderr, "error: Unknown type %s\n", TypeName.c_str());
-        HadError = true;
+        reportError("Unknown type %s", TypeName.c_str());
         return Type::getInt64Ty(Context);
     }
     return Resolved;
@@ -38,12 +49,10 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
     Function::arg_iterator AI = F->arg_begin();
     for (const ParamDecl &P : Params) {
         if (Types.lookupEnumConstant(P.Name)) {
-            fprintf(stderr, "error: parameter '%s' collides with an enum value\n", P.Name.c_str());
-            HadError = true;
+            reportError("parameter '%s' collides with an enum value", P.Name.c_str());
         }
         if (Types.resolve(P.Name)) {
-            fprintf(stderr, "error: parameter '%s' collides with a type name\n", P.Name.c_str());
-            HadError = true;
+            reportError("parameter '%s' collides with a type name", P.Name.c_str());
         }
         Value *ArgVal = &(*AI);
         ++AI;
@@ -88,39 +97,35 @@ const FuncSig *FunctionGen::getSignature(const std::string &Name) const {
 
 Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     if (isReservedRuntimeName(Proto->getName())) {
-        fprintf(stderr, "error: '%s' is a reserved runtime symbol and cannot be a FUNCTION/PROCEDURE name\n",
+        reportError("'%s' is a reserved runtime symbol and cannot be a FUNCTION/PROCEDURE name",
                 Proto->getName().c_str());
-        HadError = true;
         return nullptr;
     }
     if (CodeGen::isBuiltinName(Proto->getName())) {
-        fprintf(stderr, "error: '%s' is a built-in function and cannot be redefined\n",
+        reportError("'%s' is a built-in function and cannot be redefined",
                 Proto->getName().c_str());
-        HadError = true;
         return nullptr;
     }
     if (Types.lookupEnumConstant(Proto->getName())) {
-        fprintf(stderr, "error: '%s' is an enum value and cannot be a FUNCTION/PROCEDURE name\n",
+        reportError("'%s' is an enum value and cannot be a FUNCTION/PROCEDURE name",
                 Proto->getName().c_str());
-        HadError = true;
         return nullptr;
     }
     if (Types.resolve(Proto->getName())) {
-        fprintf(stderr, "error: '%s' is a type name and cannot be a FUNCTION/PROCEDURE name\n",
+        reportError("'%s' is a type name and cannot be a FUNCTION/PROCEDURE name",
                 Proto->getName().c_str());
-        HadError = true;
         return nullptr;
     }
 
     FuncSig Sig;
+    Sig.Name = Proto->getName();
     Sig.ReturnTypeName = Proto->getReturnType();
 
     std::vector<Type*> ArgTypes;
     for (const ParamDecl &P : Proto->getParams()) {
         const TypeInfo *Info = Types.resolve(P.TypeName);
         if (Info && Info->isVoid()) {
-            fprintf(stderr, "error: parameter %s cannot have void type\n", P.Name.c_str());
-            HadError = true;
+            reportError("parameter %s cannot have void type", P.Name.c_str());
             return nullptr;
         }
         ParamSig PS;
@@ -148,11 +153,11 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
 
     Type *RetType = getLLVMType(Proto->getReturnType());
     FunctionType *FT = FunctionType::get(RetType, ArgTypes, false);
-    Function *F = Module.getFunction(Proto->getName());
+    const FuncSig *Existing = getSignature(Proto->getName());
+    Function *F = Module.getFunction(Existing ? Existing->Name : Proto->getName());
     if (F && F->getFunctionType() != FT) {
-        fprintf(stderr, "error: Function %s conflicts with an existing declaration of a different type\n",
+        reportError("Function %s conflicts with an existing declaration of a different type",
                 Proto->getName().c_str());
-        HadError = true;
         return nullptr;
     }
     if (!F) {
@@ -184,15 +189,14 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
 
     if (!TheFunction) return nullptr;
     if (!TheFunction->empty()) {
-        fprintf(stderr, "error: Function %s cannot be redefined.\n", Proto->getName().c_str());
-        HadError = true;
+        reportError("Function %s cannot be redefined.", Proto->getName().c_str());
         return nullptr;
     }
 
     BasicBlock *BB = BasicBlock::Create(Context, "entry", TheFunction);
     Builder.SetInsertPoint(BB);
 
-    std::map<std::string, SymbolInfo> OldSymbols = Symbols;
+    IdentifierMap<SymbolInfo> OldSymbols = Symbols;
     Symbols.clear();
     for (const auto &[Name, Info] : OldSymbols) {
         if (Info.ConstantValue && Info.ScopeID == 0) Symbols.emplace(Name, Info);
@@ -209,7 +213,7 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
     }
 
     if (!Builder.GetInsertBlock()->hasTerminator()) {
-        if (Proto->getReturnType() == "VOID") {
+        if (sameIdentifier(Proto->getReturnType(), "VOID")) {
             Builder.CreateRetVoid();
         } else {
             Builder.CreateRet(Constant::getNullValue(TheFunction->getReturnType()));
@@ -240,11 +244,13 @@ static Value *GenerateCall(llvm::Module &Module,
 }
 
 llvm::Value *FunctionGen::emitCallExpr(CallExprAST *Call, const std::vector<llvm::Value*> &Args) {
-    return GenerateCall(Module, Exceptions, Call->getCallee(), Args, HadError);
+    const FuncSig *Sig = getSignature(Call->getCallee());
+    return GenerateCall(Module, Exceptions, Sig ? Sig->Name : Call->getCallee(), Args, HadError);
 }
 
 void FunctionGen::emitCallStmt(CallStmtAST *Call, const std::vector<llvm::Value*> &Args) {
-    GenerateCall(Module, Exceptions, Call->getCallee(), Args, HadError);
+    const FuncSig *Sig = getSignature(Call->getCallee());
+    GenerateCall(Module, Exceptions, Sig ? Sig->Name : Call->getCallee(), Args, HadError);
 }
 
 void FunctionGen::emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal) {

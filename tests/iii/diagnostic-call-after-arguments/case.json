@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "BYREF\\ argument\\ to\\ Change\\ must\\ be\\ a\\ variable",
+      "line": 3
+    }
+  ]
+}

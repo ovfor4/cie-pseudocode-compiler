@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "Type\\ first\\ is\\ already\\ defined",
+      "line": 2
+    }
+  ]
+}

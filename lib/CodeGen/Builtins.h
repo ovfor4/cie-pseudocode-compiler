@@ -1,4 +1,5 @@
 #pragma once
+#include "cps/Identifier.h"
 #include <string>
 
 namespace cps::detail {
@@ -29,7 +30,7 @@ inline constexpr BuiltinInfo Builtins[] = {
 
 inline const BuiltinInfo *findBuiltin(const std::string &Name) {
     for (const auto &B : Builtins) {
-        if (Name == B.Name) return &B;
+        if (sameIdentifier(Name, B.Name)) return &B;
     }
     return nullptr;
 }

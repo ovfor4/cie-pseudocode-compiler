@@ -12,12 +12,12 @@ bool TypeInfo::sameType(const TypeInfo *Other) const {
     if (!Other) return false;
     if (isC() || Other->isC())
         return isC() && Other->isC() && CIdentity == Other->CIdentity;
-    return Name == Other->Name;
+    return sameIdentifier(Name, Other->Name);
 }
 
 const RecordFieldInfo *RecordPayload::findField(const std::string &Name) const {
     for (const auto &F : Fields) {
-        if (F.first == Name) return &F.second;
+        if (sameIdentifier(F.first, Name)) return &F.second;
     }
     return nullptr;
 }
@@ -172,7 +172,7 @@ bool TypeSystem::defineEnum(const std::string &Name,
     for (size_t I = 0; I < Values.size(); ++I) {
         const std::string &V = Values[I];
         for (size_t J = 0; J < I; ++J) {
-            if (Values[J] == V) {
+            if (sameIdentifier(Values[J], V)) {
                 Err = "Duplicate value '" + V + "' in enum " + Name;
                 return false;
             }

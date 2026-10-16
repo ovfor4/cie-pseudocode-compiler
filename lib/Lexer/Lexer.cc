@@ -1,5 +1,7 @@
 #include "cps/Lexer.h"
 #include <algorithm>
+#include <charconv>
+#include <limits>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -104,7 +106,6 @@ int Lexer::readToken() {
         if (IdentifierStr == "THROW") return tok_throw;
 
         if (IdentifierStr == "WHILE") return tok_while;
-        if (IdentifierStr == "DO") return tok_do;
         if (IdentifierStr == "ENDWHILE") return tok_endwhile;
 
         if (IdentifierStr == "REPEAT") return tok_repeat;
@@ -175,7 +176,13 @@ int Lexer::readToken() {
             return tok_number_real;
         }
 
-        NumVal = strtoll(NumStr.c_str(), nullptr, 10);
+        auto Parsed = std::from_chars(NumStr.data(), NumStr.data() + NumStr.size(), NumVal);
+        if (Parsed.ec != std::errc{} ||
+            NumVal > uint64_t(std::numeric_limits<int64_t>::max()) + 1) {
+            fprintf(stderr, "error: Integer literal is outside the i64 range at line %d\n", TokenLine);
+            HadError = true;
+            NumVal = 0;
+        }
         return tok_number_int;
     }
 

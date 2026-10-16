@@ -1,4 +1,5 @@
 #pragma once
+#include "cps/Identifier.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/LLVMContext.h"
@@ -112,8 +113,8 @@ struct SymbolInfo {
 
 class TypeSystem {
     llvm::LLVMContext &Context;
-    std::map<std::string, TypeInfo> Types;
-    std::map<std::string, EnumConstant> EnumConstants;
+    IdentifierMap<TypeInfo> Types;
+    IdentifierMap<EnumConstant> EnumConstants;
 
     void registerBuiltins();
     const TypeInfo *registerType(const std::string &TypeName,

@@ -1,0 +1,1 @@
+TYPE Season = (Spring, spring)

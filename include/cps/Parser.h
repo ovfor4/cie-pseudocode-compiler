@@ -1,4 +1,5 @@
 #pragma once
+#include "cps/Identifier.h"
 #include "cps/Lexer.h"
 #include "cps/AST.h"
 #include "cps/TypeAST.h"
@@ -24,7 +25,7 @@ class Parser {
     unsigned BlockDepth = 0; // ParseBlock nesting; 1 = top level
 
     std::map<int, int> BinopPrecedence;
-    std::set<std::string> TypeNames = {
+    IdentifierSet TypeNames = {
         "INTEGER", "REAL", "BOOLEAN", "STRING", "CHAR", "VOID",
         "C_INT", "C_CHAR", "C_STRING", "C_DOUBLE"
     };
@@ -33,7 +34,9 @@ class Parser {
     int GetTokPrecedence();
 
     std::unique_ptr<ExprAST> ParseExpression();
+    std::unique_ptr<ExprAST> ParseUnaryImpl();
     std::unique_ptr<ExprAST> ParseUnary(); 
+    std::unique_ptr<ExprAST> ParsePrimaryImpl();
     std::unique_ptr<ExprAST> ParsePrimary();
     std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS); 
 
@@ -71,6 +74,7 @@ class Parser {
     std::unique_ptr<StmtAST> ParseCallStmt();
     std::unique_ptr<StmtAST> ParseReturnStmt();
     std::optional<std::vector<ParamDecl>> ParsePrototypeArgs(bool AllowByRef);
+    bool ParseIntegerValue(bool Negative, int64_t &Out);
     bool ParseSignedIntBound(int64_t &Out);
 
     std::unique_ptr<StmtAST> ParseOpenFile();

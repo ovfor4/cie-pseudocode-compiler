@@ -15,6 +15,7 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
     std::string Err;
 
     for (const auto &S : Statements) {
+        SaveAndRestore<int> Location(DiagnosticLine, S->getLine());
         bool Ok = true;
         if (auto *C = dynamic_cast<CTypeDeclAST*>(S.get()))
             Ok = Types->defineCAlias(C->getName(), C->getExpression(), Err);
@@ -28,6 +29,7 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
     }
 
     for (const auto &S : Statements) {
+        SaveAndRestore<int> Location(DiagnosticLine, S->getLine());
         bool Ok = true;
         if (auto *E = dynamic_cast<EnumTypeDeclAST*>(S.get())) {
             Ok = Types->defineEnum(E->getName(), E->getValueNames(), Err);
@@ -44,6 +46,7 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
 // of its storage plus the type name stored there. Array indexing goes through
 // ArrayHandler's checked pipeline; dereferences emit the null-pointer check.
 bool CodeGen::emitLValue(ExprAST *E, LValueInfo &Out) {
+    SaveAndRestore<int> Location(DiagnosticLine, E && E->getLine() ? E->getLine() : DiagnosticLine);
     if (auto *Var = dynamic_cast<VariableExprAST*>(E)) {
         const SymbolInfo *Info = getSymbolInfo(Var->getName());
         if (!Info) {

@@ -1,0 +1,5 @@
+PROCEDURE Change(BYVAL Text : STRING, BYREF Value : INTEGER)
+ENDPROCEDURE
+CALL Change(
+    LEFT("text", 2),
+    1)

@@ -1,0 +1,5 @@
+CLASS Box
+    PRIVATE Hidden : INTEGER
+ENDCLASS
+DECLARE Item : Box
+OUTPUT item.hIDDEN

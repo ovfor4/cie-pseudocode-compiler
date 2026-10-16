@@ -1,4 +1,5 @@
 #pragma once
+#include "cps/Identifier.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -28,10 +29,10 @@ class ArrayHandler {
     llvm::LLVMContext *TheContext;
     llvm::IRBuilder<> *Builder;
     llvm::Module *TheModule;
-    std::map<std::string, SymbolInfo> *Symbols;
+    IdentifierMap<SymbolInfo> *Symbols;
     TypeSystem &Types;
 
-    std::map<std::string, ArrayMetadata> ArrayTable;
+    IdentifierMap<ArrayMetadata> ArrayTable;
     RuntimeCheck &RuntimeChecker;
 
     llvm::FunctionCallee MallocFunc;
@@ -63,7 +64,7 @@ public:
     ArrayHandler(llvm::LLVMContext &C,
                  llvm::IRBuilder<> &B,
                  llvm::Module &M,
-                 std::map<std::string, SymbolInfo> &Sym,
+                 IdentifierMap<SymbolInfo> &Sym,
                  TypeSystem &TS,
                  RuntimeCheck &RC);
 
@@ -89,12 +90,12 @@ public:
 
     // Swap in a fresh table (function bodies get their own scope, mirroring
     // the Symbols save/clear/restore discipline); returns the previous table.
-    std::map<std::string, ArrayMetadata> exchangeTable(std::map<std::string, ArrayMetadata> NewTable);
+    IdentifierMap<ArrayMetadata> exchangeTable(IdentifierMap<ArrayMetadata> NewTable);
 
     // Copy for block-scoping: control-flow bodies snapshot before and restore
     // after, so an array declared inside a branch cannot be referenced past it
     // (its buffer setup and bound SSA values live inside the branch).
-    std::map<std::string, ArrayMetadata> snapshotTable() const { return ArrayTable; }
+    IdentifierMap<ArrayMetadata> snapshotTable() const { return ArrayTable; }
 
     // Callee side of an array parameter: rebuild metadata from the incoming
     // data pointer + per-dim bounds. MakeCopy (BYVAL) mallocs and memcpys the

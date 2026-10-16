@@ -6,7 +6,7 @@ cpsc-language-overview - supported cpsc pseudocode syntax
 
 # DESCRIPTION
 
-Keywords and built-in function names are uppercase and case-sensitive. Indentation is for readability; blocks use explicit closing keywords. Identifiers begin with a letter and continue with letters, digits, or underscores.
+Keywords are uppercase and case-sensitive. Identifiers, including built-in function names, are case insensitive. Indentation is for readability; blocks use explicit closing keywords. Identifiers begin with a letter and continue with letters, digits, or underscores.
 
 Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`, `<`, `>`, `<=`, and `>=`. STRING comparisons compare contents, case-sensitively. Use `+`, `-`, `*`, and `/` for arithmetic; `/` always returns REAL. Use `&` to join strings.
 
@@ -48,7 +48,7 @@ The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions 
 - [cpsc-keyword-div(7)](keyword/cpsc-keyword-div.7.md): perform integer division.
 - [cpsc-keyword-mod(7)](keyword/cpsc-keyword-mod.7.md): find the integer division remainder.
 
-Closing and auxiliary keywords are documented with their main constructs: THEN/ELSE/ENDIF with IF; OF/OTHERWISE/ENDCASE with CASE; CATCH/ENDTRY/THROW with TRY; DO/ENDWHILE with WHILE; UNTIL with REPEAT; TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE; ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE; ENDTYPE with TYPE; PUBLIC/PRIVATE/ENDCLASS with CLASS. TRUE/FALSE are BOOLEAN literals.
+Closing and auxiliary keywords are documented with their main constructs: THEN/ELSE/ENDIF with IF; OF/OTHERWISE/ENDCASE with CASE; CATCH/ENDTRY/THROW with TRY; ENDWHILE with WHILE; UNTIL with REPEAT; TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE; ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE; ENDTYPE with TYPE; PUBLIC/PRIVATE/ENDCLASS with CLASS. TRUE/FALSE are BOOLEAN literals.
 
 # BUILT-IN FUNCTIONS
 

@@ -33,6 +33,7 @@ std::string opToText(int Op) {
 // LLVM level); builtin targets additionally reject user-kind sources, then
 // keep the existing representation coercions unchanged.
 Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
+    SaveAndRestore<int> Location(DiagnosticLine, E && E->getLine() ? E->getLine() : DiagnosticLine);
     if (!E || !Target) return nullptr;
 
     // A whole-array reference evaluates to its raw data pointer, and
@@ -94,7 +95,7 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
             }
             return nullptr;
         }
-        if (Src->Name != Target->Name) {
+        if (!Src->sameType(Target)) {
             reportError("Cannot use a value of type %s where %s is expected",
                         Src->Name.c_str(), Target->Name.c_str());
             return nullptr;
@@ -133,7 +134,7 @@ Value *CodeGen::emitUserKindBinaryOp(int Op, Value *L, const TypeInfo *LT,
     }
 
     if ((LT && LT->isPointer()) || (RT && RT->isPointer())) {
-        bool SameName = LT && RT && LT->isPointer() && RT->isPointer() && LT->Name == RT->Name;
+        bool SameName = LT && RT && LT->isPointer() && RT->isPointer() && LT->sameType(RT);
         if (SameName && (Op == tok_eq || Op == tok_ne)) {
             return Op == tok_eq ? Builder->CreateICmpEQ(L, R, "ptr_eq")
                                 : Builder->CreateICmpNE(L, R, "ptr_ne");
@@ -144,7 +145,7 @@ Value *CodeGen::emitUserKindBinaryOp(int Op, Value *L, const TypeInfo *LT,
     }
 
     // At least one enum operand from here on.
-    bool BothSameEnum = LT && RT && LT->isEnum() && RT->isEnum() && LT->Name == RT->Name;
+    bool BothSameEnum = LT && RT && LT->isEnum() && RT->isEnum() && LT->sameType(RT);
 
     switch (Op) {
     case tok_eq: case tok_ne: case '<': case '>': case tok_le: case tok_ge: {

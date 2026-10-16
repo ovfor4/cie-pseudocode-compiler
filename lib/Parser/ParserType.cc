@@ -112,19 +112,19 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
     const char *Keyword = IsClass ? "CLASS" : "TYPE";
     const char *EndKeyword = IsClass ? "ENDCLASS" : "ENDTYPE";
     auto AtField = [&] {
-        return IsClass ? (CurTok == tok_public || CurTok == tok_private)
+        return IsClass ? (CurTok == tok_public || CurTok == tok_private || CurTok == tok_identifier)
                        : CurTok == tok_declare;
     };
     std::vector<RecordFieldDecl> Fields;
     bool HadFieldError = false;
     while (CurTok != EndToken && CurTok != tok_eof) {
         if (AtField()) {
-            // Record fields are always public; class fields have no default.
-            bool IsPublic = !IsClass || CurTok == tok_public;
+            // Class fields default to public, like record fields.
+            bool IsPublic = CurTok != tok_private;
             if (ParseRecordField(Fields, IsPublic)) continue;
         } else {
             fprintf(stderr, "error: Expected %s or %s in %s %s at line %d\n",
-                    IsClass ? "PUBLIC or PRIVATE" : "DECLARE", EndKeyword,
+                    IsClass ? "field, PUBLIC or PRIVATE" : "DECLARE", EndKeyword,
                     Keyword, Name.c_str(), Lex.getLine());
         }
         HadFieldError = true;
@@ -155,7 +155,7 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
 bool Parser::ParseRecordField(std::vector<RecordFieldDecl> &Out, bool IsPublic) {
     const char *Introducer = CurTok == tok_declare ? "DECLARE"
                            : CurTok == tok_public ? "PUBLIC" : "PRIVATE";
-    getNextToken(); // eat field introducer
+    if (CurTok != tok_identifier) getNextToken(); // optional class access keyword
     if (CurTok != tok_identifier) {
         fprintf(stderr, "error: Expected field name after %s at line %d\n", Introducer, Lex.getLine());
         return false;
@@ -213,7 +213,7 @@ std::string Parser::ParseTypeName(bool AllowVoid) {
     }
     if (CurTok == tok_identifier) {
         std::string TypeName = Lex.IdentifierStr;
-        if (!AllowVoid && TypeName == "VOID") {
+        if (!AllowVoid && sameIdentifier(TypeName, "VOID")) {
             fprintf(stderr, "error: VOID is not allowed here\n");
             return "";
         }
@@ -321,9 +321,18 @@ std::unique_ptr<StmtAST> Parser::ParseConstant() {
         fprintf(stderr, "error: CONSTANT initializer must be a literal at line %d\n", Line);
         return nullptr;
     }
-    auto Value = ParsePrimary();
-    if (!Value) return nullptr;
-    if (Negative) Value = std::make_unique<UnaryExprAST>('-', std::move(Value));
+    std::unique_ptr<ExprAST> Value;
+    if (CurTok == tok_number_int) {
+        int Line = Lex.getLine();
+        int64_t Integer;
+        if (!ParseIntegerValue(Negative, Integer)) return nullptr;
+        Value = std::make_unique<IntegerExprAST>(Integer);
+        Value->setLine(Line);
+    } else {
+        Value = ParsePrimary();
+        if (!Value) return nullptr;
+        if (Negative) Value = std::make_unique<UnaryExprAST>('-', std::move(Value));
+    }
     if (GetTokPrecedence() >= 0) {
         fprintf(stderr, "error: CONSTANT initializer must be a literal, not an expression, at line %d\n", Line);
         return nullptr;

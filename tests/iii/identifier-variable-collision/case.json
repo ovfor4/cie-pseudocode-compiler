@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "Declaration\\ of\\ counter\\ conflicts\\ with\\ an\\ existing\\ declaration\\ in\\ this\\ scope",
+      "line": 2
+    }
+  ]
+}

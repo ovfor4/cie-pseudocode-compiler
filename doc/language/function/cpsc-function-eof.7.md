@@ -19,7 +19,7 @@ Return true when no further characters remain in a file opened FOR READ. The tes
 ```text
 DECLARE Line : STRING
 OPENFILE "notes.txt" FOR READ
-WHILE NOT EOF("notes.txt") DO
+WHILE NOT EOF("notes.txt")
     READFILE "notes.txt", Line
     OUTPUT Line
 ENDWHILE

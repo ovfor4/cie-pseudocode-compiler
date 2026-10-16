@@ -27,7 +27,7 @@ std::unique_ptr<StmtAST> Parser::ParseIfStmt() {
     if (!Cond) return nullptr;
 
     if (CurTok != tok_then) {
-        fprintf(stderr, "error: expected THEN\n");
+        fprintf(stderr, "error: expected THEN at line %d\n", Lex.getLine());
         return nullptr;
     }
     getNextToken();
@@ -41,7 +41,7 @@ std::unique_ptr<StmtAST> Parser::ParseIfStmt() {
     }
 
     if (CurTok != tok_endif) {
-        fprintf(stderr, "error: expected ENDIF\n");
+        fprintf(stderr, "error: expected ENDIF at line %d\n", Lex.getLine());
         return nullptr;
     }
     getNextToken();
@@ -53,12 +53,6 @@ std::unique_ptr<StmtAST> Parser::ParseWhileStmt() {
     getNextToken();
     auto Cond = ParseExpression();
     if (!Cond) return nullptr;
-
-    if (CurTok != tok_do) {
-        fprintf(stderr, "error: expected DO after WHILE condition\n");
-        return nullptr;
-    }
-    getNextToken();
 
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endwhile});
 
@@ -135,7 +129,7 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
         return nullptr;
     }
 
-    if (Lex.IdentifierStr != VarName) {
+    if (!sameIdentifier(Lex.IdentifierStr, VarName)) {
         fprintf(stderr, "error: NEXT identifier '%s' does not match FOR variable '%s'\n",
                 Lex.IdentifierStr.c_str(), VarName.c_str());
         return nullptr;

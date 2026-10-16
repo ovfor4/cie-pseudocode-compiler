@@ -6,8 +6,18 @@
 
 namespace cps {
 
-class ExprAST {
+class SourceLocation {
+    int SourceLine = 0;
 public:
+    explicit SourceLocation(int Line = 0) : SourceLine(Line) {}
+    virtual ~SourceLocation() = default;
+    int getLine() const { return SourceLine; }
+    void setLine(int Line) { SourceLine = Line; }
+};
+
+class ExprAST : public SourceLocation {
+public:
+    using SourceLocation::SourceLocation;
     virtual ~ExprAST() = default;
 };
 
@@ -56,13 +66,11 @@ public:
 class ArrayAccessExprAST : public ExprAST {
     std::string Name;
     std::vector<std::unique_ptr<ExprAST>> Indices;
-    int Line;
 public:
     ArrayAccessExprAST(const std::string &Name, std::vector<std::unique_ptr<ExprAST>> Indices, int Line)
-        : Name(Name), Indices(std::move(Indices)), Line(Line) {}
+        : ExprAST(Line), Name(Name), Indices(std::move(Indices)) {}
     const std::string &getName() const { return Name; }
     const std::vector<std::unique_ptr<ExprAST>> &getIndices() const { return Indices; }
-    int getLine() const { return Line; }
 };
 
 class UnaryExprAST : public ExprAST {
@@ -78,18 +86,17 @@ public:
 class BinaryExprAST : public ExprAST {
     int Op;
     std::unique_ptr<ExprAST> LHS, RHS;
-    int Line;
 public:
     BinaryExprAST(int Op, std::unique_ptr<ExprAST> LHS, std::unique_ptr<ExprAST> RHS, int Line)
-        : Op(Op), LHS(std::move(LHS)), RHS(std::move(RHS)), Line(Line) {}
+        : ExprAST(Line), Op(Op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
     int getOp() const { return Op; }
     ExprAST *getLHS() const { return LHS.get(); }
     ExprAST *getRHS() const { return RHS.get(); }
-    int getLine() const { return Line; }
 };
 
-class StmtAST {
+class StmtAST : public SourceLocation {
 public:
+    using SourceLocation::SourceLocation;
     virtual ~StmtAST() = default;
 };
 
@@ -154,14 +161,12 @@ class ArrayAssignStmtAST : public StmtAST {
     std::string Name;
     std::vector<std::unique_ptr<ExprAST>> Indices;
     std::unique_ptr<ExprAST> Expr;
-    int Line;
 public:
     ArrayAssignStmtAST(const std::string &Name, std::vector<std::unique_ptr<ExprAST>> Indices, std::unique_ptr<ExprAST> Expr, int Line)
-        : Name(Name), Indices(std::move(Indices)), Expr(std::move(Expr)), Line(Line) {}
+        : StmtAST(Line), Name(Name), Indices(std::move(Indices)), Expr(std::move(Expr)) {}
     const std::string &getName() const { return Name; }
     const std::vector<std::unique_ptr<ExprAST>> &getIndices() const { return Indices; }
     ExprAST *getExpr() const { return Expr.get(); }
-    int getLine() const { return Line; }
 };
 
 class InputStmtAST : public StmtAST {

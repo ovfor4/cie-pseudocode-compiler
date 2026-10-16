@@ -86,7 +86,9 @@ std::vector<std::unique_ptr<StmtAST>> Parser::ParseBlock(std::initializer_list<i
 }
 
 std::unique_ptr<StmtAST> Parser::ParseStatement() {
+    int Line = Lex.getLine();
     auto Stmt = ParseStatementImpl();
+    if (Stmt && !Stmt->getLine()) Stmt->setLine(Line);
     if (!Stmt) ++NumErrors;
     return Stmt;
 }

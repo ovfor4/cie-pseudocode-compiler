@@ -9,7 +9,7 @@ ctest --test-dir build --output-on-failure --parallel 2
 python3 tests/summarize.py build/test-results
 ```
 
-Use `ctest --test-dir build -L '^ii$' --output-on-failure` for one suite, or `-R '^i/arrays$'` for one case. CTest returns failure if any case fails; it continues through the other cases. [Current failures and coverage gaps](FAILURES.md) are intentionally visible, with no expected-failure exemptions.
+Use `ctest --test-dir build -L '^ii$' --output-on-failure` for one suite, or `-R '^i/arrays$'` for one case. CTest returns failure if any case fails; it continues through the other cases. [Historical failures and coverage gaps](FAILURES.md) are intentionally visible, with no expected-failure exemptions.
 
 The suites are **i**: independently traced fixed outputs, **ii**: C++ differential tests with Perl inputs, and **iii**: rejected programs with required causes and source lines. Fixed expectations are **pending human review**; each case's notes explain the trace and distinguish CIE rules from project extensions. REAL calculations are observed through BOOLEAN/INTEGER output; REAL text and REAL-to-string formatting remain outside this suite.
 
@@ -26,6 +26,6 @@ Use the actual SHA from a failed report in place of `FULL_COMMIT_SHA`. Clear `CP
 
 `build/test-results/<suite>/<case>/` contains `result.json`, numbered command metadata, stdin/stdout/stderr, expected output and isolated work directories. Random mismatches also save the first differing record. Re-running a case replaces only that case's directory; summaries include any other retained results, so remove `build/test-results` before collecting a fresh full-suite report. Commands have finite timeouts (30 seconds normally, 120 for compilation, 180 for file-intensive executions); timeout and launch/crash failures fail the case.
 
-In Actions, each compiler platform runs all three suites and summarizes results before its existing package smoke checks and upload. Failures retain inputs and logs as an Actions artifact for 14 days. Each platform publishes only after its own tests pass. These new tests expose existing defects, so compiler packages will remain unpublished until those defects are fixed; the independent plugin job can still publish.
+In Actions, each compiler platform runs all three suites and summarizes results before its existing package smoke checks and upload. Failures retain inputs and logs as an Actions artifact for 14 days. Each platform publishes only after its own tests pass. The initial Linux failures have been fixed; any failing compiler test still blocks publication for that platform. The independent plugin job can publish separately.
 
 For adding cases and runner interfaces, see [AGENTS/TESTING.md](../AGENTS/TESTING.md).

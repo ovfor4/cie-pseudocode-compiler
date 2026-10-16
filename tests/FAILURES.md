@@ -1,10 +1,12 @@
 # Compiler test findings
 
-Baseline: Linux x86_64, Clang/LLVM 23.1.3, Release EMBEDDED, compiler sources at `e2c6570`. Tests do not modify compiler sources. The full suite has 45 compiler cases plus harness and portable-generator checks. Fixed output expectations are pending human review.
+Baseline: Linux x86_64, Clang/LLVM 23.1.3, Release EMBEDDED, compiler sources at `e2c6570`. Tests do not modify compiler sources. The initial suite had 45 compiler cases plus harness and portable-generator checks. Fixed output expectations are pending human review.
 
-## Observed failures
+The expanded suite has 67 compiler cases plus harness and portable-generator checks (69 CTest entries). The 13 failures below were reproduced with the Actions seed `e1e789ac0249149a4aa1671f5f9260d488cb617a` and are now fixed on Linux Release EMBEDDED. Regression cases cover case-insensitive name domains and collisions, default/public/private fields, checked i64 literals in expressions/constants/parameter bounds, rejection of WHILE DO, and nested/multiline diagnostic locations. Existing fixed expectations and differential generators remain unchanged; WHILE fixtures now use the standard syntax.
 
-| Case | Required behavior | Current behavior |
+## Historical failures (fixed on Linux)
+
+| Case | Required behavior | Baseline behavior |
 |---|---|---|
 | i/class-default-public | Omitted access defaults to public (CIE p. 28). | Rejects the field unless PUBLIC/PRIVATE is explicit. |
 | i/identifier-case | Identifier lookup is case insensitive (CIE p. 7). | Reports the differently cased variable as unknown. |
@@ -20,9 +22,9 @@ Baseline: Linux x86_64, Clang/LLVM 23.1.3, Release EMBEDDED, compiler sources at
 | iii/nominal-type-mismatch | Incompatible named pointers, line 7. | Correct cause, no line. |
 | iii/unknown-name | Undeclared name, line 2. | Correct cause, no line. |
 
-Both native and `-r` paths expose the four i-group failures. All nine iii-group failures occur with both native/IR output requests, whether the destination was absent or already contained a sentinel. Failed compilation preserves the destination in these cases. The remaining 32 compiler cases passed locally, including seven groups of 10,000 random records plus 36 boundary records (70,036 total inputs, each checked through native and embedded execution).
+At baseline, both native and `-r` paths exposed the four i-group failures. All nine iii-group failures occurred with both native/IR output requests, whether the destination was absent or already contained a sentinel. Failed compilation preserves the destination in these cases. The remaining 32 compiler cases passed locally, including seven groups of 10,000 random records plus 36 boundary records (70,036 total inputs, each checked through native and embedded execution).
 
-The baseline test seed and exact command results are retained in `build/test-results`; subsequent CI reports use their own explicit push SHA. Platform results from Actions are the authority for Windows/macOS verification; local Linux results do not establish their behavior.
+Current exact command results are retained in `build/test-results`; the replay uses the original Actions SHA as its seed. Subsequent CI reports use their own explicit push SHA. Platform results from Actions are the authority for Windows/macOS verification; local Linux results do not establish their behavior.
 
 ## Coverage gaps
 

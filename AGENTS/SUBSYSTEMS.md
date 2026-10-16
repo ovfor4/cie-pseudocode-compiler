@@ -59,8 +59,9 @@ construction, which is why 0-based ordinals are load-bearing.
 `ClassTypeDeclAST` inherits `RecordTypeDeclAST`: CLASS declarations use the same
 two-pass registration, `TypeKind::Record`, `%record.NAME` layout and value semantics.
 Shared body/field parsing lives in `ParserType.cc`. TYPE fields always have
-`IsPublic = true`; CLASS fields require an explicit PUBLIC/PRIVATE keyword and
-carry that flag through `defineRecord` into `RecordFieldInfo`. Both the static
+`IsPublic = true`; CLASS fields default to public or accept an explicit
+PUBLIC/PRIVATE keyword and carry that flag through `defineRecord` into
+`RecordFieldInfo`. Both the static
 designator type walk and `emitLValue` reject private field access, including
 address-of, array elements and pointer dereferences. There is no class method
 context or language-level inheritance yet.

@@ -58,29 +58,25 @@ public:
 class CallExprAST : public ExprAST {
     std::string Callee;
     std::vector<std::unique_ptr<ExprAST>> Args;
-    int Line;
 
 public:
     CallExprAST(const std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args, int Line)
-        : Callee(Callee), Args(std::move(Args)), Line(Line) {}
+        : ExprAST(Line), Callee(Callee), Args(std::move(Args)) {}
 
     const std::string &getCallee() const { return Callee; }
     const std::vector<std::unique_ptr<ExprAST>> &getArgs() const { return Args; }
-    int getLine() const { return Line; }
 };
 
 class CallStmtAST : public StmtAST {
     std::string Callee;
     std::vector<std::unique_ptr<ExprAST>> Args;
-    int Line;
 
 public:
     CallStmtAST(const std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args, int Line)
-        : Callee(Callee), Args(std::move(Args)), Line(Line) {}
+        : StmtAST(Line), Callee(Callee), Args(std::move(Args)) {}
 
     const std::string &getCallee() const { return Callee; }
     const std::vector<std::unique_ptr<ExprAST>> &getArgs() const { return Args; }
-    int getLine() const { return Line; }
 };
 
 

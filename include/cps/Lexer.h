@@ -25,7 +25,6 @@ enum Token {
     tok_endif = -9,
     
     tok_while = -10,
-    tok_do = -11,
     tok_endwhile = -12,
     
     tok_repeat = -13,
@@ -116,7 +115,7 @@ class Lexer {
     struct TokenData {
         int Kind, Line;
         std::string Identifier, String;
-        int64_t Integer;
+        uint64_t Integer;
         double Real;
         char Character;
     };
@@ -129,7 +128,7 @@ public:
 
     std::string IdentifierStr;
     std::string StringVal;
-    int64_t NumVal = 0;
+    uint64_t NumVal = 0;
     double RealVal = 0;
     char CharVal = '\0';
 

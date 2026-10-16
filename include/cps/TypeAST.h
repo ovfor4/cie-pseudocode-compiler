@@ -81,7 +81,7 @@ public:
     const std::vector<RecordFieldDecl> &getFields() const { return Fields; }
 };
 
-// CLASS <name> with explicitly PUBLIC/PRIVATE fields, ending in ENDCLASS.
+// CLASS <name> with default-public or explicit PUBLIC/PRIVATE fields, ending in ENDCLASS.
 // Storage and value semantics are inherited from record declarations.
 class ClassTypeDeclAST : public RecordTypeDeclAST {
 public:
@@ -107,17 +107,15 @@ struct DesignatorAccess {
 class DesignatorExprAST : public ExprAST {
     std::string BaseName;
     std::vector<DesignatorAccess> Accesses;
-    int Line;
 
 public:
     DesignatorExprAST(const std::string &BaseName,
                       std::vector<DesignatorAccess> Accesses,
                       int Line)
-        : BaseName(BaseName), Accesses(std::move(Accesses)), Line(Line) {}
+        : ExprAST(Line), BaseName(BaseName), Accesses(std::move(Accesses)) {}
 
     const std::string &getBaseName() const { return BaseName; }
     const std::vector<DesignatorAccess> &getAccesses() const { return Accesses; }
-    int getLine() const { return Line; }
 };
 
 // ^<designator> — address-of. The operand is a designator by construction,

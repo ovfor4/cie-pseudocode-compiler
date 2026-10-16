@@ -9,6 +9,7 @@ using namespace llvm;
 using namespace cps;
 
 void CodeGen::emitStmt(StmtAST *Stmt) {
+    SaveAndRestore<int> Location(DiagnosticLine, Stmt && Stmt->getLine() ? Stmt->getLine() : DiagnosticLine);
     if (!Stmt) return;
 
     if (auto *FuncDef = dynamic_cast<FunctionDefAST*>(Stmt)) {

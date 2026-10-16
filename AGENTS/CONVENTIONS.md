@@ -17,7 +17,12 @@ out-of-band via public `Lexer` fields (`IdentifierStr`, `StringVal`, `NumVal`,
 
 **Keywords are UPPERCASE and case-sensitive.** `declare` silently lexes as an
 identifier. Assignment is `<-` (ASCII only), equality is single `=`, inequality `<>`,
-concatenation `&` (reaches the parser as raw ASCII 38 — no token). No escape sequences
+concatenation `&` (reaches the parser as raw ASCII 38 — no token). Identifiers use
+ASCII case-insensitive lookup/comparison through `IdentifierMap`, `IdentifierSet`
+and `sameIdentifier`; retain source spelling in ASTs and diagnostics. This includes
+functions, types, enum values, fields and builtins, but not C_TYPE import strings.
+Integer tokens carry a checked unsigned magnitude through lookahead; the parser
+applies the sign and i64 range check, including the minimum value. No escape sequences
 in string/char literals. Comments are `//` to end of line.
 
 **The lexer reads a caller-owned stream.** Construct it with `Lexer(std::istream &)`;
@@ -43,7 +48,7 @@ sizeof. C alias declarations precede casts using their names; the parser tracks
 declared type names to distinguish `(Type)operand` from `(expression)`.
 
 **User-kind typing is nominal, and checked upstream only.** Enum/Record/Pointer
-identity is name equality (`P1 = ^INTEGER` and `P2 = ^INTEGER` are incompatible;
+identity is case-insensitive name equality (`P1 = ^INTEGER` and `P2 = ^INTEGER` are incompatible;
 same-layout records too). Their LLVM representations are indistinguishable from
 builtins, so values of these kinds must NEVER reach `ArithmeticHandler` or
 `coerceValueToType` without a prior name-level check — `CodeGen::emitCoercedExpr`
@@ -113,7 +118,10 @@ silently ignored** — no error. Adding an AST node always means touching these 
 
 **Compiler error style: print an `error:` line, set the component's error flag, and
 keep compiling.** No exceptions, no exit mid-compile. `Lexer`/`Parser`/`CodeGen` each
-expose `hadError()`; `CodeGen::reportError(fmt, ...)` is the helper for codegen-side
+expose `hadError()`; AST expressions/statements share source-line metadata. Parser
+entry points record token locations. CodeGen saves/restores its diagnostic line
+across recursive emission and coercion; `reportError` appends `at line N`.
+`CodeGen::reportError(fmt, ...)` is the helper for codegen-side
 diagnostics (`ArrayHandler` reaches it through its `CodeGen &` parameter,
 `FunctionGen`/`ArithmeticHandler` hold a `bool &HadError` reference). The driver exits
 non-zero when any flag is set, printing `compilation terminated.` once. Errors that
@@ -134,7 +142,8 @@ the declared return type. Top-level prototypes are pre-registered (after the TYP
 pre-pass) before statement emission, so call-before-definition is fine; a call with
 no registered signature is a compile error. Function names get no mangling, so
 `emitPrototype` rejects names that collide with runtime/libc symbols
-(`isReservedRuntimeName`), builtins, or enum values.
+(`isReservedRuntimeName`), builtins, or enum values. Signatures retain the first
+declaration spelling for LLVM lookup, independently of call-site casing.
 
 **Parameter modes are sticky and BYREF is procedure-only (guide §8.3).** In
 `(BYREF a : T, b : T)` the `b` is BYREF too; unannotated parameters default to

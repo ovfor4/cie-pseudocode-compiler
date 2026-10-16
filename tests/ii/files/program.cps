@@ -19,7 +19,7 @@ FOR Index <- 1 TO Count
     OPENFILE "roundtrip.txt" FOR READ
     Combined <- ""
     Lines <- 0
-    WHILE NOT EOF("roundtrip.txt") DO
+    WHILE NOT EOF("roundtrip.txt")
         READFILE "roundtrip.txt", Line
         Combined <- Combined & "[" & Line & "]"
         Lines <- Lines + 1

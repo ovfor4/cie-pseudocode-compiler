@@ -81,7 +81,7 @@ Value *CodeGen::emitCast(CastExprAST *Cast) {
 Value *CodeGen::emitCBinaryOp(int Op, Value *L, const TypeInfo *Left,
                                Value *R, const TypeInfo *Right, int Line) {
     if (!Left || !Right || !Left->isC() || !Right->isC()) {
-        reportError("C and pseudocode operands require an explicit cast (line %d)", Line);
+        reportError("C and pseudocode operands require an explicit cast");
         return nullptr;
     }
     if (Left->isPointer() || Right->isPointer()) {
@@ -99,7 +99,7 @@ Value *CodeGen::emitCBinaryOp(int Op, Value *L, const TypeInfo *Left,
         return nullptr;
     }
     if (Op == '&' || ((Op == tok_div || Op == tok_mod) && !Common->isIntegral())) {
-        reportError("Operator is not supported for these C operand types (line %d)", Line);
+        reportError("Operator is not supported for these C operand types");
         return nullptr;
     }
     if (Op == tok_and || Op == tok_or) {
@@ -154,7 +154,7 @@ Value *CodeGen::emitCBinaryOp(int Op, Value *L, const TypeInfo *Left,
                                           : Builder->CreateICmpUGE(L, R, "c_ge");
         }
     }
-    reportError("Unsupported operator for C operands (line %d)", Line);
+    reportError("Unsupported operator for C operands");
     return nullptr;
 }
 

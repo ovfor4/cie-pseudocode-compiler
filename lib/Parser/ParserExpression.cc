@@ -1,6 +1,7 @@
 #include "cps/Parser.h"
 #include "cps/FunctionAST.h"
 #include <cstdio>
+#include <limits>
 
 using namespace cps;
 
@@ -13,15 +14,29 @@ int Parser::GetTokPrecedence() {
 }
 
 
+bool Parser::ParseIntegerValue(bool Negative, int64_t &Out) {
+    const uint64_t Max = uint64_t(std::numeric_limits<int64_t>::max());
+    if (Lex.NumVal > Max + (Negative ? 1u : 0u)) {
+        fprintf(stderr, "error: Integer literal is outside the i64 range at line %d\n", Lex.getLine());
+        getNextToken();
+        return false;
+    }
+    Out = Negative && Lex.NumVal == Max + 1
+        ? std::numeric_limits<int64_t>::min()
+        : Negative ? -static_cast<int64_t>(Lex.NumVal) : static_cast<int64_t>(Lex.NumVal);
+    getNextToken();
+    return true;
+}
+
 std::unique_ptr<ExprAST> Parser::ParseNumberExpr() {
     if (CurTok == tok_number_real) {
         auto Result = std::make_unique<RealExprAST>(Lex.RealVal);
         getNextToken();
         return Result;
     }
-    auto Result = std::make_unique<IntegerExprAST>(Lex.NumVal);
-    getNextToken();
-    return Result;
+    int64_t Value;
+    if (!ParseIntegerValue(false, Value)) return nullptr;
+    return std::make_unique<IntegerExprAST>(Value);
 }
 
 std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
@@ -109,7 +124,7 @@ std::unique_ptr<ExprAST> Parser::ParseParenExpr() {
     auto V = ParseExpression();
     if (!V) return nullptr;
     if (CurTok != ')') {
-        fprintf(stderr, "error: expected ')'\n");
+        fprintf(stderr, "error: expected ')' at line %d\n", Lex.getLine());
         return nullptr;
     }
     getNextToken();
@@ -117,6 +132,13 @@ std::unique_ptr<ExprAST> Parser::ParseParenExpr() {
 }
 
 std::unique_ptr<ExprAST> Parser::ParsePrimary() {
+    int Line = Lex.getLine();
+    auto Expr = ParsePrimaryImpl();
+    if (Expr && !Expr->getLine()) Expr->setLine(Line);
+    return Expr;
+}
+
+std::unique_ptr<ExprAST> Parser::ParsePrimaryImpl() {
     switch (CurTok) {
     case tok_identifier: return ParseIdentifierExpr();
     case tok_number_int: return ParseNumberExpr();
@@ -148,6 +170,13 @@ std::unique_ptr<ExprAST> Parser::ParsePrimary() {
 }
 
 std::unique_ptr<ExprAST> Parser::ParseUnary() {
+    int Line = Lex.getLine();
+    auto Expr = ParseUnaryImpl();
+    if (Expr && !Expr->getLine()) Expr->setLine(Line);
+    return Expr;
+}
+
+std::unique_ptr<ExprAST> Parser::ParseUnaryImpl() {
     if (CurTok == tok_not) {
         getNextToken();
         auto Operand = ParseUnary();
@@ -178,6 +207,11 @@ std::unique_ptr<ExprAST> Parser::ParseUnary() {
 
     if (CurTok == '-') {
         getNextToken();
+        if (CurTok == tok_number_int) {
+            int64_t Value;
+            if (!ParseIntegerValue(true, Value)) return nullptr;
+            return std::make_unique<IntegerExprAST>(Value);
+        }
         auto Operand = ParseUnary();
         if (!Operand) return nullptr;
         return std::make_unique<UnaryExprAST>('-', std::move(Operand));

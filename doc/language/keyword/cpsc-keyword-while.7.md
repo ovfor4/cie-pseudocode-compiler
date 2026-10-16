@@ -7,21 +7,21 @@ cpsc-keyword-while - repeat while a condition is true
 # SYNOPSIS
 
 ```text
-WHILE condition DO
+WHILE condition
     statements
 ENDWHILE
 ```
 
 # DESCRIPTION
 
-Test before each iteration; the body may run zero times. DO and ENDWHILE belong to this syntax.
+Test before each iteration; the body may run zero times. ENDWHILE closes the loop. The WHILE header has no DO keyword.
 
 # EXAMPLE
 
 ```text
 DECLARE Count : INTEGER
 Count <- 1
-WHILE Count <= 3 DO
+WHILE Count <= 3
     OUTPUT Count
     Count <- Count + 1
 ENDWHILE

@@ -24,6 +24,7 @@ void CodeGen::reportError(const char *Fmt, ...) {
     va_start(Args, Fmt);
     fprintf(stderr, "error: ");
     vfprintf(stderr, Fmt, Args);
+    if (DiagnosticLine) fprintf(stderr, " at line %d", DiagnosticLine);
     fprintf(stderr, "\n");
     va_end(Args);
     HadError = true;
@@ -51,7 +52,7 @@ CodeGen::CodeGen() {
                                             *Types,
                                             *Exceptions,
                                             Symbols,
-                                            HadError);
+                                            HadError, DiagnosticLine);
 
     ArithHandler = std::make_unique<ArithmeticHandler>(*TheContext, *Builder, HadError,
                                                      *RuntimeChecker);
@@ -158,12 +159,14 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
     // Pre-register every top-level FUNCTION/PROCEDURE prototype so calls may
     // precede definitions.
     for (const auto &Stmt : Statements) {
+        SaveAndRestore<int> Location(DiagnosticLine, Stmt->getLine());
         if (auto *FuncDef = dynamic_cast<FunctionDefAST*>(Stmt.get())) {
             FuncGen->emitPrototype(FuncDef->getProto());
         }
     }
 
     for (const auto &Stmt : Statements) {
+        SaveAndRestore<int> Location(DiagnosticLine, Stmt->getLine());
         emitStmt(Stmt.get());
     }
 
@@ -197,6 +200,7 @@ bool CodeGen::marshalCallArgs(const std::string &Callee,
                               const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
                               int Line,
                               std::vector<Value*> &Out) {
+    SaveAndRestore<int> Location(DiagnosticLine, Line ? Line : DiagnosticLine);
     const FuncSig *Sig = FuncGen->getSignature(Callee);
     if (!Sig) {
         reportError("Call to undefined function %s", Callee.c_str());

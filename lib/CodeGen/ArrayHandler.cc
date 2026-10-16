@@ -12,7 +12,7 @@ using namespace cps;
 ArrayHandler::ArrayHandler(LLVMContext &C,
                            IRBuilder<> &B,
                            Module &M,
-                           std::map<std::string, SymbolInfo> &Sym,
+                           IdentifierMap<SymbolInfo> &Sym,
                            TypeSystem &TS,
                            RuntimeCheck &RC)
     : TheContext(&C),
@@ -253,7 +253,7 @@ Value *ArrayHandler::emitElementAddress(ArrayAccessExprAST *Expr,
                               CG, ElemTypeNameOut);
 }
 
-std::map<std::string, ArrayMetadata> ArrayHandler::exchangeTable(std::map<std::string, ArrayMetadata> NewTable) {
+IdentifierMap<ArrayMetadata> ArrayHandler::exchangeTable(IdentifierMap<ArrayMetadata> NewTable) {
     std::swap(ArrayTable, NewTable);
     return NewTable;
 }

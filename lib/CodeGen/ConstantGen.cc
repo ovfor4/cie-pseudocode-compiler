@@ -19,7 +19,7 @@ bool CodeGen::prepareSymbolDeclaration(const std::string &Name, bool IsConstant)
     auto &Scope = ConstantScopes.back();
     auto It = Symbols.find(Name);
     if (It != Symbols.end()) {
-        if ((IsConstant || It->second.ConstantValue) && It->second.ScopeID == Scope.ID) {
+        if (It->second.ScopeID == Scope.ID) {
             reportError("Declaration of %s conflicts with an existing declaration in this scope", Name.c_str());
             return false;
         }

@@ -190,6 +190,7 @@ void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
     auto *After = BasicBlock::Create(*TheContext, "case_cont", F);
     auto SavedArrays = Arrays->snapshotTable();
     for (const auto &Branch : Stmt->getBranches()) {
+        SaveAndRestore<int> Location(DiagnosticLine, Branch.Line);
         auto *Body = BasicBlock::Create(*TheContext, "case_body", F);
         auto *Next = BasicBlock::Create(*TheContext, "case_next", F);
         auto Compare = [&](int Op, ExprAST *Label) -> Value * {
@@ -199,7 +200,7 @@ void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
             }
             const TypeInfo *LabelType = getExprTypeInfo(Label);
             if (!LabelType) {
-                reportError("Cannot determine CASE label type at line %d", Branch.Line);
+                reportError("Cannot determine CASE label type");
                 return nullptr;
             }
             Value *LabelValue = emitExpr(Label);

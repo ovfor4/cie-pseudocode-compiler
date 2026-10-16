@@ -75,9 +75,9 @@ test programs.
   already-invalid programs can hit it).
 
 - **CLASS subset (§10).** `CLASS`/`ENDCLASS`/`PUBLIC`/`PRIVATE` are reserved.
-  CLASS is a top-level record-derived value type with mandatory per-field access
-  keywords (no DECLARE). Unlike the guide's default-public rule, omitting access
-  is an error. TYPE fields cannot specify access and remain public. Private fields
+  CLASS is a top-level record-derived value type with optional per-field access
+  keywords (no DECLARE). Omitting access defaults to public, per the guide.
+  TYPE fields cannot specify access and remain public. Private fields
   cannot be accessed externally; whole-value initialization/copying is allowed.
   CLASS inherits record limitations, including no array fields or empty bodies.
 
@@ -110,6 +110,6 @@ DATE, INPUT into array elements, string escape sequences,
 array-typed record fields, whole-array RETURN, class methods/constructors/destructors,
 NEW and class inheritance. Compiler fixtures now live in `tests/` (see TESTING.md).
 Nightly CI runs the compiler suites, packaged EMBEDDED smoke checks and existing
-plugin tests. The initial compiler suite intentionally exposes existing standard
-conflicts and missing diagnostic locations; see `tests/FAILURES.md` before interpreting
-a failing baseline. Keep those failures visible until their implementations are fixed.
+plugin tests. The initial standard conflicts and missing diagnostic locations are fixed on
+Linux; see `tests/FAILURES.md` for the historical baseline and coverage gaps.
+WHILE uses the standard header without DO; old WHILE DO programs must be migrated.

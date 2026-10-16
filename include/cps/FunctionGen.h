@@ -1,4 +1,5 @@
 #pragma once
+#include "cps/Identifier.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "cps/FunctionAST.h"
@@ -34,6 +35,7 @@ struct ParamSig {
 // dispatch on declared parameter types and modes instead of inferring them
 // back from LLVM types.
 struct FuncSig {
+    std::string Name;
     std::string ReturnTypeName;
     std::vector<ParamSig> Params;
 };
@@ -55,10 +57,12 @@ private:
     TypeSystem &Types;
     ExceptionHandler &Exceptions;
 
-    std::map<std::string, SymbolInfo> &Symbols;
+    IdentifierMap<SymbolInfo> &Symbols;
     bool &HadError;
+    int &DiagnosticLine;
+    void reportError(const char *Fmt, ...);
 
-    std::map<std::string, FuncSig> Signatures;
+    IdentifierMap<FuncSig> Signatures;
     ArrayParamBinder BindArrayParam;
 
     void createArgumentAllocas(llvm::Function *F, const std::vector<ParamDecl> &Params);
@@ -69,9 +73,9 @@ public:
                 llvm::IRBuilder<> &B,
                 TypeSystem &TS,
                 ExceptionHandler &EH,
-                std::map<std::string, SymbolInfo> &Sym,
-                bool &HadErrorFlag)
-        : Context(C), Module(M), Builder(B), Types(TS), Exceptions(EH), Symbols(Sym), HadError(HadErrorFlag) {}
+                IdentifierMap<SymbolInfo> &Sym,
+                bool &HadErrorFlag, int &Line)
+        : Context(C), Module(M), Builder(B), Types(TS), Exceptions(EH), Symbols(Sym), HadError(HadErrorFlag), DiagnosticLine(Line) {}
 
     llvm::Type *getLLVMType(const std::string &TypeName);
 

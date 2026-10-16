@@ -1,0 +1,2 @@
+TYPE First = ^INTEGER
+TYPE first = ^INTEGER

@@ -11,6 +11,7 @@ using namespace cps;
 using namespace cps::detail;
 
 Value *CodeGen::emitExpr(ExprAST *Expr) {
+    SaveAndRestore<int> Location(DiagnosticLine, Expr && Expr->getLine() ? Expr->getLine() : DiagnosticLine);
     if (auto *Cast = dynamic_cast<CastExprAST*>(Expr)) return emitCast(Cast);
     if (!Expr) return nullptr;
 
@@ -126,6 +127,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
     if (auto *Call = dynamic_cast<CallExprAST*>(Expr)) {
         std::string Name = Call->getCallee();
         if (const BuiltinInfo *B = findBuiltin(Name)) {
+            Name = B->Name;
             if (Call->getArgs().size() != B->Arity) {
                 reportError("%s expects %u arg%s", B->Name, B->Arity, B->Arity == 1 ? "" : "s");
                 return nullptr;
@@ -247,6 +249,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
 // Ordinary binary expressions and CASE use the same typed operations.
 Value *CodeGen::emitBinaryOp(int Op, Value *L, const TypeInfo *LT,
                              Value *R, const TypeInfo *RT, int Line) {
+    SaveAndRestore<int> Location(DiagnosticLine, Line ? Line : DiagnosticLine);
     if (!L || !R) return nullptr;
     if ((LT && LT->isC()) || (RT && RT->isC()))
         return emitCBinaryOp(Op, L, LT, R, RT, Line);
@@ -261,7 +264,7 @@ Value *CodeGen::emitBinaryOp(int Op, Value *L, const TypeInfo *LT,
     case tok_eq: case tok_ne: case '<': case '>': case tok_le: case tok_ge:
         if ((LT && LT->isString()) || (RT && RT->isString())) {
             if (!(LT && LT->isString() && RT && RT->isString())) {
-                reportError("STRING comparison requires two STRING operands (line %d)", Line);
+                reportError("STRING comparison requires two STRING operands");
                 return nullptr;
             }
             return StrHandler->emitCompare(Op, L, R);

@@ -1,4 +1,6 @@
 #pragma once
+#include "llvm/Support/SaveAndRestore.h"
+#include "cps/Identifier.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -27,10 +29,11 @@ class CodeGen {
     std::unique_ptr<llvm::LLVMContext> TheContext;
     std::unique_ptr<llvm::Module> TheModule;
     std::unique_ptr<llvm::IRBuilder<>> Builder;
-    std::map<std::string, SymbolInfo> Symbols;
+    int DiagnosticLine = 0;
+    IdentifierMap<SymbolInfo> Symbols;
     struct ConstantScope {
         unsigned ID;
-        std::map<std::string, std::optional<SymbolInfo>> Saved;
+        IdentifierMap<std::optional<SymbolInfo>> Saved;
     };
     std::vector<ConstantScope> ConstantScopes = {{0, {}}};
     unsigned NextScopeID = 1;

@@ -1,0 +1,2 @@
+DECLARE Counter : INTEGER
+DECLARE counter : INTEGER

@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "Duplicate\\ parameter\\ name\\ 'value'",
+      "line": 1
+    }
+  ]
+}

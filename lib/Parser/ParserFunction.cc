@@ -17,9 +17,7 @@ bool Parser::ParseSignedIntBound(int64_t &Out) {
                 Lex.getLine());
         return false;
     }
-    Out = Negative ? -Lex.NumVal : Lex.NumVal;
-    getNextToken();
-    return true;
+    return ParseIntegerValue(Negative, Out);
 }
 
 // ( [BYREF|BYVAL] <name> : <type>
@@ -107,7 +105,7 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
         }
 
         for (const ParamDecl &Prev : Params) {
-            if (Prev.Name == P.Name) {
+            if (sameIdentifier(Prev.Name, P.Name)) {
                 fprintf(stderr, "error: Duplicate parameter name '%s' at line %d\n",
                         P.Name.c_str(), Lex.getLine());
                 return std::nullopt;
