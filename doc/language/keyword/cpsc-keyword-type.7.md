@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-type - define enumerations, pointers, and records
+cpsc-keyword-type, cpsc-keyword-endtype - define enumerations, pointers, and records
 
 # SYNOPSIS
 

@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-while - repeat while a condition is true
+cpsc-keyword-while, cpsc-keyword-endwhile - repeat while a condition is true
 
 # SYNOPSIS
 

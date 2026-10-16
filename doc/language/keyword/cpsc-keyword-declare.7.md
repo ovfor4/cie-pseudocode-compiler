@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-declare - declare variables and arrays
+cpsc-keyword-declare, cpsc-keyword-array, cpsc-keyword-integer, cpsc-keyword-real, cpsc-keyword-boolean, cpsc-keyword-char, cpsc-keyword-string - declare variables and arrays
 
 # SYNOPSIS
 

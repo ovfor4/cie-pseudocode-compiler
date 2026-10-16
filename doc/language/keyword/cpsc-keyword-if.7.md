@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-if - choose between branches
+cpsc-keyword-if, cpsc-keyword-then, cpsc-keyword-else, cpsc-keyword-endif - choose between branches
 
 # SYNOPSIS
 

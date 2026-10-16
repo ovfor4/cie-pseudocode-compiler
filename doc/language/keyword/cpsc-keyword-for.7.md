@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-for - iterate over an integer range
+cpsc-keyword-for, cpsc-keyword-to, cpsc-keyword-step, cpsc-keyword-next - iterate over an integer range
 
 # SYNOPSIS
 

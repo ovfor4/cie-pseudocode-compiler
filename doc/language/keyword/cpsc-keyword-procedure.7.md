@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-procedure - define a procedure and parameter modes
+cpsc-keyword-procedure, cpsc-keyword-endprocedure - define a procedure and parameter modes
 
 # SYNOPSIS
 

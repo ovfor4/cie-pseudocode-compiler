@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-function - define a function that returns a value
+cpsc-keyword-function, cpsc-keyword-endfunction - define a function that returns a value
 
 # SYNOPSIS
 

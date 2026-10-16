@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-try - catch exceptions with stack unwinding
+cpsc-keyword-try, cpsc-keyword-catch, cpsc-keyword-endtry, cpsc-keyword-throw - catch exceptions with stack unwinding
 
 # SYNOPSIS
 

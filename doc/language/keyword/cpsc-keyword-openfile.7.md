@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-openfile - open a text file
+cpsc-keyword-openfile, cpsc-keyword-read, cpsc-keyword-write, cpsc-keyword-append - open a text file
 
 # SYNOPSIS
 

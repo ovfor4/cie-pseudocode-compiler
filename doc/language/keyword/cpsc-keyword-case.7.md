@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-case - match values or ranges in source order
+cpsc-keyword-case, cpsc-keyword-otherwise, cpsc-keyword-endcase - match values or ranges in source order
 
 # SYNOPSIS
 

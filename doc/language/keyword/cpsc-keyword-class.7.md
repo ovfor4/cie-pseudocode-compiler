@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-class - define a class with public and private fields
+cpsc-keyword-class, cpsc-keyword-public, cpsc-keyword-private, cpsc-keyword-endclass - define a class with public and private fields
 
 # SYNOPSIS
 

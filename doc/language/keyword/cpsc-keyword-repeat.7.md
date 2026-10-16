@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-repeat - repeat until a condition is true
+cpsc-keyword-repeat, cpsc-keyword-until - repeat until a condition is true
 
 # SYNOPSIS
 
