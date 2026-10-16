@@ -36,6 +36,7 @@ fi
 set --
 if [ "$(uname -s)" = Darwin ]; then
     set -- "-DCMAKE_OSX_ARCHITECTURES=$(uname -m)" \
+        "-DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path)" \
         "-DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-15.0}"
 fi
 cmake -S "$work/src/lld" -B "$work/build" \

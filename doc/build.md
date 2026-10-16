@@ -161,6 +161,8 @@ sh tools/build-static-lld.sh "$(brew --prefix llvm@23)" "$PWD/build" 3
 
 The helper downloads the matching official LLVM source release, extracts LLD, its common CMake utilities and libunwind's Mach-O headers, and builds LLD using the installed LLVM SDK. It installs static LLD libraries, headers, tools and CMake configuration into `build/`, where cpsc's local dependency lookup finds them before system packages. It does not rebuild LLVM or libunwind. Use the same build directory for the helper and cpsc. For an already-extracted LLVM bottle, pass its `build/deps/root/opt/llvm` prefix instead; the LLVM versions must match. The helper uses the host architecture and defaults to a macOS 15.0 deployment target; set `MACOSX_DEPLOYMENT_TARGET` to override that target for both builds.
 
+Both builds explicitly select the active SDK with `CMAKE_OSX_SYSROOT`. This lets CMake recognize SDK headers as implicit compiler includes, keeping C library headers behind libc++'s wrapper headers when imported libraries such as zlib expose the SDK include directory.
+
 ## Build
 
 You must explicitly choose `-DCPSC_RUN_MODE=PATH`, `EMBEDDED`, or `NONE` on
@@ -200,6 +202,7 @@ macOS:
 
 ```bash
 cmake -S . -B build -DCPSC_RUN_MODE=EMBEDDED -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_SYSROOT="$(xcrun --show-sdk-path)" \
   -DCMAKE_C_COMPILER="$PWD/build/deps/root/opt/llvm/bin/clang" \
   -DCMAKE_CXX_COMPILER="$PWD/build/deps/root/opt/llvm/bin/clang++"
 cmake --build build -j4

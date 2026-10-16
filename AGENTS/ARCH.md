@@ -150,6 +150,8 @@ prefix, and leaves LLVM itself installed. Source and build caches are versioned;
 the resulting local `lib/cmake/lld` takes precedence over shared system packages.
 The helper's build-time linker can use the installed LLVM dylib; cpsc still links
 the LLD archives and static LLVM components.
+Both macOS configurations explicitly select the SDK with `CMAKE_OSX_SYSROOT`
+before compiler detection, so imported SDK include paths do not precede libc++.
 
 Windows build instructions retain MSYS2 MINGW64. Its LLVM/Clang package names
 and compiler executable names are unversioned; CMake still requires major 23.
