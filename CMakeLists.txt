@@ -112,6 +112,12 @@ target_link_libraries(cpsc PRIVATE
 
 include(cmake/NativeCompiler.cmake)
 
+option(BUILD_TESTING "Enable compiler conformance tests" OFF)
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
 include(cmake/Manual.cmake)
 
 configure_file(cmake/Install.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/Install.cmake" @ONLY)
