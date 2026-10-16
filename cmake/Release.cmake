@@ -1,5 +1,6 @@
 # Read HEAD at packaging time so subsequent commits do not require reconfiguration.
 include("${CPSC_SOURCE_DIR}/cmake/FindDependency.cmake")
+include("${CPSC_SOURCE_DIR}/cmake/ManualAliases.cmake")
 cpsc_find_dependency(PROGRAM GIT_EXECUTABLE NAMES git REQUIRED)
 find_package(Git REQUIRED)
 execute_process(
@@ -49,6 +50,18 @@ foreach(source IN LISTS cpsc_language_sources)
     file(RELATIVE_PATH relative "${CPSC_SOURCE_DIR}/doc/language" "${source}")
     string(REGEX REPLACE "\\.7\\.md$" ".${cpsc_language_extension}" relative "${relative}")
     get_filename_component(directory "${relative}" DIRECTORY)
+    file(COPY "${CPSC_BINARY_DIR}/doc/language/${relative}"
+        DESTINATION "${cpsc_package_dir}/doc/language/${directory}")
+endforeach()
+foreach(pair IN LISTS CPSC_MANUAL_ALIASES)
+    string(REPLACE ":" ";" alias_parts "${pair}")
+    list(GET alias_parts 0 alias_name)
+    set(relative "keyword/${alias_name}.${cpsc_language_extension}")
+    get_filename_component(directory "${relative}" DIRECTORY)
+    if(NOT EXISTS "${CPSC_BINARY_DIR}/doc/language/${relative}")
+        message(FATAL_ERROR "Language manual alias is missing: ${relative}")
+    endif()
+    file(MAKE_DIRECTORY "${cpsc_package_dir}/doc/language/${directory}")
     file(COPY "${CPSC_BINARY_DIR}/doc/language/${relative}"
         DESTINATION "${cpsc_package_dir}/doc/language/${directory}")
 endforeach()

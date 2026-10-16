@@ -1,3 +1,4 @@
+include("${CMAKE_CURRENT_LIST_DIR}/ManualAliases.cmake")
 if(WIN32)
     set(cpsc_manual_format html5)
 else()
@@ -37,4 +38,29 @@ foreach(source IN LISTS cpsc_manual_sources)
     )
     list(APPEND cpsc_manual_outputs "${output}")
 endforeach()
+if(WIN32)
+    foreach(pair IN LISTS CPSC_MANUAL_ALIASES)
+        string(REPLACE ":" ";" alias_parts "${pair}")
+        list(GET alias_parts 0 alias_name)
+        list(GET alias_parts 1 target_name)
+        set(alias_target "${CMAKE_CURRENT_BINARY_DIR}/doc/language/keyword/${target_name}.html")
+        set(alias_output "${CMAKE_CURRENT_BINARY_DIR}/doc/language/keyword/${alias_name}.html")
+        add_custom_command(
+            OUTPUT "${alias_output}"
+            COMMAND "${CMAKE_COMMAND}" -E copy "${alias_target}" "${alias_output}"
+            DEPENDS "${alias_target}"
+            COMMENT "Generating language/keyword/${alias_name}.html (alias)"
+            VERBATIM
+        )
+        list(APPEND cpsc_manual_outputs "${alias_output}")
+    endforeach()
+else()
+    foreach(pair IN LISTS CPSC_MANUAL_ALIASES)
+        string(REPLACE ":" ";" alias_parts "${pair}")
+        list(GET alias_parts 0 alias_name)
+        list(GET alias_parts 1 target_name)
+        file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/doc/language/keyword/${alias_name}.7" ".so man7/${target_name}.7\n")
+        list(APPEND cpsc_manual_outputs "${CMAKE_CURRENT_BINARY_DIR}/doc/language/keyword/${alias_name}.7")
+    endforeach()
+endif()
 add_custom_target(doc DEPENDS ${cpsc_manual_outputs})

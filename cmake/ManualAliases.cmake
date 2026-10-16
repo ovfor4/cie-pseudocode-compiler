@@ -1,0 +1,34 @@
+# Alias pages have no .md source; pandoc builds the target, then the alias
+# reuses its output (copy on Windows, .so stub on man pages).
+# The NAME lines in the primary .md sources are the human-readable
+# counterpart and must be kept in sync with this map.
+set(CPSC_MANUAL_ALIASES
+    "cpsc-keyword-then:cpsc-keyword-if"
+    "cpsc-keyword-else:cpsc-keyword-if"
+    "cpsc-keyword-endif:cpsc-keyword-if"
+    "cpsc-keyword-catch:cpsc-keyword-try"
+    "cpsc-keyword-endtry:cpsc-keyword-try"
+    "cpsc-keyword-throw:cpsc-keyword-try"
+    "cpsc-keyword-endwhile:cpsc-keyword-while"
+    "cpsc-keyword-until:cpsc-keyword-repeat"
+    "cpsc-keyword-to:cpsc-keyword-for"
+    "cpsc-keyword-step:cpsc-keyword-for"
+    "cpsc-keyword-next:cpsc-keyword-for"
+    "cpsc-keyword-otherwise:cpsc-keyword-case"
+    "cpsc-keyword-endcase:cpsc-keyword-case"
+    "cpsc-keyword-endfunction:cpsc-keyword-function"
+    "cpsc-keyword-endprocedure:cpsc-keyword-procedure"
+    "cpsc-keyword-read:cpsc-keyword-openfile"
+    "cpsc-keyword-write:cpsc-keyword-openfile"
+    "cpsc-keyword-append:cpsc-keyword-openfile"
+    "cpsc-keyword-array:cpsc-keyword-declare"
+    "cpsc-keyword-integer:cpsc-keyword-declare"
+    "cpsc-keyword-real:cpsc-keyword-declare"
+    "cpsc-keyword-boolean:cpsc-keyword-declare"
+    "cpsc-keyword-char:cpsc-keyword-declare"
+    "cpsc-keyword-string:cpsc-keyword-declare"
+    "cpsc-keyword-endtype:cpsc-keyword-type"
+    "cpsc-keyword-public:cpsc-keyword-class"
+    "cpsc-keyword-private:cpsc-keyword-class"
+    "cpsc-keyword-endclass:cpsc-keyword-class"
+)
