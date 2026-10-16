@@ -30,8 +30,7 @@ version. CMake rebuilds its extraction directory when the package set changes.
 If you use a different CMake build directory, download into its `deps/packages/`
 instead. Removing the build directory also removes its downloaded dependencies.
 
-All three execution modes need LLVM development libraries to build, including
-`NONE`. Users of an `EMBEDDED` executable do not need LLVM or `lli`.
+All three execution modes need LLVM, Clang and LLD 23 development libraries, Python 3.9 or newer, and the native C/C++ development libraries to build, including `NONE`. Users of an `EMBEDDED` executable do not need LLVM or `lli`.
 CMake strictly requires LLVM development libraries and both C/C++ compilers to
 have major version 23. The compilers must be upstream Clang; GCC and AppleClang
 are rejected. Any 23.x release is accepted; 22 and 24 are rejected. LLVM/Clang
@@ -46,7 +45,7 @@ Use a distribution repository that provides LLVM 23. Recommended build tools:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends build-essential cmake clang-23
+sudo apt-get install -y --no-install-recommends build-essential cmake clang-23 lld-23 python3
 ```
 
 Recommended LLVM and support-package downloads:
@@ -57,7 +56,7 @@ mkdir -p build/deps/packages
   cd build/deps/packages
   apt-get download \
     llvm-23-dev llvm-23 llvm-23-runtime llvm-23-tools llvm-23-linker-tools \
-    libllvm23 libclang-cpp23 libz3-dev libz3-4 \
+    libllvm23 libclang-cpp23 libclang-23-dev liblld-23-dev libpolly-23-dev libz3-dev libz3-4 \
     libffi-dev libffi8 libxml2-dev libxml2 \
     zlib1g-dev zlib1g libzstd-dev libzstd1 libncurses-dev libtinfo6
 )
@@ -77,7 +76,8 @@ pacman -Syu
 pacman -S --needed \
   mingw-w64-x86_64-cmake \
   mingw-w64-x86_64-make \
-  mingw-w64-x86_64-clang
+  mingw-w64-x86_64-clang \
+  mingw-w64-x86_64-python
 ```
 
 Confirm that both installed compilers report major version 23:
@@ -108,6 +108,7 @@ Recommended dependency downloads to the project build directory:
 ```bash
 mkdir -p build/deps/packages
 pacman -Sw --noconfirm --cachedir "$PWD/build/deps/packages" \
+  mingw-w64-x86_64-clang \
   mingw-w64-x86_64-llvm \
   mingw-w64-x86_64-llvm-libs \
   mingw-w64-x86_64-llvm-tools \
@@ -131,7 +132,7 @@ relocation tools with `xcode-select --install` if needed. The LLVM bottle below
 provides Clang 23. Install CMake with Homebrew:
 
 ```bash
-brew install cmake
+brew install cmake python lld
 ```
 
 Recommended binary-bottle downloads to the build directory:
@@ -139,7 +140,7 @@ Recommended binary-bottle downloads to the build directory:
 ```bash
 mkdir -p build/deps/packages
 HOMEBREW_CACHE="$PWD/build/deps/packages" brew fetch --force-bottle \
-  llvm zlib zstd ncurses lz4 xz
+  llvm lld zlib zstd ncurses lz4 xz
 ```
 
 [Homebrew's `llvm` formula](https://formulae.brew.sh/formula/llvm) currently

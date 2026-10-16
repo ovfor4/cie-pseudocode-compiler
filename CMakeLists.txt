@@ -65,37 +65,39 @@ add_library(CPSCodeGen STATIC
     lib/CodeGen/FileHandler.cc
 )
 
-llvm_map_components_to_libnames(llvm_libs core support)
+llvm_map_components_to_libnames(llvm_libs core support native passes)
 if(CPSC_RUN_MODE STREQUAL "EMBEDDED")
-    llvm_map_components_to_libnames(llvm_libs core support native mcjit)
+    llvm_map_components_to_libnames(llvm_libs core support native passes mcjit)
     foreach(llvm_lib IN LISTS llvm_libs)
         get_target_property(llvm_type ${llvm_lib} TYPE)
         if(NOT llvm_type STREQUAL "STATIC_LIBRARY")
             message(FATAL_ERROR "EMBEDDED requires static LLVM libraries: ${llvm_lib}")
         endif()
     endforeach()
-    include(cmake/EmbeddedLLVM.cmake)
 endif()
+include(cmake/EmbeddedLLVM.cmake)
 
 add_executable(cpsc tools/driver/main.cc)
 target_compile_definitions(cpsc PRIVATE CPSC_RUN_${CPSC_RUN_MODE})
 if(CPSC_RUN_MODE STREQUAL "EMBEDDED")
     target_sources(cpsc PRIVATE tools/driver/EmbeddedRunner.cc)
-    if(MINGW)
-        target_link_options(cpsc PRIVATE -static)
-    elseif(APPLE)
-        # LLVM's support interface can include unused Homebrew dylibs such as Z3.
-        target_link_options(cpsc PRIVATE -Wl,-dead_strip_dylibs)
-    elseif(UNIX AND NOT APPLE)
-        target_link_options(cpsc PRIVATE -static-libstdc++ -static-libgcc -Wl,--as-needed)
-    endif()
 endif()
-target_link_libraries(cpsc
+if(MINGW)
+    target_link_options(cpsc PRIVATE -static)
+elseif(APPLE)
+    # LLVM's support interface can include unused Homebrew dylibs such as Z3.
+    target_link_options(cpsc PRIVATE -Wl,-dead_strip_dylibs)
+elseif(UNIX AND NOT APPLE)
+    target_link_options(cpsc PRIVATE -static-libstdc++ -static-libgcc -Wl,--as-needed)
+endif()
+target_link_libraries(cpsc PRIVATE
     CPSCodeGen 
     CPSParser 
     CPSLexer 
     ${llvm_libs}
 )
+
+include(cmake/NativeCompiler.cmake)
 
 include(cmake/Manual.cmake)
 
