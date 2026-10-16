@@ -144,7 +144,7 @@ malloc+memcpy copies at callee entry; BYREF binds the caller's buffer.
 **Builtins are plain identifiers backed by one table.** All 12 builtins
 (LENGTH/MID/RIGHT/LEFT/LCASE/UCASE/ASC/CHR/IS_NUM/NUM_TO_STR/STR_TO_NUM/EOF) parse as
 ordinary calls — no lexer/parser support, and the names are not reserved words. The
-static `Builtins` table at the top of `CodeGen.cc` ({Name, Arity, ReturnTypeName}) is
+inline constexpr `Builtins` table in the internal `lib/CodeGen/Builtins.h` ({Name, Arity, ReturnTypeName}) is
 the single source of truth: `emitExpr`'s `CallExprAST` branch checks arity against it
 before dispatching to the per-builtin emit branches (still an if-chain, ahead of the
 user-function fallback), and `getExprTypeInfo` reads return types from it. EOF is the

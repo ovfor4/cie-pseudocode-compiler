@@ -14,8 +14,8 @@ fall-through branch in control-flow codegen with
 `if (!Builder->GetInsertBlock()->hasTerminator())` — a RETURN in the body may have
 already terminated the block.
 
-**New builtin function:** add a `{Name, Arity, ReturnTypeName}` row to the static
-`Builtins` table at the top of `CodeGen.cc` (single source of truth — arity checking in
+**New builtin function:** add a `{Name, Arity, ReturnTypeName}` row to the shared
+`Builtins` table in the internal `lib/CodeGen/Builtins.h` (single source of truth — arity checking in
 `emitExpr`, the return type in `getExprTypeInfo`, and the reject-user-redefinition check
 all read it), then implement IR emission as a method on the fitting handler
 (String/StringConversion) or inline, and add the name intercept in `emitExpr`'s

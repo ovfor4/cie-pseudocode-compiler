@@ -1,0 +1,175 @@
+#include "cps/CodeGen.h"
+#include "cps/ArrayHandler.h"
+#include "cps/ExceptionHandler.h"
+
+using namespace llvm;
+using namespace cps;
+
+void CodeGen::emitTryStmt(TryStmtAST *Stmt) {
+    auto *F = Builder->GetInsertBlock()->getParent();
+    auto *CatchBB = BasicBlock::Create(*TheContext, "catch", F);
+    auto *AfterBB = BasicBlock::Create(*TheContext, "try_cont", F);
+    auto SavedArrays = Arrays->snapshotTable();
+
+    Exceptions->pushHandler(CatchBB);
+    for (const auto &S : Stmt->getBody()) emitStmt(S.get());
+    auto *Exception = Exceptions->popHandler();
+    if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(AfterBB);
+    Arrays->exchangeTable(SavedArrays);
+
+    Builder->SetInsertPoint(CatchBB);
+    Exceptions->beginCatch(Exception);
+    for (const auto &S : Stmt->getCatchBody()) emitStmt(S.get());
+    Exceptions->endCatch();
+    if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(AfterBB);
+    Arrays->exchangeTable(std::move(SavedArrays));
+    Builder->SetInsertPoint(AfterBB);
+}
+
+void CodeGen::emitIfStmt(IfStmtAST *Stmt) {
+    Value *CondV = emitCoercedExpr(Stmt->getCond(), resolveType("BOOLEAN"));
+    if (!CondV) return;
+
+    Function *TheFunction = Builder->GetInsertBlock()->getParent();
+    BasicBlock *ThenBB = BasicBlock::Create(*TheContext, "then", TheFunction);
+    BasicBlock *ElseBB = BasicBlock::Create(*TheContext, "else", TheFunction);
+    BasicBlock *MergeBB = BasicBlock::Create(*TheContext, "ifcont", TheFunction);
+
+    Builder->CreateCondBr(CondV, ThenBB, ElseBB);
+
+    // Arrays are block-scoped: metadata SSA values and the buffer setup live
+    // inside the branch, so a declaration must not survive it.
+    auto SavedArrays = Arrays->snapshotTable();
+    Builder->SetInsertPoint(ThenBB);
+    for (const auto &S : Stmt->getThenStmts()) emitStmt(S.get());
+    if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(MergeBB);
+    Arrays->exchangeTable(SavedArrays);
+
+    Builder->SetInsertPoint(ElseBB);
+    for (const auto &S : Stmt->getElseStmts()) emitStmt(S.get());
+    if (!Builder->GetInsertBlock()->hasTerminator()) Builder->CreateBr(MergeBB);
+    Arrays->exchangeTable(std::move(SavedArrays));
+
+    Builder->SetInsertPoint(MergeBB);
+}
+
+void CodeGen::emitWhileStmt(WhileStmtAST *Stmt) {
+    Function *TheFunction = Builder->GetInsertBlock()->getParent();
+
+    BasicBlock *CondBB = BasicBlock::Create(*TheContext, "whilecond", TheFunction);
+    BasicBlock *LoopBB = BasicBlock::Create(*TheContext, "whileloop", TheFunction);
+    BasicBlock *AfterBB = BasicBlock::Create(*TheContext, "whilecont", TheFunction);
+
+    Builder->CreateBr(CondBB);
+
+    Builder->SetInsertPoint(CondBB);
+    Value *CondV = emitCoercedExpr(Stmt->getCond(), resolveType("BOOLEAN"));
+    if (!CondV) return;
+
+    Builder->CreateCondBr(CondV, LoopBB, AfterBB);
+
+    // Arrays declared in the body are block-scoped (see emitIfStmt).
+    auto SavedArrays = Arrays->snapshotTable();
+    Builder->SetInsertPoint(LoopBB);
+    for (const auto &S : Stmt->getBody()) emitStmt(S.get());
+    Arrays->exchangeTable(std::move(SavedArrays));
+
+    if (!Builder->GetInsertBlock()->hasTerminator())
+        Builder->CreateBr(CondBB);
+
+    Builder->SetInsertPoint(AfterBB);
+}
+
+void CodeGen::emitRepeatStmt(RepeatStmtAST *Stmt) {
+    Function *TheFunction = Builder->GetInsertBlock()->getParent();
+
+    BasicBlock *LoopBB = BasicBlock::Create(*TheContext, "repeatloop", TheFunction);
+    BasicBlock *CondBB = BasicBlock::Create(*TheContext, "repeatcond", TheFunction);
+    BasicBlock *AfterBB = BasicBlock::Create(*TheContext, "repeatcont", TheFunction);
+
+    Builder->CreateBr(LoopBB);
+
+    // Arrays declared in the body are block-scoped (see emitIfStmt).
+    auto SavedArrays = Arrays->snapshotTable();
+    Builder->SetInsertPoint(LoopBB);
+    for (const auto &S : Stmt->getBody()) emitStmt(S.get());
+    Arrays->exchangeTable(std::move(SavedArrays));
+    if (!Builder->GetInsertBlock()->hasTerminator())
+        Builder->CreateBr(CondBB);
+
+    Builder->SetInsertPoint(CondBB);
+    Value *CondV = emitCoercedExpr(Stmt->getCond(), resolveType("BOOLEAN"));
+    if (!CondV) return;
+
+    Builder->CreateCondBr(CondV, AfterBB, LoopBB);
+
+    Builder->SetInsertPoint(AfterBB);
+}
+
+void CodeGen::emitForStmt(ForStmtAST *Stmt) {
+    Function *TheFunction = Builder->GetInsertBlock()->getParent();
+    std::string VarName = Stmt->getVarName();
+
+    const SymbolInfo *Symbol = getSymbolInfo(VarName);
+    if (!Symbol) {
+        reportError("Unknown variable in FOR loop %s", VarName.c_str());
+        return;
+    }
+    if (Symbol->TypeName != "INTEGER") {
+        reportError("FOR loop variable %s must be INTEGER", VarName.c_str());
+        return;
+    }
+
+    Value *StartVal = emitCoercedExpr(Stmt->getStart(), resolveType("INTEGER"));
+    if (!StartVal) return;
+
+    Value *Alloca = Symbol->Storage;
+    Builder->CreateStore(StartVal, Alloca);
+
+    // STEP is evaluated exactly once, before the loop.
+    Value *StepVal = nullptr;
+    if (Stmt->getStep()) {
+        StepVal = emitCoercedExpr(Stmt->getStep(), resolveType("INTEGER"));
+        if (!StepVal) return;
+    } else {
+        StepVal = ConstantInt::get(*TheContext, APInt(64, 1));
+    }
+
+    BasicBlock *CondBB = BasicBlock::Create(*TheContext, "forcond", TheFunction);
+    BasicBlock *LoopBB = BasicBlock::Create(*TheContext, "forloop", TheFunction);
+    BasicBlock *IncBB = BasicBlock::Create(*TheContext, "forinc", TheFunction);
+    BasicBlock *AfterBB = BasicBlock::Create(*TheContext, "forcont", TheFunction);
+
+    Builder->CreateBr(CondBB);
+    Builder->SetInsertPoint(CondBB);
+
+    Value *CurVar = Builder->CreateLoad(Type::getInt64Ty(*TheContext), Alloca, VarName.c_str());
+    Value *EndVal = emitCoercedExpr(Stmt->getEnd(), resolveType("INTEGER"));
+    if (!EndVal) return;
+
+    // The loop direction depends on the STEP value at run time.
+    Value *StepNonNeg = Builder->CreateICmpSGE(StepVal,
+                                               ConstantInt::get(*TheContext, APInt(64, 0)),
+                                               "step_nonneg");
+    Value *CondUp = Builder->CreateICmpSLE(CurVar, EndVal, "forcond_le");
+    Value *CondDown = Builder->CreateICmpSGE(CurVar, EndVal, "forcond_ge");
+    Value *CondV = Builder->CreateSelect(StepNonNeg, CondUp, CondDown, "forcond");
+
+    Builder->CreateCondBr(CondV, LoopBB, AfterBB);
+
+    // Arrays declared in the body are block-scoped (see emitIfStmt).
+    auto SavedArrays = Arrays->snapshotTable();
+    Builder->SetInsertPoint(LoopBB);
+    for (const auto &S : Stmt->getBody()) emitStmt(S.get());
+    Arrays->exchangeTable(std::move(SavedArrays));
+    if (!Builder->GetInsertBlock()->hasTerminator())
+        Builder->CreateBr(IncBB);
+
+    Builder->SetInsertPoint(IncBB);
+    Value *CurValForInc = Builder->CreateLoad(Type::getInt64Ty(*TheContext), Alloca, VarName.c_str());
+    Value *NextVal = Builder->CreateAdd(CurValForInc, StepVal, "nextval");
+    Builder->CreateStore(NextVal, Alloca);
+    Builder->CreateBr(CondBB);
+
+    Builder->SetInsertPoint(AfterBB);
+}

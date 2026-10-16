@@ -54,6 +54,11 @@ add_library(CPSParser STATIC
 
 add_library(CPSCodeGen STATIC
     lib/CodeGen/CodeGen.cc
+    lib/CodeGen/ExpressionGen.cc
+    lib/CodeGen/StatementGen.cc
+    lib/CodeGen/ControlFlowGen.cc
+    lib/CodeGen/ValueTypeGen.cc
+    lib/CodeGen/OutputGen.cc
     lib/CodeGen/Designator.cc
     lib/CodeGen/CTypeGen.cc
     lib/CodeGen/ArrayHandler.cc
