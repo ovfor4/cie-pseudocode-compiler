@@ -56,7 +56,7 @@ mkdir -p build/deps/packages
   cd build/deps/packages
   apt-get download \
     llvm-23-dev llvm-23 llvm-23-runtime llvm-23-tools llvm-23-linker-tools \
-    libllvm23 libclang-cpp23 libclang-23-dev liblld-23-dev libpolly-23-dev libz3-dev libz3-4 \
+    libllvm23 libclang-cpp23 libclang-23-dev liblld-23-dev liblld-23 libpolly-23-dev libz3-dev libz3-4 \
     libffi-dev libffi8 libxml2-dev libxml2 \
     zlib1g-dev zlib1g libzstd-dev libzstd1 libncurses-dev libtinfo6
 )
@@ -64,7 +64,8 @@ mkdir -p build/deps/packages
 
 `apt-get download` also downloads explicitly named packages that are already
 installed. The LLVM companion packages satisfy its CMake imports, while the
-development support packages supply the static archives used by `EMBEDDED`.
+development support packages supply required static archives. Clang, LLD and Polly
+archives are needed for embedded native linking in every execution mode.
 
 ### Windows (MSYS2 MINGW64)
 
@@ -92,8 +93,7 @@ and [LLVM package](https://packages.msys2.org/packages/mingw-w64-x86_64-llvm)
 currently provide 23.1.3. MSYS2 keeps these package names unversioned; its
 compiler executables are `clang.exe` and `clang++.exe`, not `clang-23.exe` or
 `clang++-23.exe`. CMake rejects another major version even when the package
-name is unchanged. MINGW64 Clang uses the GNU linker and C++ library supplied
-by its package dependencies; cpsc itself is compiled with Clang 23.
+name is unchanged. MINGW64 Clang defaults to the GNU linker and C++ library supplied by its package dependencies. cpsc is compiled with Clang 23 and linked with LLD, retaining the GNU C++ runtime.
 
 Before downloading LLVM, confirm that these repository packages' `Version`
 fields all start with `23.`:
@@ -132,7 +132,7 @@ relocation tools with `xcode-select --install` if needed. The LLVM bottle below
 provides Clang 23. Install CMake with Homebrew:
 
 ```bash
-brew install cmake python lld
+brew install cmake python
 ```
 
 Recommended binary-bottle downloads to the build directory:
@@ -159,7 +159,7 @@ initial configuration; there is no default. The choice is saved in CMake's cache
 |---|---|
 | `PATH` | Run external `lli` from LLVM 23 in PATH; reject `-r` before compilation if it is missing or its version cannot be validated. |
 | `EMBEDDED` | Run with the statically linked LLVM engine inside `cpsc`; no PATH lookup. |
-| `NONE` | Reject `-r`; compiling to IR still works. |
+| `NONE` | Reject `-r`; native and IR compilation still work. |
 
 Linux:
 
@@ -208,6 +208,8 @@ required compression/terminal support libraries are linked statically; a missing
 required archive is a configure error. Linux also links the C++ runtime statically,
 and MinGW uses static linking. The tested Debian/LLVM 23 executable needs only
 the system libc, libm and dynamic loader. Build for the intended OS and CPU.
+
+All execution modes embed the Clang driver, LLD and the startup objects, runtime archives and system-library link inputs needed for native output. Python prepares these compressed resources during configuration; it is not needed by users. Native output requires no installed compiler, linker or development SDK. On Linux, generated programs statically link the C++ runtime and dynamically link glibc and its system libraries, so they require a compatible system glibc. Do not use global `-static` on Linux. macOS embeds SDK library stubs and uses operating-system runtime libraries; Windows embeds MinGW link inputs and statically links non-system runtimes.
 
 For `PATH` mode, add the extracted LLVM 23 `lli` directory to your shell's PATH
 after configuration. Only `-r` checks the selected `lli --version`, with a

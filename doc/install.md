@@ -82,7 +82,7 @@ time in UTC followed by its short ID: `yyyymmdd-hhmmss-commit`.
 The version is read each time packaging runs. The package uses the current build's
 execution mode and contains `cpsc`, `doc/cpsc.1`, `doc/language/**/*.7`, `install.sh` and `LICENSE`.
 Packaging builds the compiler and manual automatically; it requires Git and Pandoc.
-Use `EMBEDDED` when recipients should not need LLVM or `lli` at run time.
+All modes generate executables without an installed compiler, linker or development SDK. Use `EMBEDDED` when recipients should also be able to use `-r` without LLVM or `lli` installed.
 
 Extract the archive with `tar -xJf`, enter the extracted directory, then run
 `sudo ./install.sh`, or `./install.sh --prefix "$HOME/.local"` for a local installation.

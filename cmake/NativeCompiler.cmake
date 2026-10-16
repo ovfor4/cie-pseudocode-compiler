@@ -3,6 +3,9 @@ find_package(Clang REQUIRED CONFIG HINTS "${LLVM_INSTALL_PREFIX}/lib/cmake/clang
 cpsc_find_dependency(PATH LLD_DIR NAMES LLDConfig.cmake PATH_SUFFIXES lib/cmake/lld cmake)
 find_package(LLD REQUIRED CONFIG HINTS "${LLVM_INSTALL_PREFIX}/lib/cmake/lld")
 find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
+if(NOT LLVM_ENABLE_ZLIB)
+    message(FATAL_ERROR "Native link resources require LLVM built with zlib support")
+endif()
 
 if(MINGW)
     set(cpsc_native_platform windows)

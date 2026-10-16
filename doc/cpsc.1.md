@@ -6,15 +6,15 @@ cpsc - compile and run CIE pseudocode
 
 # SYNOPSIS
 
-**cpsc** [**-r**] [**-o** *output*] *source*
+**cpsc** [**-r**] [**-S**] [**-o** *output*] *source*
 
 **cpsc** **-h**
 
 # DESCRIPTION
 
-Compile one pseudocode source file to LLVM IR. Options may appear before or after the source path. Source input from stdin is not supported.
+Compile one pseudocode source file to a native executable, or to textual LLVM IR with **-S**. Options may appear before or after the source path. Source input from stdin is not supported.
 
-Without **-o** or **-r**, replace the source filename's extension with `.ir` and save the output beside the source file.
+Without **-o**, save beside the source file, replacing its extension with `.out` for an executable or `.ll` for IR. This naming also applies on Windows. With **-r** alone, run without saving a file.
 
 # OPTIONS
 
@@ -22,39 +22,54 @@ Without **-o** or **-r**, replace the source filename's extension with `.ir` and
 :   Print only the documentation entry point: `man 1 cpsc` on Unix/macOS, or Start Menu > cpsc > cpsc Help on Windows. Return successfully without compiling, even when other arguments are present.
 
 **-o** *output*
-:   Save IR to the specified path. May be specified only once. With **-r**, keep this file even if execution fails.
+:   Save to the specified path. Without **-S**, save a native executable; with **-S**, save LLVM IR. Use the path exactly as given; its extension does not select the output format. May be specified only once. With **-r**, keep this file even if execution fails.
+
+**-S**
+:   Save textual LLVM IR instead of a native executable. Without **-o**, use the source filename with a `.ll` extension beside the source file. May be combined with **-r** to save IR and run the program.
 
 **-r**
-:   Run the compiled program with the runner selected at build time (see EXECUTION MODES). Without **-o**, do not save permanent IR. The program inherits stdin, stdout and stderr; `INPUT` can read terminal or piped input.
+:   Run the compiled program with the runner selected at build time (see EXECUTION MODES). Save output first when **-S** or **-o** is also present; otherwise do not save a file. The program inherits stdin, stdout and stderr; `INPUT` can read terminal or piped input.
+
+# NATIVE COMPILATION
+
+Native compilation uses LLVM, the Clang driver and LLD embedded in `cpsc`. Required startup objects, runtime archives and system-library link inputs are embedded too and unpacked temporarily when linking. No external compiler, linker or development SDK is needed. Generate programs for the compiler's own operating system and CPU architecture; cross-compilation is not supported.
+
+On Linux, both `cpsc` and generated executables statically link the C++ runtime and retain dynamic dependencies on glibc and its system libraries. They require a compatible system glibc; static linking does not remove that requirement. Windows links non-system runtimes statically and uses Windows system DLLs. macOS uses operating-system libraries, including the system C++ runtime.
 
 # EXECUTION MODES
 
-The executable has one of the following execution modes, selected when it was built. All modes can compile to LLVM IR; the mode determines whether and how **-r** runs the program.
+The executable has one of the following execution modes, selected when it was built. All modes can generate native executables and LLVM IR; the mode determines whether and how **-r** runs the program. Running uses the selected runner even when a native executable is also saved.
 
 **PATH**
-:   Run `lli` from LLVM 23 in PATH. With **-r**, check the selected executable's version before compilation or output writing; a missing executable, a different major version or a failed or unrecognized version check is a fatal error. Version detection has a five-second timeout. Without **-r**, no external tools are checked. This mode does not invoke or check `clang` or `clang++`. Without **-o**, write temporary IR and delete it afterward, including on execution failure.
+:   Run `lli` from LLVM 23 in PATH. With **-r**, check the selected executable's version before compilation or output writing; a missing executable, a different major version or a failed or unrecognized version check is a fatal error. Version detection has a five-second timeout. Without **-r**, no external tools are checked. Execution uses temporary `.ll` IR unless **-S** saves IR; temporary IR is deleted afterward, including on execution failure.
 
 **EMBEDDED**
-:   Run the statically linked LLVM engine inside `cpsc`, without looking for `lli` in PATH. Without **-o**, execute the module in memory. Users do not need LLVM or `lli` installed; the executable may still depend on the operating system's C runtime libraries.
+:   Run the statically linked LLVM engine inside `cpsc`, without looking for `lli` in PATH. Execute the module in memory. Users do not need LLVM or `lli` installed; the executable may still depend on the operating system's runtime libraries.
 
 **NONE**
-:   Reject **-r** with an error before compilation or output writing. Compilation to IR remains available.
+:   Reject **-r** with an error before compilation or output writing. Native compilation and IR output remain available.
 
 # EXAMPLES
 
-Compile and save `test.ir` beside `test.cps`:
+Compile and save `test.out` beside `test.cps`:
 
 ```sh
 cpsc test.cps
 ```
 
-Choose the output path:
+Choose the executable's output path:
 
 ```sh
-cpsc test.cps -o result.ir
+cpsc test.cps -o result
 ```
 
-Run without saving permanent IR:
+Save LLVM IR as `test.ll` beside `test.cps`:
+
+```sh
+cpsc test.cps -S
+```
+
+Run without saving output:
 
 ```sh
 cpsc test.cps -r
@@ -63,15 +78,14 @@ cpsc test.cps -r
 Save IR and run it:
 
 ```sh
-cpsc test.cps -r -o result.ir
+cpsc test.cps -r -S -o result.ll
 ```
 
-Build a native program with Clang 23's C++ driver so the exception runtime is linked. Use `clang++` from the LLVM 23 installation; Debian/Ubuntu also provides the versioned name `clang++-23`. MSYS2 MINGW64 and Homebrew use the unversioned name.
+Save a native program and run it on Unix:
 
 ```sh
-cpsc test.cps -o test.ll
-clang++ test.ll -o test
-./test
+cpsc test.cps -o test.out
+./test.out
 ```
 
 # EXIT STATUS
@@ -88,7 +102,7 @@ An uncaught program exception returns 1 after printing `Unhandled exception. Pro
 
 # NOTES
 
-Compiler diagnostics go to stderr. Failed compilation does not write IR. Successful compilation overwrites an existing output file, but an output path that refers to the source file (including a symbolic or hard link) is rejected.
+Compiler diagnostics go to stderr. Failed source compilation does not write output; failed native linking does not replace an existing output file. Successful compilation overwrites an existing output file, but an output path that refers to the source file (including a symbolic or hard link) is rejected.
 
 Missing input, including invoking `cpsc` without arguments, reports `cpsc: fatal error: no input files`. Ordinary lexical, syntax and semantic errors use `error:`; failures that prevent compilation, such as file I/O errors, use `fatal error:`. Compilation and argument failures end with one `compilation terminated.` line. Execution-stage failures do not print that line.
 

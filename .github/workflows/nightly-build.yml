@@ -59,7 +59,8 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/cpsc-llvm.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake clang-23 llvm-23-dev \
+            build-essential cmake clang-23 llvm-23-dev lld-23 \
+            libclang-23-dev liblld-23-dev libpolly-23-dev python3 \
             zlib1g-dev libzstd-dev libncurses-dev libedit-dev pandoc
 
       - name: Build the embedded release package
@@ -86,6 +87,19 @@ jobs:
           printf '%s\n' 'OUTPUT "nightly smoke"' > "$RUNNER_TEMP/nightly-smoke.cps"
           output=$(env -i PATH=/usr/bin:/bin "$package_dir/cpsc" "$RUNNER_TEMP/nightly-smoke.cps" -r)
           test "$output" = 'nightly smoke'
+          env -i PATH=/nonexistent "$package_dir/cpsc" "$RUNNER_TEMP/nightly-smoke.cps"
+          output=$("$RUNNER_TEMP/nightly-smoke.out")
+          test "$output" = 'nightly smoke'
+          env -i PATH=/nonexistent "$package_dir/cpsc" "$RUNNER_TEMP/nightly-smoke.cps" -S
+          grep -q '^define i32 @main' "$RUNNER_TEMP/nightly-smoke.ll"
+          for binary in "$package_dir/cpsc" "$RUNNER_TEMP/nightly-smoke.out"; do
+            while IFS= read -r library; do
+              case "$library" in
+                libc.so.*|libm.so.*|libmvec.so.*|ld-linux*.so.*) ;;
+                *) echo "Unexpected runtime dependency: $library" >&2; exit 1 ;;
+              esac
+            done < <(readelf -d "$binary" | sed -n 's/.*Shared library: \[\(.*\)\].*/\1/p')
+          done
 
       - name: Upload the compiler package
         run: |
@@ -109,12 +123,13 @@ jobs:
       - name: Install LLVM 23 and packaging dependencies
         run: |
           test "$(uname -m)" = arm64
-          brew install llvm@23 pandoc zlib zstd ncurses
+          brew install llvm@23 lld pandoc zlib zstd ncurses python
           test -x "$(brew --prefix llvm@23)/bin/clang++"
 
       - name: Build the embedded release package
         run: |
           llvm_prefix=$(brew --prefix llvm@23)
+          lld_prefix=$(brew --prefix lld)
           zlib_prefix=$(brew --prefix zlib)
           zstd_prefix=$(brew --prefix zstd)
           ncurses_prefix=$(brew --prefix ncurses)
@@ -124,7 +139,7 @@ jobs:
             -DCMAKE_C_COMPILER="$llvm_prefix/bin/clang" \
             -DCMAKE_CXX_COMPILER="$llvm_prefix/bin/clang++" \
             -DLLVM_DIR="$llvm_prefix/lib/cmake/llvm" \
-            -DCMAKE_PREFIX_PATH="$llvm_prefix;$zlib_prefix;$zstd_prefix;$ncurses_prefix"
+            -DCMAKE_PREFIX_PATH="$llvm_prefix;$lld_prefix;$zlib_prefix;$zstd_prefix;$ncurses_prefix"
           cmake --build build --target release --parallel 3
 
       - name: Smoke test the packaged compiler
@@ -150,6 +165,17 @@ jobs:
           printf '%s\n' 'OUTPUT "nightly smoke"' > "$RUNNER_TEMP/nightly-smoke.cps"
           output=$(env -i PATH=/usr/bin:/bin "$package_dir/cpsc" "$RUNNER_TEMP/nightly-smoke.cps" -r)
           test "$output" = 'nightly smoke'
+          env -i PATH=/nonexistent "$package_dir/cpsc" "$RUNNER_TEMP/nightly-smoke.cps"
+          output=$("$RUNNER_TEMP/nightly-smoke.out")
+          test "$output" = 'nightly smoke'
+          env -i PATH=/nonexistent "$package_dir/cpsc" "$RUNNER_TEMP/nightly-smoke.cps" -S
+          grep -q '^define i32 @main' "$RUNNER_TEMP/nightly-smoke.ll"
+          while IFS= read -r library; do
+            case "$library" in
+              /usr/lib/*|/System/Library/*|/Library/Apple/System/Library/*) ;;
+              *) echo "Unexpected program dependency: $library" >&2; exit 1 ;;
+            esac
+          done < <(otool -L "$RUNNER_TEMP/nightly-smoke.out" | tail -n +2 | awk '{print $1}')
 
       - name: Upload the macOS package
         run: |
@@ -182,6 +208,8 @@ jobs:
             mingw-w64-x86_64-make
             mingw-w64-x86_64-clang
             mingw-w64-x86_64-llvm
+            mingw-w64-x86_64-lld
+            mingw-w64-x86_64-python
             mingw-w64-x86_64-libffi
             mingw-w64-x86_64-libxml2
             mingw-w64-x86_64-zlib
@@ -227,6 +255,18 @@ jobs:
             $output = & (Join-Path $packageDir 'cpsc.exe') $source -r
             if ($LASTEXITCODE -ne 0) { throw "Compiler smoke test failed: $LASTEXITCODE" }
             if (($output -join "`n") -cne 'nightly smoke') { throw "Unexpected output: $output" }
+            $native = Join-Path $env:RUNNER_TEMP 'nightly-smoke.exe'
+            & (Join-Path $packageDir 'cpsc.exe') $source -o $native
+            if ($LASTEXITCODE -ne 0) { throw "Native compilation failed: $LASTEXITCODE" }
+            $output = & $native
+            if ($LASTEXITCODE -ne 0) { throw "Native program failed: $LASTEXITCODE" }
+            if (($output -join "`n") -cne 'nightly smoke') { throw "Unexpected native output: $output" }
+            & (Join-Path $packageDir 'cpsc.exe') $source -S
+            if ($LASTEXITCODE -ne 0) { throw "IR compilation failed: $LASTEXITCODE" }
+            $ir = [System.IO.Path]::ChangeExtension($source, '.ll')
+            if (-not (Select-String -LiteralPath $ir -Pattern '^define i32 @main' -Quiet)) {
+              throw 'Missing LLVM IR main function'
+            }
           } finally {
             $env:PATH = $savedPath
           }

@@ -1,6 +1,7 @@
 #include "cps/Lexer.h"
 #include "cps/Parser.h"
 #include "cps/CodeGen.h"
+#include "NativeCompiler.h"
 #ifdef CPSC_RUN_EMBEDDED
 #include "EmbeddedRunner.h"
 #endif
@@ -87,10 +88,13 @@ int main(int argc, char **argv) {
     std::string InputPath;
     std::string OutputPath;
     bool Run = false;
+    bool EmitIR = false;
     for (int I = 1; I < argc; ++I) {
         std::string Arg = argv[I];
         if (Arg == "-r") {
             Run = true;
+        } else if (Arg == "-S") {
+            EmitIR = true;
         } else if (Arg == "-o") {
             if (!OutputPath.empty()) {
                 llvm::errs() << "cpsc: error: -o may only be specified once\n";
@@ -133,9 +137,10 @@ int main(int argc, char **argv) {
         return compilationTerminated();
 #endif
     }
-    if (OutputPath.empty() && !Run) {
+    const bool Save = !Run || EmitIR || !OutputPath.empty();
+    if (OutputPath.empty() && Save) {
         llvm::SmallString<256> DefaultPath(InputPath);
-        llvm::sys::path::replace_extension(DefaultPath, ".ir");
+        llvm::sys::path::replace_extension(DefaultPath, EmitIR ? ".ll" : ".out");
         OutputPath = std::string(DefaultPath);
     }
 
@@ -144,7 +149,7 @@ int main(int argc, char **argv) {
         llvm::errs() << "cpsc: fatal error: cannot open source file '" << InputPath << "'\n";
         return compilationTerminated();
     }
-    if (llvm::sys::fs::equivalent(InputPath, OutputPath)) {
+    if (Save && llvm::sys::fs::equivalent(InputPath, OutputPath)) {
         llvm::errs() << "cpsc: error: output file must not be the source file\n";
         return compilationTerminated();
     }
@@ -164,24 +169,29 @@ int main(int argc, char **argv) {
 
     if (CG.hadError()) return compilationTerminated();
 
+    if (Save && !EmitIR) {
+        if (!compileNative(CG, OutputPath, argv[0])) return compilationTerminated();
+        if (!Run) return 0;
+    }
+    std::string IRPath = Save && EmitIR ? OutputPath : std::string();
 #ifdef CPSC_RUN_EMBEDDED
-    if (Run && OutputPath.empty()) return runEmbedded(CG);
+    if (Run && IRPath.empty()) return runEmbedded(CG);
 #endif
     std::error_code EC;
     int OutputFD;
     llvm::FileRemover TemporaryOutput;
-    if (OutputPath.empty()) {
+    if (IRPath.empty()) {
         llvm::SmallString<256> TemporaryPath;
-        EC = llvm::sys::fs::createTemporaryFile("cpsc", "ir", OutputFD, TemporaryPath);
+        EC = llvm::sys::fs::createTemporaryFile("cpsc", "ll", OutputFD, TemporaryPath);
         if (!EC) {
-            OutputPath = std::string(TemporaryPath);
-            TemporaryOutput.setFile(OutputPath);
+            IRPath = std::string(TemporaryPath);
+            TemporaryOutput.setFile(IRPath);
         }
     } else {
-        EC = llvm::sys::fs::openFileForWrite(OutputPath, OutputFD);
+        EC = llvm::sys::fs::openFileForWrite(IRPath, OutputFD);
     }
     if (EC) {
-        llvm::errs() << "cpsc: fatal error: cannot open output file '" << OutputPath
+        llvm::errs() << "cpsc: fatal error: cannot open output file '" << IRPath
                      << "': " << EC.message() << "\n";
         return compilationTerminated();
     }
@@ -189,7 +199,7 @@ int main(int argc, char **argv) {
     CG.print(Output);
     Output.close();
     if (Output.has_error()) {
-        llvm::errs() << "cpsc: fatal error: cannot write output file '" << OutputPath
+        llvm::errs() << "cpsc: fatal error: cannot write output file '" << IRPath
                      << "': " << Output.error().message() << "\n";
         Output.clear_error();
         return compilationTerminated();
@@ -197,7 +207,7 @@ int main(int argc, char **argv) {
     if (!Run) return 0;
 
 #ifdef CPSC_RUN_PATH
-    llvm::SmallString<256> RunPath(OutputPath);
+    llvm::SmallString<256> RunPath(IRPath);
     if (auto PathError = llvm::sys::fs::make_absolute(RunPath)) {
         llvm::errs() << "cpsc: error: cannot resolve IR path: " << PathError.message() << "\n";
         return 1;

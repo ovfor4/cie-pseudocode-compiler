@@ -60,7 +60,7 @@ class DriverDiagnostics : public clang::DiagnosticConsumer {
 
 } // namespace
 
-bool compileNative(const cps::CodeGen &CG, llvm::StringRef OutputPath) {
+bool compileNative(const cps::CodeGen &CG, llvm::StringRef OutputPath, const char *Argv0) {
     TemporaryDirectory Runtime;
     if (auto EC = llvm::sys::fs::createUniqueDirectory("cpsc-native", Runtime.Path))
         return fail("cannot create native compilation directory: " + EC.message());
@@ -157,10 +157,12 @@ bool compileNative(const cps::CodeGen &CG, llvm::StringRef OutputPath) {
     DriverDiagnostics Printer;
     clang::DiagnosticsEngine Diagnostics(new clang::DiagnosticIDs, Options, &Printer, false);
     clang::driver::Driver Driver("cpsc", Triple.str(), Diagnostics);
-    // The standard linker flavor constructs a job without checking for an
-    // installed linker. Its platform arguments are passed to embedded LLD.
+    // Clang validates the linker executable even for an unlaunched job. Use
+    // cpsc's own path; only the job's arguments are passed to embedded LLD.
     std::vector<std::string> Args = {"cpsc", "--driver-mode=g++", "-nostdlib", "-nostdlib++",
-        "-fuse-ld=ld", "-o", std::string(StagedPath), std::string(ObjectPath)};
+        "-fuse-ld=lld", "-o", std::string(StagedPath), std::string(ObjectPath)};
+    Args.push_back("--ld-path=" + llvm::sys::fs::getMainExecutable(
+        Argv0, reinterpret_cast<void *>(&compileNative)));
     for (const auto &Arg : *Metadata.getArray("arguments")) {
         Args.push_back("-Xlinker");
         Args.push_back(relocate(*Arg.getAsString()));

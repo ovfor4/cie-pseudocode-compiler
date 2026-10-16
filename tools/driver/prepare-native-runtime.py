@@ -40,7 +40,7 @@ def main():
         raise RuntimeError("Expected one native linker command: " + trace.stderr)
     command = commands[0][1:]
     directories = [Path(arg[2:]) for arg in command if arg.startswith("-L")]
-    target = compiler("-dumpmachine").stdout.strip()
+    target = compiler("-print-effective-triple").stdout.strip()
     files = {}
     scripts = set()
     arguments = []

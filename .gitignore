@@ -41,7 +41,7 @@
 *.dwo
 
 # Generated LLVM IR
-*.ir
+*.ll
 
 build/
 .vscode/

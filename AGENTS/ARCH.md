@@ -1,12 +1,12 @@
 # Architecture
 
-`cpsc` compiles CIE A-Level 9618 pseudocode to LLVM IR. Classic three-stage
+`cpsc` compiles CIE A-Level 9618 pseudocode to native executables or LLVM IR. Classic three-stage
 Kaleidoscope-style design, C++17, built with LLVM 23 and Clang 23. CMake rejects
 other major versions and non-Clang compilers. Execution is selected at
 build time: external lli, an embedded static LLVM engine, or disabled.
 
 ```
-file ──> Lexer ──> Parser ──> vector<unique_ptr<StmtAST>> ──> CodeGen ──> textual LLVM IR in a file
+file ──> Lexer ──> Parser ──> vector<unique_ptr<StmtAST>> ──> CodeGen ──> LLVM IR ──> NativeCompiler (object emission + embedded LLD)
         (istream)  (recursive       (flat program list;         (one llvm::Module "cps_module",
                     descent)         FunctionDefAST mixed in)    everything else inside i32 main())
 ```
@@ -32,9 +32,10 @@ uses C++ promotions, except that / always returns pseudocode REAL.
 
 ## Build & run
 
-The compiler emits textual IR. Initial configuration must explicitly select
-`CPSC_RUN_MODE=PATH`, `EMBEDDED` or `NONE` (no default). All modes need LLVM
-development libraries to build; NONE still generates IR. Native binaries remain manual.
+The compiler emits native executables by default and textual `.ll` IR with `-S`.
+Initial configuration must explicitly select `CPSC_RUN_MODE=PATH`, `EMBEDDED` or
+`NONE` (no default). All modes need LLVM/Clang/LLD 23 development libraries,
+Python 3.9+ and native C/C++ development files to build; NONE supports both outputs.
 The following commands use Debian/Ubuntu's versioned compiler names:
 
 ```bash
@@ -42,10 +43,11 @@ The following commands use Debian/Ubuntu's versioned compiler names:
 cmake -S . -B build -DCPSC_RUN_MODE=EMBEDDED \
   -DCMAKE_C_COMPILER=clang-23 -DCMAKE_CXX_COMPILER=clang++-23
 cmake --build build
-build/cpsc prog.cps -o prog.ll # default without -o: prog.ir beside the source
-build/cpsc prog.cps -r         # execute using the selected build mode
-build/cpsc prog.cps -r -o prog.ir # save IR, then run it
-clang++-23 prog.ll -o prog && ./prog
+build/cpsc prog.cps              # save prog.out beside the source
+build/cpsc prog.cps -S           # save prog.ll beside the source
+build/cpsc prog.cps -r           # run without saving output
+build/cpsc prog.cps -r -S -o prog.ll # save IR, then run it
+build/cpsc prog.cps -o prog && ./prog
 ```
 
 `doc/build.md` recommends which packages to install and which to download;
@@ -69,7 +71,8 @@ managed root. Downloads belong to the package-manager commands in `doc/build.md`
 not to CMake. The Windows Pandoc ZIP is downloaded directly from its official
 release because MSYS2 has no Pandoc package. Only the Linux build is verified.
 
-Generated IR uses the C++ exception ABI; native binaries must link its runtime
+Generated IR uses the C++ exception ABI; native compilation links its runtime
+automatically. Manually linking emitted `.ll` files still requires a C++ driver
 (use LLVM 23's `clang++`, or `clang++-23` on Debian/Ubuntu).
 TRY/CATCH/ENDTRY and bare THROW are compiler extensions.
 Runtime checks print the source line and error reason to stdout before throwing
@@ -79,14 +82,19 @@ Exception execution is verified on Linux with LLVM 23; Windows/macOS are unverif
 
 Driver behavior (`tools/driver/main.cc`):
 
-- One source file, with optional `-o path` and `-r`; options may precede or follow the source.
+- One source file, with optional `-S`, `-o path` and `-r`; options may precede or follow the source.
   No stdin source input. Missing input, including no arguments, prints
   `cpsc: fatal error: no input files` and `compilation terminated.`, then returns 1.
 - `-h` anywhere in the arguments prints one documentation pointer to stdout and
   returns 0 without compiling: `man 1 cpsc` on Unix/macOS, or
   Start Menu > cpsc > cpsc Help on Windows (selected by `_WIN32`).
-- IR is written only after successful parsing, code generation and module
-  verification. Diagnostics stay on stderr; failures do not overwrite existing IR.
+- Output is written only after successful parsing, code generation and module
+  verification. Diagnostics stay on stderr; source errors preserve existing output.
+  Native linking uses a staged file beside the output and renames it on success.
+- `-S` selects textual IR; otherwise output is a native executable. Without `-o`,
+  replace the source extension with `.ll` or `.out` beside the source on every OS.
+  `-o` paths are used literally and never select the format. `-r` alone saves nothing;
+  either `-S` or `-o` requests saving before execution.
 - Lexer, Parser and CodeGen track error flags (`hadError()`); any error, including
   invalid IR from `verifyModule`, makes the driver return 1. File/argument errors
   also return 1. Ordinary compiler errors use `error:`; failures that prevent
@@ -107,27 +115,39 @@ Driver behavior (`tools/driver/main.cc`):
   The engine owns a clone of CodeGen's module; CodeGen retains the context and
   must outlive the engine. Static C++ exception ABI symbols are explicitly
   registered for JIT lookup; MCJIT registers the generated unwind frames.
-  The host target is initialized only for execution.
+  The host target is initialized for native output or embedded execution.
   No external runner or PATH lookup is used; `-r` alone runs in memory.
-- In NONE mode, `-r` returns 1 before compiling or writing output; ordinary IR
-  compilation remains available. Only EMBEDDED links execution-engine components.
+- In NONE mode, `-r` returns 1 before compiling or writing output; native and IR
+  compilation remain available. Only EMBEDDED uses the in-process execution engine.
 - Both execution modes return the program's exit status and inherit standard
-  streams. `-r -o` saves IR before executing and keeps it on execution failure.
+  streams. `-r -o` saves a binary; adding `-S` saves IR instead. Saved output is
+  kept on execution failure. Execution still uses the configured runner.
 
-EMBEDDED requires static LLVM archives. `cmake/EmbeddedLLVM.cmake` also selects
+All modes require static LLVM, Clang Driver and LLD archives. `cmake/EmbeddedLLVM.cmake` also selects
 static compression/terminal support archives when LLVM uses them. Linux Clang
 builds link the C++ runtime statically; MinGW uses `-static`. The tested Debian
 LLVM 23 executable has only libc, libm and the system loader as dynamic dependencies.
-macOS EMBEDDED links with `-dead_strip_dylibs` to omit unused dylibs inherited
+macOS links with `-dead_strip_dylibs` to omit unused dylibs inherited
 from LLVM's support interface, including Homebrew's Z3. Keep the nightly package's
 non-system dependency check; required dylibs are not removed by this option.
 Windows EMBEDDED is untested.
 
+`NativeCompiler` clones the module, sets the host triple/DataLayout and emits a PIC
+object. Clang Driver constructs one platform linker job, which is dispatched to
+embedded LLD without launching a process. `cmake/NativeCompiler.cmake` runs
+`tools/driver/prepare-native-runtime.py` at configure time to capture the build
+toolchain's link inputs and compress them into generated C++ data. Native compilation
+extracts startup objects, runtime archives and system link interfaces to a temporary
+directory; GNU linker scripts are relocated. macOS embeds SDK library stubs, not
+headers or system runtime dylibs. No user development toolchain is required.
+Linux statically links non-system runtimes but dynamically links glibc; do not use
+global `-static` there. Generated binaries require a compatible host system runtime.
+
 Windows build instructions retain MSYS2 MINGW64. Its LLVM/Clang package names
 and compiler executable names are unversioned; CMake still requires major 23.
 The build guide explicitly selects `/mingw64/bin/clang.exe` and `clang++.exe`
-through `cygpath -m`. MINGW64 Clang retains the GNU linker and C++ library;
-switching to CLANG64 would also change the C/C++ runtime and is a separate task.
+through `cygpath -m`. MINGW64 retains the GNU C++ runtime; cpsc links with LLD. Switching to
+CLANG64 would change the C/C++ runtime and is a separate task.
 
 On Linux, `make -C build install` builds the manual and calls the POSIX
 `install.sh` to copy `cpsc` into `CMAKE_INSTALL_PREFIX/bin` and all manuals into
@@ -196,14 +216,14 @@ source downloads remain available.
 The Linux compiler and plugin jobs use Ubuntu 24.04 x86_64; the macOS compiler
 job uses a macOS 15 arm64 runner, and Windows uses Windows Server 2025 x86_64.
 All four check out the push SHA and run independently after cleanup. All three
-compiler jobs use LLVM/Clang 23, Release and EMBEDDED settings, Pandoc, and the
+compiler jobs use LLVM/Clang/LLD 23, Python, Release and EMBEDDED settings, Pandoc, and the
 existing `release` target. Linux obtains its toolchain from apt.llvm.org; macOS
 uses Homebrew's LLVM 23. Windows uses `msys2/setup-msys2@v2` with MINGW64,
 MSYS2 LLVM/Clang packages, explicit native compiler and LLVM paths, and the
 MinGW Makefiles generator. It downloads the official Pandoc 3.12.1 Windows
 x86_64 ZIP into `build/deps/packages/` for CMake to extract. Each compiler job
 extracts and checks its archive, then runs a small OUTPUT program with the
-packaged binary. Windows checks its ZIP in PowerShell with PATH limited to
+packaged binary and checks native generation plus `.ll` output without tool lookup. Windows checks its ZIP in PowerShell with PATH limited to
 Windows system directories, excluding MSYS2 and LLVM. The macOS check also
 verifies arm64 and rejects non-system dynamic libraries. The plugin uses
 Node.js 22, `npm ci --ignore-scripts` and
@@ -232,7 +252,8 @@ do not modify the real release for local verification.
 | `lib/CodeGen/CTypeGen.cc` | CodeGen methods for native C scalar conversions, casts, arithmetic and input/output |
 | `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen (including exception emission) |
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
-| `tools/driver/EmbeddedRunner.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only MCJIT runner and static support-library selection |
+| `tools/driver/NativeCompiler.cc`, `cmake/NativeCompiler.cmake` | Host object generation, embedded Clang/LLD linking and compressed link resources |
+| `tools/driver/EmbeddedRunner.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only MCJIT runner; static support-library selection for all modes |
 | `cmake/LocalDependencies.cmake`, `cmake/*Packages.cmake` | Local package extraction and platform relocation |
 | `cmake/DependencyPaths.cmake`, `cmake/FindDependency.cmake` | Shared local paths and local-first/system-fallback lookup |
 | `cmake/BuildTools.cmake`, `cmake/LLVMDependencies.cmake` | Compiler/build tool selection and LLVM dependency discovery |
