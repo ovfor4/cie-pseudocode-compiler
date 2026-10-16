@@ -7,6 +7,7 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include <cstdio>
 #include <cstdlib>
@@ -66,6 +67,12 @@ int runEmbedded(const cps::CodeGen &CG) {
     llvm::EngineBuilder Builder(std::move(Module));
     Builder.setEngineKind(llvm::EngineKind::JIT);
     Builder.setErrorStr(&Error);
+#ifdef __APPLE__
+    // MCJIT registers DWARF frames, not Darwin's compact unwind records.
+    llvm::TargetOptions Options;
+    Options.MCOptions.EmitDwarfUnwind = llvm::EmitDwarfUnwindType::Always;
+    Builder.setTargetOptions(Options);
+#endif
     Builder.setMCJITMemoryManager(std::make_unique<llvm::SectionMemoryManager>());
     std::unique_ptr<llvm::ExecutionEngine> Engine(Builder.create());
     if (!Engine) {
