@@ -115,19 +115,24 @@ Driver behavior (`tools/driver/main.cc`):
 - In EMBEDDED mode, `-r` uses LLJIT with JITLink in-process (`tools/driver/EmbeddedRunner.cc`).
   The JIT owns a copy of CodeGen's module made with `cloneExternalModuleToContext`
   into an independent `ThreadSafeContext`; CodeGen retains its module and context.
-  The running copy uses the JIT target triple and DataLayout. Static C++ exception
+  The running copy uses the JIT target triple and DataLayout. The JIT target uses
+  Large code model with PIC. Static C++ exception
   ABI symbols are defined with ORC `absoluteSymbols` using the JIT mangling
-  (MinGW keeps its `snprintf`/`strtoll` aliases and a no-op `__main`); ordinary
+  (MinGW keeps its `snprintf`/`strtoll` aliases and a no-op `__main`; MinGW
+  x86_64 additionally binds the toolchain-provided `___chkstk_ms`); ordinary
   C library symbols resolve through the ORC process-symbol mechanism. Linux uses
   the generic LLVM IR platform with EH-frame registration. macOS uses LLJIT's
   unwind registration, selecting compact unwind or EH-frame per host capability.
   Windows x86_64 keeps the GNU C++ runtime and `__gxx_personality_seh0` with a
   small in-process COFF adapter: per-graph `__ImageBase` shared by relocations
-  and SEH registration, preserved `.pdata`/`.xdata` with layout/sort/range checks,
-  x86_64 pointer/stub helpers for external/personality calls, and
+  and SEH registration, default backend liveness for `.pdata`, JITLink
+  pointer-jump stubs for the `.xdata` personality references, and
   `RtlAddFunctionTable`/`RtlDeleteFunctionTable` via JITLink allocation actions
-  covering teardown and link-failure cleanup; registration failure blocks entry.
-  The JIT explicitly uses `ObjectLinkingLayer` so Windows COFF does not fall back
+  covering teardown and link-failure cleanup, with table validation in the
+  registration callback; registration failure blocks entry.
+  The JIT builds its `ObjectLinkingLayer` through one file-local factory (COFF
+  flags stay format-conditional, SEH plugin installed before LLJIT ownership)
+  so Windows COFF does not fall back
   to RuntimeDyld. Initialization runs through the platform support before lookup
   of `main`; deinitialization runs while code is still mapped so unwind
   deregistration precedes memory release. Execution failures return 1 without
