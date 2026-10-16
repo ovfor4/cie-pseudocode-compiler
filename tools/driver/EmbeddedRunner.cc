@@ -117,23 +117,9 @@ public:
         if (!TT.isOSBinFormatCOFF() || TT.getArch() != Triple::x86_64)
             return;
 
-        // Keep SEH tables alive when their functions are alive. The default
-        // COFF backend already keeps .pdata; also cover .xdata here.
-        Config.PrePrunePasses.push_back([](LinkGraph &G) -> Error {
-            for (const char *Name : {".pdata", ".xdata"}) {
-                if (auto *Sec = G.findSectionByName(Name)) {
-                    for (auto *Sym : Sec->symbols()) {
-                        if (Sym->isDefined())
-                            Sym->setLive(true);
-                    }
-                    for (auto *B : Sec->blocks()) {
-                        (void)B;
-                    }
-                }
-            }
-            return Error::success();
-        });
-
+        // SEH table liveness relies on the COFF backend's default
+        // SEHFrameKeepAlivePass(".pdata"), which keeps .pdata alive from its
+        // referenced function/unwind blocks. No custom PrePrune pass here.
         // Build GOT/stub entries for externals. Host runtime calls reach
         // their far addresses through these under the large code model.
         Config.PostPrunePasses.push_back([](LinkGraph &G) -> Error {
@@ -172,8 +158,10 @@ public:
             return Error::success();
         });
 
-        // After relocations are applied, validate the function table and
-        // register it with the system unwinder via allocation actions.
+        // After relocations are applied, register the function table with
+        // the system unwinder via allocation actions. Table contents are
+        // validated in the registration callback; here only locate the
+        // non-empty .pdata and the graph-local image base.
         Config.PostFixupPasses.push_back(
             [](LinkGraph &G) -> Error {
                 using namespace llvm::orc::shared;
@@ -184,30 +172,6 @@ public:
                 if (Range.empty())
                     return Error::success();
                 auto TableRange = Range.getRange();
-                size_t Size = TableRange.size();
-                if (Size % sizeof(RUNTIME_FUNCTION) ||
-                    Size / sizeof(RUNTIME_FUNCTION) == 0 ||
-                    Size / sizeof(RUNTIME_FUNCTION) >
-                        static_cast<size_t>(std::numeric_limits<DWORD>::max()))
-                    return make_error<JITLinkError>(
-                        "invalid embedded SEH function table");
-                // The table must be sorted by BeginAddress with Begin < End.
-                auto *Table = TableRange.Start.toPtr<const RUNTIME_FUNCTION *>();
-                uint64_t Count = Size / sizeof(RUNTIME_FUNCTION);
-                DWORD PrevBegin = 0;
-                for (uint64_t I = 0; I < Count; ++I) {
-                    DWORD Begin = support::endian::read32le(
-                        reinterpret_cast<const char *>(Table + I) + 0);
-                    DWORD End = support::endian::read32le(
-                        reinterpret_cast<const char *>(Table + I) + 4);
-                    if (!(Begin < End))
-                        return make_error<JITLinkError>(
-                            "invalid embedded SEH function table");
-                    if (I > 0 && !(PrevBegin < Begin))
-                        return make_error<JITLinkError>(
-                            "invalid embedded SEH function table");
-                    PrevBegin = Begin;
-                }
                 // Resolve the graph-local image base established above.
                 auto *ImageBaseSym =
                     G.findDefinedSymbolByName(G.intern("__ImageBase"));
