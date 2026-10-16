@@ -4,7 +4,6 @@
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
 #include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
-#include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/TargetSelect.h"
 #include <cstdio>
@@ -18,62 +17,244 @@
 #endif
 #include <windows.h>
 #include <limits>
-#include <vector>
+#include "llvm/ExecutionEngine/JITLink/JITLink.h"
+#include "llvm/ExecutionEngine/JITLink/x86_64.h"
+#include "llvm/ExecutionEngine/Orc/LinkGraphLinkingLayer.h"
+#include "llvm/ExecutionEngine/Orc/Shared/WrapperFunctionUtils.h"
+#include "llvm/Support/Endian.h"
 
 namespace {
 
-// Kept for the follow-up Windows JITLink SEH work; unused by the LLJIT path.
-class WindowsJITMemoryManager final : public llvm::SectionMemoryManager {
-    uintptr_t ImageBase = std::numeric_limits<uintptr_t>::max();
-    std::vector<PRUNTIME_FUNCTION> FunctionTables;
-    std::string Error;
+// In-process COFF/SEH support for the MinGW x86_64 JIT.
+//
+// The full upstream COFFPlatform starts the VC runtime loading machinery,
+// which does not apply to the current MinGW build. This plugin provides only
+// the linking and registration pieces needed for in-process execution:
+// a per-graph __ImageBase shared by relocations and SEH registration,
+// preservation of .pdata/.xdata, GOT/stub construction for external calls
+// via the x86_64 utilities, and RtlAddFunctionTable registration through
+// JITLink allocation actions. Exception propagation still uses the existing
+// C++ ABI, LLVM exception instructions and platform unwinder.
 
-    uint8_t *recordSection(uint8_t *Address, uintptr_t Size) {
-        auto Base = reinterpret_cast<uintptr_t>(Address);
-        if (Address && Size && Base < ImageBase) ImageBase = Base;
-        return Address;
+static llvm::Error registerSEHTable(llvm::orc::ExecutorAddrRange TableRange,
+                                     llvm::orc::ExecutorAddr ImageBase) {
+    using llvm::make_error;
+    using llvm::StringError;
+    using llvm::inconvertibleErrorCode;
+    size_t Size = TableRange.size();
+    if (Size == 0 || ImageBase.isNull())
+        return make_error<StringError>("invalid embedded SEH function table",
+                                       inconvertibleErrorCode());
+    if (Size % sizeof(RUNTIME_FUNCTION))
+        return make_error<StringError>("invalid embedded SEH function table",
+                                       inconvertibleErrorCode());
+    uint64_t Count64 = Size / sizeof(RUNTIME_FUNCTION);
+    if (Count64 == 0 || Count64 > static_cast<uint64_t>(std::numeric_limits<DWORD>::max()))
+        return make_error<StringError>("invalid embedded SEH function table",
+                                       inconvertibleErrorCode());
+    auto *Table = TableRange.Start.toPtr<const RUNTIME_FUNCTION *>();
+    DWORD PrevBegin = 0;
+    for (uint64_t I = 0; I < Count64; ++I) {
+        DWORD Begin = llvm::support::endian::read32le(
+            reinterpret_cast<const char *>(Table + I) + 0);
+        DWORD End = llvm::support::endian::read32le(
+            reinterpret_cast<const char *>(Table + I) + 4);
+        if (!(Begin < End))
+            return make_error<StringError>("invalid embedded SEH function table",
+                                           inconvertibleErrorCode());
+        if (I > 0 && !(PrevBegin < Begin))
+            return make_error<StringError>("invalid embedded SEH function table",
+                                           inconvertibleErrorCode());
+        PrevBegin = Begin;
     }
+    auto *MutableTable = const_cast<PRUNTIME_FUNCTION>(Table);
+    DWORD Count = static_cast<DWORD>(Count64);
+    DWORD64 Base = static_cast<DWORD64>(ImageBase.getValue());
+    if (!RtlAddFunctionTable(MutableTable, Count, Base))
+        return make_error<StringError>("cannot register embedded SEH function table",
+                                       inconvertibleErrorCode());
+    return llvm::Error::success();
+}
 
+static llvm::Error deregisterSEHTable(llvm::orc::ExecutorAddrRange TableRange,
+                                       llvm::orc::ExecutorAddr ImageBase) {
+    (void)ImageBase;
+    auto *Table = TableRange.Start.toPtr<PRUNTIME_FUNCTION>();
+    if (TableRange.size() == 0 || !Table)
+        return llvm::Error::success();
+    RtlDeleteFunctionTable(Table);
+    return llvm::Error::success();
+}
+
+extern "C" llvm::orc::shared::CWrapperFunctionBuffer
+cps_register_seh_table_alloc_action(const char *ArgData, size_t ArgSize) {
+    using namespace llvm::orc::shared;
+    return WrapperFunction<SPSError(SPSExecutorAddrRange, SPSExecutorAddr)>::handle(
+               ArgData, ArgSize, registerSEHTable)
+        .release();
+}
+
+extern "C" llvm::orc::shared::CWrapperFunctionBuffer
+cps_deregister_seh_table_alloc_action(const char *ArgData, size_t ArgSize) {
+    using namespace llvm::orc::shared;
+    return WrapperFunction<SPSError(SPSExecutorAddrRange, SPSExecutorAddr)>::handle(
+               ArgData, ArgSize, deregisterSEHTable)
+        .release();
+}
+
+class MinGWSEHRegistrationPlugin final
+    : public llvm::orc::LinkGraphLinkingLayer::Plugin {
 public:
-    WindowsJITMemoryManager() : SectionMemoryManager(nullptr, true) {}
-    ~WindowsJITMemoryManager() override { deregisterEHFrames(); }
-
-    uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
-                                 unsigned SectionID, llvm::StringRef Name) override {
-        return recordSection(SectionMemoryManager::allocateCodeSection(
-            Size, Alignment, SectionID, Name), Size);
-    }
-
-    uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
-                                 unsigned SectionID, llvm::StringRef Name,
-                                 bool IsReadOnly) override {
-        return recordSection(SectionMemoryManager::allocateDataSection(
-            Size, Alignment, SectionID, Name, IsReadOnly), Size);
-    }
-
-    void registerEHFrames(uint8_t *Address, uint64_t, size_t Size) override {
-        if (!Size || !Error.empty()) return;
-        if (Size % sizeof(RUNTIME_FUNCTION) ||
-            Size / sizeof(RUNTIME_FUNCTION) > std::numeric_limits<DWORD>::max() ||
-            ImageBase == std::numeric_limits<uintptr_t>::max()) {
-            Error = "invalid embedded SEH function table";
+    void modifyPassConfig(llvm::orc::MaterializationResponsibility &MR,
+                           llvm::jitlink::LinkGraph &G,
+                           llvm::jitlink::PassConfiguration &Config) override {
+        using namespace llvm;
+        using namespace llvm::orc;
+        using namespace llvm::jitlink;
+        const Triple &TT = G.getTargetTriple();
+        if (!TT.isOSBinFormatCOFF() || TT.getArch() != Triple::x86_64)
             return;
-        }
-        auto *Table = reinterpret_cast<PRUNTIME_FUNCTION>(Address);
-        if (!RtlAddFunctionTable(Table, static_cast<DWORD>(Size / sizeof(RUNTIME_FUNCTION)),
-                                 static_cast<DWORD64>(ImageBase))) {
-            Error = "cannot register embedded SEH function table";
-            return;
-        }
-        FunctionTables.push_back(Table);
+
+        // Keep SEH tables alive when their functions are alive. The default
+        // COFF backend already keeps .pdata; also cover .xdata here.
+        Config.PrePrunePasses.push_back([](LinkGraph &G) -> Error {
+            for (const char *Name : {".pdata", ".xdata"}) {
+                if (auto *Sec = G.findSectionByName(Name)) {
+                    for (auto *Sym : Sec->symbols()) {
+                        if (Sym->isDefined())
+                            Sym->setLive(true);
+                    }
+                    for (auto *B : Sec->blocks()) {
+                        (void)B;
+                    }
+                }
+            }
+            return Error::success();
+        });
+
+        // Define a per-graph __ImageBase and build stubs for externals.
+        Config.PostPrunePasses.push_back([](LinkGraph &G) -> Error {
+            using namespace llvm::jitlink::x86_64;
+            // External calls and personality references use the generic
+            // x86_64 pointer and stub builders.
+            GOTTableManager GOT(G);
+            PLTTableManager PLT(G, GOT);
+            visitExistingEdges(G, GOT, PLT);
+
+            auto *ImageBaseExt =
+                G.findExternalSymbolByName(G.intern("__ImageBase"));
+            auto *PDataSec = G.findSectionByName(".pdata");
+            if (!ImageBaseExt && !PDataSec)
+                return Error::success();
+            // One base per graph so relocations and SEH registration agree.
+            Section *BaseSec = G.findSectionByName("__image_base");
+            if (!BaseSec)
+                BaseSec = &G.createSection("__image_base", orc::MemProt::Read);
+            static const char ZeroContent[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+            auto &BaseBlock = G.createContentBlock(
+                *BaseSec, ArrayRef<char>(ZeroContent, sizeof(ZeroContent)),
+                orc::ExecutorAddr(), 8, 0);
+            if (ImageBaseExt) {
+                G.makeDefined(*ImageBaseExt, BaseBlock, 0, 8,
+                              Linkage::Strong, Scope::Default, true);
+            } else {
+                G.addDefinedSymbol(BaseBlock, 0, "__ImageBase", 8,
+                                   Linkage::Strong, Scope::Default, false, true);
+            }
+            return Error::success();
+        });
+
+        // After relocations are applied, validate the function table and
+        // register it with the system unwinder via allocation actions.
+        Config.PostFixupPasses.push_back(
+            [](LinkGraph &G) -> Error {
+                using namespace llvm::orc::shared;
+                auto *PDataSec = G.findSectionByName(".pdata");
+                if (!PDataSec)
+                    return Error::success();
+                jitlink::SectionRange Range(*PDataSec);
+                if (Range.empty())
+                    return Error::success();
+                auto TableRange = Range.getRange();
+                size_t Size = TableRange.size();
+                if (Size % sizeof(RUNTIME_FUNCTION) ||
+                    Size / sizeof(RUNTIME_FUNCTION) == 0 ||
+                    Size / sizeof(RUNTIME_FUNCTION) >
+                        static_cast<size_t>(std::numeric_limits<DWORD>::max()))
+                    return make_error<JITLinkError>(
+                        "invalid embedded SEH function table");
+                // The table must be sorted by BeginAddress with Begin < End.
+                auto *Table = TableRange.Start.toPtr<const RUNTIME_FUNCTION *>();
+                uint64_t Count = Size / sizeof(RUNTIME_FUNCTION);
+                DWORD PrevBegin = 0;
+                for (uint64_t I = 0; I < Count; ++I) {
+                    DWORD Begin = support::endian::read32le(
+                        reinterpret_cast<const char *>(Table + I) + 0);
+                    DWORD End = support::endian::read32le(
+                        reinterpret_cast<const char *>(Table + I) + 4);
+                    if (!(Begin < End))
+                        return make_error<JITLinkError>(
+                            "invalid embedded SEH function table");
+                    if (I > 0 && !(PrevBegin < Begin))
+                        return make_error<JITLinkError>(
+                            "invalid embedded SEH function table");
+                    PrevBegin = Begin;
+                }
+                // Resolve the graph-local image base established above.
+                auto *ImageBaseSym =
+                    G.findDefinedSymbolByName(G.intern("__ImageBase"));
+                if (!ImageBaseSym)
+                    return make_error<JITLinkError>(
+                        "missing embedded __ImageBase for SEH registration");
+                ExecutorAddr ImageBase = ImageBaseSym->getAddress();
+                if (ImageBase.isNull())
+                    return make_error<JITLinkError>(
+                        "invalid embedded SEH image base");
+                // Registration failure must prevent entry to JIT code; the
+                // deregistration action also covers link-failure cleanup and
+                // normal teardown before the memory is released.
+                auto RegisterAction =
+                    WrapperFunctionCall::Create<SPSArgList<SPSExecutorAddrRange,
+                                                           SPSExecutorAddr>>(
+                        ExecutorAddr::fromPtr(
+                            &cps_register_seh_table_alloc_action),
+                        TableRange, ImageBase);
+                if (!RegisterAction)
+                    return RegisterAction.takeError();
+                auto DeregisterAction =
+                    WrapperFunctionCall::Create<SPSArgList<SPSExecutorAddrRange,
+                                                           SPSExecutorAddr>>(
+                        ExecutorAddr::fromPtr(
+                            &cps_deregister_seh_table_alloc_action),
+                        TableRange, ImageBase);
+                if (!DeregisterAction)
+                    return DeregisterAction.takeError();
+                G.allocActions().push_back(
+                    {std::move(*RegisterAction), std::move(*DeregisterAction)});
+                return Error::success();
+            });
+        (void)MR;
     }
 
-    void deregisterEHFrames() override {
-        for (auto *Table : FunctionTables) RtlDeleteFunctionTable(Table);
-        FunctionTables.clear();
+    llvm::Error notifyFailed(llvm::orc::MaterializationResponsibility &MR) override {
+        (void)MR;
+        return llvm::Error::success();
     }
 
-    const std::string &getError() const { return Error; }
+    llvm::Error notifyRemovingResources(llvm::orc::JITDylib &JD,
+                                        llvm::orc::ResourceKey K) override {
+        (void)JD;
+        (void)K;
+        return llvm::Error::success();
+    }
+
+    void notifyTransferringResources(llvm::orc::JITDylib &JD,
+                                     llvm::orc::ResourceKey DstKey,
+                                     llvm::orc::ResourceKey SrcKey) override {
+        (void)JD;
+        (void)DstKey;
+        (void)SrcKey;
+    }
 };
 
 } // namespace
@@ -172,6 +353,18 @@ int runEmbedded(const cps::CodeGen &CG) {
         return 1;
     }
     std::unique_ptr<llvm::orc::LLJIT> J = std::move(*JITOrErr);
+
+#if defined(_WIN32) && defined(__x86_64__)
+    // Register MinGW SEH tables through JITLink; failures surface as link
+    // errors below and prevent entry to JIT code.
+    if (auto *ObjLayer = llvm::dyn_cast<llvm::orc::ObjectLinkingLayer>(
+            &J->getObjLinkingLayer()))
+        ObjLayer->addPlugin(std::make_shared<MinGWSEHRegistrationPlugin>());
+    else {
+        llvm::errs() << "error: embedded LLVM engine does not use JITLink\n";
+        return 1;
+    }
+#endif
 
     if (auto Err = defineRuntimeSymbols(*J)) {
         llvm::errs() << "error: cannot define embedded runtime symbols: "
