@@ -71,9 +71,9 @@ target_link_libraries(cpsc PRIVATE clangDriver ${cpsc_linker_libraries})
 # library in their imported interfaces. Resolve those edges to static archives.
 add_library(CPSCStaticLLVM INTERFACE)
 foreach(cpsc_llvm_library IN LISTS LLVM_AVAILABLE_LIBS)
-    # Standalone tools are not driver/linker dependencies and may reference
-    # optional packages absent from binary SDK installations.
-    if(cpsc_llvm_library MATCHES "^LLVM(LineEditor|BOLT.*|Exegesis.*|OptDriver)$")
+    # Standalone tools and HTTP/debuginfod clients are not driver/linker
+    # dependencies. Keep their optional LibEdit/CURL packages optional.
+    if(cpsc_llvm_library MATCHES "^LLVM(LineEditor|BOLT.*|Exegesis.*|OptDriver|HTTP|Debuginfod)$")
         continue()
     endif()
     if(TARGET ${cpsc_llvm_library})
