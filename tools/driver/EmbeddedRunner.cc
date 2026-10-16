@@ -248,35 +248,12 @@ __gxx_personality_v0
 extern "C" void __cps_jit_noop__main() {}
 #endif
 
-// MinGW emits ___chkstk_ms stack probes for large frames with a custom
-// convention (size in %eax, result in %rax, all else preserved). Never
-// reference the host probe by name: a weak reference marks the host import
-// weak on COFF and segfaults the compiler itself. Provide a JIT-only probe
-// under a unique name and map the JIT symbol to it. Same code on all
-// platforms; the stub is unused where the backend never emits the probe.
-#if defined(__x86_64__)
-extern "C" __attribute__((naked)) void __cps_jit_chkstk_ms() {
-    __asm__ volatile(
-        "pushq %rcx\n\t"
-        "pushq %rax\n\t"
-        "cmpq $0x1000, %rax\n\t"
-        "leaq 0x18(%rsp), %rcx\n\t"
-        "jb 1f\n\t"
-        "0:\n\t"
-        "subq $0x1000, %rcx\n\t"
-        "orq $0, (%rcx)\n\t"
-        "subq $0x1000, %rax\n\t"
-        "cmpq $0x1000, %rax\n\t"
-        "ja 0b\n\t"
-        "1:\n\t"
-        "subq %rax, %rcx\n\t"
-        "orq $0, (%rcx)\n\t"
-        "popq %rax\n\t"
-        "popq %rcx\n\t"
-        "ret\n\t");
-}
-#else
-extern "C" void __cps_jit_chkstk_ms() {}
+// MinGW x86_64 emits ___chkstk_ms stack probes for large frames. Bind the
+// toolchain-provided symbol directly (as LLVM lli does); it is supplied by
+// compiler-rt or libgcc. The address is only published to the JIT, never
+// called by the compiler itself.
+#if defined(__MINGW32__) && defined(__x86_64__)
+extern "C" void ___chkstk_ms(void);
 #endif
 
 static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
@@ -320,8 +297,10 @@ static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
     Symbols[Intern("__main")] =
         ExecutorSymbolDef::fromPtr(&__cps_jit_noop__main);
 #endif
+#if defined(__MINGW32__) && defined(__x86_64__)
     Symbols[Intern("___chkstk_ms")] =
-        ExecutorSymbolDef::fromPtr(&__cps_jit_chkstk_ms);
+        ExecutorSymbolDef::fromPtr(&___chkstk_ms);
+#endif
     return J.getMainJITDylib().define(
         llvm::orc::absoluteSymbols(std::move(Symbols)));
 }
