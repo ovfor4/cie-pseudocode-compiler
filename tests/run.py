@@ -201,7 +201,8 @@ def main(argv=None):
                 if not records or int(records[0]) != len(records) - 1:
                     raise Failure("generator must emit record count followed by one record per line")
                 work = workspace(case_dir, directory, "reference")
-                reference = commands.run([args.reference], work, data)
+                reference = commands.run([args.reference], work, data,
+                                         timeout=config.get("timeout", 30))
                 if reference.returncode != 0 or reference.stderr:
                     raise Failure(f"reference failed ({reference.returncode}): {reference.stderr!r}")
                 expected = reference.stdout
@@ -221,7 +222,7 @@ def main(argv=None):
                     command = [target]
                 else:
                     command = [args.cpsc, source, "-r"]
-                result = commands.run(command, work, data)
+                result = commands.run(command, work, data, timeout=config.get("timeout", 30))
                 if suite == "ii" and normalized(result.stdout) != normalized(expected):
                     wanted, got = normalized(expected).splitlines(), normalized(result.stdout).splitlines()
                     index = next((i for i in range(min(len(wanted), len(got)))

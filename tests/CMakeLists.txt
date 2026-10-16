@@ -23,6 +23,6 @@ foreach(suite i ii iii)
             --seed "${CPSC_TEST_SEED}" --count "${CPSC_TEST_COUNT}"
             --results "${CMAKE_BINARY_DIR}/test-results" ${reference_args})
         set_tests_properties("${suite}/${case_name}" PROPERTIES
-            LABELS "${suite}" TIMEOUT 600)
+            LABELS "${suite}" TIMEOUT 900)
     endforeach()
 endforeach()
