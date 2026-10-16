@@ -78,7 +78,8 @@ TRY/CATCH/ENDTRY and bare THROW are compiler extensions.
 Runtime checks print the source line and error reason to stdout before throwing
 anonymous exceptions; the final handler in generated main
 prints `Unhandled exception. Program terminated.` to stdout and returns 1.
-Exception execution is verified on Linux with LLVM 23; Windows/macOS are unverified.
+Exception execution with the embedded ORC JIT is verified on Linux with LLVM 23;
+Windows/macOS await CI verification.
 
 Driver behavior (`tools/driver/main.cc`):
 
@@ -111,20 +112,29 @@ Driver behavior (`tools/driver/main.cc`):
   source compilation. Without `-r`, no external tools are checked; clang/clang++
   are never invoked or checked by this mode. Process-launch/crash failures return 1.
   `-r` alone uses temporary IR removed on return, including execution failure.
-- In EMBEDDED mode, `-r` uses MCJIT in-process (`tools/driver/EmbeddedRunner.cc`).
-  The engine owns a clone of CodeGen's module; CodeGen retains the context and
-  must outlive the engine. Static C++ exception ABI symbols are explicitly
-  registered for JIT lookup; MCJIT registers the generated unwind frames.
-  On macOS the JIT explicitly emits DWARF unwind frames even when compact
-  unwind records would suffice for native linking; MCJIT does not register
-  compact unwind records. macOS execution still needs platform verification.
-  Windows x86_64 reserves contiguous JIT memory and registers relocated COFF
-  `.pdata` tables with `RtlAddFunctionTable`, using RuntimeDyld's lowest-section
-  image base. Tables are unregistered before their memory is released, and
-  registration failures stop execution. Windows execution still needs platform
-  verification.
-  The host target is initialized for native output or embedded execution.
+- In EMBEDDED mode, `-r` uses LLJIT with JITLink in-process (`tools/driver/EmbeddedRunner.cc`).
+  The JIT owns a copy of CodeGen's module made with `cloneExternalModuleToContext`
+  into an independent `ThreadSafeContext`; CodeGen retains its module and context.
+  The running copy uses the JIT target triple and DataLayout. Static C++ exception
+  ABI symbols are defined with ORC `absoluteSymbols` using the JIT mangling
+  (MinGW keeps its `snprintf`/`strtoll` aliases and a no-op `__main`); ordinary
+  C library symbols resolve through the ORC process-symbol mechanism. Linux uses
+  the generic LLVM IR platform with EH-frame registration. macOS uses LLJIT's
+  unwind registration, selecting compact unwind or EH-frame per host capability.
+  Windows x86_64 keeps the GNU C++ runtime and `__gxx_personality_seh0` with a
+  small in-process COFF adapter: per-graph `__ImageBase` shared by relocations
+  and SEH registration, preserved `.pdata`/`.xdata` with layout/sort/range checks,
+  x86_64 pointer/stub helpers for external/personality calls, and
+  `RtlAddFunctionTable`/`RtlDeleteFunctionTable` via JITLink allocation actions
+  covering teardown and link-failure cleanup; registration failure blocks entry.
+  The JIT explicitly uses `ObjectLinkingLayer` so Windows COFF does not fall back
+  to RuntimeDyld. Initialization runs through the platform support before lookup
+  of `main`; deinitialization runs while code is still mapped so unwind
+  deregistration precedes memory release. Execution failures return 1 without
+  `compilation terminated.`. The host target comes from
+  `JITTargetMachineBuilder::detectHost()`.
   No external runner or PATH lookup is used; `-r` alone runs in memory.
+  Linux embedded execution is verified; Windows/macOS await CI verification.
 - In NONE mode, `-r` returns 1 before compiling or writing output; native and IR
   compilation remain available. Only EMBEDDED uses the in-process execution engine.
 - Both execution modes return the program's exit status and inherit standard
@@ -138,7 +148,7 @@ LLVM 23 executable has only libc, libm and the system loader as dynamic dependen
 macOS links with `-dead_strip_dylibs` to omit unused dylibs inherited
 from LLVM's support interface, including Homebrew's Z3. Keep the nightly package's
 non-system dependency check; required dylibs are not removed by this option.
-Windows EMBEDDED is untested.
+Windows and macOS embedded execution await CI verification; Linux EMBEDDED is verified.
 On MinGW, `LLVMWindowsManifest` explicitly uses static libxml2, iconv and zlib
 plus the system bcrypt library. XML definitions are loaded with `--whole-archive`
 to satisfy dllimport references in the prebuilt LLVM archive. `-static` alone
@@ -287,7 +297,7 @@ do not modify the real release for local verification.
 | `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen (including exception emission) |
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
 | `tools/driver/NativeCompiler.cc`, `cmake/NativeCompiler.cmake` | Host object generation, embedded Clang/LLD linking and compressed link resources |
-| `tools/driver/EmbeddedRunner.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only MCJIT runner; static support-library selection for all modes |
+| `tools/driver/EmbeddedRunner.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only LLJIT/JITLink runner; static support-library selection for all modes |
 | `cmake/LocalDependencies.cmake`, `cmake/*Packages.cmake` | Local package extraction and platform relocation |
 | `cmake/DependencyPaths.cmake`, `cmake/FindDependency.cmake` | Shared local paths and local-first/system-fallback lookup |
 | `cmake/BuildTools.cmake`, `cmake/LLVMDependencies.cmake` | Compiler/build tool selection and LLVM dependency discovery |

@@ -83,8 +83,11 @@ uses `__cxa_begin_catch` and removes its own TRY target before emitting its body
 normal exit and RETURN call `__cxa_end_catch`. Bare THROW always creates a new
 anonymous integer exception, using `_ZTIi` internally without exposing a value.
 Generated main owns the final catch target, prints the generic uncaught message,
-and returns 1. Native binaries require the C++ runtime; EmbeddedRunner explicitly
-registers its statically linked ABI symbols, while MCJIT manages unwind frames.
+and returns 1. Native binaries require the C++ runtime; EmbeddedRunner defines
+its statically linked ABI symbols with ORC `absoluteSymbols`, while LLJIT with
+JITLink manages unwind frames (generic EH-frame on Linux, compact-unwind or
+EH-frame on macOS, COFF SEH registration on Windows x86_64). Linux embedded
+execution is verified; Windows/macOS await CI verification.
 This does not change heap-string/array lifetimes or automatically close files.
 
 **Files** (`FileHandler`): text-file runtime for §9.1.
