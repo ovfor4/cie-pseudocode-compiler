@@ -131,6 +131,10 @@ macOS links with `-dead_strip_dylibs` to omit unused dylibs inherited
 from LLVM's support interface, including Homebrew's Z3. Keep the nightly package's
 non-system dependency check; required dylibs are not removed by this option.
 Windows EMBEDDED is untested.
+On MinGW, `LLVMWindowsManifest` explicitly uses static libxml2, iconv and zlib
+plus the system bcrypt library. XML definitions are loaded with `--whole-archive`
+to satisfy dllimport references in the prebuilt LLVM archive. `-static` alone
+does not replace an imported target's explicit `.dll.a` path.
 
 `NativeCompiler` clones the module, sets the host triple/DataLayout and emits a PIC
 object. Clang Driver constructs one platform linker job, which is dispatched to

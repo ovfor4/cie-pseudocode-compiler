@@ -129,6 +129,8 @@ version; check that it is 23. Windows builds have only been reviewed statically.
 
 The `clang-tools-extra` package is required because MSYS2's `ClangTargets.cmake` checks the extra-tool archives, including `libclangApplyReplacements.a`, when loading the Clang development package, even though cpsc does not invoke those tools.
 
+LLD's Windows manifest support also uses libxml2. cpsc explicitly selects `libxml2.a` and its static iconv/zlib dependencies; the package's default `libxml2.dll.a` import library would retain a DLL dependency even with `-static`. The XML archive is loaded in full so LLD can resolve the prebuilt LLVM archive's `dllimport` references to local definitions. Nightly checks the compiler's PE import table for non-system DLLs before running the package with a restricted PATH.
+
 ### macOS (Homebrew)
 
 Install the Xcode Command Line Tools for the macOS SDK, make and package

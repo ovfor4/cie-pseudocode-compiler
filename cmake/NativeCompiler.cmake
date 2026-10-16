@@ -74,6 +74,21 @@ target_sources(cpsc PRIVATE tools/driver/NativeCompiler.cc)
 target_include_directories(cpsc PRIVATE ${CLANG_INCLUDE_DIRS} ${LLD_INCLUDE_DIRS}
     "${CMAKE_BINARY_DIR}/native-runtime")
 target_link_libraries(cpsc PRIVATE clangDriver ${cpsc_linker_libraries})
+if(MINGW AND TARGET LibXml2::LibXml2)
+    # LLD's COFF manifest support reaches libxml2 through LLVMWindowsManifest.
+    # An explicit .dll.a in that interface bypasses the driver's -static flag.
+    cpsc_find_dependency(LIBRARY CPSC_STATIC_xml2 REQUIRED NAMES libxml2.a)
+    cpsc_find_dependency(LIBRARY CPSC_STATIC_iconv REQUIRED NAMES libiconv.a)
+    add_library(CPSCStaticXML2 INTERFACE)
+    # The prebuilt LLVM archive uses dllimport references. Load XML definitions
+    # before LLD resolves those references to local symbols.
+    target_link_libraries(CPSCStaticXML2 INTERFACE
+        -Wl,--whole-archive "${CPSC_STATIC_xml2}" -Wl,--no-whole-archive
+        "${CPSC_STATIC_iconv}" "${CPSC_STATIC_z}" bcrypt)
+    get_target_property(cpsc_manifest_libs LLVMWindowsManifest INTERFACE_LINK_LIBRARIES)
+    list(TRANSFORM cpsc_manifest_libs REPLACE "^LibXml2::LibXml2$" CPSCStaticXML2)
+    set_property(TARGET LLVMWindowsManifest PROPERTY INTERFACE_LINK_LIBRARIES "${cpsc_manifest_libs}")
+endif()
 # Distribution Clang/LLD archives can still name the shared LLVM umbrella
 # library in their imported interfaces. Resolve those edges to static archives.
 add_library(CPSCStaticLLVM INTERFACE)

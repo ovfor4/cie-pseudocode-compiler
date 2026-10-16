@@ -217,6 +217,7 @@ jobs:
             mingw-w64-x86_64-python
             mingw-w64-x86_64-libffi
             mingw-w64-x86_64-libxml2
+            mingw-w64-x86_64-libiconv
             mingw-w64-x86_64-zlib
             mingw-w64-x86_64-zstd
 
@@ -238,6 +239,26 @@ jobs:
             -DLLVM_DIR="$(cygpath -m /mingw64/lib/cmake/llvm)" \
             -DCMAKE_PREFIX_PATH="$(cygpath -m /mingw64)"
           cmake --build build --target release --parallel 4
+
+      - name: Check Windows runtime dependencies
+        shell: msys2 {0}
+        run: |
+          llvm-readobj --coff-imports build/cpsc.exe > build/windows-imports.txt
+          imports=$(sed -n 's/^  Name: //p' build/windows-imports.txt | tr -d '\r')
+          test -n "$imports"
+          windows_root=$(cygpath -u "$SYSTEMROOT")
+          while IFS= read -r library; do
+            echo "Runtime dependency: $library"
+            case "${library,,}" in
+              api-ms-win-*.dll|ext-ms-win-*.dll) ;;
+              *)
+                if [[ ! -f "$windows_root/System32/$library" ]]; then
+                  echo "Unexpected runtime dependency: $library" >&2
+                  exit 1
+                fi
+                ;;
+            esac
+          done <<< "$imports"
 
       - name: Smoke test the packaged compiler
         shell: pwsh
