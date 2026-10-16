@@ -78,6 +78,7 @@ pacman -S --needed \
   mingw-w64-x86_64-cmake \
   mingw-w64-x86_64-make \
   mingw-w64-x86_64-clang \
+  mingw-w64-x86_64-clang-tools-extra \
   mingw-w64-x86_64-python
 ```
 
@@ -109,6 +110,7 @@ Recommended dependency downloads to the project build directory:
 mkdir -p build/deps/packages
 pacman -Sw --noconfirm --cachedir "$PWD/build/deps/packages" \
   mingw-w64-x86_64-clang \
+  mingw-w64-x86_64-clang-tools-extra \
   mingw-w64-x86_64-llvm \
   mingw-w64-x86_64-llvm-libs \
   mingw-w64-x86_64-llvm-tools \
@@ -124,6 +126,8 @@ pacman -Sw --noconfirm --cachedir "$PWD/build/deps/packages" \
 already installed dependencies are also downloaded. CMake keeps the packages'
 `mingw64/` layout under `build/deps/root/`. MSYS2 supplies its current LLVM
 version; check that it is 23. Windows builds have only been reviewed statically.
+
+The `clang-tools-extra` package is required because MSYS2's `ClangTargets.cmake` checks the extra-tool archives, including `libclangApplyReplacements.a`, when loading the Clang development package, even though cpsc does not invoke those tools.
 
 ### macOS (Homebrew)
 
