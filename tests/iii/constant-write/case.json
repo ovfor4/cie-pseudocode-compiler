@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "Constant\\ Limit\\ is\\ not\\ a\\ writable\\ location",
+      "line": 2
+    }
+  ]
+}

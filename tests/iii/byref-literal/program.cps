@@ -1,0 +1,4 @@
+PROCEDURE Change(BYREF X : INTEGER)
+    X <- X + 1
+ENDPROCEDURE
+CALL Change(7)

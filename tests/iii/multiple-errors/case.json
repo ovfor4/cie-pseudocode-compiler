@@ -1,0 +1,12 @@
+{
+  "errors": [
+    {
+      "reason": "Unterminated\\ string\\ literal",
+      "line": 1
+    },
+    {
+      "reason": "Expected\\ ':'\\ after\\ variable\\ name",
+      "line": 2
+    }
+  ]
+}

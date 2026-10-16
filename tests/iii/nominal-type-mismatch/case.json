@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "Cannot\\ use\\ a\\ value\\ of\\ type\\ First\\ where\\ Second\\ is\\ expected",
+      "line": 7
+    }
+  ]
+}

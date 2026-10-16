@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "expected\\ ENDIF",
+      "line": 4
+    }
+  ]
+}

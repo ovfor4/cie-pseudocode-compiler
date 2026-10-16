@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "Expected\\ ':'\\ after\\ variable\\ name",
+      "line": 2
+    }
+  ]
+}
