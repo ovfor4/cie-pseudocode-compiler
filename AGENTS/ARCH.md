@@ -156,6 +156,9 @@ The helper's build-time linker can use the installed LLVM dylib; cpsc still link
 the LLD archives and static LLVM components.
 Both macOS configurations explicitly select the SDK with `CMAKE_OSX_SYSROOT`
 before compiler detection, so imported SDK include paths do not precede libc++.
+The macOS job updates Homebrew and upgrades LLVM 23 before building LLD. It checks
+that clangDriver defines `AMDGPU::setArchNameInTriple` to reject older bottles
+corrupted by Homebrew's duplicate-member LTO conversion (homebrew-core #301252).
 
 Windows build instructions retain MSYS2 MINGW64. Its LLVM/Clang package names
 and compiler executable names are unversioned; CMake still requires major 23.

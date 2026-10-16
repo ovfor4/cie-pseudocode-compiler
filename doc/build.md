@@ -138,8 +138,12 @@ relocation tools with `xcode-select --install` if needed. The LLVM bottle below
 provides Clang 23. Install the build tools and LLVM SDK with Homebrew:
 
 ```bash
+brew update
 brew install cmake python llvm@23
+brew upgrade llvm@23
 ```
+
+Use an updated Homebrew LLVM 23 bottle. The original 23.1.0 bottle could lose one of the two `AMDGPU.cpp.o` members in `libclangDriver.a` during LTO conversion, causing an undefined `AMDGPU::setArchNameInTriple` at link time. Homebrew [fixed the archive conversion](https://github.com/Homebrew/homebrew-core/commit/7dd3210dd39afab6bad379cff8348a7c048119d1); updating formula metadata and upgrading LLVM avoids reusing the broken runner installation. Refresh any downloaded LLVM bottle too.
 
 Recommended binary-bottle downloads to the build directory:
 

@@ -123,8 +123,17 @@ jobs:
       - name: Install LLVM 23 and packaging dependencies
         run: |
           test "$(uname -m)" = arm64
+          brew update
           brew install llvm@23 pandoc zlib zstd ncurses python
-          test -x "$(brew --prefix llvm@23)/bin/clang++"
+          brew upgrade llvm@23
+          llvm_prefix=$(brew --prefix llvm@23)
+          test -x "$llvm_prefix/bin/clang++"
+          "$llvm_prefix/bin/llvm-nm" --defined-only --demangle \
+            "$llvm_prefix/lib/libclangDriver.a" > "$RUNNER_TEMP/clang-driver-symbols.txt"
+          if ! grep -F 'clang::driver::tools::AMDGPU::setArchNameInTriple(' "$RUNNER_TEMP/clang-driver-symbols.txt"; then
+            echo 'LLVM static archive is incomplete; install a Homebrew bottle with the duplicate-member fix.' >&2
+            exit 1
+          fi
 
       - name: Build matching static LLD libraries
         run: |
