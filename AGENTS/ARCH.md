@@ -245,8 +245,10 @@ Windows system directories, excluding MSYS2 and LLVM. The macOS check also
 verifies arm64 and rejects non-system dynamic libraries. The plugin uses
 Node.js 22, `npm ci --ignore-scripts` and
 `npm run package`, then checks VSIX contents. Each job uploads directly after
-its own checks pass; failure in one does not block the others. No Actions
-artifacts are uploaded.
+its own checks pass; failure in one does not block the others. Compiler jobs enable
+BUILD_TESTING, install Perl and run all CTest cases with the push SHA as seed before
+their package smoke checks and uploads. Failed tests retain inputs and logs as
+Actions artifacts for 14 days; test summaries appear even on failure. See TESTING.md.
 Cleanup and uploads check main's current SHA to avoid modifying nightly for a
 superseded push. The workflow uses `GITHUB_TOKEN` with `contents: write`.
 Compiler package names retain the existing commit-based version; the VSIX uses

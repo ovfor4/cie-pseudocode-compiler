@@ -60,16 +60,36 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake clang-23 llvm-23-dev lld-23 \
-            libclang-23-dev liblld-23-dev libpolly-23-dev python3 \
+            libclang-23-dev liblld-23-dev libpolly-23-dev python3 perl \
             zlib1g-dev libzstd-dev libncurses-dev libedit-dev pandoc
 
       - name: Build the embedded release package
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release -DCPSC_RUN_MODE=EMBEDDED \
+            -DBUILD_TESTING=ON -DCPSC_TEST_SEED="$GITHUB_SHA" \
             -DCMAKE_C_COMPILER=clang-23 -DCMAKE_CXX_COMPILER=clang++-23 \
             -DLLVM_DIR=/usr/lib/llvm-23/lib/cmake/llvm
+          cmake --build build --parallel 4
           cmake --build build --target release --parallel 4
+
+      - name: Test compiler semantics, differential output and diagnostics
+        id: compiler-tests
+        run: ctest --test-dir build --output-on-failure --parallel 2
+
+      - name: Summarize compiler tests
+        if: ${{ !cancelled() && (steps.compiler-tests.outcome == 'success' || steps.compiler-tests.outcome == 'failure') }}
+        run: python3 tests/summarize.py build/test-results
+
+      - name: Retain failed compiler test inputs and logs
+        if: ${{ failure() && steps.compiler-tests.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: compiler-tests-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          path: |
+            build/test-results/
+            build/Testing/Temporary/
+          retention-days: 14
 
       - name: Smoke test the packaged compiler
         run: |
@@ -124,7 +144,7 @@ jobs:
         run: |
           test "$(uname -m)" = arm64
           brew update
-          brew install llvm@23 pandoc zlib zstd ncurses python
+          brew install llvm@23 pandoc zlib zstd ncurses python perl
           brew upgrade llvm@23
           llvm_prefix=$(brew --prefix llvm@23)
           test -x "$llvm_prefix/bin/clang++"
@@ -147,13 +167,33 @@ jobs:
           ncurses_prefix=$(brew --prefix ncurses)
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release -DCPSC_RUN_MODE=EMBEDDED \
+            -DBUILD_TESTING=ON -DCPSC_TEST_SEED="$GITHUB_SHA" \
             -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
             -DCMAKE_OSX_SYSROOT="$(xcrun --show-sdk-path)" \
             -DCMAKE_C_COMPILER="$llvm_prefix/bin/clang" \
             -DCMAKE_CXX_COMPILER="$llvm_prefix/bin/clang++" \
             -DLLVM_DIR="$llvm_prefix/lib/cmake/llvm" \
             -DCMAKE_PREFIX_PATH="$llvm_prefix;$zlib_prefix;$zstd_prefix;$ncurses_prefix"
+          cmake --build build --parallel 3
           cmake --build build --target release --parallel 3
+
+      - name: Test compiler semantics, differential output and diagnostics
+        id: compiler-tests
+        run: ctest --test-dir build --output-on-failure --parallel 2
+
+      - name: Summarize compiler tests
+        if: ${{ !cancelled() && (steps.compiler-tests.outcome == 'success' || steps.compiler-tests.outcome == 'failure') }}
+        run: python3 tests/summarize.py build/test-results
+
+      - name: Retain failed compiler test inputs and logs
+        if: ${{ failure() && steps.compiler-tests.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: compiler-tests-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          path: |
+            build/test-results/
+            build/Testing/Temporary/
+          retention-days: 14
 
       - name: Smoke test the packaged compiler
         run: |
@@ -217,6 +257,7 @@ jobs:
           install: >-
             curl
             git
+            perl
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-make
             mingw-w64-x86_64-clang
@@ -243,10 +284,12 @@ jobs:
         run: |
           cmake -S . -B build -G "MinGW Makefiles" \
             -DCMAKE_BUILD_TYPE=Release -DCPSC_RUN_MODE=EMBEDDED \
+            -DBUILD_TESTING=ON -DCPSC_TEST_SEED="$GITHUB_SHA" \
             -DCMAKE_C_COMPILER="$(cygpath -m /mingw64/bin/clang.exe)" \
             -DCMAKE_CXX_COMPILER="$(cygpath -m /mingw64/bin/clang++.exe)" \
             -DLLVM_DIR="$(cygpath -m /mingw64/lib/cmake/llvm)" \
             -DCMAKE_PREFIX_PATH="$(cygpath -m /mingw64)"
+          cmake --build build --parallel 4
           cmake --build build --target release --parallel 4
 
       - name: Check Windows runtime dependencies
@@ -268,6 +311,26 @@ jobs:
                 ;;
             esac
           done <<< "$imports"
+
+      - name: Test compiler semantics, differential output and diagnostics
+        id: compiler-tests
+        shell: msys2 {0}
+        run: ctest --test-dir build --output-on-failure --parallel 2
+
+      - name: Summarize compiler tests
+        if: ${{ !cancelled() && (steps.compiler-tests.outcome == 'success' || steps.compiler-tests.outcome == 'failure') }}
+        shell: msys2 {0}
+        run: python3 tests/summarize.py build/test-results
+
+      - name: Retain failed compiler test inputs and logs
+        if: ${{ failure() && steps.compiler-tests.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: compiler-tests-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          path: |
+            build/test-results/
+            build/Testing/Temporary/
+          retention-days: 14
 
       - name: Smoke test the packaged compiler
         shell: pwsh

@@ -1,9 +1,12 @@
+cpsc_find_dependency(PROGRAM PERL_EXECUTABLE NAMES perl REQUIRED)
 find_package(Perl REQUIRED)
 set(CPSC_TEST_SEED "" CACHE STRING "Replay seed (defaults to HEAD at test execution)")
 set(CPSC_TEST_COUNT 10000 CACHE STRING "Random records per differential group")
 
 add_test(NAME harness COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_runner.py")
+add_test(NAME generators COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/check_generators.py" "${PERL_EXECUTABLE}")
 foreach(suite i ii iii)
     file(GLOB cases CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${suite}/*/case.json")
     foreach(manifest IN LISTS cases)

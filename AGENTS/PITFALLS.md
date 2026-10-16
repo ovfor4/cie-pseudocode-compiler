@@ -108,7 +108,8 @@ random files (OPENFILE...FOR RANDOM/SEEK/GETRECORD/PUTRECORD — TYPE is done, s
 are unblocked now; the RANDOM keyword is reserved and gives a dedicated parse error),
 DATE, INPUT into array elements, string escape sequences,
 array-typed record fields, whole-array RETURN, class methods/constructors/destructors,
-NEW and class inheritance. There is no dedicated compiler test suite; nightly CI
-smoke-tests the packaged EMBEDDED compiler and runs the existing plugin tests.
-Verify compiler changes by compiling sample programs end-to-end (command
-sequence in `ARCH.md`).
+NEW and class inheritance. Compiler fixtures now live in `tests/` (see TESTING.md).
+Nightly CI runs the compiler suites, packaged EMBEDDED smoke checks and existing
+plugin tests. The initial compiler suite intentionally exposes existing standard
+conflicts and missing diagnostic locations; see `tests/FAILURES.md` before interpreting
+a failing baseline. Keep those failures visible until their implementations are fixed.

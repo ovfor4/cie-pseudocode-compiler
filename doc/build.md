@@ -31,6 +31,9 @@ If you use a different CMake build directory, download into its `deps/packages/`
 instead. Removing the build directory also removes its downloaded dependencies.
 
 All three execution modes need LLVM, Clang and LLD 23 development libraries, Python 3.9 or newer, and the native C/C++ development libraries to build, including `NONE`. Users of an `EMBEDDED` executable do not need LLVM or `lli`.
+
+Compiler tests are optional (`-DBUILD_TESTING=ON`) and additionally need Perl with its core Digest::SHA module. See [the test instructions](../tests/README.md) for running CTest and replaying random inputs. CI enables the complete suite on every compiler platform.
+
 CMake strictly requires LLVM development libraries and both C/C++ compilers to
 have major version 23. The compilers must be upstream Clang; GCC and AppleClang
 are rejected. Any 23.x release is accepted; 22 and 24 are rejected. LLVM/Clang
