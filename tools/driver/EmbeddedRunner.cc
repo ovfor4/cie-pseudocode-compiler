@@ -354,6 +354,17 @@ int runEmbedded(const cps::CodeGen &CG) {
     }
     std::unique_ptr<llvm::orc::LLJIT> J = std::move(*JITOrErr);
 
+    // LLJIT's default layer sets these for COFF; our custom JITLink layer
+    // must do the same or IR-added modules report Unexpected definitions
+    // for backend-added symbols like __ImageBase.
+    if (J->getTargetTriple().isOSBinFormatCOFF()) {
+        if (auto *COFFObjLayer = llvm::dyn_cast<llvm::orc::ObjectLinkingLayer>(
+                &J->getObjLinkingLayer())) {
+            COFFObjLayer->setOverrideObjectFlagsWithResponsibilityFlags(true);
+            COFFObjLayer->setAutoClaimResponsibilityForObjectSymbols(true);
+        }
+    }
+
 #if defined(_WIN32) && defined(__x86_64__)
     // Register MinGW SEH tables through JITLink; failures surface as link
     // errors below and prevent entry to JIT code.
