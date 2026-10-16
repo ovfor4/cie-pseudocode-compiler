@@ -448,7 +448,7 @@ int runEmbedded(const cps::CodeGen &CG) {
                         continue;
                     bool Used = false;
                     for (auto &F : M.functions()) {
-                        if (F.getPersonalityFn() &&
+                        if (F.hasPersonalityFn() &&
                             F.getPersonalityFn()->stripPointerCasts() == Real) {
                             Used = true;
                             break;
@@ -469,7 +469,7 @@ int runEmbedded(const cps::CodeGen &CG) {
                     C->setTailCall();
                     B.CreateRet(C);
                     for (auto &F : M.functions()) {
-                        if (F.getPersonalityFn() &&
+                        if (F.hasPersonalityFn() &&
                             F.getPersonalityFn()->stripPointerCasts() == Real)
                             F.setPersonalityFn(Fwd);
                     }
