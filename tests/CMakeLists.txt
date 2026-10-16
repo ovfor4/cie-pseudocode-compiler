@@ -3,8 +3,8 @@ find_package(Perl REQUIRED)
 set(CPSC_TEST_SEED "" CACHE STRING "Replay seed (defaults to HEAD at test execution)")
 set(CPSC_TEST_COUNT 10000 CACHE STRING "Random records per differential group")
 
-add_test(NAME harness COMMAND "${Python3_EXECUTABLE}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/test_runner.py")
+add_test(NAME harness COMMAND "${PERL_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_runner.pl")
 add_test(NAME generators COMMAND "${PERL_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/check_generators.pl" "${PERL_EXECUTABLE}")
 foreach(suite i ii iii)
