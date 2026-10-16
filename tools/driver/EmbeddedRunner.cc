@@ -1,14 +1,12 @@
 #include "EmbeddedRunner.h"
 #include "cps/CodeGen.h"
-#include "llvm/ExecutionEngine/ExecutionEngine.h"
-#include "llvm/ExecutionEngine/MCJIT.h"
+#include "llvm/ExecutionEngine/Orc/AbsoluteSymbols.h"
+#include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
+#include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
-#include "llvm/Support/DynamicLibrary.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/TargetParser/Host.h"
-#include "llvm/TargetParser/Triple.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Transforms/Utils/Cloning.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cxxabi.h>
@@ -24,8 +22,7 @@
 
 namespace {
 
-// RuntimeDyld relocates COFF unwind entries relative to the lowest loaded
-// section. Keep sections together and give Windows that same image base.
+// Kept for the follow-up Windows JITLink SEH work; unused by the LLJIT path.
 class WindowsJITMemoryManager final : public llvm::SectionMemoryManager {
     uintptr_t ImageBase = std::numeric_limits<uintptr_t>::max();
     std::vector<PRUNTIME_FUNCTION> FunctionTables;
@@ -82,7 +79,7 @@ public:
 } // namespace
 #endif
 
-// Static runtime symbols are not available through dlsym. Register their
+// Static runtime symbols are not available through dlsym. Provide their
 // actual addresses so the JIT and its unwind tables use the host's runtime.
 extern "C" int
 #if defined(__SEH__)
@@ -94,27 +91,53 @@ __gxx_personality_v0
 #endif
 (int, _Unwind_Action, _Unwind_Exception_Class, _Unwind_Exception *, _Unwind_Context *);
 
-static void registerRuntimeSymbols() {
-    using llvm::sys::DynamicLibrary;
+#ifdef _WIN32
+extern "C" void __cps_jit_noop__main() {}
+#endif
+
+static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
+    llvm::orc::SymbolMap Symbols;
+    auto Intern = [&](llvm::StringRef Name) { return J.mangleAndIntern(Name); };
+    using llvm::orc::ExecutorSymbolDef;
+    Symbols[Intern("__cxa_allocate_exception")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_allocate_exception);
+    Symbols[Intern("__cxa_throw")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_throw);
+    Symbols[Intern("__cxa_begin_catch")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_begin_catch);
+    Symbols[Intern("__cxa_end_catch")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_end_catch);
+    Symbols[Intern("_ZTIi")] = ExecutorSymbolDef::fromPtr(
+        const_cast<std::type_info *>(&typeid(int)));
+#if defined(__SEH__)
+    Symbols[Intern("__gxx_personality_seh0")] =
+        ExecutorSymbolDef::fromPtr(&__gxx_personality_seh0);
+#elif defined(__USING_SJLJ_EXCEPTIONS__)
+    Symbols[Intern("__gxx_personality_sj0")] =
+        ExecutorSymbolDef::fromPtr(&__gxx_personality_sj0);
+    Symbols[Intern("_Unwind_SjLj_Resume")] =
+        ExecutorSymbolDef::fromPtr(&_Unwind_SjLj_Resume);
+#else
+    Symbols[Intern("__gxx_personality_v0")] =
+        ExecutorSymbolDef::fromPtr(&__gxx_personality_v0);
+#endif
+    Symbols[Intern("_Unwind_Resume")] =
+        ExecutorSymbolDef::fromPtr(&_Unwind_Resume);
 #ifdef __MINGW32__
     // Use the same CRT aliases as native IR linking, including its stdio formatting.
-    DynamicLibrary::AddSymbol("snprintf", reinterpret_cast<void *>(&__ms_snprintf));
-    DynamicLibrary::AddSymbol("strtoll", reinterpret_cast<void *>(&std::strtoll));
+    Symbols[Intern("snprintf")] =
+        ExecutorSymbolDef::fromPtr(&__ms_snprintf);
+    Symbols[Intern("strtoll")] =
+        ExecutorSymbolDef::fromPtr(&std::strtoll);
 #endif
-    DynamicLibrary::AddSymbol("__cxa_allocate_exception", reinterpret_cast<void *>(&__cxxabiv1::__cxa_allocate_exception));
-    DynamicLibrary::AddSymbol("__cxa_throw", reinterpret_cast<void *>(&__cxxabiv1::__cxa_throw));
-    DynamicLibrary::AddSymbol("__cxa_begin_catch", reinterpret_cast<void *>(&__cxxabiv1::__cxa_begin_catch));
-    DynamicLibrary::AddSymbol("__cxa_end_catch", reinterpret_cast<void *>(&__cxxabiv1::__cxa_end_catch));
-    DynamicLibrary::AddSymbol("_ZTIi", const_cast<std::type_info *>(&typeid(int)));
-#if defined(__SEH__)
-    DynamicLibrary::AddSymbol("__gxx_personality_seh0", reinterpret_cast<void *>(&__gxx_personality_seh0));
-#elif defined(__USING_SJLJ_EXCEPTIONS__)
-    DynamicLibrary::AddSymbol("__gxx_personality_sj0", reinterpret_cast<void *>(&__gxx_personality_sj0));
-    DynamicLibrary::AddSymbol("_Unwind_SjLj_Resume", reinterpret_cast<void *>(&_Unwind_SjLj_Resume));
-#else
-    DynamicLibrary::AddSymbol("__gxx_personality_v0", reinterpret_cast<void *>(&__gxx_personality_v0));
+#ifdef _WIN32
+    // The JIT-generated main references __main on MinGW; provide a no-op so
+    // the host CRT is not initialized a second time.
+    Symbols[Intern("__main")] =
+        ExecutorSymbolDef::fromPtr(&__cps_jit_noop__main);
 #endif
-    DynamicLibrary::AddSymbol("_Unwind_Resume", reinterpret_cast<void *>(&_Unwind_Resume));
+    return J.getMainJITDylib().define(
+        llvm::orc::absoluteSymbols(std::move(Symbols)));
 }
 
 int runEmbedded(const cps::CodeGen &CG) {
@@ -122,54 +145,84 @@ int runEmbedded(const cps::CodeGen &CG) {
         llvm::errs() << "error: cannot initialize the embedded LLVM target\n";
         return 1;
     }
-    std::string Error;
-    if (llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr, &Error)) {
-        llvm::errs() << "error: cannot load process symbols: " << Error << "\n";
+
+    auto JTMBOrErr = llvm::orc::JITTargetMachineBuilder::detectHost();
+    if (!JTMBOrErr) {
+        llvm::errs() << "error: cannot detect the embedded JIT target: "
+                     << llvm::toString(JTMBOrErr.takeError()) << "\n";
         return 1;
     }
-    registerRuntimeSymbols();
-    // Keep CodeGen's module and context alive while the engine owns its clone.
-    auto Module = llvm::CloneModule(CG.getModule());
-    Module->setTargetTriple(llvm::Triple(llvm::sys::getProcessTriple()));
-    llvm::EngineBuilder Builder(std::move(Module));
-    Builder.setEngineKind(llvm::EngineKind::JIT);
-    Builder.setErrorStr(&Error);
-#ifdef __APPLE__
-    // MCJIT registers DWARF frames, not Darwin's compact unwind records.
-    llvm::TargetOptions Options;
-    Options.MCOptions.EmitDwarfUnwind = llvm::EmitDwarfUnwindType::Always;
-    Builder.setTargetOptions(Options);
-#endif
-#if defined(_WIN32) && defined(__x86_64__)
-    auto MemoryManager = std::make_unique<WindowsJITMemoryManager>();
-    auto *WindowsMemory = MemoryManager.get();
-    Builder.setMCJITMemoryManager(std::move(MemoryManager));
-#else
-    Builder.setMCJITMemoryManager(std::make_unique<llvm::SectionMemoryManager>());
-#endif
-    std::unique_ptr<llvm::ExecutionEngine> Engine(Builder.create());
-    if (!Engine) {
-        llvm::errs() << "error: cannot create the embedded LLVM engine: " << Error << "\n";
+    JTMBOrErr->setCodeModel(llvm::CodeModel::Small);
+    JTMBOrErr->setRelocationModel(llvm::Reloc::PIC_);
+
+    llvm::orc::LLJITBuilder Builder;
+    Builder.setJITTargetMachineBuilder(std::move(*JTMBOrErr));
+    // Use JITLink explicitly so Windows COFF does not fall back to RuntimeDyld.
+    Builder.setObjectLinkingLayerCreator(
+        [](llvm::orc::ExecutionSession &ES,
+           llvm::jitlink::JITLinkMemoryManager &MM)
+            -> llvm::Expected<std::unique_ptr<llvm::orc::ObjectLayer>> {
+            return std::make_unique<llvm::orc::ObjectLinkingLayer>(ES, MM);
+        });
+
+    auto JITOrErr = Builder.create();
+    if (!JITOrErr) {
+        llvm::errs() << "error: cannot create the embedded LLVM engine: "
+                     << llvm::toString(JITOrErr.takeError()) << "\n";
         return 1;
     }
-    Engine->finalizeObject();
-#if defined(_WIN32) && defined(__x86_64__)
-    // MCJIT does not propagate memory-manager registration failures.
-    if (!WindowsMemory->getError().empty()) {
+    std::unique_ptr<llvm::orc::LLJIT> J = std::move(*JITOrErr);
+
+    if (auto Err = defineRuntimeSymbols(*J)) {
+        llvm::errs() << "error: cannot define embedded runtime symbols: "
+                     << llvm::toString(std::move(Err)) << "\n";
+        return 1;
+    }
+
+    // Keep CodeGen's module and context alive; the JIT owns an independent copy.
+    llvm::orc::ThreadSafeContext TSCtx(std::make_unique<llvm::LLVMContext>());
+    llvm::orc::ThreadSafeModule TSM =
+        llvm::orc::cloneExternalModuleToContext(CG.getModule(), TSCtx);
+    if (!TSM) {
+        llvm::errs() << "error: cannot clone the embedded module for JIT execution\n";
+        return 1;
+    }
+    if (auto Err = TSM.withModuleDo([&](llvm::Module &M) -> llvm::Error {
+            M.setTargetTriple(J->getTargetTriple());
+            M.setDataLayout(J->getDataLayout());
+            return llvm::Error::success();
+        })) {
+        llvm::errs() << "error: cannot configure the embedded JIT module: "
+                     << llvm::toString(std::move(Err)) << "\n";
+        return 1;
+    }
+
+    if (auto Err = J->addIRModule(J->getMainJITDylib(), std::move(TSM))) {
         llvm::errs() << "error: embedded LLVM execution failed: "
-                     << WindowsMemory->getError() << "\n";
+                     << llvm::toString(std::move(Err)) << "\n";
         return 1;
     }
-#endif
-    if (Engine->hasError()) {
-        llvm::errs() << "error: embedded LLVM execution failed: " << Engine->getErrorMessage() << "\n";
+    if (auto Err = J->initialize(J->getMainJITDylib())) {
+        llvm::errs() << "error: embedded LLVM execution failed: "
+                     << llvm::toString(std::move(Err)) << "\n";
         return 1;
     }
-    auto MainAddress = Engine->getFunctionAddress("main");
-    if (!MainAddress) {
-        llvm::errs() << "error: embedded LLVM could not resolve main\n";
+
+    auto MainSymOrErr = J->lookup("main");
+    if (!MainSymOrErr) {
+        llvm::errs() << "error: embedded LLVM could not resolve main: "
+                     << llvm::toString(MainSymOrErr.takeError()) << "\n";
         return 1;
     }
-    auto Main = reinterpret_cast<int (*)()>(MainAddress);
-    return Main();
+    auto Main = MainSymOrErr->toPtr<int (*)()>();
+    int ExitCode = Main();
+
+    // Run platform deinitializers while JIT code is still mapped; frame
+    // deregistration runs when the JIT releases its memory below.
+    if (auto Err = J->deinitialize(J->getMainJITDylib())) {
+        llvm::errs() << "error: embedded LLVM execution failed: "
+                     << llvm::toString(std::move(Err)) << "\n";
+        return 1;
+    }
+    return ExitCode;
 }
