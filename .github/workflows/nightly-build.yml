@@ -79,7 +79,7 @@ jobs:
 
       - name: Summarize compiler tests
         if: ${{ !cancelled() && (steps.compiler-tests.outcome == 'success' || steps.compiler-tests.outcome == 'failure') }}
-        run: python3 tests/summarize.py build/test-results
+        run: perl tests/summarize.pl build/test-results
 
       - name: Retain failed compiler test inputs and logs
         if: ${{ failure() && steps.compiler-tests.outcome == 'failure' }}
@@ -183,7 +183,7 @@ jobs:
 
       - name: Summarize compiler tests
         if: ${{ !cancelled() && (steps.compiler-tests.outcome == 'success' || steps.compiler-tests.outcome == 'failure') }}
-        run: python3 tests/summarize.py build/test-results
+        run: perl tests/summarize.pl build/test-results
 
       - name: Retain failed compiler test inputs and logs
         if: ${{ failure() && steps.compiler-tests.outcome == 'failure' }}
@@ -320,7 +320,7 @@ jobs:
       - name: Summarize compiler tests
         if: ${{ !cancelled() && (steps.compiler-tests.outcome == 'success' || steps.compiler-tests.outcome == 'failure') }}
         shell: msys2 {0}
-        run: python3 tests/summarize.py build/test-results
+        run: perl tests/summarize.pl build/test-results
 
       - name: Retain failed compiler test inputs and logs
         if: ${{ failure() && steps.compiler-tests.outcome == 'failure' }}
