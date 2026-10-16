@@ -6,8 +6,8 @@ below assumes those invariants.
 **New statement:** token in `Lexer.h` enum + keyword match in `Lexer.cc`'s if-chain →
 node class in `AST.h` or a feature header (`FunctionAST.h`/`FileAST.h` precedent;
 unique_ptr children, move ctor, raw-ptr getters) → `ParseXxx` in
-`Parser.cc` + branch in `ParseStatementImpl` (block statements parse their body with
-`ParseBlock({terminator tokens})`; comma-separated expression lists use
+the matching `Parser*.cc` file + branch in `ParseStatementImpl` (block statements parse their body with
+`ParseBlock({terminator tokens})`; control-flow parsers live in `ParserControlFlow.cc`; comma-separated expression lists use
 `ParseExprList(close, allowEmpty)`; add the new statement's leading keyword to
 `syncToStatementStart`) → `dynamic_cast` branch in `CodeGen::emitStmt`. Guard every
 fall-through branch in control-flow codegen with
@@ -32,7 +32,7 @@ STRING operands by pseudocode type then call `StringHandler::emitCompare`.
 **New builtin type:** register in `TypeSystem::registerBuiltins` (sizes are derived —
 never hand-written) + `TypeKind` case in the **exhaustive, default-less switches**:
 `getZeroValue`, `coerceValueToType`, `emitOutputValue`, `TypeInfo::isOutputtable`,
-the INPUT branch in CodeGen + lexer keyword + `ParseTypeName` case. The compiler
+the INPUT branch in CodeGen + lexer keyword + `ParseTypeName` case in `ParserType.cc`. The compiler
 warns on a missing enumerator — that is the anti-silent-fall-through mechanism;
 never add a `default`.
 

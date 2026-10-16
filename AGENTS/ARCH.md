@@ -260,10 +260,11 @@ do not modify the real release for local verification.
 |---|---|
 | `include/cps/` | All headers, included as `"cps/Foo.h"` |
 | `lib/Lexer/Lexer.cc` | Entire lexer: one function, `Lexer::gettok()` |
-| `lib/Parser/Parser.cc` | Statements, expressions, designators, precedence table |
+| `lib/Parser/Parser.cc` | Entry point, statement dispatch, assignment parsing and error recovery |
+| `lib/Parser/ParserExpression.cc`, `ParserControlFlow.cc` | Expressions/designators and control-flow statement parsing |
 | `lib/Parser/ParserFunction.cc` | FUNCTION/PROCEDURE/CALL/RETURN + parameter-list parsing |
 | `lib/Parser/ParserFile.cc` | OPENFILE/READFILE/WRITEFILE/CLOSEFILE parsing |
-| `lib/Parser/ParserType.cc` | TYPE/ENDTYPE and CLASS/ENDCLASS declarations, shared field parsing, SET/DEFINE reserved stubs |
+| `lib/Parser/ParserType.cc` | Type names, variable/array declarations, TYPE/ENDTYPE and CLASS/ENDCLASS declarations, shared field parsing, SET/DEFINE reserved stubs |
 | `lib/CodeGen/CodeGen.cc` | Hub: dispatch, coercion, control flow, INPUT/OUTPUT, main() |
 | `lib/CodeGen/Designator.cc` | CodeGen methods for the TYPE system: type pre-pass, `emitLValue`/`loadFromLValue`, `emitCoercedExpr` gate, user-kind binary-op interception |
 | `lib/CodeGen/CTypeGen.cc` | CodeGen methods for native C scalar conversions, casts, arithmetic and input/output |

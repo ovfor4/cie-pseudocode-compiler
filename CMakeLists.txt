@@ -45,6 +45,8 @@ include_directories(include)
 add_library(CPSLexer STATIC lib/Lexer/Lexer.cc)
 add_library(CPSParser STATIC
     lib/Parser/Parser.cc
+    lib/Parser/ParserExpression.cc
+    lib/Parser/ParserControlFlow.cc
     lib/Parser/ParserFunction.cc
     lib/Parser/ParserFile.cc
     lib/Parser/ParserType.cc

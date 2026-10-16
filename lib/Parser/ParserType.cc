@@ -182,3 +182,118 @@ bool Parser::ParseRecordField(std::vector<RecordFieldDecl> &Out, bool IsPublic) 
     Out.push_back({FieldName, TypeName, IsPublic});
     return true;
 }
+
+std::string Parser::ParseTypeName(bool AllowVoid) {
+    switch (CurTok) {
+    case tok_c_int: getNextToken(); return "C_INT";
+    case tok_c_char: getNextToken(); return "C_CHAR";
+    case tok_c_string: getNextToken(); return "C_STRING";
+    case tok_c_double: getNextToken(); return "C_DOUBLE";
+    default: break;
+    }
+    if (CurTok == tok_integer_kw) {
+        getNextToken();
+        return "INTEGER";
+    }
+    if (CurTok == tok_real_kw) {
+        getNextToken();
+        return "REAL";
+    }
+    if (CurTok == tok_boolean_kw) {
+        getNextToken();
+        return "BOOLEAN";
+    }
+    if (CurTok == tok_string_kw) {
+        getNextToken();
+        return "STRING";
+    }
+    if (CurTok == tok_char_kw) {
+        getNextToken();
+        return "CHAR";
+    }
+    if (CurTok == tok_identifier) {
+        std::string TypeName = Lex.IdentifierStr;
+        if (!AllowVoid && TypeName == "VOID") {
+            fprintf(stderr, "error: VOID is not allowed here\n");
+            return "";
+        }
+        getNextToken();
+        return TypeName;
+    }
+
+    fprintf(stderr, "error: Unknown type name\n");
+    return "";
+}
+
+
+std::unique_ptr<StmtAST> Parser::ParseDeclare() {
+    getNextToken();
+    if (CurTok != tok_identifier) {
+        fprintf(stderr, "error: Expected identifier after DECLARE at line %d\n", Lex.getLine());
+        return nullptr;
+    }
+    std::string Name = Lex.IdentifierStr;
+    getNextToken();
+
+    if (CurTok != tok_colon) {
+        fprintf(stderr, "error: Expected ':' after variable name '%s' at line %d\n", Name.c_str(), Lex.getLine());
+        return nullptr;
+    }
+    getNextToken();
+    
+    if (CurTok == tok_array) {
+        getNextToken(); 
+        if (CurTok != '[') {
+            fprintf(stderr, "error: Expected '[' after ARRAY\n");
+            return nullptr;
+        }
+        getNextToken();
+        
+        std::vector<std::pair<std::unique_ptr<ExprAST>, std::unique_ptr<ExprAST>>> Bounds;
+        
+        while (true) {
+            auto Lower = ParseExpression();
+            if (!Lower) return nullptr;
+            
+            if (CurTok != tok_colon) {
+                fprintf(stderr, "error: Expected ':' in array range (e.g. 1:10)\n");
+                return nullptr;
+            }
+            getNextToken();
+            
+            auto Upper = ParseExpression();
+            if (!Upper) return nullptr;
+            
+            Bounds.push_back({std::move(Lower), std::move(Upper)});
+            
+            if (CurTok == ']') break;
+            if (CurTok == ',') {
+                getNextToken();
+                continue;
+            }
+            fprintf(stderr, "error: Expected ',' or ']' in array dims\n");
+            return nullptr;
+        }
+        getNextToken();
+        
+        if (CurTok != tok_of) {
+            fprintf(stderr, "error: Expected OF after array dims\n");
+            return nullptr;
+        }
+        getNextToken();
+
+        std::string TypeStr = ParseTypeName(false);
+        if (TypeStr.empty()) {
+            return nullptr;
+        }
+        
+        return std::make_unique<ArrayDeclareStmtAST>(Name, std::move(Bounds), TypeStr);
+    } 
+    else {
+        std::string TypeStr = ParseTypeName(false);
+        if (TypeStr.empty()) {
+            return nullptr;
+        }
+        return std::make_unique<DeclareStmtAST>(Name, TypeStr);
+    }
+}
