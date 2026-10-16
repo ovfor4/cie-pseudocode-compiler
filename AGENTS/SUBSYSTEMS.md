@@ -3,7 +3,9 @@
 Deep-dives on the CodeGen helper subsystems. (Invariants: `CONVENTIONS.md`;
 known bugs: `PITFALLS.md`.)
 
-**Arrays** (`ArrayHandler`): a DECLAREd array is one malloc'd flat buffer (memset to
+**Arrays** (`ArrayHandler`): allocation/indexing live in `ArrayHandler.cc`,
+parameter binding/arguments in `ArrayParameters.cc`, and output in `ArrayOutput.cc`.
+A DECLAREd array is one malloc'd flat buffer (memset to
 zero), row-major, any rank, any bounds. Bounds and multipliers are *SSA values* cached
 in `ArrayMetadata`; `ArrayTable` is scoped per function (`exchangeTable`, driven from
 CodeGen's `FunctionDefAST` branch, mirroring the Symbols discipline). Element sizes are
