@@ -149,20 +149,13 @@ public:
         // external __ImageBase to the lowest defined block once addresses
         // are final; a trailing zero block would push RVAs negative.
         Config.PostAllocationPasses.push_back([](LinkGraph &G) -> Error {
-            // LLJIT platform-support graphs define their own __ImageBase;
-            // only alias it when it is purely external (our module graph).
+            // A graph-local alias never collides at materialization time,
+            // no matter how many graphs define the same base name.
             if (G.findDefinedSymbolByName(G.intern("__ImageBase")))
                 return Error::success();
             auto *ImageBaseExt =
                 G.findExternalSymbolByName(G.intern("__ImageBase"));
             if (!ImageBaseExt)
-                return Error::success();
-            // Platform graphs carry LLJIT-internal symbols; leave their
-            // own base alone or materialization sees it twice.
-            if (G.findDefinedSymbolByName(
-                    G.intern("__lljit.platform_support_instance")) ||
-                G.findExternalSymbolByName(
-                    G.intern("__lljit.platform_support_instance")))
                 return Error::success();
             jitlink::Block *Low = nullptr;
             for (auto &Sec : G.sections()) {
@@ -175,7 +168,7 @@ public:
                 return make_error<JITLinkError>(
                     "missing embedded __ImageBase content");
             G.makeDefined(*ImageBaseExt, *Low, 0, 8, Linkage::Strong,
-                          Scope::Default, true);
+                          Scope::Local, true);
             return Error::success();
         });
 
