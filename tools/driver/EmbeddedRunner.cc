@@ -149,6 +149,10 @@ public:
         // external __ImageBase to the lowest defined block once addresses
         // are final; a trailing zero block would push RVAs negative.
         Config.PostAllocationPasses.push_back([](LinkGraph &G) -> Error {
+            // LLJIT platform-support graphs define their own __ImageBase;
+            // only alias it when it is purely external (our module graph).
+            if (G.findDefinedSymbolByName(G.intern("__ImageBase")))
+                return Error::success();
             auto *ImageBaseExt =
                 G.findExternalSymbolByName(G.intern("__ImageBase"));
             if (!ImageBaseExt)
