@@ -4,7 +4,6 @@
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
 #include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
-#include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/TargetSelect.h"
 #include <cstdio>
@@ -120,13 +119,32 @@ public:
         // SEH table liveness relies on the COFF backend's default
         // SEHFrameKeepAlivePass(".pdata"), which keeps .pdata alive from its
         // referenced function/unwind blocks. No custom PrePrune pass here.
-        // Build GOT/stub entries for externals. Host runtime calls reach
-        // their far addresses through these under the large code model.
+        // COFF unwind tables address the personality by 32-bit RVA, so it
+        // must live near JIT code. Retarget .xdata personality references
+        // to this graph's anonymous pointer jump stubs; the stub pointer
+        // itself uses a 64-bit relocation to reach the far host runtime.
+        // The same target reuses the same stub. Only personality symbols
+        // are rewritten here.
         Config.PostPrunePasses.push_back([](LinkGraph &G) -> Error {
+            auto *XDataSec = G.findSectionByName(".xdata");
+            if (!XDataSec)
+                return Error::success();
             using namespace llvm::jitlink::x86_64;
             GOTTableManager GOT(G);
             PLTTableManager PLT(G, GOT);
-            visitExistingEdges(G, GOT, PLT);
+            for (auto *B : XDataSec->blocks()) {
+                for (auto &E : B->edges()) {
+                    Symbol &Target = E.getTarget();
+                    if (!Target.isExternal() || !Target.hasName())
+                        continue;
+                    StringRef Name = *Target.getName();
+                    if (Name != "__gxx_personality_seh0" &&
+                        Name != "__gxx_personality_sj0" &&
+                        Name != "__gxx_personality_v0")
+                        continue;
+                    E.setTarget(PLT.getEntryForTarget(G, Target));
+                }
+            }
             return Error::success();
         });
 
@@ -375,55 +393,10 @@ int runEmbedded(const cps::CodeGen &CG) {
         llvm::errs() << "error: cannot clone the embedded module for JIT execution\n";
         return 1;
     }
-    if (auto Err = TSM.withModuleDo([&](llvm::Module &M) -> llvm::Error {
-            M.setTargetTriple(J->getTargetTriple());
-            M.setDataLayout(J->getDataLayout());
-            // COFF unwind tables address the personality by 32-bit RVA, so
-            // it must live near JIT code. Route through a JIT-local stub;
-            // the stub's own call to the host runtime uses 64-bit. Same
-            // code on all platforms; only COFF needs it.
-            if (J->getTargetTriple().isOSBinFormatCOFF()) {
-                for (const char *RealName :
-                     {"__gxx_personality_seh0", "__gxx_personality_sj0",
-                      "__gxx_personality_v0"}) {
-                    llvm::Function *Real = M.getFunction(RealName);
-                    if (!Real)
-                        continue;
-                    bool Used = false;
-                    for (auto &F : M.functions()) {
-                        if (F.hasPersonalityFn() &&
-                            F.getPersonalityFn()->stripPointerCasts() == Real) {
-                            Used = true;
-                            break;
-                        }
-                    }
-                    if (!Used)
-                        continue;
-                    std::string FwdName = std::string("__cps_jit_") + RealName;
-                    if (M.getFunction(FwdName))
-                        continue;
-                    llvm::Function *Fwd = llvm::Function::Create(
-                        Real->getFunctionType(),
-                        llvm::GlobalValue::InternalLinkage, FwdName, M);
-                    llvm::BasicBlock *BB = llvm::BasicBlock::Create(
-                        M.getContext(), "", Fwd);
-                    llvm::IRBuilder<> B(BB);
-                    llvm::CallInst *C = B.CreateCall(Real, {});
-                    C->setTailCall();
-                    B.CreateRet(C);
-                    for (auto &F : M.functions()) {
-                        if (F.hasPersonalityFn() &&
-                            F.getPersonalityFn()->stripPointerCasts() == Real)
-                            F.setPersonalityFn(Fwd);
-                    }
-                }
-            }
-            return llvm::Error::success();
-        })) {
-        llvm::errs() << "error: cannot configure the embedded JIT module: "
-                     << llvm::toString(std::move(Err)) << "\n";
-        return 1;
-    }
+    TSM.withModuleDo([&](llvm::Module &M) {
+        M.setTargetTriple(J->getTargetTriple());
+        M.setDataLayout(J->getDataLayout());
+    });
 
     if (auto Err = J->addIRModule(J->getMainJITDylib(), std::move(TSM))) {
         llvm::errs() << "error: embedded LLVM execution failed: "
