@@ -133,10 +133,10 @@ The `clang-tools-extra` package is required because MSYS2's `ClangTargets.cmake`
 
 Install the Xcode Command Line Tools for the macOS SDK, make and package
 relocation tools with `xcode-select --install` if needed. The LLVM bottle below
-provides Clang 23. Install CMake with Homebrew:
+provides Clang 23. Install the build tools and LLVM SDK with Homebrew:
 
 ```bash
-brew install cmake python
+brew install cmake python llvm@23
 ```
 
 Recommended binary-bottle downloads to the build directory:
@@ -144,15 +144,22 @@ Recommended binary-bottle downloads to the build directory:
 ```bash
 mkdir -p build/deps/packages
 HOMEBREW_CACHE="$PWD/build/deps/packages" brew fetch --force-bottle \
-  llvm lld zlib zstd ncurses lz4 xz
+  llvm zlib zstd ncurses lz4 xz
 ```
 
 [Homebrew's `llvm` formula](https://formulae.brew.sh/formula/llvm) currently
 provides 23; verify the downloaded version before configuring. This requires
-binary bottles available for your macOS version and CPU; source
-archives are not used. CMake extracts the bottles into a local `Cellar/`, creates
+binary bottles available for your macOS version and CPU. CMake extracts the bottles into a local `Cellar/`, creates
 local `opt/` links and relocates their CMake and dynamic-library paths using the
 Command Line Tools. The macOS build has only been reviewed statically.
+
+Homebrew's `lld` formula builds shared libraries, which cannot be embedded in the single-file compiler. Before configuring cpsc, build static LLD against the LLVM version selected for the compiler:
+
+```bash
+sh tools/build-static-lld.sh "$(brew --prefix llvm@23)" "$PWD/build" 3
+```
+
+The helper downloads the matching official LLVM source release, extracts LLD, its common CMake utilities and libunwind's Mach-O headers, and builds LLD using the installed LLVM SDK. It installs static LLD libraries, headers, tools and CMake configuration into `build/`, where cpsc's local dependency lookup finds them before system packages. It does not rebuild LLVM or libunwind. Use the same build directory for the helper and cpsc. For an already-extracted LLVM bottle, pass its `build/deps/root/opt/llvm` prefix instead; the LLVM versions must match. The helper uses the host architecture and defaults to a macOS 15.0 deployment target; set `MACOSX_DEPLOYMENT_TARGET` to override that target for both builds.
 
 ## Build
 

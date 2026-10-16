@@ -123,13 +123,16 @@ jobs:
       - name: Install LLVM 23 and packaging dependencies
         run: |
           test "$(uname -m)" = arm64
-          brew install llvm@23 lld pandoc zlib zstd ncurses python
+          brew install llvm@23 pandoc zlib zstd ncurses python
           test -x "$(brew --prefix llvm@23)/bin/clang++"
+
+      - name: Build matching static LLD libraries
+        run: |
+          sh tools/build-static-lld.sh "$(brew --prefix llvm@23)" "$PWD/build" 3
 
       - name: Build the embedded release package
         run: |
           llvm_prefix=$(brew --prefix llvm@23)
-          lld_prefix=$(brew --prefix lld)
           zlib_prefix=$(brew --prefix zlib)
           zstd_prefix=$(brew --prefix zstd)
           ncurses_prefix=$(brew --prefix ncurses)
@@ -139,7 +142,7 @@ jobs:
             -DCMAKE_C_COMPILER="$llvm_prefix/bin/clang" \
             -DCMAKE_CXX_COMPILER="$llvm_prefix/bin/clang++" \
             -DLLVM_DIR="$llvm_prefix/lib/cmake/llvm" \
-            -DCMAKE_PREFIX_PATH="$llvm_prefix;$lld_prefix;$zlib_prefix;$zstd_prefix;$ncurses_prefix"
+            -DCMAKE_PREFIX_PATH="$llvm_prefix;$zlib_prefix;$zstd_prefix;$ncurses_prefix"
           cmake --build build --target release --parallel 3
 
       - name: Smoke test the packaged compiler

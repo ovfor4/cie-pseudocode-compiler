@@ -67,8 +67,8 @@ selected executable changes.
 Platform modules relocate package paths only inside the extraction directory;
 Homebrew bottles also receive local Cellar/opt links and Mach-O relocation/signing.
 Package hashes skip unchanged extractions; a changed package set rebuilds the
-managed root. Downloads belong to the package-manager commands in `doc/build.md`,
-not to CMake. The Windows Pandoc ZIP is downloaded directly from its official
+managed root. Downloads belong to the explicit dependency commands and static LLD
+helper in `doc/build.md`, not to CMake. The Windows Pandoc ZIP is downloaded directly from its official
 release because MSYS2 has no Pandoc package. Only the Linux build is verified.
 
 Generated IR uses the C++ exception ABI; native compilation links its runtime
@@ -142,6 +142,14 @@ directory; GNU linker scripts are relocated. macOS embeds SDK library stubs, not
 headers or system runtime dylibs. No user development toolchain is required.
 Linux statically links non-system runtimes but dynamically links glibc; do not use
 global `-static` there. Generated binaries require a compatible host system runtime.
+
+Homebrew's LLD package contains shared libraries. Run `tools/build-static-lld.sh`
+with the selected LLVM prefix and cpsc build directory before configuring on macOS.
+It builds matching LLD sources, installs static archives and tools into the build
+prefix, and leaves LLVM itself installed. Source and build caches are versioned;
+the resulting local `lib/cmake/lld` takes precedence over shared system packages.
+The helper's build-time linker can use the installed LLVM dylib; cpsc still links
+the LLD archives and static LLVM components.
 
 Windows build instructions retain MSYS2 MINGW64. Its LLVM/Clang package names
 and compiler executable names are unversioned; CMake still requires major 23.
@@ -218,7 +226,7 @@ job uses a macOS 15 arm64 runner, and Windows uses Windows Server 2025 x86_64.
 All four check out the push SHA and run independently after cleanup. All three
 compiler jobs use LLVM/Clang/LLD 23, Python, Release and EMBEDDED settings, Pandoc, and the
 existing `release` target. Linux obtains its toolchain from apt.llvm.org; macOS
-uses Homebrew's LLVM 23. Windows uses `msys2/setup-msys2@v2` with MINGW64,
+uses Homebrew's LLVM 23 and builds matching static LLD with the helper above. Windows uses `msys2/setup-msys2@v2` with MINGW64,
 MSYS2 LLVM/Clang packages, explicit native compiler and LLVM paths, and the
 MinGW Makefiles generator. It downloads the official Pandoc 3.12.1 Windows
 x86_64 ZIP into `build/deps/packages/` for CMake to extract. Each compiler job
