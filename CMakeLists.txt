@@ -69,6 +69,7 @@ add_library(CPSCodeGen STATIC
     lib/CodeGen/StringHandler.cc
     lib/CodeGen/StringConversionHandler.cc
     lib/CodeGen/TypeSystem.cc
+    lib/CodeGen/NativeTypeSystem.cc
     lib/CodeGen/FileHandler.cc
 )
 

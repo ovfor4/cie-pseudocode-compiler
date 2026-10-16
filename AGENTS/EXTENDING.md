@@ -29,7 +29,7 @@ on raw LLVM operand types. Exceptions in `CodeGen::emitExpr`: `&` coerces operan
 to STRING then calls `StringHandler::emitConcat`; STRING comparisons require two
 STRING operands by pseudocode type then call `StringHandler::emitCompare`.
 
-**New builtin type:** register in `TypeSystem::registerBuiltins` (sizes are derived —
+**New builtin type:** register in `TypeSystem::registerBuiltins` in `NativeTypeSystem.cc` (sizes are derived —
 never hand-written) + `TypeKind` case in the **exhaustive, default-less switches**:
 `getZeroValue`, `coerceValueToType`, `emitOutputValue`, `TypeInfo::isOutputtable`,
 the INPUT branch in CodeGen + lexer keyword + `ParseTypeName` case in `ParserType.cc`. The compiler
@@ -45,7 +45,7 @@ OUTPUT/INPUT/WRITEFILE/file-name operands, FOR variables, builtin args,
 `getExprTypeInfo` classification. Everything not explicitly admitted must be a
 compile error.
 
-**Native C types:** add representation/format metadata in TypeSystem's native
+**Native C types:** add representation/format metadata in `NativeTypeSystem.cc`'s
 registration, using compiler-derived facts rather than fixed widths. Preserve
 canonical CIdentity and alias compatibility. Update CTypeGen conversions,
 promotions and I/O together; never let native C operands fall through to the
