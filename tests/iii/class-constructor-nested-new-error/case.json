@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "NEW is only allowed on the right of an assignment",
+      "line": 5
+    }
+  ]
+}

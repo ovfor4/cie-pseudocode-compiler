@@ -78,8 +78,22 @@ FunctionGen binds field aliases and `this` to the incoming receiver storage befo
 binding explicit parameters. CodeGen saves/restores `CurrentClass` around each
 function body; unqualified calls still resolve globally. Local declarations and
 parameters may shadow fields with a source-line warning; `this.Field` remains
-explicit. `this` cannot be redeclared within methods. Constructors and language-level
-inheritance remain unsupported.
+explicit. `this` cannot be redeclared within methods. `TypeInfo::IsClass` distinguishes
+classes from records without changing their shared LLVM representation.
+
+`ConstructorGen.cc` emits recursive field construction in declaration order followed
+by the ordinary NEW method, sharing `emitMethodCall` access checks, argument
+marshalling and exception-aware calls. DECLARE zeroes its original storage on every
+execution; arrays loop over all flat elements and default-construct each one.
+Constructor argument lists are class-only, and field/array defaults require a
+parameterless NEW. Explicit NEW method calls do not reconstruct fields.
+`SymbolInfo::IsReference` marks a pointer slot for declared class variables and BYVAL
+class parameters; `symbolAddress` loads their current object address for all value,
+lvalue, address-of, receiver and BYREF paths. Field aliases, this and BYREF parameters
+bind addresses directly. Assignment-only `NewExprAST` uses checked MemoryHandler
+allocation (at least one byte for method-only classes), zero initialization and
+construction, then rebinds reference slots or copies into other destinations. Ordinary assignment always copies. Heap lifetimes
+remain unmanaged; destructors, DELETE and INHERITS/SUPER are unsupported.
 
 **Runtime checks** (`RuntimeCheck`): array bounds, file misuse, enum ranges, null
 dereferences and array-parameter bounds contracts are checked at their emit sites.
@@ -123,4 +137,4 @@ malloc/realloc buffer per line and strips one trailing `\r`; fopen modes are tex
 nothing is declared or emitted eagerly. Helper bodies are built with the *shared*
 Builder (RuntimeCheck emits through the same one), saving/restoring the insert block.
 
-**Explicit memory** (`MemoryHandler`): lazily emits internal allocation/find/release/resize helpers and a linked list of live allocation start addresses. Only explicit MALLOC/REALLOC allocations enter the list; STRING/ARRAY internals retain their existing ownership. FREE validates non-null addresses, unlinks and frees the tracking node, releases the block and returns the original address. Zero-byte allocation returns null. REALLOC validates non-null addresses before its zero-size release path; null behaves as MALLOC. Positive-size resizing updates the node only after success, leaving the old block and record intact on failure. Node allocation precedes the user allocation; if the latter fails, its node is freed before the diagnostic and anonymous throw. Helpers use RuntimeCheck and ExceptionHandler, including source-line arguments and per-function unwind preparation. Sizes accept INTEGER and C integers and convert to native size_t. Address reuse can make stale aliases indistinguishable from current allocations; dereferences are not checked against this list.
+**Explicit memory** (`MemoryHandler`): lazily emits internal allocation/find/release/resize helpers and a linked list of live allocation start addresses. Explicit MALLOC/REALLOC and keyword NEW allocations enter the list; STRING/ARRAY internals retain their existing ownership. FREE validates non-null addresses, unlinks and frees the tracking node, releases the block and returns the original address. Zero-byte allocation returns null. REALLOC validates non-null addresses before its zero-size release path; null behaves as MALLOC. Positive-size resizing updates the node only after success, leaving the old block and record intact on failure. Node allocation precedes the user allocation; if the latter fails, its node is freed before the diagnostic and anonymous throw. Helpers use RuntimeCheck and ExceptionHandler, including source-line arguments and per-function unwind preparation. Sizes accept INTEGER and C integers and convert to native size_t. Address reuse can make stale aliases indistinguishable from current allocations; dereferences are not checked against this list.

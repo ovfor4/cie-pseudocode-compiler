@@ -24,3 +24,8 @@ B <- NEW Box(1)
 R <- NEW Required
 R <- NEW Required()
 B <- NEW Hidden
+PROCEDURE Forbidden(Target : Hidden)
+    Target <- NEW Hidden()
+ENDPROCEDURE
+B <- NEW Box("bad")
+R <- NEW Required("bad")

@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "Duplicate member new in class Box",
+      "line": 4
+    }
+  ]
+}

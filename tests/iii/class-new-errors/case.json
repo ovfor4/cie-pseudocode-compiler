@@ -27,6 +27,18 @@
     {
       "reason": "NEW target must have type Hidden",
       "line": 26
+    },
+    {
+      "reason": "Cannot access private method NEW of type Hidden",
+      "line": 28
+    },
+    {
+      "reason": "has no constructor NEW",
+      "line": 30
+    },
+    {
+      "reason": "Cannot coerce value of LLVM type to target type INTEGER",
+      "line": 31
     }
   ]
 }

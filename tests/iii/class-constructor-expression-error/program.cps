@@ -1,0 +1,4 @@
+CLASS Box
+    Value : INTEGER
+ENDCLASS
+OUTPUT NEW Box()

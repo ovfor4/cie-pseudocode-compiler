@@ -62,6 +62,10 @@ void CodeGen::emitAssignment(const LValueInfo &Target, ExprAST *Expr, const Symb
         }
         Value *Size = Builder->CreateIntCast(Types->getSizeOfConstant(Class->LLVMType),
                          Type::getIntNTy(*TheContext, sizeof(std::size_t) * CHAR_BIT), false);
+        // Method-only classes have zero-sized LLVM structs but still need
+        // a non-null object address (MALLOC(0) deliberately returns null).
+        Size = Builder->CreateSelect(Builder->CreateICmpEQ(Size, ConstantInt::get(Size->getType(), 0)),
+                                      ConstantInt::get(Size->getType(), 1), Size);
         Value *Object = Memory->emitAllocate(Size, New->getLine());
         Builder->CreateStore(Types->getZeroValue(Class->Name), Object);
         if (!emitConstruct(Class->Name, Object, New->getArgs(), New->getLine())) return;

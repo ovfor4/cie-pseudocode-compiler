@@ -87,6 +87,14 @@ test programs.
   `this.Method(...)`; unqualified calls remain global. Parameters and local
   declarations shadowing fields warn without failing compilation. Method-only
   classes are allowed; empty classes and array fields remain unsupported.
+  PROCEDURE NEW is an ordinary case-insensitive member, also called automatically
+  after zero initialization by DECLARE and assignment-only keyword NEW. Fields and
+  array elements recursively require parameterless construction before the outer NEW.
+  Class variables and BYVAL class parameters use reference slots: keyword NEW rebinds
+  them, while ordinary assignment copies into their current object. Fields, array
+  elements, BYREF, this and pointer dereferences receive a value copy from NEW;
+  the temporary allocation leaks. Old address-of pointers retain the previous object.
+  Private access and ordinary argument checks apply to automatic construction too.
 
 - **Exception extensions.** TRY requires exactly one parameterless CATCH and
   ENDTRY. Bare THROW raises a new anonymous exception even inside CATCH; there is
@@ -114,8 +122,8 @@ SET types (`SET`/`DEFINE` are reserved with dedicated errors),
 random files (OPENFILE...FOR RANDOM/SEEK/GETRECORD/PUTRECORD — TYPE is done, so these
 are unblocked now; the RANDOM keyword is reserved and gives a dedicated parse error),
 DATE, string escape sequences,
-array-typed record fields, whole-array RETURN, class constructors/destructors,
-NEW and class inheritance. Compiler fixtures now live in `tests/` (see TESTING.md).
+array-typed record fields, whole-array RETURN, destructors/DELETE
+and class inheritance (INHERITS/SUPER). Compiler fixtures now live in `tests/` (see TESTING.md).
 Nightly CI runs the compiler suites, packaged EMBEDDED smoke checks and existing
 plugin tests. The initial standard conflicts and missing diagnostic locations are fixed on
 Linux.

@@ -98,3 +98,68 @@ FOR Index <- 1 TO 2
     Local <- NEW Box
     Local.Value <- 99
 NEXT Index
+CLASS Fragile
+    Value : INTEGER
+    PROCEDURE NEW(Fail : BOOLEAN)
+        Value <- 70
+        IF Fail THEN
+            THROW
+        ENDIF
+    ENDPROCEDURE
+ENDCLASS
+TYPE FragilePointer = ^Fragile
+DECLARE Stable : Fragile(FALSE)
+DECLARE Original : FragilePointer
+Original <- ^Stable
+Stable.Value <- 71
+TRY
+    Stable <- NEW Fragile(TRUE)
+CATCH
+    OUTPUT "failed rebind:", Stable.Value, ",", Original^.Value
+ENDTRY
+H.Item.Value <- 80
+H <- NEW Holder()
+OUTPUT "nested heap:", Field^.Value, ",", H.Item.Value
+CLASS OrderedFirst
+    PROCEDURE NEW()
+        OUTPUT "first"
+    ENDPROCEDURE
+ENDCLASS
+CLASS OrderedSecond
+    PROCEDURE NEW()
+        OUTPUT "second"
+    ENDPROCEDURE
+ENDCLASS
+CLASS Ordered
+    First : OrderedFirst
+    Second : OrderedSecond
+    PROCEDURE NEW()
+        OUTPUT "outer"
+    ENDPROCEDURE
+ENDCLASS
+DECLARE Order : Ordered
+Order <- NEW Ordered
+CLASS PrivateFactory
+    Value : INTEGER
+    PRIVATE PROCEDURE NEW()
+        Value <- 1
+    ENDPROCEDURE
+    PROCEDURE Build()
+        DECLARE Local : PrivateFactory
+        Local <- NEW PrivateFactory
+        Local.NEW()
+    ENDPROCEDURE
+ENDCLASS
+CLASS Marker
+    PROCEDURE NEW()
+    ENDPROCEDURE
+    FUNCTION Get() RETURNS INTEGER
+        RETURN 99
+    ENDFUNCTION
+ENDCLASS
+TYPE MarkerPointer = ^Marker
+DECLARE M : Marker
+DECLARE MarkerAddress : MarkerPointer
+M <- NEW Marker
+MarkerAddress <- ^M
+OUTPUT "method only:", MarkerAddress^.Get()

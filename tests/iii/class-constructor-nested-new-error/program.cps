@@ -1,0 +1,5 @@
+CLASS Box
+    PROCEDURE NEW(Other : Box)
+    ENDPROCEDURE
+ENDCLASS
+DECLARE Item : Box(NEW Box)

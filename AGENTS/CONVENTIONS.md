@@ -97,7 +97,9 @@ and INPUT STRING buffers — declared in `SetupExternalFunctions`, never fetched
 bare `getFunction("malloc")`.
 
 **One symbol namespace, one table.** `Symbols` (name → `SymbolInfo{Storage,
-TypeName, IsArray, ConstantValue, ScopeID}`) in CodeGen is the only symbol table.
+TypeName, IsArray, ConstantValue, ScopeID, IsReference}`) in CodeGen is the only symbol table.
+Use `symbolAddress` for an object address: class variables and BYVAL class parameters
+store their current object address in a reference slot (`IsReference`).
 A non-null ConstantValue denotes a read-only CONSTANT with no Storage. Read it
 through `emitExpr`; all writable/address-taking paths must reject it through
 `requireWritable`. Register variables through `registerSymbol()` (parameters are

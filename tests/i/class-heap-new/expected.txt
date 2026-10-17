@@ -14,3 +14,12 @@ declare caught
 new caught
 loop:1
 loop:1
+failed rebind:71,71
+nested heap:80,1
+first
+second
+outer
+first
+second
+outer
+method only:99

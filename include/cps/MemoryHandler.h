@@ -8,7 +8,7 @@ class TypeSystem;
 class RuntimeCheck;
 class ExceptionHandler;
 
-// Only explicit memory builtins own entries in this runtime's allocation list.
+// Explicit memory builtins and keyword NEW own entries in this allocation list.
 // Internal STRING/ARRAY storage retains its existing lifetime rules.
 class MemoryHandler {
     llvm::LLVMContext &Context;
