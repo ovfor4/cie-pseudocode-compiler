@@ -282,9 +282,11 @@ jobs:
       - name: Build the embedded release package
         shell: msys2 {0}
         run: |
+          test -x /c/Strawberry/perl/bin/perl.exe
           cmake -S . -B build -G "MinGW Makefiles" \
             -DCMAKE_BUILD_TYPE=Release -DCPSC_RUN_MODE=EMBEDDED \
             -DBUILD_TESTING=ON -DCPSC_TEST_SEED="$GITHUB_SHA" \
+            -DPERL_EXECUTABLE="C:/Strawberry/perl/bin/perl.exe" \
             -DCMAKE_C_COMPILER="$(cygpath -m /mingw64/bin/clang.exe)" \
             -DCMAKE_CXX_COMPILER="$(cygpath -m /mingw64/bin/clang++.exe)" \
             -DLLVM_DIR="$(cygpath -m /mingw64/lib/cmake/llvm)" \
