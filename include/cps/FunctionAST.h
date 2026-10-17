@@ -30,6 +30,7 @@ class PrototypeAST {
     std::vector<ParamDecl> Params;
     std::string ReturnType;
     bool IsExternal;
+    bool IsOverload;
     std::string OwnerClass;
     bool IsPublic;
 
@@ -37,13 +38,14 @@ public:
     PrototypeAST(const std::string &Name,
                  std::vector<ParamDecl> Params,
                  const std::string &ReturnType,
-                 bool IsExternal = false, std::string OwnerClass = {}, bool IsPublic = true)
-        : Name(Name), Params(std::move(Params)), ReturnType(ReturnType), IsExternal(IsExternal),
+                 bool IsExternal = false, std::string OwnerClass = {}, bool IsPublic = true, bool IsOverload = false)
+        : Name(Name), Params(std::move(Params)), ReturnType(ReturnType), IsExternal(IsExternal), IsOverload(IsOverload),
           OwnerClass(std::move(OwnerClass)), IsPublic(IsPublic) {}
 
     const std::string &getName() const { return Name; }
     const std::vector<ParamDecl> &getParams() const { return Params; }
     const std::string &getReturnType() const { return ReturnType; }
+    bool isOverload() const { return IsOverload; }
     bool isExternal() const { return IsExternal; }
     const std::string &getOwnerClass() const { return OwnerClass; }
     bool isPublic() const { return IsPublic; }

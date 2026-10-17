@@ -73,8 +73,8 @@ class Parser {
         std::vector<std::unique_ptr<FunctionDefAST>> *Methods = nullptr);
     bool ParseRecordField(std::vector<RecordFieldDecl> &Out, bool IsPublic);
 
-    std::unique_ptr<FunctionDefAST> ParseFunction(const std::string &OwnerClass = {}, bool IsPublic = true);
-    std::unique_ptr<FunctionDefAST> ParseProcedure(const std::string &OwnerClass = {}, bool IsPublic = true);
+    std::unique_ptr<FunctionDefAST> ParseFunction(const std::string &OwnerClass = {}, bool IsPublic = true, bool IsOverload = false);
+    std::unique_ptr<FunctionDefAST> ParseProcedure(const std::string &OwnerClass = {}, bool IsPublic = true, bool IsOverload = false);
     std::unique_ptr<StmtAST> ParseCallStmt();
     std::unique_ptr<StmtAST> ParseReturnStmt();
     std::optional<std::vector<ParamDecl>> ParsePrototypeArgs(bool AllowByRef);

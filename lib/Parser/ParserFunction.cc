@@ -130,7 +130,7 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
     return Params;
 }
 
-std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerClass, bool IsPublic) {
+std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerClass, bool IsPublic, bool IsOverload) {
     int Line = Lex.getLine();
     getNextToken();
     if (CurTok == tok_delete || (CurTok == tok_identifier && sameIdentifier(Lex.IdentifierStr, "DELETE"))) {
@@ -167,7 +167,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
         }
     }
 
-    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), RetType, false, OwnerClass, IsPublic);
+    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), RetType, false, OwnerClass, IsPublic, IsOverload);
 
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endfunction});
 
@@ -182,7 +182,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
     return Def;
 }
 
-std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerClass, bool IsPublic) {
+std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerClass, bool IsPublic, bool IsOverload) {
     int Line = Lex.getLine();
     getNextToken();
     if (CurTok != tok_identifier && CurTok != tok_new && CurTok != tok_delete) {
@@ -207,7 +207,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerC
         cps::sourceDiagnostic(Lex.getLine(), "error: destructor DELETE must have no parameters at line %d\n", Line);
         return nullptr;
     }
-    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID", false, OwnerClass, IsPublic);
+    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID", false, OwnerClass, IsPublic, IsOverload);
 
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endprocedure});
 

@@ -50,7 +50,7 @@ void Parser::syncToStatementStart() {
         case tok_delete: case tok_constant: case tok_declare: case tok_identifier: case tok_input: case tok_output:
         case tok_case: case tok_endcase: case tok_otherwise:
         case tok_if: case tok_while: case tok_repeat: case tok_for:
-        case tok_function: case tok_procedure: case tok_call: case tok_return:
+        case tok_overload: case tok_function: case tok_procedure: case tok_call: case tok_return:
         case tok_else: case tok_endif: case tok_endwhile: case tok_until:
         case tok_next: case tok_endfunction: case tok_endprocedure:
         case tok_openfile: case tok_readfile: case tok_writefile: case tok_closefile:
@@ -211,6 +211,14 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     }
     else if (CurTok == tok_for) {
         return ParseForStmt();
+    }
+    else if (CurTok == tok_overload) {
+        int Line = Lex.getLine();
+        getNextToken();
+        if (CurTok == tok_function) return ParseFunction({}, true, true);
+        if (CurTok == tok_procedure) return ParseProcedure({}, true, true);
+        cps::sourceDiagnostic(Line, "error: OVERLOAD must be followed by FUNCTION or PROCEDURE at line %d\n", Line);
+        return nullptr;
     }
     else if (CurTok == tok_function) {
         return ParseFunction();
