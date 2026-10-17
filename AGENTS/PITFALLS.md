@@ -153,6 +153,8 @@ test programs.
   Only `.o` user objects; INCLUDE_OBJ is global across inputs. `-S` does not link them.
   Identical EXTERN redeclarations (same or other files, CIdentity-equal types) are allowed;
   differing ones fail. Two EXTERNs differing only in case conflict (pseudocode names are case insensitive).
+  Windows `-r` resolves C symbols from msvcrt.dll before the process-wide search: ucrtbase.dll
+  may also be loaded, and its separate stdout buffer reorders EXTERN output against OUTPUT.
 
 ## Not implemented (9618 features)
 

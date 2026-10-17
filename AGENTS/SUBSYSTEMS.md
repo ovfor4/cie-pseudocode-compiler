@@ -56,7 +56,8 @@ resolves INCLUDE_OBJ paths, reads defined global symbols with `llvm::object`
 (`collectObjectSymbols`; `"__libc"` uses `collectLibcSymbols` over the embedded runtime's
 libc/libm inputs, copied to aligned buffers), rejects missing symbols, and passes objects
 to `compileNative`, `runEmbedded` (`addObjectFile`) or lli (`-extra-object=`).
-Linux EMBEDDED and PATH (lli) runs are verified; the Windows/macOS libc file-name rules are not.
+On Windows, `runEmbedded` adds a msvcrt.dll search generator ahead of process symbols.
+Linux EMBEDDED and PATH (lli) runs are verified locally; Windows and macOS pass CI (extern-libc).
 
 **User types** (`TypeSystem` + `Designator.cc` + `TypeCheckGen.cc`):
 `Designator.cc` owns the type pre-pass and lvalue access; `TypeCheckGen.cc` owns
