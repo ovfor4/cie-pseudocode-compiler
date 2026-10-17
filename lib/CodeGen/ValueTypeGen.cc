@@ -280,4 +280,9 @@ void CodeGen::emitDeclareStmt(DeclareStmtAST *Stmt) {
     }
 
     registerSymbol(Stmt->getName(), Alloca, Info->Name, false);
+    if (Stmt->hasParens() && !ClassMethods.count(Info->Name)) {
+        reportError("Constructor arguments require a class type");
+        return;
+    }
+    emitConstruct(Info->Name, Alloca, Stmt->getArgs(), Stmt->getLine());
 }

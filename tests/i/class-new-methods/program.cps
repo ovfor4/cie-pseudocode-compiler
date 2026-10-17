@@ -7,7 +7,7 @@ CLASS Box
         this.NEW("again")
     ENDPROCEDURE
 ENDCLASS
-DECLARE Obj : Box
+DECLARE Obj : Box("initial")
 Obj.NEW("x")
 OUTPUT Obj.Value
 CALL Obj.new("call")

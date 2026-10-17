@@ -36,6 +36,13 @@ class CodeGen {
     std::string CurrentClass;
     const PrototypeAST *findMethod(const std::string &Class, const std::string &Name) const;
     llvm::Value *emitMemberCall(MemberCallExprAST *Call);
+    llvm::Value *emitMethodCall(const std::string &Class, llvm::Value *Receiver,
+                                const std::string &Name,
+                                const std::vector<std::unique_ptr<ExprAST>> &Args, int Line);
+    bool typeNeedsConstruction(const std::string &TypeName) const;
+    bool emitConstruct(const std::string &TypeName, llvm::Value *Addr,
+                       const std::vector<std::unique_ptr<ExprAST>> &Args, int Line);
+    bool emitDefaultConstruct(const std::string &TypeName, llvm::Value *Addr, int Line);
     struct ConstantScope {
         unsigned ID;
         IdentifierMap<std::optional<SymbolInfo>> Saved;

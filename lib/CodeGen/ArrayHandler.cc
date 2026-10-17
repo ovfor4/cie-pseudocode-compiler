@@ -139,6 +139,24 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
     Builder->CreateStore(Ptr, Alloca);
 
     CG.registerSymbol(Name, Alloca, ElemInfo->Name, true);
+    if (CG.typeNeedsConstruction(ElemInfo->Name)) {
+        BasicBlock *Preheader = Builder->GetInsertBlock();
+        BasicBlock *Loop = BasicBlock::Create(*TheContext, "construct_elements", TheFunction);
+        BasicBlock *Body = BasicBlock::Create(*TheContext, "construct_element", TheFunction);
+        BasicBlock *Done = BasicBlock::Create(*TheContext, "constructed_array", TheFunction);
+        Builder->CreateBr(Loop);
+        Builder->SetInsertPoint(Loop);
+        auto *Index = Builder->CreatePHI(Type::getInt64Ty(*TheContext), 2, "construct_index");
+        Index->addIncoming(ConstantInt::get(Type::getInt64Ty(*TheContext), 0), Preheader);
+        Builder->CreateCondBr(Builder->CreateICmpULT(Index, TotalElements), Body, Done);
+        Builder->SetInsertPoint(Body);
+        Value *Element = Builder->CreateGEP(ElemInfo->LLVMType, Ptr, Index);
+        CG.emitDefaultConstruct(ElemInfo->Name, Element, Stmt->getLine());
+        Value *Next = Builder->CreateAdd(Index, ConstantInt::get(Type::getInt64Ty(*TheContext), 1));
+        Index->addIncoming(Next, Builder->GetInsertBlock());
+        Builder->CreateBr(Loop);
+        Builder->SetInsertPoint(Done);
+    }
 }
 
 void ArrayHandler::computeDimsAndMultipliers(const std::string &Name,

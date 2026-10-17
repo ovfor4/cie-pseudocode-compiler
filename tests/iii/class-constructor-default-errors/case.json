@@ -1,0 +1,32 @@
+{
+  "errors": [
+    {
+      "reason": "Incorrect # arguments passed to Required.NEW",
+      "line": 15
+    },
+    {
+      "reason": "Incorrect # arguments passed to Required.NEW",
+      "line": 16
+    },
+    {
+      "reason": "has no constructor NEW",
+      "line": 17
+    },
+    {
+      "reason": "Cannot access private method NEW",
+      "line": 18
+    },
+    {
+      "reason": "Incorrect # arguments passed to Required.NEW",
+      "line": 19
+    },
+    {
+      "reason": "Incorrect # arguments passed to Required.NEW",
+      "line": 20
+    },
+    {
+      "reason": "Constructor arguments require a class type",
+      "line": 21
+    }
+  ]
+}

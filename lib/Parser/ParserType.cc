@@ -308,7 +308,15 @@ std::unique_ptr<StmtAST> Parser::ParseDeclare() {
         if (TypeStr.empty()) {
             return nullptr;
         }
-        return std::make_unique<DeclareStmtAST>(Name, TypeStr);
+        bool HasParens = CurTok == '(';
+        std::vector<std::unique_ptr<ExprAST>> Args;
+        if (HasParens) {
+            getNextToken();
+            auto Parsed = ParseExprList(')', true);
+            if (!Parsed) return nullptr;
+            Args = std::move(*Parsed);
+        }
+        return std::make_unique<DeclareStmtAST>(Name, TypeStr, std::move(Args), HasParens);
     }
 }
 

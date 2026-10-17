@@ -78,18 +78,25 @@ Value *CodeGen::emitMemberCall(MemberCallExprAST *Call) {
     SaveAndRestore<int> Location(DiagnosticLine, Call->getLine());
     LValueInfo Receiver;
     if (!emitLValue(Call->getReceiver(), Receiver)) return nullptr;
-    const PrototypeAST *Method = findMethod(Receiver.TypeName, Call->getMethod());
+    return emitMethodCall(Receiver.TypeName, Receiver.Addr, Call->getMethod(),
+                          Call->getArgs(), Call->getLine());
+}
+
+Value *CodeGen::emitMethodCall(const std::string &Class, Value *Receiver,
+                                const std::string &Name,
+                                const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line) {
+    SaveAndRestore<int> Location(DiagnosticLine, Line);
+    const PrototypeAST *Method = findMethod(Class, Name);
     if (!Method) {
-        reportError("Type %s has no method %s", Receiver.TypeName.c_str(), Call->getMethod().c_str());
+        reportError("Type %s has no method %s", Class.c_str(), Name.c_str());
         return nullptr;
     }
-    if (!Method->isPublic() && !sameIdentifier(CurrentClass, Receiver.TypeName)) {
-        reportError("Cannot access private method %s of type %s",
-                    Call->getMethod().c_str(), Receiver.TypeName.c_str());
+    if (!Method->isPublic() && !sameIdentifier(CurrentClass, Class)) {
+        reportError("Cannot access private method %s of type %s", Name.c_str(), Class.c_str());
         return nullptr;
     }
-    std::vector<Value*> Args = {Receiver.Addr};
-    if (!marshalCallArgs(Method->getLinkName(), Call->getArgs(), Call->getLine(), Args)) return nullptr;
+    std::vector<Value*> Args = {Receiver};
+    if (!marshalCallArgs(Method->getLinkName(), ArgExprs, Line, Args)) return nullptr;
     return FuncGen->emitCall(Method->getLinkName(), Args);
 }
 

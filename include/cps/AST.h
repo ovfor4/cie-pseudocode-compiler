@@ -125,9 +125,14 @@ public:
 class DeclareStmtAST : public StmtAST {
     std::string Name;
     std::string Type;
+    std::vector<std::unique_ptr<ExprAST>> Args;
+    bool HasParens;
 public:
-    DeclareStmtAST(const std::string &Name, const std::string &Type = "INTEGER") 
-        : Name(Name), Type(Type) {}
+    DeclareStmtAST(const std::string &Name, const std::string &Type = "INTEGER",
+                   std::vector<std::unique_ptr<ExprAST>> Args = {}, bool HasParens = false)
+        : Name(Name), Type(Type), Args(std::move(Args)), HasParens(HasParens) {}
+    const auto &getArgs() const { return Args; }
+    bool hasParens() const { return HasParens; }
     const std::string &getName() const { return Name; }
     const std::string &getType() const { return Type; }
 };
