@@ -5,6 +5,13 @@
 Every bullet below was confirmed against the source, most also by compiling and running
 test programs.
 
+- **Multi-file extensions.** INCLUDE imports symbols, never text; every included file
+  must also be an input. Duplicate exports across files fail even without visibility.
+  Only one file may contain top-level code; top-level DECLARE is a main local, not an
+  export. Definitions-only builds now fail without FUNCTION MAIN returning INTEGER.
+  MAIN cannot coexist with top-level code. GLOBAL accepts only the five primitive
+  scalar types and literal initializers; arrays, user types and computed initializers
+  are rejected. Own top-level constants remain positional, imported constants do not.
 - **OUTPUT accepts comma-separated expressions (§5.1).** Values are evaluated and
   printed left to right without automatic separators; the final scalar adds a newline.
   Whole arrays and subarrays still print each element on its own line, including in
@@ -37,7 +44,7 @@ test programs.
 - **`getExprTypeInfo` returns nullptr** for expressions it can't classify (null-check it
   at any new call site) and internally defaults to INTEGER for arithmetic binaries and
   unknown-function calls; OUTPUT reports an error for a nullptr result.
-- **CONSTANT** accepts only literals (including negative numeric literals), never expressions or other names. Constants have lexical block scope and may shadow outer names; bindings hiding constants are restored on block exit too. Only previously declared top-level constants are inherited by functions. Constants have no writable storage: assignment, INPUT, READFILE targets, FOR variables, BYREF and address-of are rejected.
+- **CONSTANT** accepts only literals (including negative numeric literals), never expressions or other names. Constants have lexical block scope and may shadow outer names; bindings hiding constants are restored on block exit too. Functions inherit previously declared constants from their own unit and all visible imported top-level constants. Constants have no writable storage: assignment, INPUT, READFILE targets, FOR variables, BYREF and address-of are rejected.
 - **CASE OF** reads its selector once and tests expression labels in source order, with inclusive TO ranges and an optional final OTHERWISE. Label headers occupy their own source line; bodies may begin after the colon or on subsequent lines. Comparisons reuse ordinary operator rules; records and whole arrays are unsupported.
 - The lexer emits no newline tokens; most grammar is keyword-delimited, while CASE
   uses token line information to recognize labels. Bare `RETURN` is recognized

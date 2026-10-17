@@ -23,6 +23,8 @@ Parameters use `name : type`, optionally prefixed by BYVAL. BYVAL is the default
 
 A FUNCTION inside CLASS defines a member function, called as `Object.Method(arguments)`. It follows the same parameter and return rules. Within a method, use `this.Method(arguments)` to call another method on the current object; see [cpsc-keyword-class(7)](cpsc-keyword-class.7.md).
 
+As a compiler extension, a top-level `FUNCTION MAIN RETURNS INTEGER` with no parameters supplies the program entry point. MAIN is case insensitive and cannot coexist with top-level executable statements in any input file. Its INTEGER result, truncated to 32 bits, is returned as the process exit status. An uncaught exception prints the generic termination message and returns 1. A PROCEDURE MAIN or a MAIN with parameters or a non-INTEGER result is an error. The usual default INTEGER result type also applies when RETURNS is omitted.
+
 # EXAMPLE
 
 ```text

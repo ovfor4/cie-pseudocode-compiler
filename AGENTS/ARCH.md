@@ -6,9 +6,9 @@ other major versions and non-Clang compilers. Execution is selected at
 build time: external lli, an embedded static LLVM engine, or disabled.
 
 ```
-file ──> Lexer ──> Parser ──> vector<unique_ptr<StmtAST>> ──> CodeGen ──> LLVM IR ──> NativeCompiler (object emission + embedded LLD)
+files ──> Lexer ──> Parser ──> vector<unique_ptr<StmtAST>> ──> CodeGen ──> LLVM IR ──> NativeCompiler (object emission + embedded LLD)
         (istream)  (recursive       (flat program list;         (one llvm::Module "cps_module",
-                    descent)         FunctionDefAST mixed in)    everything else inside i32 main())
+                    descent)         FunctionDefAST mixed in)    entry code inside i32 main())
 ```
 
 Fixed value representation (ABI — much code infers types backwards from these):
@@ -83,7 +83,18 @@ Windows/macOS await CI verification.
 
 Driver behavior (`tools/driver/main.cc`):
 
-- One source file, with optional `-S`, `-o path` and `-r`; options may precede or follow the source.
+- One or more source files, with optional `-S`, `-o path` and `-r`; options may appear among inputs.
+  Each stream is parsed independently. INCLUDE paths are relative to the including file,
+  matched against command-line inputs with fs::equivalent. The driver rejects repeated
+  inputs and computes transitive symbol visibility; cycles do not copy statements.
+  CodeGen records owners for signatures, types and exported constants/globals and filters
+  lookup by the current unit. Cross-file duplicate definitions are always errors.
+  The entry file contains the only top-level code, or parameterless FUNCTION MAIN
+  returning INTEGER; MAIN plus top-level code and builds without either entry are errors.
+  SourceUnit borrows parsed statements for compilation. Type names are reserved across
+  all units before payloads are completed, with included units visited first.
+  GLOBAL declarations and literal initializers are emitted before function bodies.
+  Own constants retain source-order visibility; imported constants are visible from the start.
   No stdin source input. Missing input, including no arguments, prints
   `cpsc: fatal error: no input files` and `compilation terminated.`, then returns 1.
 - `-h` anywhere in the arguments prints one documentation pointer to stdout and
@@ -93,7 +104,7 @@ Driver behavior (`tools/driver/main.cc`):
   verification. Diagnostics stay on stderr; source errors preserve existing output.
   Native linking uses a staged file beside the output and renames it on success.
 - `-S` selects textual IR; otherwise output is a native executable. Without `-o`,
-  replace the source extension with `.ll` or `.out` beside the source on every OS.
+  replace the entry source extension with `.ll` or `.out` beside the source on every OS.
   `-o` paths are used literally and never select the format. `-r` alone saves nothing;
   either `-S` or `-o` requests saving before execution.
 - Lexer, Parser and CodeGen track error flags (`hadError()`); any error, including
@@ -101,9 +112,11 @@ Driver behavior (`tools/driver/main.cc`):
   also return 1. Ordinary compiler errors use `error:`; failures that prevent
   compilation, such as file I/O errors, use `fatal error:`. The driver prints
   `compilation terminated.` once on compilation failure, including argument errors.
+  Multi-input lexer/parser/codegen diagnostics append the source path after the line number;
+  Diagnostics.h keeps single-input diagnostic text unchanged.
   Execution-stage failures do not print that line. Check the exit code rather
   than grepping stderr.
-- Successful compilation overwrites the output, but paths aliasing the source
+- Successful compilation overwrites the output, but paths aliasing any input source
   (including symlinks/hard links) are rejected.
 - In PATH mode, `-r` executes PATH's `lli` using LLVM Support process APIs, with
   inherited stdin/stdout/stderr and no shell. Missing lli is rejected before
@@ -292,6 +305,7 @@ do not modify the real release for local verification.
 | `lib/Parser/ParserType.cc` | Type names, variable/array/constant declarations, TYPE/ENDTYPE and CLASS/ENDCLASS declarations, shared field and method parsing, SET/DEFINE reserved stubs |
 | `lib/CodeGen/CodeGen.cc` | Initialization, symbols, call arguments and main() compilation |
 | `lib/CodeGen/ExpressionGen.cc`, `StatementGen.cc`, `ControlFlowGen.cc` | Expression/statement dispatch and control-flow emission |
+| `lib/CodeGen/GlobalGen.cc` | Primitive GLOBAL declaration and constant-initializer passes |
 | `lib/CodeGen/ConstantGen.cc` | Literal constants, declaration conflicts and lexical binding restoration |
 | `lib/CodeGen/ValueTypeGen.cc`, `OutputGen.cc`, `Builtins.h` | Expression typing, coercion/declarations, scalar output and the shared builtin table |
 | `lib/CodeGen/Designator.cc`, `TypeCheckGen.cc` | TYPE pre-pass, member lookup/calls and lvalue access; type admission and user-kind binary operators |

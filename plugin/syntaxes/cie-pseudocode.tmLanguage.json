@@ -25,7 +25,7 @@
       "name": "keyword.control.cie-pseudocode"
     },
     {
-      "match": "(?<!\\w)(?:DECLARE|TYPE|ENDTYPE|FUNCTION|ENDFUNCTION|PROCEDURE|ENDPROCEDURE|RETURNS|BYREF|BYVAL|OF)(?!\\w)",
+      "match": "(?<!\\w)(?:INCLUDE|GLOBAL|ENDGLOBAL|DECLARE|TYPE|ENDTYPE|FUNCTION|ENDFUNCTION|PROCEDURE|ENDPROCEDURE|RETURNS|BYREF|BYVAL|OF)(?!\\w)",
       "name": "storage.modifier.cie-pseudocode"
     },
     {

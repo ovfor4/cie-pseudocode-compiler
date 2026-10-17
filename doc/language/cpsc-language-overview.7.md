@@ -20,8 +20,12 @@ Declare variables before use. See DECLARE for built-in types and arrays, TYPE fo
 
 The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions with stack unwinding. Runtime check failures print the source line and error reason to standard output before throwing and can be caught. An uncaught exception also prints a generic termination message and returns status 1. There is no error object or what() support.
 
+Multi-file builds use the compiler extensions INCLUDE and GLOBAL. Pass every source file on the command line and include the files whose definitions are needed. The entry file contains the sole top-level executable code, or a parameterless FUNCTION MAIN returning INTEGER; definitions alone do not form a runnable program.
+
 # KEYWORDS
 
+- [cpsc-keyword-include(7)](keyword/cpsc-keyword-include.7.md): import definitions from another compilation unit.
+- [cpsc-keyword-global(7)](keyword/cpsc-keyword-global.7.md): declare shared primitive variables.
 - [cpsc-keyword-constant(7)](keyword/cpsc-keyword-constant.7.md): declare a named literal with block scope.
 - [cpsc-keyword-declare(7)](keyword/cpsc-keyword-declare.7.md): declare variables and arrays.
 - [cpsc-keyword-input(7)](keyword/cpsc-keyword-input.7.md): read a value from standard input.
@@ -49,7 +53,7 @@ The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions 
 - [cpsc-keyword-div(7)](keyword/cpsc-keyword-div.7.md): perform integer division.
 - [cpsc-keyword-mod(7)](keyword/cpsc-keyword-mod.7.md): find the integer division remainder.
 
-Closing and auxiliary keywords are documented with their main constructs: THEN/ELSE/ENDIF with IF; OF/OTHERWISE/ENDCASE with CASE; CATCH/ENDTRY/THROW with TRY; ENDWHILE with WHILE; UNTIL with REPEAT; TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE; ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE; ENDTYPE with TYPE; PUBLIC/PRIVATE/ENDCLASS with CLASS. TRUE/FALSE are BOOLEAN literals.
+Closing and auxiliary keywords are documented with their main constructs: THEN/ELSE/ENDIF with IF; OF/OTHERWISE/ENDCASE with CASE; CATCH/ENDTRY/THROW with TRY; ENDWHILE with WHILE; UNTIL with REPEAT; TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE; ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE; ENDGLOBAL with GLOBAL; ENDTYPE with TYPE; PUBLIC/PRIVATE/ENDCLASS with CLASS. TRUE/FALSE are BOOLEAN literals.
 
 # BUILT-IN FUNCTIONS
 

@@ -97,7 +97,7 @@ and INPUT STRING buffers — declared in `SetupExternalFunctions`, never fetched
 bare `getFunction("malloc")`.
 
 **One symbol namespace, one table.** `Symbols` (name → `SymbolInfo{Storage,
-TypeName, IsArray, ConstantValue, ScopeID, IsReference}`) in CodeGen is the only symbol table.
+TypeName, IsArray, ConstantValue, ScopeID, IsReference, IsGlobal}`) in CodeGen is the only symbol table.
 Use `symbolAddress` for an object address: class variables and BYVAL class parameters
 store their current object address in a reference slot (`IsReference`).
 A non-null ConstantValue denotes a read-only CONSTANT with no Storage. Read it
@@ -107,8 +107,8 @@ also bound directly by FunctionGen). `prepareSymbolDeclaration` diagnoses
 same-scope conflicts involving constants before declaration emission. Unique
 scope IDs distinguish sibling blocks; `emitScopedBlock` restores only bindings
 introduced by constants or hiding constants, preserving other variables' existing
-function-wide visibility. FunctionGen saves/restores Symbols and inherits only
-previously visible top-level constants (ScopeID 0). CodeGen isolates constant
+function-wide visibility. FunctionGen saves/restores Symbols and inherits visible globals plus
+previously visible top-level constants (ScopeID 0). Locals may shadow globals. CodeGen isolates constant
 scope bookkeeping and array metadata around each function body. Arrays also
 restore metadata at control-flow block exits.
 
@@ -142,7 +142,7 @@ arguments through `emitCoercedExpr`, and dispatches whole-array arguments to
 `ArrayHandler::emitArrayArgument`. RETURN values go through `emitCoercedExpr` against
 the declared return type. Top-level prototypes are pre-registered (after the TYPE
 pre-pass) before statement emission, so call-before-definition is fine; a call with
-no registered signature is a compile error. Global function names get no mangling, so
+no registered signature is a compile error. Global function names except MAIN get no mangling, so
 `emitPrototype` rejects names that collide with runtime/libc symbols
 (`isReservedRuntimeName`), builtins, or enum values. Signatures retain the first
 declaration spelling for LLVM lookup, independently of call-site casing. Methods use
@@ -180,3 +180,15 @@ plain calls. RETURN must finish all active catches after evaluating its value.
 throwing. Generated main catches anything unhandled, prints the generic termination
 message to stdout, and returns 1. Explicit bare THROW prints no diagnostic itself.
 Arrays in TRY and CATCH use separate block scopes; scalars retain existing function scope.
+
+**Compilation units and entry points.** SourceUnit borrows its AST list; it and the
+visibility matrix must outlive compile(). Select the owning unit before each pre-pass,
+prototype or body so diagnostics and name lookup use that file. TypeSystem's predicate
+filters types and their enum values; FuncSig records OwnerUnit. Rebuild Symbols from
+visible exports for each unit: imported constants are available immediately, own
+constants only at their declaration, and globals from the beginning. GLOBAL bodies
+contain only primitive scalar declarations and literal assignments; IsGlobal storage
+is an LLVM GlobalVariable and must survive FunctionGen's symbol reset. User MAIN is
+case insensitive, takes no parameters and returns INTEGER; its LLVM name is
+__cps_main with internal linkage. The generated i32 main wrapper calls it through
+ExceptionHandler, truncates its result and retains the final uncaught handler.

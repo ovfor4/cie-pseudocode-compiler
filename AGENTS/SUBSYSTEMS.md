@@ -24,7 +24,7 @@ are a compile error there). Arrays keep their per-element newlines and dispatch
 continues with the next expression; a final array requires no extra newline.
 
 **Functions** (`FunctionGen`): plain LLVM functions, external linkage, exact pseudocode
-name. Params are `ParamDecl{name, typeString, mode, array rank/bounds}`. BYVAL args are
+name (MAIN uses internal __cps_main). Params are `ParamDecl{name, typeString, mode, array rank/bounds}`. BYVAL args are
 copied into entry-block allocas (whole structs for records); BYREF args bind the
 incoming pointer directly as the variable's storage; array params are handed to the
 binder callback CodeGen injects (`setArrayParamBinder`) so FunctionGen never sees
@@ -34,7 +34,7 @@ map (`FunctionGen::getSignature`); `CodeGen::marshalCallArgs` dispatches call ar
 on those *declared* `ParamSig`s, and `getExprTypeInfo` reads return types from the same
 map. Top-level prototypes are pre-registered at the start of `compile()` (after the
 TYPE pre-pass), so calls may precede definitions; calling a name with no signature is a
-compile error (no extern is fabricated). Functions inherit previously declared top-level CONSTANT values; local constants use the same Symbols table with lexical binding restoration. Body emission is inverted: CodeGen injects a
+compile error (no extern is fabricated). Functions inherit visible GLOBAL storage and previously declared own top-level CONSTANT values, plus imported constants from the start; local constants use the same Symbols table with lexical binding restoration. Body emission is inverted: CodeGen injects a
 `StmtEmitter` callback, and must restore its own insert point (and the exchanged
 ArrayTable) afterwards.
 
