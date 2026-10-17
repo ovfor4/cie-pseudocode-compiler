@@ -127,7 +127,7 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
         return nullptr;
     }
     if (Proto->getOwnerClass().empty()) {
-        if (isReservedRuntimeName(Proto->getName())) {
+        if (!Proto->isExternal() && isReservedRuntimeName(Proto->getName())) {
             reportError("'%s' is a reserved runtime symbol and cannot be a FUNCTION/PROCEDURE name",
                     Proto->getName().c_str());
             return nullptr;
@@ -231,6 +231,96 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     return F;
 }
 
+// The prototype names the exact C symbol; parameters and the result must be C
+// types. Narrow integers carry the C ABI's sign/zero extension attributes.
+bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
+    if (PrototypeLinks.count(Proto)) return true;
+    const std::string &Name = Proto->getName();
+    if (sameIdentifier(Name, "MAIN")) {
+        reportError("MAIN cannot be declared EXTERN");
+        return false;
+    }
+    if (CodeGen::isBuiltinName(Name)) {
+        reportError("'%s' is a built-in function and cannot be redefined", Name.c_str());
+        return false;
+    }
+    if (Types.lookupEnumConstant(Name) || Types.resolve(Name)) {
+        reportError("'%s' is already a type or enum value name", Name.c_str());
+        return false;
+    }
+
+    auto Extension = [](const TypeInfo *Info) {
+        if (Info->Kind != TypeKind::CScalar || !Info->LLVMType->isIntegerTy() ||
+            Info->LLVMType->getIntegerBitWidth() >= 32)
+            return Attribute::None;
+        return Info->CSigned ? Attribute::SExt : Attribute::ZExt;
+    };
+
+    FuncSig Sig;
+    Sig.OwnerUnit = CurrentUnit;
+    Sig.Name = Name;
+    Sig.LinkName = Name;
+    Sig.Prototype = Proto;
+    Sig.ReturnTypeName = Proto->getReturnType();
+    Sig.IsExternal = true;
+    Sig.IsVariadic = Proto->isVariadic();
+
+    std::vector<Type *> ArgTypes;
+    AttrBuilder RetAttrs(Context);
+    std::vector<AttributeSet> ParamAttrs;
+    for (size_t I = 0; I < Proto->getParams().size(); ++I) {
+        const ParamDecl &P = Proto->getParams()[I];
+        const TypeInfo *Info = Types.resolve(P.TypeName);
+        if (!Info) {
+            reportError("Unknown type %s", P.TypeName.c_str());
+            return false;
+        }
+        if (!Info->isC() || Info->isVoid()) {
+            reportError("EXTERN parameter %zu of %s must be a non-void C type (got %s)",
+                        I + 1, Name.c_str(), P.TypeName.c_str());
+            return false;
+        }
+        ArgTypes.push_back(Info->LLVMType);
+        AttrBuilder B(Context);
+        if (Attribute::AttrKind K = Extension(Info); K != Attribute::None) B.addAttribute(K);
+        ParamAttrs.push_back(AttributeSet::get(Context, B));
+        ParamSig PS;
+        PS.TypeName = P.TypeName;
+        Sig.Params.push_back(std::move(PS));
+    }
+    Type *RetType = Type::getVoidTy(Context);
+    if (!sameIdentifier(Proto->getReturnType(), "VOID")) {
+        const TypeInfo *Info = Types.resolve(Proto->getReturnType());
+        if (!Info) {
+            reportError("Unknown type %s", Proto->getReturnType().c_str());
+            return false;
+        }
+        if (!Info->isC() || Info->isVoid()) {
+            reportError("EXTERN_FUNCTION %s must return a non-void C type (got %s)",
+                        Name.c_str(), Proto->getReturnType().c_str());
+            return false;
+        }
+        RetType = Info->LLVMType;
+        if (Attribute::AttrKind K = Extension(Info); K != Attribute::None) RetAttrs.addAttribute(K);
+    }
+
+    auto &Overloads = Signatures[Sig.Name];
+    if (!Overloads.empty()) {
+        if (Overloads.front().OwnerUnit != CurrentUnit)
+            reportError("Duplicate definition %s in %s and %s", Name.c_str(),
+                        UnitPaths[Overloads.front().OwnerUnit].c_str(), UnitPaths[CurrentUnit].c_str());
+        else reportError("Function %s cannot be redefined", Name.c_str());
+        return false;
+    }
+    Sig.ExternType = FunctionType::get(RetType, ArgTypes, Proto->isVariadic());
+    Sig.ExternAttrs = AttributeList::get(Context, AttributeSet(),
+                                         AttributeSet::get(Context, RetAttrs), ParamAttrs);
+    Module.getOrInsertFunction(Name, Sig.ExternType);
+    PrototypeLinks.emplace(Proto, Name);
+    Overloads.push_back(std::move(Sig));
+    return true;
+}
+
 Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
                                        const std::function<void(StmtAST*)> &StmtEmitter, unsigned ScopeID) {
     PrototypeAST *Proto = FuncAST->getProto();
@@ -307,6 +397,15 @@ static Value *GenerateCall(llvm::Module &Module,
 
 llvm::Value *FunctionGen::emitCall(const std::string &Callee, const std::vector<llvm::Value*> &Args) {
     return GenerateCall(Module, Exceptions, Callee, Args, HadError, DiagnosticLine);
+}
+
+llvm::Value *FunctionGen::emitCall(const FuncSig &Sig, const std::vector<llvm::Value*> &Args) {
+    if (!Sig.IsExternal) return emitCall(Sig.LinkName, Args);
+    FunctionCallee Callee(Sig.ExternType, Module.getNamedValue(Sig.LinkName));
+    Value *Call = Sig.ExternType->getReturnType()->isVoidTy()
+        ? Exceptions.emitCall(Callee, Args) : Exceptions.emitCall(Callee, Args, "calltmp");
+    cast<CallBase>(Call)->setAttributes(Sig.ExternAttrs);
+    return Call;
 }
 
 void FunctionGen::emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal) {

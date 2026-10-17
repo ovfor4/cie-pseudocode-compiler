@@ -116,7 +116,7 @@ Value *CodeGen::emitMethodCall(const std::string &Class, Value *Receiver,
     }
     std::vector<Value*> Args = {Receiver};
     if (!marshalCallArgs(*Sig, ArgExprs, Line, Args)) return nullptr;
-    return FuncGen->emitCall(Sig->LinkName, Args);
+    return FuncGen->emitCall(*Sig, Args);
 }
 
 // Resolves a designator (or legacy variable/array-access node) to the address

@@ -155,6 +155,7 @@ class CodeGen {
                           const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line);
     const FuncSig *resolveCall(const std::string &Name,
                                const std::vector<std::unique_ptr<ExprAST>> &Args);
+    llvm::Value *emitVariadicArgument(ExprAST *Expr, const std::string &Callee, size_t Position);
     bool marshalCallArgs(const FuncSig &Signature,
                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
                          int Line,

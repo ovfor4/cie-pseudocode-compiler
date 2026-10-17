@@ -43,6 +43,12 @@ struct FuncSig {
     std::string ReturnTypeName;
     std::vector<ParamSig> Params;
     size_t OwnerUnit = 0;
+    // EXTERN "C": called through its declared C type, which may differ from a
+    // runtime declaration of the same libc symbol.
+    bool IsExternal = false;
+    bool IsVariadic = false;
+    llvm::FunctionType *ExternType = nullptr;
+    llvm::AttributeList ExternAttrs;
 };
 
 class FunctionGen {
@@ -103,10 +109,12 @@ public:
     const FuncSig *getSignatureByLink(const std::string &Name) const;
 
     llvm::Function *emitPrototype(PrototypeAST *Proto);
+    bool emitExternPrototype(PrototypeAST *Proto);
 
     llvm::Function *emitFunctionDef(FunctionDefAST *FuncAST, const std::function<void(StmtAST*)> &StmtEmitter, unsigned ScopeID);
 
     llvm::Value *emitCall(const std::string &Callee, const std::vector<llvm::Value*> &Args);
+    llvm::Value *emitCall(const FuncSig &Sig, const std::vector<llvm::Value*> &Args);
 
     void emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal);
 };

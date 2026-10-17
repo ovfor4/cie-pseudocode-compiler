@@ -215,6 +215,9 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
                         !sameIdentifier(F->getProto()->getReturnType(), "INTEGER"))
                         reportError("MAIN must be a FUNCTION with no parameters returning INTEGER");
                 }
+            } else if (auto *X = dynamic_cast<ExternDeclAST*>(S.get())) {
+                Reserve(X->getProto()->getName(), true);
+            } else if (dynamic_cast<IncludeObjStmtAST*>(S.get())) {
             } else if (auto *E = dynamic_cast<EnumTypeDeclAST*>(S.get())) {
                 TypeName = E->getName();
                 for (const auto &V : E->getValueNames()) Reserve(V);
@@ -285,6 +288,8 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
             SaveAndRestore<int> Location(DiagnosticLine, Stmt->getLine());
             if (auto *FuncDef = dynamic_cast<FunctionDefAST*>(Stmt.get()))
                 FuncGen->emitPrototype(FuncDef->getProto());
+            if (auto *Extern = dynamic_cast<ExternDeclAST*>(Stmt.get()))
+                FuncGen->emitExternPrototype(Extern->getProto());
             if (auto *Class = dynamic_cast<ClassTypeDeclAST*>(Stmt.get())) {
                 for (const auto &Method : Class->getMethods()) {
                     SaveAndRestore<int> MethodLocation(DiagnosticLine, Method->getLine());
@@ -365,12 +370,18 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
     SaveAndRestore<int> Location(DiagnosticLine, Line ? Line : DiagnosticLine);
     const FuncSig *Sig = &Signature;
     const std::string &Callee = Sig->Name;
-    if (ArgExprs.size() != Sig->Params.size()) {
+    if (Sig->IsVariadic ? ArgExprs.size() < Sig->Params.size() : ArgExprs.size() != Sig->Params.size()) {
         reportError("Incorrect # arguments passed to %s", Callee.c_str());
         return false;
     }
 
     for (size_t i = 0; i < ArgExprs.size(); ++i) {
+        if (i >= Sig->Params.size()) {
+            Value *V = emitVariadicArgument(ArgExprs[i].get(), Callee, i + 1);
+            if (!V) return false;
+            Out.push_back(V);
+            continue;
+        }
         const ParamSig &P = Sig->Params[i];
         const std::string &TypeName = P.TypeName;
         bool IsByRef = P.IsByRef;
@@ -422,6 +433,23 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
         }
     }
     return true;
+}
+
+// C default argument promotions for the variadic part of an EXTERN call; only
+// C values are accepted, matching the explicit-cast rule for C/pseudocode.
+Value *CodeGen::emitVariadicArgument(ExprAST *Expr, const std::string &Callee, size_t Position) {
+    const TypeInfo *Info = isWholeArrayVar(Expr) ? nullptr : getExprTypeInfo(Expr);
+    if (!Info || !Info->isC() || Info->isVoid()) {
+        reportError("Variadic argument %zu to %s must be a C value; cast it to a C type", Position, Callee.c_str());
+        return nullptr;
+    }
+    Value *V = emitExpr(Expr);
+    if (!V || Info->Kind != TypeKind::CScalar) return V;
+    if (Info->isReal()) {
+        const TypeInfo *Double = resolveType("C_DOUBLE");
+        return Info->CRank < Double->CRank ? convertNumericValue(V, Info, Double) : V;
+    }
+    return convertNumericValue(V, Info, Types->promoteCScalar(Info));
 }
 
 // Resolve using static source types only; argument evaluation belongs to marshalling.
