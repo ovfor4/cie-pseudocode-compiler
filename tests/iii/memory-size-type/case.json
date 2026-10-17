@@ -3,6 +3,10 @@
     {
       "reason": "Allocation\\ size\\ must\\ be\\ INTEGER\\ or\\ a\\ C\\ integer",
       "line": 1
+    },
+    {
+      "reason": "Allocation size must be INTEGER or a C integer",
+      "line": 4
     }
   ]
 }

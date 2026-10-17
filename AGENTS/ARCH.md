@@ -297,7 +297,7 @@ do not modify the real release for local verification.
 | `lib/CodeGen/Designator.cc`, `TypeCheckGen.cc` | TYPE pre-pass and lvalue access; type admission and user-kind binary operators |
 | `lib/CodeGen/CTypeGen.cc` | CodeGen methods for native C scalar conversions, casts, arithmetic and input/output |
 | `lib/CodeGen/NativeTypeSystem.cc` | Builtin registration, native C type imports/aliases and scalar promotion |
-| `lib/CodeGen/MemoryHandler.cc` | Explicit raw memory allocation and release with a live-address tracking list |
+| `lib/CodeGen/MemoryHandler.cc` | Explicit raw memory allocation, resizing and release with a live-address tracking list |
 | `lib/CodeGen/FileHandler.cc`, `FileRuntimeIO.cc` | File runtime setup/lookup/open and call entry points; read/write/close/EOF helper bodies |
 | `lib/CodeGen/ArrayHandler.cc`, `ArrayParameters.cc`, `ArrayOutput.cc` | Array allocation/indexing, parameter binding/arguments and whole/subarray output |
 | `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen (including exception emission) |

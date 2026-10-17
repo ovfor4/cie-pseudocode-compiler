@@ -27,6 +27,7 @@ inline constexpr BuiltinInfo Builtins[] = {
     {"STR_TO_NUM", 1, "REAL"},
     {"EOF",        1, "BOOLEAN"},
     {"MALLOC",     1, "C_TYPE(\"void*\")"},
+    {"REALLOC",    2, "C_TYPE(\"void*\")"},
     {"FREE",       1, "C_TYPE(\"void*\")"},
 };
 

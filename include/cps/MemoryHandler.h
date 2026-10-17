@@ -20,8 +20,9 @@ class MemoryHandler {
     llvm::IntegerType *SizeTy = nullptr;
     llvm::StructType *NodeTy = nullptr;
     llvm::GlobalVariable *Head = nullptr;
-    llvm::FunctionCallee Malloc, Free;
-    llvm::Function *AllocateFn = nullptr, *ReleaseFn = nullptr, *FindFn = nullptr;
+    llvm::FunctionCallee Malloc, Free, Realloc;
+    llvm::Function *AllocateFn = nullptr, *ReleaseFn = nullptr, *FindFn = nullptr,
+                   *ResizeFn = nullptr;
     llvm::Value *AllocationError = nullptr, *TrackingError = nullptr, *InvalidAddress = nullptr;
 
     void ensureRuntime();
@@ -29,6 +30,7 @@ class MemoryHandler {
     void buildFind();
     void buildAllocate();
     void buildRelease();
+    void buildResize();
 
 public:
     MemoryHandler(llvm::LLVMContext &C, llvm::IRBuilder<> &B, llvm::Module &M,
@@ -37,6 +39,7 @@ public:
 
     llvm::Value *emitAllocate(llvm::Value *Size, int Line);
     llvm::Value *emitRelease(llvm::Value *Address, int Line);
+    llvm::Value *emitResize(llvm::Value *Address, llvm::Value *Size, int Line);
 };
 
 } // namespace cps

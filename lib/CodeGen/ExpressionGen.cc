@@ -192,6 +192,13 @@ Value *CodeGen::emitCall(const std::string &Callee,
         if (!Size) return nullptr;
         return Memory->emitAllocate(Size, Line);
     }
+    if (Name == "REALLOC") {
+        Value *Address = emitCoercedExpr(ArgExprs[0].get(), resolveType("C_TYPE(\"void*\")"));
+        if (!Address) return nullptr;
+        Value *Size = emitAllocationSize(ArgExprs[1].get());
+        if (!Size) return nullptr;
+        return Memory->emitResize(Address, Size, Line);
+    }
     if (Name == "FREE") {
         Value *Address = emitCoercedExpr(ArgExprs[0].get(), resolveType("C_TYPE(\"void*\")"));
         if (!Address) return nullptr;

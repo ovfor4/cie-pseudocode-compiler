@@ -158,7 +158,7 @@ callback CodeGen injects into FunctionGen). BYVAL arrays are whole
 malloc+memcpy copies at callee entry; BYREF binds the caller's buffer.
 
 **Builtins are plain identifiers backed by one table.** Builtins
-(LENGTH/MID/RIGHT/LEFT/LCASE/UCASE/ASC/CHR/IS_NUM/NUM_TO_STR/STR_TO_NUM/EOF/MALLOC/FREE) parse as
+(LENGTH/MID/RIGHT/LEFT/LCASE/UCASE/ASC/CHR/IS_NUM/NUM_TO_STR/STR_TO_NUM/EOF/MALLOC/FREE/REALLOC) parse as
 ordinary calls — no lexer/parser support, and the names are not reserved words. The
 inline constexpr `Builtins` table in the internal `lib/CodeGen/Builtins.h` ({Name, Arity, ReturnTypeName}) is
 the single source of truth: `emitCall` checks arity against it

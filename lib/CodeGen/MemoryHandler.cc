@@ -27,6 +27,7 @@ void MemoryHandler::ensureRuntime() {
                               ConstantPointerNull::get(Ptr), "__cps_memory_head");
     Malloc = Module.getOrInsertFunction("malloc", FunctionType::get(Ptr, {SizeTy}, false));
     Free = Module.getOrInsertFunction("free", FunctionType::get(Type::getVoidTy(Context), {Ptr}, false));
+    Realloc = Module.getOrInsertFunction("realloc", FunctionType::get(Ptr, {Ptr, SizeTy}, false));
     AllocationError = Builder.CreateGlobalString("[Fatal] line %d: Memory allocation failed\n",
                                                   "err_allocation", 0, &Module);
     TrackingError = Builder.CreateGlobalString("[Fatal] line %d: Allocation tracking failed\n",
@@ -39,6 +40,8 @@ void MemoryHandler::ensureRuntime() {
     buildAllocate();
     ReleaseFn = createHelper("__cps_memory_release", {Ptr, I32});
     buildRelease();
+    ResizeFn = createHelper("__cps_memory_resize", {Ptr, SizeTy, I32});
+    buildResize();
 }
 
 // Return the address of the list link that owns the matching node. This also
@@ -117,4 +120,35 @@ Value *MemoryHandler::emitAllocate(Value *Size, int Line) {
 Value *MemoryHandler::emitRelease(Value *Address, int Line) {
     ensureRuntime();
     return Exceptions.emitCall(ReleaseFn, {Address, Builder.getInt32(Line)}, "released");
+}
+
+void MemoryHandler::buildResize() {
+    auto *Ptr = PointerType::getUnqual(Context);
+    Value *Address = ResizeFn->getArg(0), *Size = ResizeFn->getArg(1), *Line = ResizeFn->getArg(2);
+    auto *Allocate = BasicBlock::Create(Context, "allocate", ResizeFn);
+    auto *Validate = BasicBlock::Create(Context, "validate", ResizeFn);
+    auto *Release = BasicBlock::Create(Context, "release", ResizeFn);
+    auto *Resize = BasicBlock::Create(Context, "resize", ResizeFn);
+    Builder.CreateCondBr(Builder.CreateIsNull(Address), Allocate, Validate);
+    Builder.SetInsertPoint(Allocate);
+    Builder.CreateRet(Exceptions.emitCall(AllocateFn, {Size, Line}, "allocation"));
+    Builder.SetInsertPoint(Validate);
+    Value *Link = Exceptions.emitCall(FindFn, {Address, Line}, "link");
+    Value *Node = Builder.CreateLoad(Ptr, Link);
+    Builder.CreateCondBr(Builder.CreateICmpEQ(Size, ConstantInt::get(SizeTy, 0)), Release, Resize);
+    Builder.SetInsertPoint(Release);
+    Exceptions.emitCall(ReleaseFn, {Address, Line});
+    Builder.CreateRet(ConstantPointerNull::get(Ptr));
+    Builder.SetInsertPoint(Resize);
+    Value *NewAddress = Builder.CreateCall(Realloc, {Address, Size}, "resized");
+    // libc preserves the original block on nonzero-size failure. Leave the
+    // tracking entry untouched until the check has succeeded as well.
+    Checker.emitCheck(Builder.CreateIsNull(NewAddress), AllocationError, {Line});
+    Builder.CreateStore(NewAddress, Builder.CreateStructGEP(NodeTy, Node, 0));
+    Builder.CreateRet(NewAddress);
+}
+
+Value *MemoryHandler::emitResize(Value *Address, Value *Size, int Line) {
+    ensureRuntime();
+    return Exceptions.emitCall(ResizeFn, {Address, Size, Builder.getInt32(Line)}, "resized");
 }

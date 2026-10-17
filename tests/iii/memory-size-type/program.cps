@@ -1,1 +1,4 @@
 MALLOC(1.5)
+TYPE Raw = C_TYPE("void*")
+DECLARE P : Raw
+REALLOC(P, TRUE)
