@@ -30,6 +30,8 @@ In Actions, each compiler platform runs all three suites and summarizes results 
 
 For adding cases and runner interfaces, see [AGENTS/TESTING.md](../AGENTS/TESTING.md).
 
+A case with `objects` in `case.json` builds `.c` and `.cc` files into `.o` files for `INCLUDE_OBJ` (see `i/extern-c-object` and `i/extern-cc-object`). CMake passes the project C and C++ compilers.
+
 Multi-file fixtures use a `sources` array in `case.json`, listing all compiler inputs relative to the case directory in command-line order. The default remains `["program.cps"]`. Included libraries live beside the fixture source or in subdirectories; INCLUDE paths stay relative to their including source. Sources are passed separately to both native compilation and the configured runner. Negative cases may add `file` to an error expectation; the reason, line and exact resolved source path must occur on the same diagnostic.
 
 Run the cross-file cases (functions, shared globals, imported types, include cycles, MAIN, exception unwinding and rejection diagnostics) with:

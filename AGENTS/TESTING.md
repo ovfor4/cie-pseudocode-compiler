@@ -12,6 +12,8 @@ the reason, line and exact absolute input path must match the same diagnostic.
 The harness contract tests reject wrong filenames, filename prefixes and split
 reason/location messages.
 
+Suite i and ii cases may list `objects` as `{source, output}` pairs, for example `lib.c` to `lib.o`. The runner copies the case directory beside the results, builds each object there with the host C (`.c`) or C++ (`.cc`) compiler passed by `--cc` and `--cxx`, and compiles `sources` from the copy so `INCLUDE_OBJ "lib.o"` resolves. Keep C++ objects free of the C++ runtime library: `-r` loads only the C library.
+
 Optional manifest fields are `exit_code` for expected program status (default 0) and `timeout` for execution/reference seconds (default 30; file-intensive cases use 180). Compilation has a 120-second timeout. Do not make a known compiler defect pass by changing the expectation, adding an exemption or comparing only a permissive substring of program output.
 
 The Perl runner (`tests/run.pl`) accepts `--case`, `--cpsc`, `--run-mode`, `--perl`, `--reference`, `--seed`, `--count` and `--results`. CMake provides paths, including executable suffixes, and caches `CPSC_TEST_SEED` and `CPSC_TEST_COUNT`. The default seed is HEAD read at execution, not configure time. CI overrides it with the checked-out push SHA. Both native and enabled runner paths are tested independently; NONE skips only runner execution. Windows CI must configure a native `PERL_EXECUTABLE` (Strawberry Perl) because MSYS perl cannot read the native `D:/` drive paths CMake passes.
