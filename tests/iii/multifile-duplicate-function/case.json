@@ -1,0 +1,13 @@
+{
+  "sources": [
+    "program.cps",
+    "lib.cps"
+  ],
+  "errors": [
+    {
+      "reason": "Duplicate definition value",
+      "line": 1,
+      "file": "lib.cps"
+    }
+  ]
+}

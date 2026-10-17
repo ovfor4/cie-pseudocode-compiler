@@ -1,0 +1,13 @@
+{
+  "sources": [
+    "program.cps",
+    "lib.cps"
+  ],
+  "errors": [
+    {
+      "reason": "Unknown variable name Missing",
+      "line": 2,
+      "file": "lib.cps"
+    }
+  ]
+}

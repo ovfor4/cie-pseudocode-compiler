@@ -1,0 +1,7 @@
+{
+  "sources": [
+    "program.cps",
+    "middle.cps",
+    "leaf.cps"
+  ]
+}

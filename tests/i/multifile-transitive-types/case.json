@@ -1,0 +1,7 @@
+{
+  "sources": [
+    "program.cps",
+    "bridge.cps",
+    "nested/values.cps"
+  ]
+}

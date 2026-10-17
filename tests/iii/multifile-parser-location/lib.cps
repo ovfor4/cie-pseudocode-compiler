@@ -1,0 +1,3 @@
+PROCEDURE Broken()
+INCLUDE "program.cps"
+ENDPROCEDURE

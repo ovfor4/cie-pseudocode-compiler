@@ -1,0 +1,4 @@
+GLOBAL
+DECLARE Value : INTEGER
+Value <- 1 + 2
+ENDGLOBAL

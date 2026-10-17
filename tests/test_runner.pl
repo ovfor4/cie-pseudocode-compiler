@@ -52,6 +52,23 @@ for my $bad (
     ok(!$ok, 'diagnostic mismatch rejected: ' . show_bytes($bad));
 }
 
+my $file_expectation = [{reason => "Expected ':'", line => 3, file => '/fixtures/lib.cps'}];
+for my $sample (
+    ["error: Expected ':' at line 3 in /fixtures/lib.cps", 1],
+    ["error: Expected ':' at line 3 in /fixtures/program.cps", 0],
+    ["error: Expected ':' at line 3 in /fixtures/lib.cps.extra", 0],
+    ["error: Expected ':' at line 30 in /fixtures/lib.cps", 0],
+    ["error: Expected ':' at line 3\nerror: unrelated at line 3 in /fixtures/lib.cps", 0],
+) {
+    my ($diagnostic, $expected) = @{$sample};
+    my $ok = eval {
+        check_diagnostics({returncode => 1, stdout => '',
+            stderr => $diagnostic . "\ncompilation terminated.\n"}, $file_expectation);
+        1;
+    };
+    is($ok ? 1 : 0, $expected, 'file-qualified diagnostic: ' . show_bytes($diagnostic));
+}
+
 my $dir = tempdir(CLEANUP => 1);
 my $state = commands_new($dir);
 my $ran = eval { run_command($state, [$^X, '-e', 'sleep 5'], $dir, '', 1); 1; };

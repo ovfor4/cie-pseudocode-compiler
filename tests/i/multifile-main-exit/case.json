@@ -1,0 +1,7 @@
+{
+  "sources": [
+    "lib.cps",
+    "program.cps"
+  ],
+  "exit_code": 3
+}

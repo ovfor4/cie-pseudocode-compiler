@@ -29,3 +29,11 @@ Use the actual SHA from a failed report in place of `FULL_COMMIT_SHA`. Clear `CP
 In Actions, each compiler platform runs all three suites and summarizes results before its existing package smoke checks and upload. Failures retain inputs and logs as an Actions artifact for 14 days. Each platform publishes only after its own tests pass. The initial Linux failures have been fixed; any failing compiler test still blocks publication for that platform. The independent plugin job can publish separately.
 
 For adding cases and runner interfaces, see [AGENTS/TESTING.md](../AGENTS/TESTING.md).
+
+Multi-file fixtures use a `sources` array in `case.json`, listing all compiler inputs relative to the case directory in command-line order. The default remains `["program.cps"]`. Included libraries live beside the fixture source or in subdirectories; INCLUDE paths stay relative to their including source. Sources are passed separately to both native compilation and the configured runner. Negative cases may add `file` to an error expectation; the reason, line and exact resolved source path must occur on the same diagnostic.
+
+Run the cross-file cases (functions, shared globals, imported types, include cycles, MAIN, exception unwinding and rejection diagnostics) with:
+
+```sh
+ctest --test-dir build -R multifile --output-on-failure
+```

@@ -1,0 +1,13 @@
+{
+  "sources": [
+    "program.cps",
+    "lib.cps"
+  ],
+  "errors": [
+    {
+      "reason": "Unterminated string literal",
+      "line": 1,
+      "file": "lib.cps"
+    }
+  ]
+}

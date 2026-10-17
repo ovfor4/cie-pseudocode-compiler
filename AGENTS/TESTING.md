@@ -4,6 +4,14 @@ Compiler tests live in `tests/`; run instructions are in its README. `BUILD_TEST
 
 Each case directory has `program.cps` and `case.json`. Suite i adds `expected.txt`, optional `input.txt`, input files under `files/`, expected text-file contents under `expected-files/`, and independently written trace notes with human-review status. Suite ii adds `reference.cc` and `generate.pl`; the generator accepts seed and random count, emits the total record count followed by one ASCII record per line, and each program emits one result line per record. Suite iii stores an `errors` list of `{reason: regex, line: integer}` in its manifest. A cause and its line must appear on the same error diagnostic. EOF after a final newline is the following source line.
 
+Multi-file cases specify `sources` as an ordered array of paths relative to the
+case directory, defaulting to `["program.cps"]`. Library sources can be in nested
+subdirectories. Both compilation and runner commands receive the whole list.
+Suite iii error expectations may also specify `file` relative to the case directory;
+the reason, line and exact absolute input path must match the same diagnostic.
+The harness contract tests reject wrong filenames, filename prefixes and split
+reason/location messages.
+
 Optional manifest fields are `exit_code` for expected program status (default 0) and `timeout` for execution/reference seconds (default 30; file-intensive cases use 180). Compilation has a 120-second timeout. Do not make a known compiler defect pass by changing the expectation, adding an exemption or comparing only a permissive substring of program output.
 
 The Perl runner (`tests/run.pl`) accepts `--case`, `--cpsc`, `--run-mode`, `--perl`, `--reference`, `--seed`, `--count` and `--results`. CMake provides paths, including executable suffixes, and caches `CPSC_TEST_SEED` and `CPSC_TEST_COUNT`. The default seed is HEAD read at execution, not configure time. CI overrides it with the checked-out push SHA. Both native and enabled runner paths are tested independently; NONE skips only runner execution. Windows CI must configure a native `PERL_EXECUTABLE` (Strawberry Perl) because MSYS perl cannot read the native `D:/` drive paths CMake passes.

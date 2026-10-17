@@ -113,13 +113,16 @@ sub check_diagnostics {
         my @matching = grep { /error:/ && /$reason/ } @lines;
         my $found = 0;
         for my $line (@matching) {
-            if ($line =~ /\bline $line_no\b/) {
+            my $file = $expectation->{file};
+            if ($line =~ /\bline $line_no\b/ &&
+                (!defined($file) || $line =~ /\bline $line_no in \Q$file\E(?:\s|$)/)) {
                 $found = 1;
                 last;
             }
         }
         if (!$found) {
             push @errors, 'missing error /' . $reason . '/ at line ' . $line_no
+                . (defined($expectation->{file}) ? ' in ' . $expectation->{file} : '')
                 . '; matching diagnostics: [' . join(', ', map { show_bytes($_) } @matching) . ']';
         }
     }
@@ -339,7 +342,15 @@ sub main {
         run_mode     => $opt_run_mode,
         failures     => [],
     };
-    my $source = File::Spec->catfile($case_dir, 'program.cps');
+    my @sources = map { File::Spec->catfile($case_dir, split(m{/}, $_)) }
+        @{$config->{sources} // ['program.cps']};
+    my @expectations = map {
+        my %expectation = %{$_};
+        if (defined($expectation{file})) {
+            $expectation{file} = File::Spec->catfile($case_dir, split(m{/}, $expectation{file}));
+        }
+        \%expectation;
+    } @{$config->{errors} // []};
 
     my $attempt = sub {
         my ($label, $code) = @_;
@@ -367,7 +378,7 @@ sub main {
                     write_file($target, $sentinel);
                 }
                 my $result = run_command($commands,
-                    [$cpsc_abs, $source, @flags, '-o', $target], $work, '', 120);
+                    [$cpsc_abs, @sources, @flags, '-o', $target], $work, '', 120);
                 my $preservation_error;
                 if ($existing && (!-f $target || read_file($target) ne $sentinel)) {
                     $preservation_error = 'compilation failure overwrote existing output';
@@ -384,7 +395,7 @@ sub main {
                         if (defined($captured_error)) {
                             die "$captured_error\n";
                         }
-                        check_diagnostics($captured_result, $config->{errors});
+                        check_diagnostics($captured_result, \@expectations);
                     },
                 );
             }
@@ -443,12 +454,12 @@ sub main {
                     my $target = File::Spec->catfile($work,
                         $IS_WINDOWS ? 'program.exe' : 'program.bin');
                     my $compiled = run_command($commands,
-                        [$cpsc_abs, $source, '-o', $target], $work, '', 120);
+                        [$cpsc_abs, @sources, '-o', $target], $work, '', 120);
                     check_result($compiled, '');
                     $command = [$target];
                 }
                 else {
-                    $command = [$cpsc_abs, $source, '-r'];
+                    $command = [$cpsc_abs, @sources, '-r'];
                 }
                 my $exec_timeout = exists($config->{timeout}) ? $config->{timeout} + 0 : 30;
                 my $result = run_command($commands, $command, $work, $data, $exec_timeout);

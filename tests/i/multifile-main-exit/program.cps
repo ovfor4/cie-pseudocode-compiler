@@ -1,0 +1,6 @@
+INCLUDE "lib.cps"
+FUNCTION mAiN RETURNS INTEGER
+    CALL Increment()
+    OUTPUT Counter
+    RETURN Status()
+ENDFUNCTION

@@ -1,0 +1,13 @@
+{
+  "sources": [
+    "program.cps",
+    "lib.cps"
+  ],
+  "errors": [
+    {
+      "reason": "GLOBAL blocks allow only primitive DECLARE",
+      "line": 2,
+      "file": "lib.cps"
+    }
+  ]
+}

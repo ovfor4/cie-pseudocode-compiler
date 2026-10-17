@@ -1,0 +1,28 @@
+{
+  "sources": [
+    "program.cps",
+    "lib.cps"
+  ],
+  "errors": [
+    {
+      "reason": "Call to undefined function HiddenFunction",
+      "line": 1,
+      "file": "program.cps"
+    },
+    {
+      "reason": "Unknown variable name HiddenVariable",
+      "line": 2,
+      "file": "program.cps"
+    },
+    {
+      "reason": "Unknown variable name HiddenConstant",
+      "line": 3,
+      "file": "program.cps"
+    },
+    {
+      "reason": "Unknown type HiddenType",
+      "line": 4,
+      "file": "program.cps"
+    }
+  ]
+}

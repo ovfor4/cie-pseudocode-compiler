@@ -1,0 +1,1 @@
+CONSTANT Value = 1

@@ -1,0 +1,8 @@
+FUNCTION HiddenFunction RETURNS INTEGER
+RETURN 1
+ENDFUNCTION
+GLOBAL
+DECLARE HiddenVariable : INTEGER
+ENDGLOBAL
+CONSTANT HiddenConstant = 1
+TYPE HiddenType = (HiddenEnum)

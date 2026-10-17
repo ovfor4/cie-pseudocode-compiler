@@ -1,0 +1,13 @@
+{
+  "sources": [
+    "program.cps",
+    "lib.cps"
+  ],
+  "errors": [
+    {
+      "reason": "Top-level code in both",
+      "line": 1,
+      "file": "lib.cps"
+    }
+  ]
+}

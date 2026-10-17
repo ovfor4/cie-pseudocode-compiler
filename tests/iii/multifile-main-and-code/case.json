@@ -1,0 +1,13 @@
+{
+  "sources": [
+    "program.cps",
+    "lib.cps"
+  ],
+  "errors": [
+    {
+      "reason": "cannot coexist with top-level code",
+      "line": 1,
+      "file": "program.cps"
+    }
+  ]
+}

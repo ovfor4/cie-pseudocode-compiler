@@ -1,0 +1,13 @@
+{
+  "sources": [
+    "program.cps",
+    "lib.cps"
+  ],
+  "errors": [
+    {
+      "reason": "MAIN must be a FUNCTION with no parameters returning INTEGER",
+      "line": 1,
+      "file": "program.cps"
+    }
+  ]
+}
