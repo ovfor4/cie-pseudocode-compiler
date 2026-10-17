@@ -74,15 +74,24 @@ sub compare {
 }
 
 sub check_result {
-    my ($result, $expected, $exit_code) = @_;
+    my ($result, $expected, $exit_code, $expected_stderr) = @_;
     $exit_code = 0 unless defined $exit_code;
+    $expected_stderr = '' unless defined $expected_stderr;
     my @errors;
     if ($result->{returncode} != $exit_code) {
         push @errors, "exit code: expected $exit_code, got $result->{returncode}";
     }
-    if (length($result->{stderr})) {
+    if (!length($expected_stderr) && length($result->{stderr})) {
         my $shown = show_bytes(substr($result->{stderr}, 0, 2000));
         push @errors, "unexpected stderr: $shown";
+    }
+    elsif (length($expected_stderr)) {
+        my $stderr_ok = eval { compare($expected_stderr, $result->{stderr}, 'stderr'); 1; };
+        if (!$stderr_ok) {
+            my $err = $@;
+            chomp($err);
+            push @errors, $err;
+        }
     }
     my $ok = eval { compare($expected, $result->{stdout}, 'stdout'); 1; };
     if (!$ok) {
@@ -411,6 +420,7 @@ sub main {
             my $data = -f $input_path ? read_file($input_path) : '';
             my @records;
             my $expected;
+            my $expected_stderr = '';
             if ($suite eq 'ii') {
                 if (!defined($reference_abs)) {
                     die "differential tests require --reference\n";
@@ -442,9 +452,12 @@ sub main {
             }
             else {
                 $expected = read_file(File::Spec->catfile($case_dir, 'expected.txt'));
+                my $stderr_path = File::Spec->catfile($case_dir, 'expected-stderr.txt');
+                $expected_stderr = read_file($stderr_path) if -f $stderr_path;
             }
             write_file(File::Spec->catfile($directory, 'input.txt'), $data);
             write_file(File::Spec->catfile($directory, 'expected.txt'), $expected);
+            write_file(File::Spec->catfile($directory, 'expected-stderr.txt'), $expected_stderr) if length($expected_stderr);
 
             my $execute = sub {
                 my ($mode) = @_;
@@ -487,7 +500,7 @@ sub main {
                         $diff_json);
                 }
                 my $exit_code = exists($config->{exit_code}) ? $config->{exit_code} + 0 : 0;
-                check_result($result, $expected, $exit_code);
+                check_result($result, $expected, $exit_code, $expected_stderr);
                 check_files($case_dir, $work);
             };
             my @modes = ('native');
