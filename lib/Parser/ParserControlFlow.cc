@@ -54,6 +54,8 @@ std::unique_ptr<StmtAST> Parser::ParseWhileStmt() {
     auto Cond = ParseExpression();
     if (!Cond) return nullptr;
 
+    if (CurTok == tok_identifier && Lex.IdentifierStr == "DO") getNextToken();
+
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endwhile});
 
     if (CurTok != tok_endwhile) {

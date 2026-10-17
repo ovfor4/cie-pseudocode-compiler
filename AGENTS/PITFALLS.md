@@ -119,4 +119,4 @@ NEW and class inheritance. Compiler fixtures now live in `tests/` (see TESTING.m
 Nightly CI runs the compiler suites, packaged EMBEDDED smoke checks and existing
 plugin tests. The initial standard conflicts and missing diagnostic locations are fixed on
 Linux.
-WHILE uses the standard header without DO; old WHILE DO programs must be migrated.
+WHILE accepts both the standard header without DO and the older WHILE DO form.

@@ -1,0 +1,6 @@
+DECLARE X : INTEGER
+X <- 0
+WHILE X < 2 DO
+    X <- X + 1
+ENDWHILE
+OUTPUT X
