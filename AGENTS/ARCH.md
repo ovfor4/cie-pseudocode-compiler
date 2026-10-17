@@ -43,7 +43,7 @@ The following commands use Debian/Ubuntu's versioned compiler names:
 cmake -S . -B build -DCPSC_RUN_MODE=EMBEDDED \
   -DCMAKE_C_COMPILER=clang-23 -DCMAKE_CXX_COMPILER=clang++-23
 cmake --build build
-build/cpsc prog.cps              # save prog.out beside the source
+build/cpsc prog.cps              # save prog.out (prog.exe on Windows) beside the source
 build/cpsc prog.cps -S           # save prog.ll beside the source
 build/cpsc prog.cps -r           # run without saving output
 build/cpsc prog.cps -r -S -o prog.ll # save IR, then run it
@@ -104,7 +104,8 @@ Driver behavior (`tools/driver/main.cc`):
   verification. Diagnostics stay on stderr; source errors preserve existing output.
   Native linking uses a staged file beside the output and renames it on success.
 - `-S` selects textual IR; otherwise output is a native executable. Without `-o`,
-  replace the entry source extension with `.ll` or `.out` beside the source on every OS.
+  replace the entry source extension with `.ll`, or with `.exe` on Windows / `.out` elsewhere
+  for an executable, beside the source.
   `-o` paths are used literally and never select the format. `-r` alone saves nothing;
   either `-S` or `-o` requests saving before execution.
 - Lexer, Parser and CodeGen track error flags (`hadError()`); any error, including

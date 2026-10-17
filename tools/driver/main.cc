@@ -200,7 +200,12 @@ int main(int argc, char **argv) {
 
     if (OutputPath.empty() && Save) {
         llvm::SmallString<256> DefaultPath(InputPaths[CG.getMainUnit()]);
-        llvm::sys::path::replace_extension(DefaultPath, EmitIR ? ".ll" : ".out");
+#ifdef _WIN32
+        const char *ExecutableExtension = ".exe";
+#else
+        const char *ExecutableExtension = ".out";
+#endif
+        llvm::sys::path::replace_extension(DefaultPath, EmitIR ? ".ll" : ExecutableExtension);
         OutputPath = std::string(DefaultPath);
     }
     for (const auto &InputPath : InputPaths) {

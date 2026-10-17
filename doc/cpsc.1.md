@@ -14,7 +14,7 @@ cpsc - compile and run CIE pseudocode
 
 Compile one or more pseudocode source files to a native executable, or to textual LLVM IR with **-S**. Options may appear among the source paths. Source input from stdin is not supported.
 
-Without **-o**, save beside the entry source file, replacing its extension with `.out` for an executable or `.ll` for IR. This naming also applies on Windows. With **-r** alone, run without saving a file.
+Without **-o**, save beside the entry source file, replacing its extension with `.exe` on Windows or `.out` elsewhere for an executable, or `.ll` for IR. With **-r** alone, run without saving a file.
 
 Each input is a compilation unit. Use top-level `INCLUDE "lib.cps"` to import another input's exported definitions, including its transitive imports. Paths are relative to the including source; every included file must also appear on the command line. Repeated includes and include cycles are harmless. Giving the same input twice, including symbolic or hard links, is an error. Duplicate definitions across files are errors even if the files do not include each other.
 
@@ -55,7 +55,7 @@ The executable has one of the following execution modes, selected when it was bu
 
 # EXAMPLES
 
-Compile and save `test.out` beside `test.cps`:
+Compile and save `test.out` (`test.exe` on Windows) beside `test.cps`:
 
 ```sh
 cpsc test.cps
