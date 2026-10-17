@@ -1,5 +1,6 @@
 #include "cps/CodeGen.h"
 #include "cps/MemoryHandler.h"
+#include "cps/ExceptionHandler.h"
 #include "cps/TypeAST.h"
 #include <climits>
 #include <cstddef>
@@ -168,19 +169,8 @@ void CodeGen::emitStackObjectCleanup(const StackObject &Object) {
 }
 
 void CodeGen::finishStackObjects(Function *F) {
-    IRBuilderBase::InsertPointGuard Guard(*Builder);
-    std::vector<Instruction *> Exits;
-    for (auto &BB : *F)
-        if (BB.hasTerminator() && isa<ReturnInst>(BB.getTerminator()))
-            Exits.push_back(BB.getTerminator());
-    for (auto *Exit : Exits) {
-        // Keep the original terminator in a continuation while cleanup builds branches.
-        auto *BB = Exit->getParent();
-        auto *Continuation = BB->splitBasicBlock(Exit->getIterator(), "after_destruction");
-        BB->getTerminator()->eraseFromParent();
-        Builder->SetInsertPoint(BB);
+    Exceptions->fillCleanups(F, [this] {
         for (auto It = StackObjects.rbegin(); It != StackObjects.rend(); ++It)
             emitStackObjectCleanup(*It);
-        Builder->CreateBr(Continuation);
-    }
+    });
 }

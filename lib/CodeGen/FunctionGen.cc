@@ -212,6 +212,7 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
 
     BasicBlock *BB = BasicBlock::Create(Context, "entry", TheFunction);
     Builder.SetInsertPoint(BB);
+    Exceptions.enableCleanups(TheFunction);
 
     IdentifierMap<SymbolInfo> OldSymbols = Symbols;
     Symbols.clear();
@@ -243,9 +244,9 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
 
     if (!Builder.GetInsertBlock()->hasTerminator()) {
         if (sameIdentifier(Proto->getReturnType(), "VOID")) {
-            Builder.CreateRetVoid();
+            Exceptions.recordExit(Builder.CreateRetVoid());
         } else {
-            Builder.CreateRet(Constant::getNullValue(TheFunction->getReturnType()));
+            Exceptions.recordExit(Builder.CreateRet(Constant::getNullValue(TheFunction->getReturnType())));
         }
     }
 
@@ -278,10 +279,7 @@ llvm::Value *FunctionGen::emitCall(const std::string &Callee, const std::vector<
 }
 
 void FunctionGen::emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal) {
-    Exceptions.emitReturnCleanup();
-    if (RetVal) {
-        Builder.CreateRet(RetVal);
-    } else {
-        Builder.CreateRetVoid();
-    }
+    Instruction *CatchCleanup = Exceptions.emitReturnCleanup();
+    Instruction *RetInst = RetVal ? Builder.CreateRet(RetVal) : Builder.CreateRetVoid();
+    Exceptions.recordExit(CatchCleanup ? CatchCleanup : RetInst);
 }

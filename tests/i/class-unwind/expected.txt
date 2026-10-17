@@ -1,0 +1,14 @@
+destroy:2
+destroy:1
+destroy:3
+caught
+destroy:60
+loop caught
+local caught
+still alive
+destroy:70
+uncaught next
+destroy:2
+destroy:1
+destroy:3
+Unhandled exception. Program terminated.

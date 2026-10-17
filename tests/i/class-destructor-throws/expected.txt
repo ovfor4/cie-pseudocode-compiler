@@ -1,0 +1,12 @@
+bomb
+destroy:1
+normal caught
+bomb
+destroy:2
+catch exit caught
+bomb
+return caught locally
+destroy:3
+3
+bomb
+unwind throw caught

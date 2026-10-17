@@ -2,6 +2,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include <map>
+#include <functional>
 #include <vector>
 
 namespace cps {
@@ -17,8 +18,16 @@ class ExceptionHandler {
     struct FunctionState {
         std::vector<Handler> Handlers;
         unsigned CatchDepth = 0;
+        bool HasCleanups = false;
     };
 
+    struct CleanupPoint {
+        llvm::Instruction *Before;
+        FunctionState State;
+        bool Unwinding;
+    };
+    std::map<llvm::Function *, std::vector<CleanupPoint>> CleanupPoints;
+    bool FillingUnwind = false;
     llvm::LLVMContext &Context;
     llvm::IRBuilder<> &Builder;
     llvm::Module &Module;
@@ -38,7 +47,10 @@ public:
     llvm::AllocaInst *popHandler();
     void beginCatch(llvm::AllocaInst *Exception);
     void endCatch();
-    void emitReturnCleanup();
+    llvm::Instruction *emitReturnCleanup();
+    void enableCleanups(llvm::Function *F);
+    void recordExit(llvm::Instruction *Before, bool Unwinding = false);
+    void fillCleanups(llvm::Function *F, const std::function<void()> &Destroy);
 
     llvm::Value *emitCall(llvm::FunctionCallee Callee, llvm::ArrayRef<llvm::Value *> Args,
                           const llvm::Twine &Name = "");

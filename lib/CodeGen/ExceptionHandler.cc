@@ -1,6 +1,7 @@
 #include "cps/ExceptionHandler.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/Support/SaveAndRestore.h"
 #include <cassert>
 
 using namespace llvm;
@@ -72,15 +73,50 @@ void ExceptionHandler::endCatch() {
     if (!Builder.GetInsertBlock()->hasTerminator()) Builder.CreateCall(EndCatch);
 }
 
-void ExceptionHandler::emitReturnCleanup() {
+Instruction *ExceptionHandler::emitReturnCleanup() {
     auto &State = States[Builder.GetInsertBlock()->getParent()];
-    for (unsigned I = 0; I < State.CatchDepth; ++I) Builder.CreateCall(EndCatch);
+    Instruction *First = nullptr;
+    for (unsigned I = 0; I < State.CatchDepth; ++I) {
+        auto *Call = Builder.CreateCall(EndCatch);
+        if (!First) First = Call;
+    }
+    return First;
+}
+
+void ExceptionHandler::enableCleanups(Function *F) {
+    // Enable before emitting any call: a later DECLARE can already be alive
+    // when an earlier call executes again through a loop back edge.
+    States[F].HasCleanups = true;
+}
+
+void ExceptionHandler::recordExit(Instruction *Before, bool Unwinding) {
+    auto *F = Before->getFunction();
+    CleanupPoints[F].push_back({Before, States[F], Unwinding});
+}
+
+void ExceptionHandler::fillCleanups(Function *F, const std::function<void()> &Destroy) {
+    IRBuilderBase::InsertPointGuard Guard(Builder);
+    SaveAndRestore<FunctionState> StateGuard(States[F]);
+    auto &Points = CleanupPoints[F];
+    // Filling a normal exit may add an unwind point for a throwing destructor.
+    for (size_t I = 0; I < Points.size(); ++I) {
+        auto Point = Points[I];
+        States[F] = Point.State;
+        SaveAndRestore<bool> UnwindGuard(FillingUnwind, Point.Unwinding);
+        auto *BB = Point.Before->getParent();
+        auto *Continuation = BB->splitBasicBlock(Point.Before->getIterator(), "after_destruction");
+        BB->getTerminator()->eraseFromParent();
+        Builder.SetInsertPoint(BB);
+        Destroy();
+        Builder.CreateBr(Continuation);
+    }
+    Points.clear();
 }
 
 BasicBlock *ExceptionHandler::emitUnwindDestination() {
     auto *F = Builder.GetInsertBlock()->getParent();
     auto &State = States[F];
-    if (State.Handlers.empty() && State.CatchDepth == 0) return nullptr;
+    if (FillingUnwind || (State.Handlers.empty() && State.CatchDepth == 0 && !State.HasCleanups)) return nullptr;
     ensureRuntime();
     F->setPersonalityFn(cast<Constant>(Personality.getCallee()));
     auto Saved = Builder.saveIP();
@@ -91,7 +127,7 @@ BasicBlock *ExceptionHandler::emitUnwindDestination() {
     const Handler *Handler = State.Handlers.empty() ? nullptr : &State.Handlers.back();
     unsigned TargetDepth = Handler ? Handler->CatchDepth : 0;
     if (Handler) LP->addClause(ConstantPointerNull::get(PointerType::getUnqual(Context)));
-    if (State.CatchDepth > TargetDepth) LP->setCleanup(true);
+    if (!Handler || State.CatchDepth > TargetDepth) LP->setCleanup(true);
     // Finish catches we are leaving before entering the outer handler (or
     // resuming propagation through a function with no local handler).
     for (unsigned I = TargetDepth; I < State.CatchDepth; ++I) Builder.CreateCall(EndCatch);
@@ -99,7 +135,7 @@ BasicBlock *ExceptionHandler::emitUnwindDestination() {
         Builder.CreateStore(Builder.CreateExtractValue(LP, 0), Handler->Exception);
         Builder.CreateBr(Handler->Target);
     } else {
-        Builder.CreateResume(LP);
+        recordExit(Builder.CreateResume(LP), true);
     }
     Builder.restoreIP(Saved);
     return Unwind;

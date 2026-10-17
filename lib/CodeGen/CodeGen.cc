@@ -186,7 +186,7 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
     }
 
     if (!Builder->GetInsertBlock()->hasTerminator()) {
-        Builder->CreateRet(ConstantInt::get(*TheContext, APInt(32, 0)));
+        Exceptions->recordExit(Builder->CreateRet(ConstantInt::get(*TheContext, APInt(32, 0))));
     }
 
     finishStackObjects(F);
