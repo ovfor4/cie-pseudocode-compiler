@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "Variadic\\ argument\\ 2\\ to\\ printf\\ must\\ be\\ a\\ C\\ value",
+      "line": 5
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "must\\ be\\ a\\ non-void\\ C\\ type",
+      "line": 3
+    }
+  ]
+}

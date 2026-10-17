@@ -1,0 +1,4 @@
+// EXTERN parameters must be C types.
+INCLUDE_OBJ "__libc"
+EXTERN "C" EXTERN_FUNCTION abs(INTEGER) RETURNS C_INT
+OUTPUT 1
