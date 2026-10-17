@@ -174,6 +174,13 @@ public:
     ExprAST *getExpr() const { return Expr.get(); }
 };
 
+class DeleteStmtAST : public StmtAST {
+    std::unique_ptr<ExprAST> Target;
+public:
+    explicit DeleteStmtAST(std::unique_ptr<ExprAST> T) : Target(std::move(T)) {}
+    ExprAST *getTarget() const { return Target.get(); }
+};
+
 class InputStmtAST : public StmtAST {
     std::unique_ptr<ExprAST> Target;
 public:

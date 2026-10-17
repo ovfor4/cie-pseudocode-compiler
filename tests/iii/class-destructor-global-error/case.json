@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "destructor DELETE is only allowed in a CLASS",
+      "line": 1
+    }
+  ]
+}

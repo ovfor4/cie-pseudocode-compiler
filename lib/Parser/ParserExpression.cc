@@ -109,13 +109,13 @@ bool Parser::ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out) {
             Out.push_back(std::move(A));
         } else if (CurTok == '.') {
             getNextToken();
-            if (CurTok != tok_identifier && CurTok != tok_new) {
+            if (CurTok != tok_identifier && CurTok != tok_new && CurTok != tok_delete) {
                 fprintf(stderr, "error: Expected field name after '.' at line %d\n", Lex.getLine());
                 return false;
             }
             DesignatorAccess A;
             A.Kind = AccessKind::Field;
-            A.FieldName = CurTok == tok_new ? "NEW" : Lex.IdentifierStr;
+            A.FieldName = CurTok == tok_new ? "NEW" : CurTok == tok_delete ? "DELETE" : Lex.IdentifierStr;
             Out.push_back(std::move(A));
             getNextToken();
         } else if (CurTok == '^') {

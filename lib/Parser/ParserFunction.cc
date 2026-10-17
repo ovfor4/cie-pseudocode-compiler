@@ -132,6 +132,10 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
 std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerClass, bool IsPublic) {
     int Line = Lex.getLine();
     getNextToken();
+    if (CurTok == tok_delete || (CurTok == tok_identifier && sameIdentifier(Lex.IdentifierStr, "DELETE"))) {
+        fprintf(stderr, "error: destructor DELETE must be a PROCEDURE at line %d\n", Line);
+        return nullptr;
+    }
     if (CurTok == tok_new || (CurTok == tok_identifier && sameIdentifier(Lex.IdentifierStr, "NEW"))) {
         fprintf(stderr, "error: constructor NEW must be a PROCEDURE at line %d\n", Line);
         return nullptr;
@@ -180,12 +184,16 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
 std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerClass, bool IsPublic) {
     int Line = Lex.getLine();
     getNextToken();
-    if (CurTok != tok_identifier && CurTok != tok_new) {
+    if (CurTok != tok_identifier && CurTok != tok_new && CurTok != tok_delete) {
         fprintf(stderr, "error: Expected procedure name\n");
         return nullptr;
     }
 
-    std::string Name = CurTok == tok_new ? "NEW" : Lex.IdentifierStr;
+    std::string Name = CurTok == tok_new ? "NEW" : CurTok == tok_delete ? "DELETE" : Lex.IdentifierStr;
+    if (OwnerClass.empty() && sameIdentifier(Name, "DELETE")) {
+        fprintf(stderr, "error: destructor DELETE is only allowed in a CLASS at line %d\n", Line);
+        return nullptr;
+    }
     if (OwnerClass.empty() && sameIdentifier(Name, "NEW")) {
         fprintf(stderr, "error: constructor NEW is only allowed in a CLASS at line %d\n", Line);
         return nullptr;
@@ -194,6 +202,10 @@ std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerC
 
     auto Args = ParsePrototypeArgs(/*AllowByRef=*/true);
     if (!Args) return nullptr;
+    if (sameIdentifier(Name, "DELETE") && !Args->empty()) {
+        fprintf(stderr, "error: destructor DELETE must have no parameters at line %d\n", Line);
+        return nullptr;
+    }
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID", false, OwnerClass, IsPublic);
 
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endprocedure});

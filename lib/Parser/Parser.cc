@@ -45,7 +45,7 @@ std::vector<std::unique_ptr<StmtAST>> Parser::Parse() {
 void Parser::syncToStatementStart() {
     while (CurTok != tok_eof) {
         switch (CurTok) {
-        case tok_constant: case tok_declare: case tok_identifier: case tok_input: case tok_output:
+        case tok_delete: case tok_constant: case tok_declare: case tok_identifier: case tok_input: case tok_output:
         case tok_case: case tok_endcase: case tok_otherwise:
         case tok_if: case tok_while: case tok_repeat: case tok_for:
         case tok_function: case tok_procedure: case tok_call: case tok_return:
@@ -94,6 +94,20 @@ std::unique_ptr<StmtAST> Parser::ParseStatement() {
 }
 
 std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
+    if (CurTok == tok_delete) {
+        int Line = Lex.getLine();
+        getNextToken();
+        if (CurTok != tok_identifier) {
+            fprintf(stderr, "error: DELETE requires an object designator at line %d\n", Line);
+            return nullptr;
+        }
+        std::string Name = Lex.IdentifierStr;
+        getNextToken();
+        std::vector<DesignatorAccess> Accesses;
+        if (!ParseDesignatorSuffix(Accesses)) return nullptr;
+        auto Target = std::make_unique<DesignatorExprAST>(Name, std::move(Accesses), Line);
+        return std::make_unique<DeleteStmtAST>(std::move(Target));
+    }
     if (CurTok == tok_case) return ParseCaseStmt();
     if (CurTok == tok_endcase || CurTok == tok_otherwise) {
         fprintf(stderr, "error: Unexpected CASE terminator at line %d\n", Lex.getLine());

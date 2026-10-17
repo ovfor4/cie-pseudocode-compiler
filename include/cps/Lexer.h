@@ -99,7 +99,7 @@ enum Token {
     tok_c_char = -610,
     tok_c_string = -611,
     tok_c_double = -612,
-    tok_new = -613,
+    tok_new = -613, tok_delete = -614,
 
     tok_try = -700,
     tok_catch = -701,
