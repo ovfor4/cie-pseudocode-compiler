@@ -9,6 +9,17 @@
 
 namespace cps {
 
+// Only an assignment may own this expression.
+class NewExprAST : public ExprAST {
+    std::string ClassName;
+    std::vector<std::unique_ptr<ExprAST>> Args;
+public:
+    NewExprAST(std::string ClassName, std::vector<std::unique_ptr<ExprAST>> Args, int Line)
+        : ExprAST(Line), ClassName(std::move(ClassName)), Args(std::move(Args)) {}
+    const std::string &getClassName() const { return ClassName; }
+    const auto &getArgs() const { return Args; }
+};
+
 class CastExprAST : public ExprAST {
     std::string TypeName;
     std::unique_ptr<ExprAST> Operand;

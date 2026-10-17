@@ -242,7 +242,7 @@ std::unique_ptr<StmtAST> Parser::ParseAssignStmt() {
         return nullptr;
     }
     getNextToken();
-    auto Expr = ParseExpression();
+    auto Expr = ParseAssignmentRHS();
     if (!Expr) return nullptr;
 
     if (Accesses.empty())

@@ -34,6 +34,7 @@ class Parser {
     int GetTokPrecedence();
 
     std::unique_ptr<ExprAST> ParseExpression();
+    std::unique_ptr<ExprAST> ParseAssignmentRHS();
     std::unique_ptr<ExprAST> ParseUnaryImpl();
     std::unique_ptr<ExprAST> ParseUnary(); 
     std::unique_ptr<ExprAST> ParsePrimaryImpl();

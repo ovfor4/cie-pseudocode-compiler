@@ -168,6 +168,9 @@ std::unique_ptr<ExprAST> Parser::ParsePrimary() {
 
 std::unique_ptr<ExprAST> Parser::ParsePrimaryImpl() {
     switch (CurTok) {
+    case tok_new:
+        fprintf(stderr, "error: NEW is only allowed on the right of an assignment at line %d\n", Lex.getLine());
+        return nullptr;
     case tok_identifier: return ParseIdentifierExpr();
     case tok_number_int: return ParseNumberExpr();
     case tok_number_real: return ParseNumberExpr();
@@ -298,4 +301,20 @@ std::optional<std::vector<std::unique_ptr<ExprAST>>> Parser::ParseExprList(char 
     }
     getNextToken();
     return Elems;
+}
+
+std::unique_ptr<ExprAST> Parser::ParseAssignmentRHS() {
+    if (CurTok != tok_new) return ParseExpression();
+    int Line = Lex.getLine();
+    getNextToken();
+    std::string ClassName = ParseTypeName(false);
+    if (ClassName.empty()) return nullptr;
+    std::vector<std::unique_ptr<ExprAST>> Args;
+    if (CurTok == '(') {
+        getNextToken();
+        auto Parsed = ParseExprList(')', true);
+        if (!Parsed) return nullptr;
+        Args = std::move(*Parsed);
+    }
+    return std::make_unique<NewExprAST>(ClassName, std::move(Args), Line);
 }

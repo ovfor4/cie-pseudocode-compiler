@@ -1,0 +1,26 @@
+CLASS Box
+    Value : INTEGER
+ENDCLASS
+CLASS Other
+    Value : INTEGER
+ENDCLASS
+CLASS Required
+    PROCEDURE NEW(Number : INTEGER)
+    ENDPROCEDURE
+ENDCLASS
+CLASS Hidden
+    PRIVATE PROCEDURE NEW()
+    ENDPROCEDURE
+ENDCLASS
+TYPE RecordValue
+    DECLARE Value : INTEGER
+ENDTYPE
+DECLARE B : Box
+DECLARE R : Required(1)
+B <- NEW Other
+B <- NEW INTEGER
+B <- NEW RecordValue
+B <- NEW Box(1)
+R <- NEW Required
+R <- NEW Required()
+B <- NEW Hidden

@@ -129,7 +129,7 @@ const TypeInfo *TypeSystem::registerType(const std::string &TypeName,
     return &Result.first->second;
 }
 
-bool TypeSystem::declareUserType(const std::string &Name, TypeKind Kind, std::string &Err) {
+bool TypeSystem::declareUserType(const std::string &Name, TypeKind Kind, std::string &Err, bool IsClass) {
     if (Types.count(Name)) {
         Err = "Type " + Name + " is already defined";
         return false;
@@ -157,6 +157,7 @@ bool TypeSystem::declareUserType(const std::string &Name, TypeKind Kind, std::st
     }
 
     registerType(Name, LLVMType, Kind);
+    Types.find(Name)->second.IsClass = IsClass;
     return true;
 }
 

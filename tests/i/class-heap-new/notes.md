@@ -1,0 +1,5 @@
+# Heap NEW and object storage
+
+Human review: pending. Expected output was independently traced by AI.
+
+Project semantics extend guide section 10.2. Each Box constructor sets Value to 1. Rebinding A preserves the old stack object's 7 while the new object becomes 9. Ordinary A <- B copies 4 into the current heap object, leaving B and the old stack object independent. BYVAL copies 4, then independently rebinds and changes its local object to 20. BYREF NEW copies 1 into A's current object, observed through CurrentA. Replacing this likewise copies into that same object; explicit Reset calls the ordinary constructor method. Array-element, field, bare field alias and pointer-dereference NEW assignments preserve their destination addresses and copy 1. Named's argument is 42. Failing throws in both DECLARE and heap construction, reaching the surrounding catches. Loop DECLARE restores its original stack object and constructs it on every iteration, so the previous heap object's 99 is never printed.

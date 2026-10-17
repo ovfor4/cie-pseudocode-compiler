@@ -66,6 +66,7 @@ struct TypeInfo {
     std::string Name;
     llvm::Type *LLVMType = nullptr;
     TypeKind Kind = TypeKind::Void;
+    bool IsClass = false;
 
     RecordPayload Record;   // Kind == Record only
     EnumPayload Enum;       // Kind == Enum only
@@ -109,6 +110,7 @@ struct SymbolInfo {
     bool IsArray = false;
     llvm::Constant *ConstantValue = nullptr; // Non-null for CONSTANT; no storage.
     unsigned ScopeID = 0;
+    bool IsReference = false; // Storage is a slot containing the current object address.
 };
 
 class TypeSystem {
@@ -130,7 +132,8 @@ public:
     // order). Pass A reserves every name so pointer pointees may forward-
     // reference; pass B fills definitions. On failure Err carries the
     // diagnostic and nothing is (further) registered.
-    bool declareUserType(const std::string &Name, TypeKind Kind, std::string &Err);
+    bool declareUserType(const std::string &Name, TypeKind Kind, std::string &Err,
+                         bool IsClass = false);
     bool defineEnum(const std::string &Name,
                     const std::vector<std::string> &Values,
                     std::string &Err);

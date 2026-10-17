@@ -51,7 +51,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         }
         if (Info->ConstantValue) return Info->ConstantValue;
         if (Info->IsArray) {
-            return Info->Storage;
+            return symbolAddress(*Info);
         }
 
         const TypeInfo *TypeInfo = resolveType(Info->TypeName);
@@ -60,7 +60,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return nullptr;
         }
 
-        Value *Loaded = Builder->CreateLoad(TypeInfo->LLVMType, Info->Storage, Var->getName().c_str());
+        Value *Loaded = Builder->CreateLoad(TypeInfo->LLVMType, symbolAddress(*Info), Var->getName().c_str());
         if (TypeInfo->isString()) {
             Loaded = emitStringNullGuard(Loaded);
         }

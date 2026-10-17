@@ -266,7 +266,7 @@ bool CodeGen::marshalCallArgs(const std::string &Callee,
                             TypeName.c_str(), Info->TypeName.c_str());
                 return false;
             }
-            Out.push_back(Info->Storage);
+            Out.push_back(symbolAddress(*Info));
         } else {
             Value *V = emitCoercedExpr(ArgExpr, resolveType(TypeName));
             if (!V) return false;

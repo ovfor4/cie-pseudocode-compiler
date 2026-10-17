@@ -90,7 +90,14 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
         AllocaInst *Alloca = TmpB.CreateAlloca(ArgType, nullptr, P.Name);
 
         Builder.CreateStore(ArgVal, Alloca);
-        Symbols[P.Name] = {Alloca, P.TypeName, false};
+        const TypeInfo *Info = Types.resolve(P.TypeName);
+        if (Info && Info->IsClass) {
+            AllocaInst *Slot = TmpB.CreateAlloca(PointerType::getUnqual(Context), nullptr, P.Name + ".ref");
+            Builder.CreateStore(Alloca, Slot);
+            Symbols[P.Name] = {Slot, P.TypeName, false, nullptr, 0, true};
+        } else {
+            Symbols[P.Name] = {Alloca, P.TypeName, false};
+        }
     }
 }
 

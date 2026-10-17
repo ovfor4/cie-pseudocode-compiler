@@ -24,7 +24,8 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
         else if (auto *P = dynamic_cast<PointerTypeDeclAST*>(S.get()))
             Ok = Types->declareUserType(P->getName(), TypeKind::Pointer, Err);
         else if (auto *R = dynamic_cast<RecordTypeDeclAST*>(S.get()))
-            Ok = Types->declareUserType(R->getName(), TypeKind::Record, Err);
+            Ok = Types->declareUserType(R->getName(), TypeKind::Record, Err,
+                                        dynamic_cast<ClassTypeDeclAST*>(R) != nullptr);
         if (!Ok) reportError("%s", Err.c_str());
     }
 
@@ -120,7 +121,7 @@ bool CodeGen::emitLValue(ExprAST *E, LValueInfo &Out) {
             reportError("Whole array %s is not an assignable location; index it", Var->getName().c_str());
             return false;
         }
-        Out.Addr = Info->Storage;
+        Out.Addr = symbolAddress(*Info);
         Out.TypeName = Info->TypeName;
         return true;
     }
@@ -148,7 +149,7 @@ bool CodeGen::emitLValue(ExprAST *E, LValueInfo &Out) {
 
     if (!requireWritable(*Info, D->getBaseName())) return false;
     const auto &Accesses = D->getAccesses();
-    Value *Addr = Info->Storage;
+    Value *Addr = symbolAddress(*Info);
     std::string TypeName = Info->TypeName;
     size_t Start = 0;
 

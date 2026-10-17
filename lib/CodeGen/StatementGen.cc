@@ -128,10 +128,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
             return;
         }
 
-        Value *Val = emitCoercedExpr(Assign->getExpr(), resolveType(Info->TypeName));
-        if (!Val) return;
-
-        Builder->CreateStore(Val, Info->Storage);
+        emitAssignment({symbolAddress(*Info), Info->TypeName}, Assign->getExpr(), Info);
         return;
     }
 
@@ -296,9 +293,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     if (auto *DA = dynamic_cast<DesignatorAssignStmtAST*>(Stmt)) {
         LValueInfo LV;
         if (!emitLValue(DA->getTarget(), LV)) return;
-        Value *Val = emitCoercedExpr(DA->getExpr(), resolveType(LV.TypeName));
-        if (!Val) return;
-        Builder->CreateStore(Val, LV.Addr);
+        emitAssignment(LV, DA->getExpr());
         return;
     }
 }

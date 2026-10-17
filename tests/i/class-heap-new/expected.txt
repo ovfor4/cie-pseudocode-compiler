@@ -1,0 +1,16 @@
+rebind:7,9
+copy:7,4,4
+byval:4,20
+caller:4
+byref:1,1
+this:1,1
+reset:1
+array:1,1
+field:1
+alias:1
+deref:1
+args:42
+declare caught
+new caught
+loop:1
+loop:1

@@ -25,6 +25,7 @@ class FileHandler;
 class MemoryHandler;
 class ExceptionHandler;
 class CastExprAST;
+class NewExprAST;
 
 class CodeGen {
     std::unique_ptr<llvm::LLVMContext> TheContext;
@@ -127,6 +128,9 @@ class CodeGen {
                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
                          int Line,
                          std::vector<llvm::Value*> &Out);
+    llvm::Value *symbolAddress(const SymbolInfo &Info);
+    void emitAssignment(const LValueInfo &Target, ExprAST *Expr,
+                        const SymbolInfo *Symbol = nullptr);
     void emitDeclareStmt(DeclareStmtAST *Stmt);
     void emitOutputValue(llvm::Value *Val, const TypeInfo *TypeInfo, bool AppendNewline = true);
 

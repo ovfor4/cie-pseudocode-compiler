@@ -279,8 +279,15 @@ void CodeGen::emitDeclareStmt(DeclareStmtAST *Stmt) {
         Builder->CreateStore(InitVal, Alloca);
     }
 
-    registerSymbol(Stmt->getName(), Alloca, Info->Name, false);
-    if (Stmt->hasParens() && !ClassMethods.count(Info->Name)) {
+    Value *Storage = Alloca;
+    if (Info->IsClass) {
+        Storage = CreateEntryBlockAlloca(TheFunction, PointerType::getUnqual(*TheContext),
+                                         Stmt->getName() + ".ref");
+        Builder->CreateStore(Alloca, Storage);
+    }
+    registerSymbol(Stmt->getName(), Storage, Info->Name, false);
+    Symbols.find(Stmt->getName())->second.IsReference = Info->IsClass;
+    if (Stmt->hasParens() && !Info->IsClass) {
         reportError("Constructor arguments require a class type");
         return;
     }

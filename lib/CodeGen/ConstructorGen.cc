@@ -1,4 +1,8 @@
 #include "cps/CodeGen.h"
+#include "cps/MemoryHandler.h"
+#include "cps/TypeAST.h"
+#include <climits>
+#include <cstddef>
 
 using namespace llvm;
 using namespace cps;
@@ -36,4 +40,39 @@ bool CodeGen::emitConstruct(const std::string &TypeName, Value *Addr,
 
 bool CodeGen::emitDefaultConstruct(const std::string &TypeName, Value *Addr, int Line) {
     return emitConstruct(TypeName, Addr, {}, Line);
+}
+
+Value *CodeGen::symbolAddress(const SymbolInfo &Info) {
+    if (!Info.IsReference) return Info.Storage;
+    return Builder->CreateLoad(PointerType::getUnqual(*TheContext), Info.Storage, "object_address");
+}
+
+void CodeGen::emitAssignment(const LValueInfo &Target, ExprAST *Expr, const SymbolInfo *Symbol) {
+    const TypeInfo *Info = resolveType(Target.TypeName);
+    if (auto *New = dynamic_cast<NewExprAST*>(Expr)) {
+        SaveAndRestore<int> Location(DiagnosticLine, New->getLine());
+        const TypeInfo *Class = resolveType(New->getClassName());
+        if (!Class || !Class->IsClass) {
+            reportError("NEW requires a class type: %s", New->getClassName().c_str());
+            return;
+        }
+        if (!Info || !Info->sameType(Class)) {
+            reportError("NEW target must have type %s", Class->Name.c_str());
+            return;
+        }
+        Value *Size = Builder->CreateIntCast(Types->getSizeOfConstant(Class->LLVMType),
+                         Type::getIntNTy(*TheContext, sizeof(std::size_t) * CHAR_BIT), false);
+        Value *Object = Memory->emitAllocate(Size, New->getLine());
+        Builder->CreateStore(Types->getZeroValue(Class->Name), Object);
+        if (!emitConstruct(Class->Name, Object, New->getArgs(), New->getLine())) return;
+        if (Symbol && Symbol->IsReference) {
+            Builder->CreateStore(Object, Symbol->Storage);
+        } else {
+            Value *Val = Builder->CreateLoad(Class->LLVMType, Object);
+            Builder->CreateStore(Val, Target.Addr);
+        }
+        return;
+    }
+    Value *Val = emitCoercedExpr(Expr, Info);
+    if (Val) Builder->CreateStore(Val, Target.Addr);
 }

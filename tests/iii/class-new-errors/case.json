@@ -1,0 +1,32 @@
+{
+  "errors": [
+    {
+      "reason": "NEW target must have type Other",
+      "line": 20
+    },
+    {
+      "reason": "NEW requires a class type",
+      "line": 21
+    },
+    {
+      "reason": "NEW requires a class type",
+      "line": 22
+    },
+    {
+      "reason": "has no constructor NEW",
+      "line": 23
+    },
+    {
+      "reason": "Incorrect # arguments passed to Required.NEW",
+      "line": 24
+    },
+    {
+      "reason": "Incorrect # arguments passed to Required.NEW",
+      "line": 25
+    },
+    {
+      "reason": "NEW target must have type Hidden",
+      "line": 26
+    }
+  ]
+}

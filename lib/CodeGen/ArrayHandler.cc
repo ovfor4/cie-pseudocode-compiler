@@ -241,10 +241,7 @@ void ArrayHandler::emitArrayAssign(ArrayAssignStmtAST *Stmt, CodeGen &CG) {
                                         Stmt->getLine(), CG, ElemTypeName);
     if (!ElemPtr) return;
 
-    Value *Val = CG.emitCoercedExpr(Stmt->getExpr(), Types.resolve(ElemTypeName));
-    if (!Val) return;
-
-    Builder->CreateStore(Val, ElemPtr);
+    CG.emitAssignment({ElemPtr, ElemTypeName}, Stmt->getExpr());
 }
 
 Value *ArrayHandler::emitElementAddress(const std::string &Name,
