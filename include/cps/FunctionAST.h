@@ -28,18 +28,24 @@ class PrototypeAST {
     std::vector<ParamDecl> Params;
     std::string ReturnType;
     bool IsExternal;
+    std::string OwnerClass;
+    bool IsPublic;
 
 public:
     PrototypeAST(const std::string &Name,
                  std::vector<ParamDecl> Params,
                  const std::string &ReturnType,
-                 bool IsExternal = false)
-        : Name(Name), Params(std::move(Params)), ReturnType(ReturnType), IsExternal(IsExternal) {}
+                 bool IsExternal = false, std::string OwnerClass = {}, bool IsPublic = true)
+        : Name(Name), Params(std::move(Params)), ReturnType(ReturnType), IsExternal(IsExternal),
+          OwnerClass(std::move(OwnerClass)), IsPublic(IsPublic) {}
 
     const std::string &getName() const { return Name; }
     const std::vector<ParamDecl> &getParams() const { return Params; }
     const std::string &getReturnType() const { return ReturnType; }
     bool isExternal() const { return IsExternal; }
+    const std::string &getOwnerClass() const { return OwnerClass; }
+    bool isPublic() const { return IsPublic; }
+    std::string getLinkName() const { return OwnerClass.empty() ? Name : OwnerClass + "." + Name; }
 };
 
 class FunctionDefAST : public StmtAST {
@@ -79,6 +85,28 @@ public:
     const std::vector<std::unique_ptr<ExprAST>> &getArgs() const { return Args; }
 };
 
+
+// A member call keeps the receiver separate from explicit arguments.
+class MemberCallExprAST : public ExprAST {
+    std::unique_ptr<ExprAST> Receiver;
+    std::string Method;
+    std::vector<std::unique_ptr<ExprAST>> Args;
+public:
+    MemberCallExprAST(std::unique_ptr<ExprAST> Receiver, std::string Method,
+                      std::vector<std::unique_ptr<ExprAST>> Args, int Line)
+        : ExprAST(Line), Receiver(std::move(Receiver)), Method(std::move(Method)), Args(std::move(Args)) {}
+    ExprAST *getReceiver() const { return Receiver.get(); }
+    const std::string &getMethod() const { return Method; }
+    const std::vector<std::unique_ptr<ExprAST>> &getArgs() const { return Args; }
+};
+
+class MemberCallStmtAST : public StmtAST {
+    std::unique_ptr<MemberCallExprAST> Call;
+public:
+    explicit MemberCallStmtAST(std::unique_ptr<MemberCallExprAST> Call)
+        : StmtAST(Call->getLine()), Call(std::move(Call)) {}
+    MemberCallExprAST *getCall() const { return Call.get(); }
+};
 
 class ReturnStmtAST : public StmtAST {
     std::unique_ptr<ExprAST> RetVal;

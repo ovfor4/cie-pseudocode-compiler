@@ -32,6 +32,10 @@ class CodeGen {
     std::unique_ptr<llvm::IRBuilder<>> Builder;
     int DiagnosticLine = 0;
     IdentifierMap<SymbolInfo> Symbols;
+    IdentifierMap<IdentifierMap<FunctionDefAST*>> ClassMethods;
+    std::string CurrentClass;
+    const PrototypeAST *findMethod(const std::string &Class, const std::string &Name) const;
+    llvm::Value *emitMemberCall(MemberCallExprAST *Call);
     struct ConstantScope {
         unsigned ID;
         IdentifierMap<std::optional<SymbolInfo>> Saved;

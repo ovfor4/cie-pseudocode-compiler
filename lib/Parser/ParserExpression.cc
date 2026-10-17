@@ -59,12 +59,40 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
     std::vector<DesignatorAccess> Accesses;
     if (!ParseDesignatorSuffix(Accesses)) return nullptr;
 
+    if (CurTok == '(' && !atCaseBoundary())
+        return ParseMemberCall(IdName, std::move(Accesses), Line);
+
     // Degrade rule: shapes that existed before designators keep their nodes.
     if (Accesses.empty())
         return std::make_unique<VariableExprAST>(IdName);
     if (Accesses.size() == 1 && Accesses[0].Kind == AccessKind::Index)
         return std::make_unique<ArrayAccessExprAST>(IdName, std::move(Accesses[0].Indices), Line);
     return std::make_unique<DesignatorExprAST>(IdName, std::move(Accesses), Line);
+}
+
+// The final field suffix names the method; preceding suffixes form its receiver.
+std::unique_ptr<MemberCallExprAST> Parser::ParseMemberCall(
+    const std::string &Name, std::vector<DesignatorAccess> Accesses, int Line) {
+    if (Accesses.empty() || Accesses.back().Kind != AccessKind::Field) {
+        fprintf(stderr, "error: Expected a method name after '.' at line %d\n", Line);
+        return nullptr;
+    }
+    std::string Method = Accesses.back().FieldName;
+    Accesses.pop_back();
+    auto Receiver = std::make_unique<DesignatorExprAST>(Name, std::move(Accesses), Line);
+    std::vector<std::unique_ptr<ExprAST>> Args;
+    if (CurTok == '(') {
+        getNextToken();
+        auto Parsed = ParseExprList(')', true);
+        if (!Parsed) return nullptr;
+        Args = std::move(*Parsed);
+    }
+    if (CurTok == '[' || CurTok == '.' || CurTok == '^') {
+        fprintf(stderr, "error: record/array/pointer access on a function result is not supported at line %d\n",
+                Lex.getLine());
+        return nullptr;
+    }
+    return std::make_unique<MemberCallExprAST>(std::move(Receiver), Method, std::move(Args), Line);
 }
 
 // Postfix accessor chain after an identifier: '[' exprs ']' | '.' IDENT | '^'

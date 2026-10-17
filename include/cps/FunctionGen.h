@@ -65,7 +65,7 @@ private:
     IdentifierMap<FuncSig> Signatures;
     ArrayParamBinder BindArrayParam;
 
-    void createArgumentAllocas(llvm::Function *F, const std::vector<ParamDecl> &Params);
+    void createArgumentAllocas(llvm::Function *F, const std::vector<ParamDecl> &Params, bool IsMethod);
 
 public:
     FunctionGen(llvm::LLVMContext &C,

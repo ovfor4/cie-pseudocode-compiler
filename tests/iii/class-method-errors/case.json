@@ -1,0 +1,52 @@
+{
+  "errors": [
+    {
+      "reason": "Cannot redeclare this inside a method",
+      "line": 11
+    },
+    {
+      "reason": "A method parameter cannot be named this",
+      "line": 13
+    },
+    {
+      "reason": "NEW constructors are not implemented",
+      "line": 15
+    },
+    {
+      "reason": "Duplicate member set in class Box",
+      "line": 17
+    },
+    {
+      "reason": "Duplicate member Value in class Box",
+      "line": 19
+    },
+    {
+      "reason": "Cannot access private field Hidden of type Box",
+      "line": 25
+    },
+    {
+      "reason": "Cannot access private method Secret of type Box",
+      "line": 26
+    },
+    {
+      "reason": "Cannot access private method Secret of type Box",
+      "line": 30
+    },
+    {
+      "reason": "Cannot access private field Hidden of type Box",
+      "line": 31
+    },
+    {
+      "reason": "Incorrect # arguments passed to Box.Set",
+      "line": 32
+    },
+    {
+      "reason": "Type Box has no method Missing",
+      "line": 33
+    },
+    {
+      "reason": "Type INTEGER has no method Set",
+      "line": 35
+    }
+  ]
+}

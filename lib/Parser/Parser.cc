@@ -231,6 +231,12 @@ std::unique_ptr<StmtAST> Parser::ParseAssignStmt() {
     std::vector<DesignatorAccess> Accesses;
     if (!ParseDesignatorSuffix(Accesses)) return nullptr;
 
+    if (CurTok == '(') {
+        auto Call = ParseMemberCall(Name, std::move(Accesses), Line);
+        if (!Call) return nullptr;
+        return std::make_unique<MemberCallStmtAST>(std::move(Call));
+    }
+
     if (CurTok != tok_assign) {
         fprintf(stderr, "error: Expected '<-' after identifier '%s' at line %d\n", Name.c_str(), Line);
         return nullptr;

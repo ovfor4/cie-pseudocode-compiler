@@ -1,5 +1,6 @@
 #pragma once
 #include "cps/AST.h"
+#include "cps/FunctionAST.h"
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -81,12 +82,15 @@ public:
     const std::vector<RecordFieldDecl> &getFields() const { return Fields; }
 };
 
-// CLASS <name> with default-public or explicit PUBLIC/PRIVATE fields, ending in ENDCLASS.
+// CLASS <name> with default-public or explicit PUBLIC/PRIVATE members, ending in ENDCLASS.
 // Storage and value semantics are inherited from record declarations.
 class ClassTypeDeclAST : public RecordTypeDeclAST {
+    std::vector<std::unique_ptr<FunctionDefAST>> Methods;
 public:
-    ClassTypeDeclAST(const std::string &Name, std::vector<RecordFieldDecl> Fields)
-        : RecordTypeDeclAST(Name, std::move(Fields)) {}
+    ClassTypeDeclAST(const std::string &Name, std::vector<RecordFieldDecl> Fields,
+                     std::vector<std::unique_ptr<FunctionDefAST>> Methods)
+        : RecordTypeDeclAST(Name, std::move(Fields)), Methods(std::move(Methods)) {}
+    const auto &getMethods() const { return Methods; }
 };
 
 // ---- Designators: chained accesses usable as lvalue or rvalue (§4.2) ----

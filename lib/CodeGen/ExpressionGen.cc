@@ -127,6 +127,9 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         return emitBinaryOp(Bin->getOp(), L, LT, R, RT, Bin->getLine());
     }
 
+    if (auto *Call = dynamic_cast<MemberCallExprAST*>(Expr))
+        return emitMemberCall(Call);
+
     if (auto *Call = dynamic_cast<CallExprAST*>(Expr))
         return emitCall(Call->getCallee(), Call->getArgs(), Call->getLine());
 

@@ -52,7 +52,7 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
                 const RecordPayload *RP = Cur->asRecord();
                 const RecordFieldInfo *FI = RP ? RP->findField(A.FieldName) : nullptr;
                 if (!FI) return nullptr;
-                if (!FI->IsPublic) return nullptr;
+                if (!FI->IsPublic && !sameIdentifier(CurrentClass, TypeName)) return nullptr;
                 TypeName = FI->TypeName;
             } else if (A.Kind == AccessKind::Deref) {
                 const PointerPayload *PP = Cur->asPointer();
@@ -115,6 +115,13 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
             return resolveType("REAL");
         }
         return resolveType("INTEGER");
+    }
+
+    if (auto *Call = dynamic_cast<MemberCallExprAST*>(Expr)) {
+        const TypeInfo *Receiver = getExprTypeInfo(Call->getReceiver());
+        const PrototypeAST *Method = Receiver ? findMethod(Receiver->Name, Call->getMethod()) : nullptr;
+        if (!Method || (!Method->isPublic() && !sameIdentifier(CurrentClass, Receiver->Name))) return nullptr;
+        return resolveType(Method->getReturnType());
     }
 
     if (auto *Call = dynamic_cast<CallExprAST*>(Expr)) {

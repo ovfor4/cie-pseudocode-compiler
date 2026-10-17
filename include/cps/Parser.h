@@ -43,6 +43,8 @@ class Parser {
     std::unique_ptr<ExprAST> ParseNumberExpr();
     std::unique_ptr<ExprAST> ParseIdentifierExpr();
     std::unique_ptr<ExprAST> ParseParenExpr();
+    std::unique_ptr<MemberCallExprAST> ParseMemberCall(
+        const std::string &Name, std::vector<DesignatorAccess> Accesses, int Line);
     std::string ParseTypeName(bool AllowVoid = false);
 
     std::unique_ptr<StmtAST> ParseStatement();
@@ -66,11 +68,12 @@ class Parser {
 
     std::unique_ptr<StmtAST> ParseTypeDecl();
     std::optional<std::vector<RecordFieldDecl>> ParseRecordBody(
-        const std::string &Name, int Line, int EndToken);
+        const std::string &Name, int Line, int EndToken,
+        std::vector<std::unique_ptr<FunctionDefAST>> *Methods = nullptr);
     bool ParseRecordField(std::vector<RecordFieldDecl> &Out, bool IsPublic);
 
-    std::unique_ptr<StmtAST> ParseFunction();
-    std::unique_ptr<StmtAST> ParseProcedure();
+    std::unique_ptr<FunctionDefAST> ParseFunction(const std::string &OwnerClass = {}, bool IsPublic = true);
+    std::unique_ptr<FunctionDefAST> ParseProcedure(const std::string &OwnerClass = {}, bool IsPublic = true);
     std::unique_ptr<StmtAST> ParseCallStmt();
     std::unique_ptr<StmtAST> ParseReturnStmt();
     std::optional<std::vector<ParamDecl>> ParsePrototypeArgs(bool AllowByRef);

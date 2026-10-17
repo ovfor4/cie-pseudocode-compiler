@@ -89,10 +89,11 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
             return nullptr;
         }
     } else {
-        auto Fields = ParseRecordBody(Name, Line, IsClass ? tok_endclass : tok_endtype);
+        std::vector<std::unique_ptr<FunctionDefAST>> Methods;
+        auto Fields = ParseRecordBody(Name, Line, IsClass ? tok_endclass : tok_endtype, &Methods);
         if (!Fields) return nullptr;
         if (IsClass)
-            Decl = std::make_unique<ClassTypeDeclAST>(Name, std::move(*Fields));
+            Decl = std::make_unique<ClassTypeDeclAST>(Name, std::move(*Fields), std::move(Methods));
         else
             Decl = std::make_unique<RecordTypeDeclAST>(Name, std::move(*Fields));
     }
@@ -107,12 +108,14 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
 
 // Shared record body and field parsing. Fields are data, never statements.
 std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
-    const std::string &Name, int Line, int EndToken) {
+    const std::string &Name, int Line, int EndToken,
+    std::vector<std::unique_ptr<FunctionDefAST>> *Methods) {
     bool IsClass = EndToken == tok_endclass;
     const char *Keyword = IsClass ? "CLASS" : "TYPE";
     const char *EndKeyword = IsClass ? "ENDCLASS" : "ENDTYPE";
     auto AtField = [&] {
-        return IsClass ? (CurTok == tok_public || CurTok == tok_private || CurTok == tok_identifier)
+        return IsClass ? (CurTok == tok_public || CurTok == tok_private || CurTok == tok_identifier ||
+                            CurTok == tok_function || CurTok == tok_procedure)
                        : CurTok == tok_declare;
     };
     std::vector<RecordFieldDecl> Fields;
@@ -121,10 +124,18 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
         if (AtField()) {
             // Class fields default to public, like record fields.
             bool IsPublic = CurTok != tok_private;
-            if (ParseRecordField(Fields, IsPublic)) continue;
+            if (IsClass && (CurTok == tok_public || CurTok == tok_private)) getNextToken();
+            if (IsClass && (CurTok == tok_function || CurTok == tok_procedure)) {
+                auto Method = CurTok == tok_function ? ParseFunction(Name, IsPublic)
+                                                    : ParseProcedure(Name, IsPublic);
+                if (Method && Methods) {
+                    Methods->push_back(std::move(Method));
+                    continue;
+                }
+            } else if (ParseRecordField(Fields, IsPublic)) continue;
         } else {
             fprintf(stderr, "error: Expected %s or %s in %s %s at line %d\n",
-                    IsClass ? "field, PUBLIC or PRIVATE" : "DECLARE", EndKeyword,
+                    IsClass ? "field, method, PUBLIC or PRIVATE" : "DECLARE", EndKeyword,
                     Keyword, Name.c_str(), Lex.getLine());
         }
         HadFieldError = true;
@@ -143,8 +154,9 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
         return std::nullopt;
     }
     getNextToken(); // eat body terminator
-    if (Fields.empty() && !HadFieldError) {
-        fprintf(stderr, "error: %s %s has no fields at line %d\n", Keyword, Name.c_str(), Line);
+    if (Fields.empty() && (!Methods || Methods->empty()) && !HadFieldError) {
+        fprintf(stderr, "error: %s %s has no %s at line %d\n", Keyword, Name.c_str(),
+                IsClass ? "members" : "fields", Line);
         return std::nullopt;
     }
     if (HadFieldError) return std::nullopt;

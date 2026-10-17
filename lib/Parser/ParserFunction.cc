@@ -128,7 +128,8 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
     return Params;
 }
 
-std::unique_ptr<StmtAST> Parser::ParseFunction() {
+std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerClass, bool IsPublic) {
+    int Line = Lex.getLine();
     getNextToken();
     if (CurTok != tok_identifier) {
         fprintf(stderr, "error: Expected function name\n");
@@ -156,7 +157,7 @@ std::unique_ptr<StmtAST> Parser::ParseFunction() {
         }
     }
 
-    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), RetType);
+    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), RetType, false, OwnerClass, IsPublic);
 
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endfunction});
 
@@ -166,10 +167,13 @@ std::unique_ptr<StmtAST> Parser::ParseFunction() {
     }
     getNextToken();
 
-    return std::make_unique<FunctionDefAST>(std::move(Proto), std::move(Body));
+    auto Def = std::make_unique<FunctionDefAST>(std::move(Proto), std::move(Body));
+    Def->setLine(Line);
+    return Def;
 }
 
-std::unique_ptr<StmtAST> Parser::ParseProcedure() {
+std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerClass, bool IsPublic) {
+    int Line = Lex.getLine();
     getNextToken();
     if (CurTok != tok_identifier) {
         fprintf(stderr, "error: Expected procedure name\n");
@@ -181,7 +185,7 @@ std::unique_ptr<StmtAST> Parser::ParseProcedure() {
 
     auto Args = ParsePrototypeArgs(/*AllowByRef=*/true);
     if (!Args) return nullptr;
-    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID");
+    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID", false, OwnerClass, IsPublic);
 
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endprocedure});
 
@@ -191,7 +195,9 @@ std::unique_ptr<StmtAST> Parser::ParseProcedure() {
     }
     getNextToken();
 
-    return std::make_unique<FunctionDefAST>(std::move(Proto), std::move(Body));
+    auto Def = std::make_unique<FunctionDefAST>(std::move(Proto), std::move(Body));
+    Def->setLine(Line);
+    return Def;
 }
 
 std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
@@ -204,6 +210,14 @@ std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
 
     std::string Callee = Lex.IdentifierStr;
     getNextToken();
+
+    std::vector<DesignatorAccess> Accesses;
+    if (!ParseDesignatorSuffix(Accesses)) return nullptr;
+    if (!Accesses.empty()) {
+        auto Call = ParseMemberCall(Callee, std::move(Accesses), Line);
+        if (!Call) return nullptr;
+        return std::make_unique<MemberCallStmtAST>(std::move(Call));
+    }
 
     std::vector<std::unique_ptr<ExprAST>> Args;
     if (CurTok == '(') {

@@ -12,7 +12,17 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     SaveAndRestore<int> Location(DiagnosticLine, Stmt && Stmt->getLine() ? Stmt->getLine() : DiagnosticLine);
     if (!Stmt) return;
 
+    if (auto *Class = dynamic_cast<ClassTypeDeclAST*>(Stmt)) {
+        for (const auto &Method : Class->getMethods()) {
+            // Invalid or duplicate members have already been diagnosed.
+            if (findMethod(Class->getName(), Method->getProto()->getName()) == Method->getProto())
+                emitStmt(Method.get());
+        }
+        return;
+    }
+
     if (auto *FuncDef = dynamic_cast<FunctionDefAST*>(Stmt)) {
+        SaveAndRestore<std::string> ClassContext(CurrentClass, FuncDef->getProto()->getOwnerClass());
         BasicBlock *SavedBlock = Builder->GetInsertBlock();
         // Function bodies get a fresh array scope (metadata SSA values belong
         // to the emitting function), mirroring FunctionGen's Symbols handling.
@@ -51,6 +61,11 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     }
     if (auto *ArrAssign = dynamic_cast<ArrayAssignStmtAST*>(Stmt)) {
         Arrays->emitArrayAssign(ArrAssign, *this);
+        return;
+    }
+
+    if (auto *Call = dynamic_cast<MemberCallStmtAST*>(Stmt)) {
+        emitMemberCall(Call->getCall());
         return;
     }
 

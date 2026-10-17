@@ -16,6 +16,10 @@ void CodeGen::emitScopedBlock(const std::vector<std::unique_ptr<StmtAST>> &Body)
 }
 
 bool CodeGen::prepareSymbolDeclaration(const std::string &Name, bool IsConstant) {
+    if (!CurrentClass.empty() && sameIdentifier(Name, "this")) {
+        reportError("Cannot redeclare this inside a method");
+        return false;
+    }
     auto &Scope = ConstantScopes.back();
     auto It = Symbols.find(Name);
     if (It != Symbols.end()) {

@@ -45,9 +45,12 @@ Type *FunctionGen::getLLVMType(const std::string &TypeName) {
     return Resolved;
 }
 
-void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl> &Params) {
+void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl> &Params, bool IsMethod) {
     Function::arg_iterator AI = F->arg_begin();
+    if (IsMethod) ++AI;
     for (const ParamDecl &P : Params) {
+        bool InvalidThis = IsMethod && sameIdentifier(P.Name, "this");
+        if (InvalidThis) reportError("A method parameter cannot be named this");
         if (Types.lookupEnumConstant(P.Name)) {
             reportError("parameter '%s' collides with an enum value", P.Name.c_str());
         }
@@ -72,10 +75,11 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
                 LBs.push_back(LB);
                 UBs.push_back(UB);
             }
-            if (BindArrayParam) BindArrayParam(P, ArgVal, LBs, UBs);
+            if (!InvalidThis && BindArrayParam) BindArrayParam(P, ArgVal, LBs, UBs);
             continue;
         }
 
+        if (InvalidThis) continue;
         if (P.Mode == PassMode::ByRef) {
             Symbols[P.Name] = {ArgVal, P.TypeName, false};
             continue;
@@ -96,32 +100,35 @@ const FuncSig *FunctionGen::getSignature(const std::string &Name) const {
 }
 
 Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
-    if (isReservedRuntimeName(Proto->getName())) {
-        reportError("'%s' is a reserved runtime symbol and cannot be a FUNCTION/PROCEDURE name",
-                Proto->getName().c_str());
-        return nullptr;
-    }
-    if (CodeGen::isBuiltinName(Proto->getName())) {
-        reportError("'%s' is a built-in function and cannot be redefined",
-                Proto->getName().c_str());
-        return nullptr;
-    }
-    if (Types.lookupEnumConstant(Proto->getName())) {
-        reportError("'%s' is an enum value and cannot be a FUNCTION/PROCEDURE name",
-                Proto->getName().c_str());
-        return nullptr;
-    }
-    if (Types.resolve(Proto->getName())) {
-        reportError("'%s' is a type name and cannot be a FUNCTION/PROCEDURE name",
-                Proto->getName().c_str());
-        return nullptr;
+    if (Proto->getOwnerClass().empty()) {
+        if (isReservedRuntimeName(Proto->getName())) {
+            reportError("'%s' is a reserved runtime symbol and cannot be a FUNCTION/PROCEDURE name",
+                    Proto->getName().c_str());
+            return nullptr;
+        }
+        if (CodeGen::isBuiltinName(Proto->getName())) {
+            reportError("'%s' is a built-in function and cannot be redefined",
+                    Proto->getName().c_str());
+            return nullptr;
+        }
+        if (Types.lookupEnumConstant(Proto->getName())) {
+            reportError("'%s' is an enum value and cannot be a FUNCTION/PROCEDURE name",
+                    Proto->getName().c_str());
+            return nullptr;
+        }
+        if (Types.resolve(Proto->getName())) {
+            reportError("'%s' is a type name and cannot be a FUNCTION/PROCEDURE name",
+                    Proto->getName().c_str());
+            return nullptr;
+        }
     }
 
     FuncSig Sig;
-    Sig.Name = Proto->getName();
+    Sig.Name = Proto->getLinkName();
     Sig.ReturnTypeName = Proto->getReturnType();
 
     std::vector<Type*> ArgTypes;
+    if (!Proto->getOwnerClass().empty()) ArgTypes.push_back(PointerType::getUnqual(Context));
     for (const ParamDecl &P : Proto->getParams()) {
         const TypeInfo *Info = Types.resolve(P.TypeName);
         if (Info && Info->isVoid()) {
@@ -153,23 +160,24 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
 
     Type *RetType = getLLVMType(Proto->getReturnType());
     FunctionType *FT = FunctionType::get(RetType, ArgTypes, false);
-    const FuncSig *Existing = getSignature(Proto->getName());
-    Function *F = Module.getFunction(Existing ? Existing->Name : Proto->getName());
+    const FuncSig *Existing = getSignature(Proto->getLinkName());
+    Function *F = Module.getFunction(Existing ? Existing->Name : Proto->getLinkName());
     if (F && F->getFunctionType() != FT) {
         reportError("Function %s conflicts with an existing declaration of a different type",
                 Proto->getName().c_str());
         return nullptr;
     }
     if (!F) {
-        F = Function::Create(FT, Function::ExternalLinkage, Proto->getName(), &Module);
+        F = Function::Create(FT, Function::ExternalLinkage, Proto->getLinkName(), &Module);
     }
     Exceptions.prepareFunction(F);
 
     // Keep the first registration: on a duplicate definition the first one
     // wins and the second is rejected by emitFunctionDef.
-    Signatures.emplace(Proto->getName(), std::move(Sig));
+    Signatures.emplace(Proto->getLinkName(), std::move(Sig));
 
     Function::arg_iterator AI = F->arg_begin();
+    if (!Proto->getOwnerClass().empty()) (AI++)->setName("this");
     for (const ParamDecl &P : Proto->getParams()) {
         if (AI == F->arg_end()) break;
         (AI++)->setName(P.Name);
@@ -202,7 +210,19 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
         if (Info.ConstantValue && Info.ScopeID == 0) Symbols.emplace(Name, Info);
     }
 
-    createArgumentAllocas(TheFunction, Proto->getParams());
+    bool IsMethod = !Proto->getOwnerClass().empty();
+    if (IsMethod) {
+        const TypeInfo *Class = Types.resolve(Proto->getOwnerClass());
+        Value *Self = TheFunction->getArg(0);
+        if (Class && Class->asRecord()) {
+            for (const auto &[Name, Field] : Class->asRecord()->Fields) {
+                Value *Addr = Builder.CreateStructGEP(Class->LLVMType, Self, Field.Index, Name);
+                Symbols[Name] = {Addr, Field.TypeName, false};
+            }
+        }
+        Symbols["this"] = {Self, Proto->getOwnerClass(), false, nullptr, ScopeID};
+    }
+    createArgumentAllocas(TheFunction, Proto->getParams(), IsMethod);
     for (const auto &P : Proto->getParams()) {
         auto It = Symbols.find(P.Name);
         if (It != Symbols.end()) It->second.ScopeID = ScopeID;

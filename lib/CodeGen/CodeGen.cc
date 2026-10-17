@@ -169,6 +169,13 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
         }
     }
 
+    for (const auto &[Class, Methods] : ClassMethods) {
+        for (const auto &[Name, Method] : Methods) {
+            SaveAndRestore<int> Location(DiagnosticLine, Method->getLine());
+            FuncGen->emitPrototype(Method->getProto());
+        }
+    }
+
     for (const auto &Stmt : Statements) {
         SaveAndRestore<int> Location(DiagnosticLine, Stmt->getLine());
         emitStmt(Stmt.get());

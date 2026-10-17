@@ -40,6 +40,59 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
         }
         if (!Ok) reportError("%s", Err.c_str());
     }
+
+    for (const auto &S : Statements) {
+        auto *Class = dynamic_cast<ClassTypeDeclAST*>(S.get());
+        if (!Class) continue;
+        auto &Methods = ClassMethods[Class->getName()];
+        IdentifierSet Names;
+        for (const auto &Field : Class->getFields()) {
+            Names.insert(Field.Name);
+            if (sameIdentifier(Field.Name, "this")) {
+                SaveAndRestore<int> Location(DiagnosticLine, Class->getLine());
+                reportError("A class field cannot be named this");
+            }
+        }
+        for (const auto &Method : Class->getMethods()) {
+            SaveAndRestore<int> Location(DiagnosticLine, Method->getLine());
+            const std::string &Name = Method->getProto()->getName();
+            if (sameIdentifier(Name, "NEW")) {
+                reportError("NEW constructors are not implemented");
+            } else if (sameIdentifier(Name, "this")) {
+                reportError("A method cannot be named this");
+            } else if (!Names.insert(Name).second) {
+                reportError("Duplicate member %s in class %s", Name.c_str(), Class->getName().c_str());
+            } else {
+                Methods.emplace(Name, Method.get());
+            }
+        }
+    }
+}
+
+const PrototypeAST *CodeGen::findMethod(const std::string &Class, const std::string &Name) const {
+    auto C = ClassMethods.find(Class);
+    if (C == ClassMethods.end()) return nullptr;
+    auto M = C->second.find(Name);
+    return M == C->second.end() ? nullptr : M->second->getProto();
+}
+
+Value *CodeGen::emitMemberCall(MemberCallExprAST *Call) {
+    SaveAndRestore<int> Location(DiagnosticLine, Call->getLine());
+    LValueInfo Receiver;
+    if (!emitLValue(Call->getReceiver(), Receiver)) return nullptr;
+    const PrototypeAST *Method = findMethod(Receiver.TypeName, Call->getMethod());
+    if (!Method) {
+        reportError("Type %s has no method %s", Receiver.TypeName.c_str(), Call->getMethod().c_str());
+        return nullptr;
+    }
+    if (!Method->isPublic() && !sameIdentifier(CurrentClass, Receiver.TypeName)) {
+        reportError("Cannot access private method %s of type %s",
+                    Call->getMethod().c_str(), Receiver.TypeName.c_str());
+        return nullptr;
+    }
+    std::vector<Value*> Args = {Receiver.Addr};
+    if (!marshalCallArgs(Method->getLinkName(), Call->getArgs(), Call->getLine(), Args)) return nullptr;
+    return FuncGen->emitCall(Method->getLinkName(), Args);
 }
 
 // Resolves a designator (or legacy variable/array-access node) to the address
@@ -126,7 +179,7 @@ bool CodeGen::emitLValue(ExprAST *E, LValueInfo &Out) {
                 reportError("Record type %s has no field %s", TypeName.c_str(), A.FieldName.c_str());
                 return false;
             }
-            if (!FI->IsPublic) {
+            if (!FI->IsPublic && !sameIdentifier(CurrentClass, TypeName)) {
                 reportError("Cannot access private field %s of type %s",
                             A.FieldName.c_str(), TypeName.c_str());
                 return false;
