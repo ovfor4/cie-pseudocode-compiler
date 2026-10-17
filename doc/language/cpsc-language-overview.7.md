@@ -12,7 +12,7 @@ Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`, `<`, `>`, 
 
 Precedence, from highest to lowest: unary operators, `* / DIV MOD`, `+ - &`, comparisons, AND, OR. Parentheses override precedence.
 
-Parenthesized type casts, such as (C_INT)Number, have unary precedence. C_INT, C_CHAR, C_STRING and C_DOUBLE are native C aliases; TYPE name = C_TYPE("...") imports other supported C base types and pointers. Conversions between C and pseudocode types must be explicit. These are compiler extensions; see [cpsc-keyword-c_type(7)](keyword/cpsc-keyword-c_type.7.md).
+Parenthesized type casts, such as (C_INT)Number, have unary precedence. C_INT, C_CHAR, C_STRING and C_DOUBLE are native C aliases; TYPE name = C_TYPE("...") imports other supported C base types and pointers. Conversions between C and pseudocode types must be explicit. These are compiler extensions; see [cpsc-keyword-c_type(7)](keyword/cpsc-keyword-c_type.7.md). EXTERN "C" declares C functions from objects named with INCLUDE_OBJ; see [cpsc-keyword-extern(7)](keyword/cpsc-keyword-extern.7.md).
 
 Literals include integers, decimal real numbers, TRUE/FALSE, strings in double quotes, and single-byte characters in single quotes. Negative numbers use unary minus. There are no string or character escape sequences. Comments begin with `//` and continue to the end of the line.
 
@@ -46,6 +46,8 @@ Multi-file builds use the compiler extensions INCLUDE and GLOBAL. Pass every sou
 - [cpsc-keyword-closefile(7)](keyword/cpsc-keyword-closefile.7.md): close a text file.
 - [cpsc-keyword-type(7)](keyword/cpsc-keyword-type.7.md): define enumerations, pointers, and records.
 - [cpsc-keyword-c_type(7)](keyword/cpsc-keyword-c_type.7.md): import native C types and explicitly cast values.
+- [cpsc-keyword-extern(7)](keyword/cpsc-keyword-extern.7.md): declare and call C functions.
+- [cpsc-keyword-include_obj(7)](keyword/cpsc-keyword-include_obj.7.md): link a C object file or the C library.
 - [cpsc-keyword-delete(7)](keyword/cpsc-keyword-delete.7.md): destroy objects and release heap allocations.
 - [cpsc-keyword-class(7)](keyword/cpsc-keyword-class.7.md): define a class with fields and methods.
 - [cpsc-keyword-and(7)](keyword/cpsc-keyword-and.7.md): combine conditions with logical AND.
@@ -54,7 +56,7 @@ Multi-file builds use the compiler extensions INCLUDE and GLOBAL. Pass every sou
 - [cpsc-keyword-div(7)](keyword/cpsc-keyword-div.7.md): perform integer division.
 - [cpsc-keyword-mod(7)](keyword/cpsc-keyword-mod.7.md): find the integer division remainder.
 
-Closing and auxiliary keywords are documented with their main constructs: THEN/ELSE/ENDIF with IF; OF/OTHERWISE/ENDCASE with CASE; CATCH/ENDTRY/THROW with TRY; ENDWHILE with WHILE; UNTIL with REPEAT; TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE; ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE; ENDGLOBAL with GLOBAL; ENDTYPE with TYPE; PUBLIC/PRIVATE/ENDCLASS with CLASS. TRUE/FALSE are BOOLEAN literals.
+Closing and auxiliary keywords are documented with their main constructs: THEN/ELSE/ENDIF with IF; OF/OTHERWISE/ENDCASE with CASE; CATCH/ENDTRY/THROW with TRY; ENDWHILE with WHILE; UNTIL with REPEAT; TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE; ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE; ENDGLOBAL with GLOBAL; ENDTYPE with TYPE; EXTERN_FUNCTION/EXTERN_PROCEDURE with EXTERN; PUBLIC/PRIVATE/ENDCLASS with CLASS. TRUE/FALSE are BOOLEAN literals.
 
 # BUILT-IN FUNCTIONS
 

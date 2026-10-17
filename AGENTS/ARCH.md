@@ -25,7 +25,8 @@ imports cover standard C integer/real types, _Bool, void and object pointers.
 CScalar/CPointer identities are canonical C types, not pseudocode alias names;
 native widths and signedness come from sizeof/type traits, while floating formats
 come from numeric_limits (long double size alone is insufficient). Programs use
-the compiler's build ABI; cross-target emission and EXTERN are not implemented.
+the compiler's build ABI; cross-target emission is not implemented. EXTERN "C"
+declarations call C functions from INCLUDE_OBJ objects (see SUBSYSTEMS.md).
 CTypeGen handles typed numeric conversions, casts, native arithmetic and I/O.
 Crossing C/pseudocode domains requires a cast, including literals. C arithmetic
 uses C++ promotions, except that / always returns pseudocode REAL.

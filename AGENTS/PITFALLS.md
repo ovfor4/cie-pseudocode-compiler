@@ -145,7 +145,13 @@ test programs.
   require casts even for literals. C scalar arithmetic uses native promotions,
   but / always returns REAL. Cast aliases must precede their use. long double
   may have padding; sizeof does not identify its floating-point format. Native
-  C support is verified on Linux LLVM 23; cross-target and EXTERN are unsupported.
+  C support is verified on Linux LLVM 23; cross-target is unsupported.
+- **EXTERN "C" extension.** Top-level, body-less; parameters/results are C types only,
+  no BYREF/OVERLOAD/structs. Variadic arguments must be C values (default promotions).
+  The driver checks every EXTERN symbol against INCLUDE_OBJ inputs before CodeGen;
+  `"__libc"` must be included explicitly even though the runtime always links libc.
+  Only `.o` user objects; INCLUDE_OBJ is global across inputs. `-S` does not link them.
+  Two EXTERNs differing only in case conflict (pseudocode names are case insensitive).
 
 ## Not implemented (9618 features)
 

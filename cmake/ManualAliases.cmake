@@ -28,6 +28,8 @@ set(CPSC_MANUAL_ALIASES
     "cpsc-keyword-char:cpsc-keyword-declare"
     "cpsc-keyword-string:cpsc-keyword-declare"
     "cpsc-keyword-endtype:cpsc-keyword-type"
+    "cpsc-keyword-extern_function:cpsc-keyword-extern"
+    "cpsc-keyword-extern_procedure:cpsc-keyword-extern"
     "cpsc-keyword-public:cpsc-keyword-class"
     "cpsc-keyword-private:cpsc-keyword-class"
     "cpsc-keyword-endclass:cpsc-keyword-class"
