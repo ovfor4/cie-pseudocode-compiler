@@ -7,6 +7,7 @@
 #include "EmbeddedRunner.h"
 #endif
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
 #ifdef CPSC_RUN_PATH
@@ -194,6 +195,58 @@ int main(int argc, char **argv) {
                 Units[I].Visible[J] = Units[I].Visible[J] ||
                     (Units[I].Visible[K] && Units[K].Visible[J]);
 
+    // INCLUDE_OBJ is global: every input's objects join one link, and each
+    // EXTERN symbol must be defined by one of them ("__libc" is built in).
+    std::vector<std::string> Objects;
+    llvm::StringSet<> ExternSymbols;
+    bool LibcLoaded = false;
+    for (size_t I = 0; I < Units.size(); ++I) {
+        cps::DiagnosticSource = Units.size() > 1 ? Units[I].Path : "";
+        for (const auto &Stmt : Units[I].Statements) {
+            auto *Object = dynamic_cast<cps::IncludeObjStmtAST*>(Stmt.get());
+            if (!Object) continue;
+            if (Object->getPath() == "__libc") {
+                if (!LibcLoaded && !collectLibcSymbols(ExternSymbols)) return compilationTerminated();
+                LibcLoaded = true;
+                continue;
+            }
+            llvm::SmallString<256> Path(Object->getPath());
+            if (!llvm::sys::path::is_absolute(Path)) {
+                Path = llvm::sys::path::parent_path(Units[I].Path);
+                llvm::sys::path::append(Path, Object->getPath());
+            }
+            if (llvm::sys::path::extension(Path) != ".o") {
+                cps::sourceDiagnostic(Stmt->getLine(),
+                    "error: INCLUDE_OBJ '%s' must name a .o object file or \"__libc\" at line %d\n",
+                    Object->getPath().c_str(), Stmt->getLine());
+                return compilationTerminated();
+            }
+            bool Seen = false;
+            for (const auto &Existing : Objects)
+                Seen = Seen || llvm::sys::fs::equivalent(Path, Existing);
+            if (Seen) continue;
+            std::string Error;
+            if (!collectObjectSymbols(Path, ExternSymbols, Error)) {
+                cps::sourceDiagnostic(Stmt->getLine(), "error: cannot INCLUDE_OBJ '%s': %s at line %d\n",
+                    Object->getPath().c_str(), Error.c_str(), Stmt->getLine());
+                return compilationTerminated();
+            }
+            Objects.push_back(std::string(Path));
+        }
+    }
+    bool MissingSymbol = false;
+    for (size_t I = 0; I < Units.size(); ++I) {
+        cps::DiagnosticSource = Units.size() > 1 ? Units[I].Path : "";
+        for (const auto &Stmt : Units[I].Statements) {
+            auto *Extern = dynamic_cast<cps::ExternDeclAST*>(Stmt.get());
+            if (!Extern || ExternSymbols.contains(Extern->getProto()->getName())) continue;
+            cps::sourceDiagnostic(Stmt->getLine(), "error: C symbol '%s' not found in any INCLUDE_OBJ at line %d\n",
+                Extern->getProto()->getName().c_str(), Stmt->getLine());
+            MissingSymbol = true;
+        }
+    }
+    if (MissingSymbol) return compilationTerminated();
+
     cps::CodeGen CG;
     CG.compile(Units);
     if (CG.hadError()) return compilationTerminated();
@@ -216,12 +269,12 @@ int main(int argc, char **argv) {
     }
 
     if (Save && !EmitIR) {
-        if (!compileNative(CG, OutputPath, argv[0])) return compilationTerminated();
+        if (!compileNative(CG, OutputPath, argv[0], Objects)) return compilationTerminated();
         if (!Run) return 0;
     }
     std::string IRPath = Save && EmitIR ? OutputPath : std::string();
 #ifdef CPSC_RUN_EMBEDDED
-    if (Run && IRPath.empty()) return runEmbedded(CG);
+    if (Run && IRPath.empty()) return runEmbedded(CG, Objects);
 #endif
     std::error_code EC;
     int OutputFD;
@@ -259,7 +312,11 @@ int main(int argc, char **argv) {
         return 1;
     }
     std::string ExecutionError;
-    int Result = llvm::sys::ExecuteAndWait(LliPath, {LliPath, RunPath},
+    std::vector<std::string> LliArgs = {LliPath};
+    for (const auto &Object : Objects) LliArgs.push_back("-extra-object=" + Object);
+    LliArgs.push_back(std::string(RunPath));
+    std::vector<llvm::StringRef> LliArgv(LliArgs.begin(), LliArgs.end());
+    int Result = llvm::sys::ExecuteAndWait(LliPath, LliArgv,
                                          std::nullopt, {}, 0, 0, &ExecutionError);
     if (Result < 0) {
         llvm::errs() << "cpsc: error: lli execution failed (status " << Result << "): "
@@ -268,7 +325,7 @@ int main(int argc, char **argv) {
     }
     return Result;
 #elif defined(CPSC_RUN_EMBEDDED)
-    return runEmbedded(CG);
+    return runEmbedded(CG, Objects);
 #else
     return 0;
 #endif

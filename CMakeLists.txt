@@ -81,9 +81,9 @@ add_library(CPSCodeGen STATIC
     lib/CodeGen/FileRuntimeIO.cc
 )
 
-llvm_map_components_to_libnames(llvm_libs core support native passes)
+llvm_map_components_to_libnames(llvm_libs core support native passes object)
 if(CPSC_RUN_MODE STREQUAL "EMBEDDED")
-    llvm_map_components_to_libnames(llvm_libs core support native passes orcjit jitlink orctargetprocess executionengine)
+    llvm_map_components_to_libnames(llvm_libs core support native passes object orcjit jitlink orctargetprocess executionengine)
 endif()
 foreach(llvm_lib IN LISTS llvm_libs)
     get_target_property(llvm_type ${llvm_lib} TYPE)

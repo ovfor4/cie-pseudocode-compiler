@@ -5,6 +5,7 @@
 #include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
 #include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/TargetSelect.h"
 #include <cstdio>
 #include <cstdlib>
@@ -344,7 +345,7 @@ static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
         llvm::orc::absoluteSymbols(std::move(Symbols)));
 }
 
-int runEmbedded(const cps::CodeGen &CG) {
+int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects) {
     if (llvm::InitializeNativeTarget() || llvm::InitializeNativeTargetAsmPrinter()) {
         llvm::errs() << "error: cannot initialize the embedded LLVM target\n";
         return 1;
@@ -404,6 +405,19 @@ int runEmbedded(const cps::CodeGen &CG) {
         llvm::errs() << "error: embedded LLVM execution failed: "
                      << llvm::toString(std::move(Err)) << "\n";
         return 1;
+    }
+    for (const auto &Path : Objects) {
+        auto Buffer = llvm::MemoryBuffer::getFile(Path);
+        if (!Buffer) {
+            llvm::errs() << "error: cannot read object file '" << Path << "': "
+                         << Buffer.getError().message() << "\n";
+            return 1;
+        }
+        if (auto Err = J->addObjectFile(std::move(*Buffer))) {
+            llvm::errs() << "error: cannot load object file '" << Path << "': "
+                         << llvm::toString(std::move(Err)) << "\n";
+            return 1;
+        }
     }
     if (auto Err = J->initialize(J->getMainJITDylib())) {
         llvm::errs() << "error: embedded LLVM execution failed: "

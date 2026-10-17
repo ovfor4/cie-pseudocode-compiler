@@ -10,6 +10,11 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/PassRegistry.h"
 #include "llvm/MC/TargetRegistry.h"
+#include "llvm/Object/Archive.h"
+#include "llvm/Object/ELFObjectFile.h"
+#include "llvm/Object/TapiFile.h"
+#include "llvm/Object/TapiUniversal.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Compression.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
@@ -58,21 +63,134 @@ class DriverDiagnostics : public clang::DiagnosticConsumer {
     }
 };
 
-} // namespace
+// Mach-O and TAPI symbols carry the C global prefix '_'.
+void addSymbols(const llvm::object::SymbolicFile &File, bool Prefixed, llvm::StringSet<> &Out) {
+    auto Add = [&](const llvm::object::BasicSymbolRef &Symbol) {
+        auto Flags = Symbol.getFlags();
+        if (!Flags) {
+            llvm::consumeError(Flags.takeError());
+            return;
+        }
+        using llvm::object::BasicSymbolRef;
+        if (!(*Flags & BasicSymbolRef::SF_Global) || (*Flags & BasicSymbolRef::SF_Undefined)) return;
+        std::string Name;
+        llvm::raw_string_ostream Stream(Name);
+        if (auto Error = Symbol.printName(Stream)) {
+            llvm::consumeError(std::move(Error));
+            return;
+        }
+        llvm::StringRef Text(Name);
+        if (Prefixed && !Text.consume_front("_")) return;
+        Out.insert(Text);
+    };
+    for (const auto &Symbol : File.symbols()) Add(Symbol);
+    if (const auto *ELF = llvm::dyn_cast<llvm::object::ELFObjectFileBase>(&File))
+        for (const auto &Symbol : ELF->getDynamicSymbolIterators()) Add(Symbol);
+}
 
-bool compileNative(const cps::CodeGen &CG, llvm::StringRef OutputPath, const char *Argv0) {
-    TemporaryDirectory Runtime;
-    if (auto EC = llvm::sys::fs::createUniqueDirectory("cpsc-native", Runtime.Path))
-        return fail("cannot create native compilation directory: " + EC.message());
+// Objects, archives (recursively) and TAPI stubs; other inputs such as GNU
+// linker scripts contribute nothing.
+void addBinarySymbols(llvm::MemoryBufferRef Buffer, llvm::StringSet<> &Out) {
+    // Embedded resources and archive members need not be aligned for parsing.
+    auto Copy = llvm::MemoryBuffer::getMemBufferCopy(Buffer.getBuffer(), Buffer.getBufferIdentifier());
+    auto Binary = llvm::object::createBinary(Copy->getMemBufferRef());
+    if (!Binary) {
+        llvm::consumeError(Binary.takeError());
+        return;
+    }
+    if (auto *Archive = llvm::dyn_cast<llvm::object::Archive>(Binary->get())) {
+        llvm::Error Error = llvm::Error::success();
+        for (const auto &Child : Archive->children(Error)) {
+            auto Member = Child.getMemoryBufferRef();
+            if (Member) addBinarySymbols(*Member, Out);
+            else llvm::consumeError(Member.takeError());
+        }
+        llvm::consumeError(std::move(Error));
+    } else if (auto *Tapi = llvm::dyn_cast<llvm::object::TapiUniversal>(Binary->get())) {
+        for (const auto &Object : Tapi->objects()) {
+            auto File = Object.getAsObjectFile();
+            if (File) addSymbols(**File, true, Out);
+            else llvm::consumeError(File.takeError());
+        }
+    } else if (auto *File = llvm::dyn_cast<llvm::object::SymbolicFile>(Binary->get())) {
+        addSymbols(*File, File->isMachO(), Out);
+    }
+}
 
-    auto Manifest = llvm::json::parse(NativeRuntimeManifest);
-    if (!Manifest) return fail(llvm::toString(Manifest.takeError()));
-    auto &Metadata = *Manifest->getAsObject();
-    llvm::SmallVector<uint8_t, 0> Data;
+bool isLibcInput(llvm::StringRef Path) {
+    llvm::StringRef Name = llvm::sys::path::filename(Path);
+#ifdef _WIN32
+    return Name.starts_with("libmsvcrt") || Name.starts_with("libucrt") ||
+           Name == "libmingwex.a" || Name == "libm.a";
+#elif defined(__APPLE__)
+    return Name == "libSystem.B.tbd" || Name == "libsystem_c.tbd" || Name == "libsystem_m.tbd";
+#else
+    return Name.starts_with("libc.so") || Name == "libc_nonshared.a" ||
+           Name.starts_with("libm.so") || Name.starts_with("libmvec.so");
+#endif
+}
+
+bool unpackRuntime(llvm::json::Object *&Metadata, std::optional<llvm::json::Value> &Manifest,
+                   llvm::SmallVector<uint8_t, 0> &Data) {
+    auto Parsed = llvm::json::parse(NativeRuntimeManifest);
+    if (!Parsed) return fail(llvm::toString(Parsed.takeError()));
+    Manifest = std::move(*Parsed);
+    Metadata = Manifest->getAsObject();
     if (auto Error = llvm::compression::zlib::decompress(
             llvm::ArrayRef(reinterpret_cast<const uint8_t *>(NativeRuntimeData),
                            sizeof(NativeRuntimeData) - 1), Data, NativeRuntimeSize))
         return fail("cannot unpack native link resources: " + llvm::toString(std::move(Error)));
+    return true;
+}
+
+} // namespace
+
+bool collectObjectSymbols(llvm::StringRef Path, llvm::StringSet<> &Out, std::string &Error) {
+    auto Buffer = llvm::MemoryBuffer::getFile(Path);
+    if (!Buffer) {
+        Error = Buffer.getError().message();
+        return false;
+    }
+    auto Binary = llvm::object::createBinary((*Buffer)->getMemBufferRef());
+    if (!Binary) {
+        Error = llvm::toString(Binary.takeError());
+        return false;
+    }
+    auto *Object = llvm::dyn_cast<llvm::object::ObjectFile>(Binary->get());
+    if (!Object) {
+        Error = "not an object file";
+        return false;
+    }
+    addSymbols(*Object, Object->isMachO(), Out);
+    return true;
+}
+
+bool collectLibcSymbols(llvm::StringSet<> &Out) {
+    llvm::json::Object *Metadata = nullptr;
+    std::optional<llvm::json::Value> Manifest;
+    llvm::SmallVector<uint8_t, 0> Data;
+    if (!unpackRuntime(Metadata, Manifest, Data)) return false;
+    for (const auto &Entry : *Metadata->getArray("files")) {
+        const auto &File = *Entry.getAsObject();
+        if (*File.getBoolean("script") || !isLibcInput(*File.getString("path"))) continue;
+        llvm::StringRef Contents(reinterpret_cast<const char *>(Data.data()) +
+                                     *File.getInteger("offset"), *File.getInteger("size"));
+        addBinarySymbols(llvm::MemoryBufferRef(Contents, *File.getString("path")), Out);
+    }
+    return true;
+}
+
+bool compileNative(const cps::CodeGen &CG, llvm::StringRef OutputPath, const char *Argv0,
+                   const std::vector<std::string> &Objects) {
+    TemporaryDirectory Runtime;
+    if (auto EC = llvm::sys::fs::createUniqueDirectory("cpsc-native", Runtime.Path))
+        return fail("cannot create native compilation directory: " + EC.message());
+
+    llvm::json::Object *MetadataObject = nullptr;
+    std::optional<llvm::json::Value> Manifest;
+    llvm::SmallVector<uint8_t, 0> Data;
+    if (!unpackRuntime(MetadataObject, Manifest, Data)) return false;
+    auto &Metadata = *MetadataObject;
 
     auto relocate = [&](llvm::StringRef Text) {
         std::string Result = Text.str();
@@ -161,6 +279,7 @@ bool compileNative(const cps::CodeGen &CG, llvm::StringRef OutputPath, const cha
     // cpsc's own path; only the job's arguments are passed to embedded LLD.
     std::vector<std::string> Args = {"cpsc", "--driver-mode=g++", "-nostdlib", "-nostdlib++",
         "-fuse-ld=lld", "-o", std::string(StagedPath), std::string(ObjectPath)};
+    Args.insert(Args.end(), Objects.begin(), Objects.end());
     Args.push_back("--ld-path=" + llvm::sys::fs::getMainExecutable(
         Argv0, reinterpret_cast<void *>(&compileNative)));
     for (const auto &Arg : *Metadata.getArray("arguments")) {
