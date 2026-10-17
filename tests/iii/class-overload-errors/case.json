@@ -1,0 +1,20 @@
+{
+  "errors": [
+    {
+      "reason": "Duplicate member Set in class Mixed",
+      "line": 4
+    },
+    {
+      "reason": "No matching overload for Required.NEW\\(\\)",
+      "line": 17
+    },
+    {
+      "reason": "Cannot access private method Set of type Secret",
+      "line": 19
+    },
+    {
+      "reason": "No matching overload for Secret.Set\\(BOOLEAN\\)",
+      "line": 20
+    }
+  ]
+}

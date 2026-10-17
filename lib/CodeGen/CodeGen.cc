@@ -288,7 +288,7 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
             if (auto *Class = dynamic_cast<ClassTypeDeclAST*>(Stmt.get())) {
                 for (const auto &Method : Class->getMethods()) {
                     SaveAndRestore<int> MethodLocation(DiagnosticLine, Method->getLine());
-                    if (findMethod(Class->getName(), Method->getProto()->getName()) == Method->getProto())
+                    if (isRegisteredMethod(Class->getName(), Method->getProto()))
                         FuncGen->emitPrototype(Method->getProto());
                 }
             }

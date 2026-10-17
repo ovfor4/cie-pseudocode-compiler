@@ -43,9 +43,12 @@ class CodeGen {
     void importSymbols();
     void runGlobalPrePass(const SourceUnit &Unit, int Phase);
     IdentifierMap<SymbolInfo> Symbols;
-    IdentifierMap<IdentifierMap<FunctionDefAST*>> ClassMethods;
+    IdentifierMap<IdentifierMap<std::vector<FunctionDefAST*>>> ClassMethods;
     std::string CurrentClass;
-    const PrototypeAST *findMethod(const std::string &Class, const std::string &Name) const;
+    const std::vector<FunctionDefAST *> *findMethod(const std::string &Class, const std::string &Name) const;
+    bool isRegisteredMethod(const std::string &Class, const PrototypeAST *Method) const;
+    const FuncSig *resolveMethod(const std::string &Class, const std::string &Name,
+                                 const std::vector<std::unique_ptr<ExprAST>> &Args);
     llvm::Value *emitMemberCall(MemberCallExprAST *Call);
     llvm::Value *emitMethodCall(const std::string &Class, llvm::Value *Receiver,
                                 const std::string &Name,

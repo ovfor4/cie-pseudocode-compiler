@@ -59,20 +59,40 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
             const std::string &Name = Method->getProto()->getName();
             if (sameIdentifier(Name, "this")) {
                 reportError("A method cannot be named this");
-            } else if (!Names.insert(Name).second) {
+            } else if (Names.count(Name) ||
+                       (!Methods[Name].empty() && (!Method->getProto()->isOverload() ||
+                                                 !Methods[Name].front()->getProto()->isOverload()))) {
                 reportError("Duplicate member %s in class %s", Name.c_str(), Class->getName().c_str());
             } else {
-                Methods.emplace(Name, Method.get());
+                Methods[Name].push_back(Method.get());
             }
         }
     }
 }
 
-const PrototypeAST *CodeGen::findMethod(const std::string &Class, const std::string &Name) const {
+const std::vector<FunctionDefAST *> *CodeGen::findMethod(const std::string &Class, const std::string &Name) const {
     auto C = ClassMethods.find(Class);
     if (C == ClassMethods.end()) return nullptr;
     auto M = C->second.find(Name);
-    return M == C->second.end() ? nullptr : M->second->getProto();
+    return M == C->second.end() || M->second.empty() ? nullptr : &M->second;
+}
+
+bool CodeGen::isRegisteredMethod(const std::string &Class, const PrototypeAST *Method) const {
+    const auto *Methods = findMethod(Class, Method->getName());
+    if (Methods)
+        for (const auto *Candidate : *Methods)
+            if (Candidate->getProto() == Method) return true;
+    return false;
+}
+
+const FuncSig *CodeGen::resolveMethod(const std::string &Class, const std::string &Name,
+                                    const std::vector<std::unique_ptr<ExprAST>> &Args) {
+    const auto *Methods = findMethod(Class, Name);
+    if (!Methods) {
+        reportError("Type %s has no method %s", Class.c_str(), Name.c_str());
+        return nullptr;
+    }
+    return resolveCall(Methods->front()->getProto()->getLinkName(), Args);
 }
 
 Value *CodeGen::emitMemberCall(MemberCallExprAST *Call) {
@@ -87,18 +107,15 @@ Value *CodeGen::emitMethodCall(const std::string &Class, Value *Receiver,
                                 const std::string &Name,
                                 const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line) {
     SaveAndRestore<int> Location(DiagnosticLine, Line);
-    const PrototypeAST *Method = findMethod(Class, Name);
-    if (!Method) {
-        reportError("Type %s has no method %s", Class.c_str(), Name.c_str());
-        return nullptr;
-    }
+    const FuncSig *Sig = resolveMethod(Class, Name, ArgExprs);
+    if (!Sig) return nullptr;
+    const PrototypeAST *Method = Sig->Prototype;
     if (!Method->isPublic() && !sameIdentifier(CurrentClass, Class)) {
         reportError("Cannot access private method %s of type %s", Name.c_str(), Class.c_str());
         return nullptr;
     }
     std::vector<Value*> Args = {Receiver};
-    const FuncSig *Sig = resolveCall(Method->getLinkName(), ArgExprs);
-    if (!Sig || !marshalCallArgs(*Sig, ArgExprs, Line, Args)) return nullptr;
+    if (!marshalCallArgs(*Sig, ArgExprs, Line, Args)) return nullptr;
     return FuncGen->emitCall(Sig->LinkName, Args);
 }
 

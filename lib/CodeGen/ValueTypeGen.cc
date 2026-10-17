@@ -119,9 +119,9 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
 
     if (auto *Call = dynamic_cast<MemberCallExprAST*>(Expr)) {
         const TypeInfo *Receiver = getExprTypeInfo(Call->getReceiver());
-        const PrototypeAST *Method = Receiver ? findMethod(Receiver->Name, Call->getMethod()) : nullptr;
-        if (!Method || (!Method->isPublic() && !sameIdentifier(CurrentClass, Receiver->Name))) return nullptr;
-        return resolveType(Method->getReturnType());
+        const FuncSig *Sig = Receiver ? resolveMethod(Receiver->Name, Call->getMethod(), Call->getArgs()) : nullptr;
+        if (!Sig || (!Sig->Prototype->isPublic() && !sameIdentifier(CurrentClass, Receiver->Name))) return nullptr;
+        return resolveType(Sig->ReturnTypeName);
     }
 
     if (auto *Call = dynamic_cast<CallExprAST*>(Expr)) {

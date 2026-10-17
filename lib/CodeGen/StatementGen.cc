@@ -19,7 +19,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     if (auto *Class = dynamic_cast<ClassTypeDeclAST*>(Stmt)) {
         for (const auto &Method : Class->getMethods()) {
             // Invalid or duplicate members have already been diagnosed.
-            if (findMethod(Class->getName(), Method->getProto()->getName()) == Method->getProto())
+            if (isRegisteredMethod(Class->getName(), Method->getProto()))
                 emitStmt(Method.get());
         }
         return;
