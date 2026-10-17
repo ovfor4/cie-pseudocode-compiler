@@ -31,11 +31,15 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
         // to the emitting function), mirroring FunctionGen's Symbols handling.
         auto SavedArrays = Arrays->exchangeTable({});
 
+        auto SavedObjects = std::move(StackObjects);
+        StackObjects.clear();
         auto SavedScopes = std::move(ConstantScopes);
         ConstantScopes = {{NextScopeID++, {}}};
-        FuncGen->emitFunctionDef(FuncDef, [this](StmtAST *S) {
+        Function *Emitted = FuncGen->emitFunctionDef(FuncDef, [this](StmtAST *S) {
             this->emitStmt(S);
         }, ConstantScopes.back().ID);
+        if (Emitted) finishStackObjects(Emitted);
+        StackObjects = std::move(SavedObjects);
         ConstantScopes = std::move(SavedScopes);
 
         Arrays->exchangeTable(std::move(SavedArrays));

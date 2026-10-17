@@ -46,6 +46,20 @@ class CodeGen {
     bool emitConstruct(const std::string &TypeName, llvm::Value *Addr,
                        const std::vector<std::unique_ptr<ExprAST>> &Args, int Line);
     bool emitDefaultConstruct(const std::string &TypeName, llvm::Value *Addr, int Line);
+    struct StackObject {
+        llvm::Value *Addr;
+        std::string TypeName;
+        llvm::AllocaInst *Alive;
+        llvm::AllocaInst *Count; // Non-null for an array; Addr then holds its buffer pointer.
+        int Line;
+        bool IsCopy;
+    };
+    std::vector<StackObject> StackObjects;
+    size_t registerStackObject(llvm::Value *Addr, const std::string &TypeName, int Line,
+                               bool IsArray = false, bool IsCopy = false);
+    void activateStackObject(size_t Index, llvm::Value *Count = nullptr);
+    void emitStackObjectCleanup(const StackObject &Object);
+    void finishStackObjects(llvm::Function *F);
     struct ConstantScope {
         unsigned ID;
         IdentifierMap<std::optional<SymbolInfo>> Saved;

@@ -89,6 +89,7 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
         IRBuilder<> TmpB(&F->getEntryBlock(), F->getEntryBlock().begin());
         AllocaInst *Alloca = TmpB.CreateAlloca(ArgType, nullptr, P.Name);
 
+        // Shallow BYVAL copy. The common lifetime hook is the future copy-constructor point.
         Builder.CreateStore(ArgVal, Alloca);
         const TypeInfo *Info = Types.resolve(P.TypeName);
         if (Info && Info->IsClass) {
@@ -98,6 +99,7 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
         } else {
             Symbols[P.Name] = {Alloca, P.TypeName, false};
         }
+        if (RegisterCopy) RegisterCopy(Alloca, P.TypeName, P.Line);
     }
 }
 

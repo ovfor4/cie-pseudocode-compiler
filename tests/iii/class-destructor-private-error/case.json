@@ -1,0 +1,12 @@
+{
+  "errors": [
+    {
+      "reason": "private",
+      "line": 5
+    },
+    {
+      "reason": "private",
+      "line": 6
+    }
+  ]
+}

@@ -59,6 +59,8 @@ void ArrayHandler::bindArrayParameter(const std::string &Name,
     Builder->CreateStore(Ptr, Alloca);
 
     CG.registerSymbol(Name, Alloca, ElemInfo->Name, true);
+    if (MakeCopy)
+        CG.activateStackObject(CG.registerStackObject(Alloca, ElemInfo->Name, 0, true, true), TotalElements);
 }
 
 bool ArrayHandler::emitArrayArgument(ExprAST *ArgExpr,

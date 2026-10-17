@@ -97,6 +97,10 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
 
     if (!CG.prepareSymbolDeclaration(Name)) return;
 
+    Function *TheFunction = Builder->GetInsertBlock()->getParent();
+    AllocaInst *Alloca = CG.CreateEntryBlockAlloca(TheFunction, PointerType::getUnqual(*TheContext), Name);
+    size_t Lifetime = CG.registerStackObject(Alloca, ElemInfo->Name, Stmt->getLine(), true);
+
     std::vector<Value*> Lows;
     std::vector<Value*> Highs;
 
@@ -134,8 +138,6 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
     Builder->CreateCall(MemsetFunc,
                         {Ptr, ConstantInt::get(Type::getInt32Ty(*TheContext), 0), TotalBytes});
 
-    Function *TheFunction = Builder->GetInsertBlock()->getParent();
-    AllocaInst *Alloca = CG.CreateEntryBlockAlloca(TheFunction, PointerType::getUnqual(*TheContext), Name);
     Builder->CreateStore(Ptr, Alloca);
 
     CG.registerSymbol(Name, Alloca, ElemInfo->Name, true);
@@ -157,6 +159,7 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
         Builder->CreateBr(Loop);
         Builder->SetInsertPoint(Done);
     }
+    CG.activateStackObject(Lifetime, TotalElements);
 }
 
 void ArrayHandler::computeDimsAndMultipliers(const std::string &Name,

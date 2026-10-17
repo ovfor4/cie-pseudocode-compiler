@@ -268,6 +268,7 @@ void CodeGen::emitDeclareStmt(DeclareStmtAST *Stmt) {
     Function *TheFunction = Builder->GetInsertBlock()->getParent();
     AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Info->LLVMType, Stmt->getName());
 
+    size_t Lifetime = registerStackObject(Alloca, Info->Name, Stmt->getLine());
     Value *InitVal = nullptr;
     if (Info->isString()) {
         InitVal = EmptyStringStr;
@@ -291,5 +292,6 @@ void CodeGen::emitDeclareStmt(DeclareStmtAST *Stmt) {
         reportError("Constructor arguments require a class type");
         return;
     }
-    emitConstruct(Info->Name, Alloca, Stmt->getArgs(), Stmt->getLine());
+    if (emitConstruct(Info->Name, Alloca, Stmt->getArgs(), Stmt->getLine()))
+        activateStackObject(Lifetime);
 }

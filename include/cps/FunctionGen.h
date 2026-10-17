@@ -64,6 +64,7 @@ private:
 
     IdentifierMap<FuncSig> Signatures;
     ArrayParamBinder BindArrayParam;
+    std::function<void(llvm::Value *, const std::string &, int)> RegisterCopy;
 
     void createArgumentAllocas(llvm::Function *F, const std::vector<ParamDecl> &Params, bool IsMethod);
 
@@ -80,6 +81,10 @@ public:
     llvm::Type *getLLVMType(const std::string &TypeName);
 
     void setArrayParamBinder(ArrayParamBinder Binder) { BindArrayParam = std::move(Binder); }
+
+    void setCopyRegistrar(std::function<void(llvm::Value *, const std::string &, int)> Registrar) {
+        RegisterCopy = std::move(Registrar);
+    }
 
     const FuncSig *getSignature(const std::string &Name) const;
 

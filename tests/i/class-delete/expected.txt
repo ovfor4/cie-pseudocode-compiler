@@ -8,3 +8,15 @@ double caught
 [Fatal] line 30: Invalid memory address (not an active allocation)
 stack caught
 leaf:2
+pair
+leaf:2
+leaf:1
+pair
+leaf:2
+leaf:1
+pair
+leaf:2
+leaf:1
+pair
+leaf:2
+leaf:1

@@ -1,0 +1,12 @@
+destroy:31
+destroy:32
+destroy:20
+destroy:21
+destroy:50
+destroy:42
+destroy:41
+destroy:33
+destroy:2
+destroy:1
+main end
+destroy:100

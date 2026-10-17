@@ -74,6 +74,10 @@ CodeGen::CodeGen() {
                                        /*MakeCopy=*/P.Mode == PassMode::ByVal, *this);
         });
 
+    FuncGen->setCopyRegistrar([this](Value *Addr, const std::string &TypeName, int Line) {
+        activateStackObject(registerStackObject(Addr, TypeName, Line, false, true));
+    });
+
     SetupExternalFunctions();
 }
 
@@ -185,6 +189,7 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
         Builder->CreateRet(ConstantInt::get(*TheContext, APInt(32, 0)));
     }
 
+    finishStackObjects(F);
     auto *Exception = Exceptions->popHandler();
     Builder->SetInsertPoint(UnhandledBB);
     Exceptions->beginCatch(Exception);
