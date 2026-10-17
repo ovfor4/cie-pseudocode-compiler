@@ -1,0 +1,4 @@
+[Fatal] line 7: Division by zero
+[Fatal] line 12: Array index out of bounds
+[Fatal] line 17: Dereference of an unset pointer
+[Fatal] line 22: File 'closed.txt' is not open

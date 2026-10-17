@@ -1,0 +1,2 @@
+[Fatal] line 45: Array index out of bounds
+[Fatal] line 51: Dereference of an unset pointer

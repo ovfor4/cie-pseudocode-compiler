@@ -1,10 +1,6 @@
-[Fatal] line 7: Division by zero
 division caught
-[Fatal] line 12: Array index out of bounds
 bounds caught
-[Fatal] line 17: Dereference of an unset pointer
 pointer caught
-[Fatal] line 22: File 'closed.txt' is not open
 file caught
 throw caught
 alive

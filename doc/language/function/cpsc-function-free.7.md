@@ -12,7 +12,7 @@ FREE(pointer)
 
 # DESCRIPTION
 
-FREE is a compiler extension. Its argument and return type are C `void*`. Explicitly cast other pointer types to a `void*` alias before passing them. A null pointer is accepted and returned. A non-null pointer must be the start of an active explicit MALLOC, REALLOC or keyword NEW allocation; internal STRING/ARRAY storage, stack addresses, interior addresses and already released allocations are rejected with a source-line diagnostic on stdout and an anonymous exception.
+FREE is a compiler extension. Its argument and return type are C `void*`. Explicitly cast other pointer types to a `void*` alias before passing them. A null pointer is accepted and returned. A non-null pointer must be the start of an active explicit MALLOC, REALLOC or keyword NEW allocation; internal STRING/ARRAY storage, stack addresses, interior addresses and already released allocations are rejected with a source-line diagnostic on stderr and an anonymous exception.
 
 FREE returns its input address after releasing the allocation. It does not clear the caller's variable. The returned address and all aliases are invalid for memory access. Calling FREE again on that address throws unless a subsequent allocation has reused the address. Tracking cannot distinguish stale aliases once an address is reused.
 

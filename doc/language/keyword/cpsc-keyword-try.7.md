@@ -24,7 +24,7 @@ Normal execution skips CATCH. An exception stops the current operation, unwinds 
 
 THROW takes no argument and always raises a new anonymous exception. An exception raised inside CATCH propagates to an enclosing TRY or a caller's handler; the same CATCH cannot catch it again. RETURN may leave either body, and leaving a handler finishes its catch state.
 
-Runtime checks throw the same anonymous exceptions for division by zero, array index errors, null pointer dereferences, invalid enumeration values, array-parameter bounds mismatches, and file misuse. Before throwing, a runtime check prints the source line and error reason to standard output, even when CATCH handles the exception. Explicit THROW prints no diagnostic itself. Compiler errors cannot be caught. If no handler catches an exception, the program prints `Unhandled exception. Program terminated.` to standard output and returns status 1.
+Runtime checks throw the same anonymous exceptions for division by zero, array index errors, null pointer dereferences, invalid enumeration values, array-parameter bounds mismatches, and file misuse. Before throwing, a runtime check prints the source line and error reason to standard error, even when CATCH handles the exception. Explicit THROW prints no diagnostic itself. Compiler errors cannot be caught. If no handler catches an exception, the program prints `Unhandled exception. Program terminated.` to standard error and returns status 1.
 
 Arrays declared inside either body remain local to that block. Stack unwinding does not automatically free heap strings or arrays, close files, or run user-defined destructors. Exception execution is verified on Linux with LLVM 23; Windows and macOS remain unverified.
 

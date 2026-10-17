@@ -14,7 +14,10 @@ class RuntimeCheck {
     llvm::LLVMContext &TheContext;
     llvm::IRBuilder<> &Builder;
 
-    llvm::FunctionCallee PrintfFunc;
+    llvm::FunctionCallee SnprintfFunc;
+    llvm::FunctionCallee WriteFunc;
+    llvm::FunctionCallee StrLenFunc;
+    llvm::GlobalVariable *ErrBuf;
     ExceptionHandler &Exceptions;
     llvm::Value *DivZeroMsg;
     llvm::Value *OutOfBoundsMsg;
@@ -28,6 +31,9 @@ class RuntimeCheck {
 public:
     RuntimeCheck(llvm::Module &M, llvm::LLVMContext &C, llvm::IRBuilder<> &B,
                  ExceptionHandler &EH);
+
+    // Format a runtime diagnostic (printf-style) and write it to stderr.
+    void emitStderr(llvm::Value *Msg, llvm::ArrayRef<llvm::Value *> FmtArgs = {});
 
     void emitDivZeroCheck(llvm::Value *Divisor, int Line);
     void emitIndexCheck(llvm::Value *Index, llvm::Value *Lower, llvm::Value *Upper, int Line);
@@ -44,7 +50,7 @@ public:
     void emitArrayArgBoundsCheck(llvm::Value *ActualLower, llvm::Value *ActualUpper,
                                  int64_t DeclaredLower, int64_t DeclaredUpper, int Line);
 
-    // Print the diagnostic, then throw an anonymous exception on failure.
+    // Print the diagnostic to stderr, then throw an anonymous exception on failure.
     // Runtime-computed variant: FmtArgs are the printf varargs after Msg
     // (e.g. {i32 line, ptr filename}). Needed when the failure site is inside
     // a synthesized helper function, where the line number is an argument

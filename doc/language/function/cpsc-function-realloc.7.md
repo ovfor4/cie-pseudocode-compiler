@@ -14,7 +14,7 @@ REALLOC(pointer, bytes)
 
 REALLOC is a compiler extension returning C `void*`. The pointer argument must also be C `void*`; explicitly cast other pointer types. The size accepts INTEGER or a C integer and converts to host size_t, just as MALLOC does.
 
-A null pointer behaves as MALLOC(bytes). A non-null pointer must start an active explicit MALLOC or REALLOC allocation, even when bytes is zero. Invalid addresses print the source line and reason to stdout and throw an anonymous exception before touching the memory or allocation record.
+A null pointer behaves as MALLOC(bytes). A non-null pointer must start an active explicit MALLOC or REALLOC allocation, even when bytes is zero. Invalid addresses print the source line and reason to stderr and throw an anonymous exception before touching the memory or allocation record.
 
 For a valid pointer and zero bytes, REALLOC releases the block and returns null. This rule is independent of libc's zero-size behavior. For a nonzero size, successful resizing preserves the smaller of the old and new sizes; added bytes are uninitialized. The returned address may differ from the input. Use the returned pointer afterward; previous aliases must not be used.
 

@@ -1,0 +1,6 @@
+[Fatal] line 28: Memory allocation failed
+[Fatal] line 40: Invalid memory address (not an active allocation)
+[Fatal] line 47: Invalid memory address (not an active allocation)
+[Fatal] line 63: Invalid memory address (not an active allocation)
+[Fatal] line 69: Invalid memory address (not an active allocation)
+[Fatal] line 77: Invalid memory address (not an active allocation)

@@ -62,7 +62,7 @@ collapse to a legacy node.
 **New runtime check:** add `emitXxxCheck` in `RuntimeCheck` (build an i1
 fail-condition and call `emitCheck` with a diagnostic format and arguments — it
 splits the block and leaves the builder at the continuation), then call it from
-the emit site. Failure prints the source line and error reason to stdout before
+the emit site. Failure prints the source line and error reason to stderr before
 throwing an anonymous exception; generated main supplies the uncaught message
 and status 1. Precedents: `emitIndexCheck`, `emitEnumRangeCheck`, `emitNullDerefCheck`,
 `emitArrayArgBoundsCheck` and FileHandler's direct `emitCheck` calls.

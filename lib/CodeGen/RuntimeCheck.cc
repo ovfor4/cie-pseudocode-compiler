@@ -3,6 +3,7 @@
 #include "cps/TypeSystem.h" // kEnumOrdinalBase
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Constants.h"
 
 using namespace llvm;
@@ -14,10 +15,18 @@ RuntimeCheck::RuntimeCheck(Module &M, LLVMContext &C, IRBuilder<> &B, ExceptionH
 }
 
 void RuntimeCheck::setupExternalFunctions() {
-    std::vector<Type*> PrintfArgs;
-    PrintfArgs.push_back(PointerType::getUnqual(TheContext));
-    FunctionType *PrintfType = FunctionType::get(Type::getInt32Ty(TheContext), PrintfArgs, true);
-    PrintfFunc = TheModule.getOrInsertFunction("printf", PrintfType);
+    Type *PtrTy = PointerType::getUnqual(TheContext);
+    Type *I32 = Type::getInt32Ty(TheContext);
+    Type *I64 = Type::getInt64Ty(TheContext);
+    SnprintfFunc = TheModule.getOrInsertFunction(
+        "snprintf", FunctionType::get(I32, {PtrTy, I64, PtrTy}, true));
+    WriteFunc = TheModule.getOrInsertFunction(
+        "write", FunctionType::get(I32, {I32, PtrTy, I64}, false));
+    StrLenFunc = TheModule.getOrInsertFunction(
+        "strlen", FunctionType::get(I64, {PtrTy}, false));
+    ArrayType *BufTy = ArrayType::get(Type::getInt8Ty(TheContext), 1024);
+    ErrBuf = new GlobalVariable(TheModule, BufTy, false, GlobalValue::InternalLinkage,
+                                ConstantAggregateZero::get(BufTy), "__cps_errbuf");
 
     DivZeroMsg = Builder.CreateGlobalString("[Fatal] line %d: Division by zero\n", "err_div_zero", 0, &TheModule);
     OutOfBoundsMsg = Builder.CreateGlobalString("[Fatal] line %d: Array index out of bounds\n", "err_bounds", 0, &TheModule);
@@ -26,6 +35,15 @@ void RuntimeCheck::setupExternalFunctions() {
     ArrayArgBoundsMsg = Builder.CreateGlobalString(
         "[Fatal] line %d: Array argument bounds [%lld:%lld] do not match the declared parameter bounds [%lld:%lld]\n",
         "err_arr_arg_bounds", 0, &TheModule);
+}
+
+void RuntimeCheck::emitStderr(Value *Msg, ArrayRef<Value *> FmtArgs) {
+    // Format into a fixed buffer, then write(2) so diagnostics bypass stdout.
+    std::vector<Value *> Args = {ErrBuf, ConstantInt::get(Type::getInt64Ty(TheContext), 1024), Msg};
+    Args.insert(Args.end(), FmtArgs.begin(), FmtArgs.end());
+    Builder.CreateCall(SnprintfFunc, Args);
+    Value *Len = Builder.CreateCall(StrLenFunc, {ErrBuf});
+    Builder.CreateCall(WriteFunc, {ConstantInt::get(Type::getInt32Ty(TheContext), 2), ErrBuf, Len});
 }
 
 void RuntimeCheck::emitCheck(Value *Condition, Value *Msg, int Line) {
@@ -44,7 +62,7 @@ void RuntimeCheck::emitCheck(Value *Condition, Value *Msg, ArrayRef<Value *> Fmt
     std::vector<Value*> PrintArgs;
     PrintArgs.push_back(Msg);
     PrintArgs.insert(PrintArgs.end(), FmtArgs.begin(), FmtArgs.end());
-    Builder.CreateCall(PrintfFunc, PrintArgs);
+    emitStderr(Msg, ArrayRef<Value *>(PrintArgs).drop_front());
 
     Exceptions.emitThrow();
 

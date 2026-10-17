@@ -11,4 +11,3 @@ uncaught next
 destroy:2
 destroy:1
 destroy:3
-Unhandled exception. Program terminated.

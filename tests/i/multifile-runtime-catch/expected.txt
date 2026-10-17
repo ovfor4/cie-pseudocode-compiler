@@ -1,3 +1,2 @@
-[Fatal] line 2: Division by zero
 runtime caught
 5

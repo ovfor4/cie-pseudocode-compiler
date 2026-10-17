@@ -112,7 +112,7 @@ An uncaught program exception returns 1 after printing `Unhandled exception. Pro
 
 # NOTES
 
-Compiler diagnostics go to stderr. With multiple input files, lexer, parser and code generation diagnostics include the source path after the line number. Failed source compilation does not write output; failed native linking does not replace an existing output file. Successful compilation overwrites an existing output file, but an output path that refers to any input source file (including a symbolic or hard link) is rejected.
+Compiler diagnostics go to stderr. With multiple input files, lexer, parser and code generation diagnostics include the source path after the line number. Failed source compilation does not write output; failed native linking does not replace an existing output file. Successful compilation overwrites an existing output file, but an output path that refers to any input source file (including a symbolic or hard link) is rejected. Runtime diagnostics of the compiled program (for example `[Fatal] line N: ...` and `Unhandled exception. Program terminated.`) are also written to stderr, so `OUTPUT` text alone appears on stdout.
 
 Missing input, including invoking `cpsc` without arguments, reports `cpsc: fatal error: no input files`. Ordinary lexical, syntax and semantic errors use `error:`; failures that prevent compilation, such as file I/O errors, use `fatal error:`. Compilation and argument failures end with one `compilation terminated.` line. Execution-stage failures do not print that line.
 

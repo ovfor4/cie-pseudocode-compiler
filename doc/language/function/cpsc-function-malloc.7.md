@@ -12,7 +12,7 @@ MALLOC(bytes)
 
 # DESCRIPTION
 
-MALLOC is a compiler extension returning a C `void*` to the beginning of an uninitialized allocation. The size is in bytes and accepts INTEGER or a C integer, converted to the host size_t using C integer conversion rules. Negative values are not separately rejected. MALLOC(0) returns null without allocating. A nonzero allocation failure prints the source line and reason to stdout, then throws an anonymous exception catchable with TRY/CATCH. Allocation tracking failures behave the same way.
+MALLOC is a compiler extension returning a C `void*` to the beginning of an uninitialized allocation. The size is in bytes and accepts INTEGER or a C integer, converted to the host size_t using C integer conversion rules. Negative values are not separately rejected. MALLOC(0) returns null without allocating. A nonzero allocation failure prints the source line and reason to stderr, then throws an anonymous exception catchable with TRY/CATCH. Allocation tracking failures behave the same way.
 
 Declare a `void*` alias with C_TYPE and explicitly cast the result to a C or pseudocode pointer before dereferencing. MALLOC does not initialize fields or call constructors; it is unrelated to the CIE class NEW construct. The caller must supply enough bytes and initialize values before reading them. User memory is not automatically released.
 

@@ -114,7 +114,7 @@ dereferences and array-parameter bounds contracts are checked at their emit site
 `ArithmeticHandler` calls `emitDivZeroCheck` before `/`, DIV and MOD; the check accepts
 integer and floating-point divisors, including both floating-point signed zeros.
 `emitCheck(Cond, Msg, Args)` splits the block, prints the source line and error
-reason to stdout, and calls `ExceptionHandler::emitThrow` on failure. File helper
+reason to stderr, and calls `ExceptionHandler::emitThrow` on failure. File helper
 checks receive the source line as a runtime argument.
 
 **Exceptions** (`ExceptionHandler`): holds Context/Builder/Module refs and a map of

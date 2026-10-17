@@ -1,7 +1,6 @@
 item:1
 item:1
 item:2
-[Fatal] line 27: Invalid memory address (not an active allocation)
 array caught
 item:3
 item:0

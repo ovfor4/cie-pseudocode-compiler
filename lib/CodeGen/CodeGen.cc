@@ -340,7 +340,7 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
     Exceptions->endCatch();
     Value *Msg = Builder->CreateGlobalString("Unhandled exception. Program terminated.\n",
                                                "err_unhandled", 0, TheModule.get());
-    Builder->CreateCall(PrintfFunc, {Msg});
+    RuntimeChecker->emitStderr(Msg);
     Builder->CreateRet(ConstantInt::get(Type::getInt32Ty(*TheContext), 1));
 
     if (verifyModule(*TheModule, &errs())) {

@@ -1,2 +1,0 @@
-[Fatal] line 3: Division by zero
-Unhandled exception. Program terminated.

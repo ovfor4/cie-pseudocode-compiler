@@ -1,17 +1,11 @@
 TRUE
 12:34
 12
-[Fatal] line 28: Memory allocation failed
 preserved:12
 56
 TRUE
-[Fatal] line 40: Invalid memory address (not an active allocation)
 released address caught
-[Fatal] line 47: Invalid memory address (not an active allocation)
 invalid zero resize caught
 71
-[Fatal] line 63: Invalid memory address (not an active allocation)
-[Fatal] line 69: Invalid memory address (not an active allocation)
 nested catch
-[Fatal] line 77: Invalid memory address (not an active allocation)
 internal buffer caught

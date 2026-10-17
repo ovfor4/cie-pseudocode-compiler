@@ -14,7 +14,7 @@ static bool isReservedRuntimeName(const std::string &Name) {
     static const char *Reserved[] = {
         "__cps_main", "printf", "scanf", "malloc", "free", "strlen", "memcpy",
         "strcpy", "strcat", "toupper", "tolower", "sprintf", "snprintf", "strtol", "strtoll",
-        "strtod", "memset", "exit",
+        "strtod", "memset", "exit", "write",
         "fopen", "fclose", "fgetc", "ungetc", "fputs", "fputc",
         "realloc", "strcmp", "__cxa_allocate_exception", "__cxa_throw",
         "__cxa_begin_catch", "__cxa_end_catch", "__gxx_personality_v0",

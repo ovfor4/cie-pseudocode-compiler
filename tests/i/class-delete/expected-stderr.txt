@@ -1,0 +1,2 @@
+[Fatal] line 24: Invalid memory address (not an active allocation)
+[Fatal] line 30: Invalid memory address (not an active allocation)

@@ -75,9 +75,9 @@ Generated IR uses the C++ exception ABI; native compilation links its runtime
 automatically. Manually linking emitted `.ll` files still requires a C++ driver
 (use LLVM 23's `clang++`, or `clang++-23` on Debian/Ubuntu).
 TRY/CATCH/ENDTRY and bare THROW are compiler extensions.
-Runtime checks print the source line and error reason to stdout before throwing
+Runtime checks print the source line and error reason to stderr before throwing
 anonymous exceptions; the final handler in generated main
-prints `Unhandled exception. Program terminated.` to stdout and returns 1.
+prints `Unhandled exception. Program terminated.` to stderr and returns 1.
 Exception execution with the embedded ORC JIT is verified on Linux with LLVM 23;
 Windows/macOS await CI verification.
 

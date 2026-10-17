@@ -121,7 +121,7 @@ test programs.
   ENDTRY. Bare THROW raises a new anonymous exception even inside CATCH; there is
   no rethrow syntax, error object or what(). Runtime checks are catchable;
   compiler errors are not. Runtime checks print the source line and error reason
-  to stdout before throwing, even when caught. Uncaught exceptions also print the
+  to stderr before throwing, even when caught. Uncaught exceptions also print the
   generic termination message and return 1. Bare THROW prints no diagnostic itself.
   Native binaries must link the C++ runtime with LLVM 23's `clang++`
   (`clang++-23` on Debian/Ubuntu).
