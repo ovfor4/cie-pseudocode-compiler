@@ -26,9 +26,11 @@ At baseline, both native and `-r` paths exposed the four i-group failures. All n
 
 Current exact command results are retained in `build/test-results`; the replay uses the original Actions SHA as its seed. Subsequent CI reports use their own explicit push SHA. Platform results from Actions are the authority for Windows/macOS verification; local Linux results do not establish their behavior.
 
+The `i/input-targets` and `iii/input-invalid-targets` cases cover INPUT into array elements and public record/class fields, including nested fields and pointer dereferences, with existing writable-location and type restrictions.
+
 ## Coverage gaps
 
-- Not implemented by the compiler, and not required to pass this initial suite: DATE, SET/DEFINE, random files, class methods/constructors/inheritance, INT/RAND, whole-array assignment and INPUT into array/record elements. Rejection of valid CIE syntax must not be relabeled as a successful negative test.
+- Not implemented by the compiler, and not required to pass this initial suite: DATE, SET/DEFINE, random files, class methods/constructors/inheritance, INT/RAND and whole-array assignment. Rejection of valid CIE syntax must not be relabeled as a successful negative test.
 - The guide's p. 14 pointer example points an INTEGER pointer at an enum; it conflicts with the project's explicit strict-pointee contract. Tests use matching pointees rather than silently choosing a new policy.
 - LCASE/UCASE are CHAR-to-CHAR in the guide (p. 17), while the project declares STRING results and also supports whole strings. Output observations cover case conversion but do not prove exact static return-type conformance.
 - No requirements are invented for unspecified integer overflow, REAL output spelling, out-of-range substring behavior, Unicode character semantics, or uninitialized CIE values. Native C ABI behavior is checked only against that platform's independent C++ reference.

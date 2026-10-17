@@ -67,7 +67,7 @@ Closing and auxiliary keywords are documented with their main constructs: THEN/E
 
 # UNSUPPORTED FEATURES
 
-DATE, SET types and DEFINE, random-file operations (RANDOM/SEEK/GETRECORD/PUTRECORD), INT, RAND, INPUT into array elements or fields, string escapes, whole-array assignment or return, array fields, and class methods/constructors/destructors/inheritance (NEW/INHERITS/SUPER).
+DATE, SET types and DEFINE, random-file operations (RANDOM/SEEK/GETRECORD/PUTRECORD), INT, RAND, string escapes, whole-array assignment or return, array fields, and class methods/constructors/destructors/inheritance (NEW/INHERITS/SUPER).
 
 The individual pages note relevant differences from the Cambridge 2026 pseudocode guide. This manual describes the compiler's current support.
 

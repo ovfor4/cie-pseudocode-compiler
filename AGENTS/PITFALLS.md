@@ -8,8 +8,10 @@ test programs.
 - **OUTPUT accepts comma-separated expressions (§5.1).** Values are evaluated and
   printed left to right without automatic separators; the final scalar adds a newline.
   Whole arrays and subarrays still print each element on its own line, including in
-  mixed output lists; a final array adds no extra newline. INPUT only accepts a plain
-  identifier — no `INPUT arr[i]`.
+  mixed output lists; a final array adds no extra newline. INPUT accepts writable
+  scalar locations, including array elements, public record/class fields and
+  pointer dereferences, using the shared lvalue checks. Whole arrays and whole
+  records/classes remain unsupported INPUT targets.
 - **Arrays cross function boundaries only as parameters.** `ArrayTable` is scoped per
   function now, so referencing another function's array fails cleanly as
   "Undeclared array". Whole arrays pass as `ARRAY OF T` / `ARRAY[l:u,...] OF T`
@@ -49,8 +51,8 @@ test programs.
 - **File handling (§9.1) sharp edges.** `READ`/`WRITE`/`APPEND`/`RANDOM` are reserved
   keywords now — `DECLARE READ : INTEGER` no longer compiles. `WRITEFILE f, a, b` takes
   exactly two operands (the stray `, b` is a parse error).
-  READFILE's target must be a plain STRING variable — no CHAR, no `arr[i]` (mirrors
-  INPUT). The CIE guide's empty-line test `IF LineOfText = ""` compares contents.
+  READFILE's target must be a plain STRING variable — no CHAR, no `arr[i]`.
+  The CIE guide's empty-line test `IF LineOfText = ""` compares contents.
   At most 16 files open at once. All runtime misuse (not open, wrong mode, reopen,
   fopen failure, READFILE past EOF) throws an anonymous exception — guard reads with
   `WHILE NOT EOF(...)`. Caveat: the open-file table is keyed by the filename *string*
@@ -106,7 +108,7 @@ test programs.
 SET types (`SET`/`DEFINE` are reserved with dedicated errors),
 random files (OPENFILE...FOR RANDOM/SEEK/GETRECORD/PUTRECORD — TYPE is done, so these
 are unblocked now; the RANDOM keyword is reserved and gives a dedicated parse error),
-DATE, INPUT into array elements, string escape sequences,
+DATE, string escape sequences,
 array-typed record fields, whole-array RETURN, class methods/constructors/destructors,
 NEW and class inheritance. Compiler fixtures now live in `tests/` (see TESTING.md).
 Nightly CI runs the compiler suites, packaged EMBEDDED smoke checks and existing
