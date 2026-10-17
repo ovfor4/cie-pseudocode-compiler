@@ -13,6 +13,11 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     SaveAndRestore<int> Location(DiagnosticLine, Stmt && Stmt->getLine() ? Stmt->getLine() : DiagnosticLine);
     if (!Stmt) return;
 
+    if (dynamic_cast<IncludeStmtAST*>(Stmt) || dynamic_cast<GlobalBlockAST*>(Stmt)) {
+        reportError("INCLUDE and GLOBAL are not supported yet");
+        return;
+    }
+
     if (auto *Class = dynamic_cast<ClassTypeDeclAST*>(Stmt)) {
         for (const auto &Method : Class->getMethods()) {
             // Invalid or duplicate members have already been diagnosed.

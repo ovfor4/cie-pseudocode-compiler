@@ -74,6 +74,9 @@ int Lexer::readToken() {
             IdentifierStr += static_cast<char>(LastChar);
 
         if (IdentifierStr == "CONSTANT") return tok_constant;
+        if (IdentifierStr == "INCLUDE") return tok_include;
+        if (IdentifierStr == "GLOBAL") return tok_global;
+        if (IdentifierStr == "ENDGLOBAL") return tok_endglobal;
         if (IdentifierStr == "DECLARE") return tok_declare;
         if (IdentifierStr == "INTEGER") return tok_integer_kw;
         if (IdentifierStr == "BOOLEAN") return tok_boolean_kw;

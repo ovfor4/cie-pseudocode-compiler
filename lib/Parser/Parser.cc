@@ -46,6 +46,7 @@ std::vector<std::unique_ptr<StmtAST>> Parser::Parse() {
 void Parser::syncToStatementStart() {
     while (CurTok != tok_eof) {
         switch (CurTok) {
+        case tok_include: case tok_global: case tok_endglobal:
         case tok_delete: case tok_constant: case tok_declare: case tok_identifier: case tok_input: case tok_output:
         case tok_case: case tok_endcase: case tok_otherwise:
         case tok_if: case tok_while: case tok_repeat: case tok_for:
@@ -95,6 +96,37 @@ std::unique_ptr<StmtAST> Parser::ParseStatement() {
 }
 
 std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
+    if (CurTok == tok_include || CurTok == tok_global) {
+        bool Include = CurTok == tok_include;
+        int Line = Lex.getLine();
+        getNextToken();
+        if (BlockDepth != 1) {
+            sourceDiagnostic(Line, "error: %s is only allowed at top level at line %d\n",
+                             Include ? "INCLUDE" : "GLOBAL", Line);
+            return nullptr;
+        }
+        if (Include) {
+            if (CurTok != tok_string_literal) {
+                sourceDiagnostic(Line, "error: INCLUDE requires a string literal at line %d\n", Line);
+                return nullptr;
+            }
+            auto Stmt = std::make_unique<IncludeStmtAST>(Lex.StringVal);
+            getNextToken();
+            return Stmt;
+        }
+        auto Body = ParseBlock({tok_endglobal});
+        if (CurTok != tok_endglobal) {
+            sourceDiagnostic(Line, "error: Expected ENDGLOBAL at line %d\n", Lex.getLine());
+            return nullptr;
+        }
+        getNextToken();
+        return std::make_unique<GlobalBlockAST>(std::move(Body));
+    }
+    if (CurTok == tok_endglobal) {
+        sourceDiagnostic(Lex.getLine(), "error: ENDGLOBAL without matching GLOBAL at line %d\n", Lex.getLine());
+        getNextToken();
+        return nullptr;
+    }
     if (CurTok == tok_delete) {
         int Line = Lex.getLine();
         getNextToken();

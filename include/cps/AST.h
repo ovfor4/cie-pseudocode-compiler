@@ -100,6 +100,21 @@ public:
     virtual ~StmtAST() = default;
 };
 
+class IncludeStmtAST : public StmtAST {
+    std::string Path;
+public:
+    explicit IncludeStmtAST(std::string Path) : Path(std::move(Path)) {}
+    const std::string &getPath() const { return Path; }
+};
+
+class GlobalBlockAST : public StmtAST {
+    std::vector<std::unique_ptr<StmtAST>> Body;
+public:
+    explicit GlobalBlockAST(std::vector<std::unique_ptr<StmtAST>> Body)
+        : Body(std::move(Body)) {}
+    const auto &getBody() const { return Body; }
+};
+
 class TryStmtAST : public StmtAST {
     std::vector<std::unique_ptr<StmtAST>> Body, CatchBody;
 public:

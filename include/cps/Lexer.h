@@ -101,6 +101,8 @@ enum Token {
     tok_c_double = -612,
     tok_new = -613, tok_delete = -614,
 
+    tok_include = -650, tok_global = -651, tok_endglobal = -652,
+
     tok_try = -700,
     tok_catch = -701,
     tok_endtry = -702,
