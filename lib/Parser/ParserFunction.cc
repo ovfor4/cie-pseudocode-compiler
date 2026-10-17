@@ -132,6 +132,10 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
 std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerClass, bool IsPublic) {
     int Line = Lex.getLine();
     getNextToken();
+    if (CurTok == tok_new || (CurTok == tok_identifier && sameIdentifier(Lex.IdentifierStr, "NEW"))) {
+        fprintf(stderr, "error: constructor NEW must be a PROCEDURE at line %d\n", Line);
+        return nullptr;
+    }
     if (CurTok != tok_identifier) {
         fprintf(stderr, "error: Expected function name\n");
         return nullptr;
@@ -176,12 +180,16 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
 std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerClass, bool IsPublic) {
     int Line = Lex.getLine();
     getNextToken();
-    if (CurTok != tok_identifier) {
+    if (CurTok != tok_identifier && CurTok != tok_new) {
         fprintf(stderr, "error: Expected procedure name\n");
         return nullptr;
     }
 
-    std::string Name = Lex.IdentifierStr;
+    std::string Name = CurTok == tok_new ? "NEW" : Lex.IdentifierStr;
+    if (OwnerClass.empty() && sameIdentifier(Name, "NEW")) {
+        fprintf(stderr, "error: constructor NEW is only allowed in a CLASS at line %d\n", Line);
+        return nullptr;
+    }
     getNextToken();
 
     auto Args = ParsePrototypeArgs(/*AllowByRef=*/true);

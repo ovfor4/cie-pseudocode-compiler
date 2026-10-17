@@ -9,10 +9,6 @@
       "line": 13
     },
     {
-      "reason": "NEW constructors are not implemented",
-      "line": 15
-    },
-    {
       "reason": "Duplicate member set in class Box",
       "line": 17
     },

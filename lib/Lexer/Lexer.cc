@@ -150,6 +150,7 @@ int Lexer::readToken() {
         if (IdentifierStr == "ENDTYPE") return tok_endtype;
         if (IdentifierStr == "SET") return tok_set;
         if (IdentifierStr == "DEFINE") return tok_define;
+        if (IdentifierStr == "NEW") return tok_new;
         if (IdentifierStr == "CLASS") return tok_class;
         if (IdentifierStr == "ENDCLASS") return tok_endclass;
         if (IdentifierStr == "PUBLIC") return tok_public;

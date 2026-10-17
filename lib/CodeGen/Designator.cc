@@ -56,9 +56,7 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
         for (const auto &Method : Class->getMethods()) {
             SaveAndRestore<int> Location(DiagnosticLine, Method->getLine());
             const std::string &Name = Method->getProto()->getName();
-            if (sameIdentifier(Name, "NEW")) {
-                reportError("NEW constructors are not implemented");
-            } else if (sameIdentifier(Name, "this")) {
+            if (sameIdentifier(Name, "this")) {
                 reportError("A method cannot be named this");
             } else if (!Names.insert(Name).second) {
                 reportError("Duplicate member %s in class %s", Name.c_str(), Class->getName().c_str());
