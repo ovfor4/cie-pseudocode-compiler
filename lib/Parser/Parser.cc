@@ -1,3 +1,4 @@
+#include "cps/Diagnostics.h"
 #include "cps/Parser.h"
 #include "cps/FunctionAST.h"
 #include <cstdio>
@@ -98,7 +99,7 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
         int Line = Lex.getLine();
         getNextToken();
         if (CurTok != tok_identifier) {
-            fprintf(stderr, "error: DELETE requires an object designator at line %d\n", Line);
+            cps::sourceDiagnostic(Lex.getLine(), "error: DELETE requires an object designator at line %d\n", Line);
             return nullptr;
         }
         std::string Name = Lex.IdentifierStr;
@@ -110,7 +111,7 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     }
     if (CurTok == tok_case) return ParseCaseStmt();
     if (CurTok == tok_endcase || CurTok == tok_otherwise) {
-        fprintf(stderr, "error: Unexpected CASE terminator at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: Unexpected CASE terminator at line %d\n", Lex.getLine());
         getNextToken();
         return nullptr;
     }
@@ -124,7 +125,7 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     else if (CurTok == tok_input) {
         getNextToken();
         if (CurTok != tok_identifier) {
-            fprintf(stderr, "error: Expected variable name after INPUT at line %d\n", Lex.getLine());
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected variable name after INPUT at line %d\n", Lex.getLine());
             return nullptr;
         }
         std::string Name = Lex.IdentifierStr;
@@ -165,7 +166,7 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
         return std::make_unique<ThrowStmtAST>();
     }
     else if (CurTok == tok_catch || CurTok == tok_endtry) {
-        fprintf(stderr, "error: Unexpected %s without matching TRY at line %d\n",
+        cps::sourceDiagnostic(Lex.getLine(), "error: Unexpected %s without matching TRY at line %d\n",
                 CurTok == tok_catch ? "CATCH" : "ENDTRY", Lex.getLine());
         getNextToken();
         return nullptr;
@@ -207,22 +208,22 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
         return ParseTypeDecl();
     }
     else if (CurTok == tok_define) {
-        fprintf(stderr, "error: DEFINE (SET literals) is not implemented at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: DEFINE (SET literals) is not implemented at line %d\n", Lex.getLine());
         getNextToken();
         return nullptr;
     }
     else if (CurTok == tok_endtype) {
-        fprintf(stderr, "error: ENDTYPE without matching TYPE at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: ENDTYPE without matching TYPE at line %d\n", Lex.getLine());
         getNextToken();
         return nullptr;
     }
     else if (CurTok == tok_endclass) {
-        fprintf(stderr, "error: ENDCLASS without matching CLASS at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: ENDCLASS without matching CLASS at line %d\n", Lex.getLine());
         getNextToken();
         return nullptr;
     }
 
-    fprintf(stderr, "error: Unexpected token at line %d when expecting a statement\n", Lex.getLine());
+    cps::sourceDiagnostic(Lex.getLine(), "error: Unexpected token at line %d when expecting a statement\n", Lex.getLine());
     getNextToken(); // guarantee progress so error recovery cannot loop forever
     return nullptr;
 }
@@ -252,7 +253,7 @@ std::unique_ptr<StmtAST> Parser::ParseAssignStmt() {
     }
 
     if (CurTok != tok_assign) {
-        fprintf(stderr, "error: Expected '<-' after identifier '%s' at line %d\n", Name.c_str(), Line);
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected '<-' after identifier '%s' at line %d\n", Name.c_str(), Line);
         return nullptr;
     }
     getNextToken();

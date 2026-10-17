@@ -1,3 +1,4 @@
+#include "cps/Diagnostics.h"
 #include "cps/Parser.h"
 #include "cps/FunctionAST.h"
 #include <cstdio>
@@ -17,7 +18,7 @@ int Parser::GetTokPrecedence() {
 bool Parser::ParseIntegerValue(bool Negative, int64_t &Out) {
     const uint64_t Max = uint64_t(std::numeric_limits<int64_t>::max());
     if (Lex.NumVal > Max + (Negative ? 1u : 0u)) {
-        fprintf(stderr, "error: Integer literal is outside the i64 range at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: Integer literal is outside the i64 range at line %d\n", Lex.getLine());
         getNextToken();
         return false;
     }
@@ -49,7 +50,7 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
         auto Args = ParseExprList(')', true);
         if (!Args) return nullptr;
         if (CurTok == '[' || CurTok == '.' || CurTok == '^') {
-            fprintf(stderr, "error: record/array/pointer access on a function result is not supported at line %d\n",
+            cps::sourceDiagnostic(Lex.getLine(), "error: record/array/pointer access on a function result is not supported at line %d\n",
                     Lex.getLine());
             return nullptr;
         }
@@ -74,7 +75,7 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
 std::unique_ptr<MemberCallExprAST> Parser::ParseMemberCall(
     const std::string &Name, std::vector<DesignatorAccess> Accesses, int Line) {
     if (Accesses.empty() || Accesses.back().Kind != AccessKind::Field) {
-        fprintf(stderr, "error: Expected a method name after '.' at line %d\n", Line);
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected a method name after '.' at line %d\n", Line);
         return nullptr;
     }
     std::string Method = Accesses.back().FieldName;
@@ -88,7 +89,7 @@ std::unique_ptr<MemberCallExprAST> Parser::ParseMemberCall(
         Args = std::move(*Parsed);
     }
     if (CurTok == '[' || CurTok == '.' || CurTok == '^') {
-        fprintf(stderr, "error: record/array/pointer access on a function result is not supported at line %d\n",
+        cps::sourceDiagnostic(Lex.getLine(), "error: record/array/pointer access on a function result is not supported at line %d\n",
                 Lex.getLine());
         return nullptr;
     }
@@ -110,7 +111,7 @@ bool Parser::ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out) {
         } else if (CurTok == '.') {
             getNextToken();
             if (CurTok != tok_identifier && CurTok != tok_new && CurTok != tok_delete) {
-                fprintf(stderr, "error: Expected field name after '.' at line %d\n", Lex.getLine());
+                cps::sourceDiagnostic(Lex.getLine(), "error: Expected field name after '.' at line %d\n", Lex.getLine());
                 return false;
             }
             DesignatorAccess A;
@@ -141,7 +142,7 @@ std::unique_ptr<ExprAST> Parser::ParseParenExpr() {
         std::string TypeName = ParseTypeName();
         if (TypeName.empty()) return nullptr;
         if (CurTok != ')') {
-            fprintf(stderr, "error: Expected ')' after cast type at line %d\n", Lex.getLine());
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected ')' after cast type at line %d\n", Lex.getLine());
             return nullptr;
         }
         getNextToken();
@@ -152,7 +153,7 @@ std::unique_ptr<ExprAST> Parser::ParseParenExpr() {
     auto V = ParseExpression();
     if (!V) return nullptr;
     if (CurTok != ')') {
-        fprintf(stderr, "error: expected ')' at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: expected ')' at line %d\n", Lex.getLine());
         return nullptr;
     }
     getNextToken();
@@ -169,7 +170,7 @@ std::unique_ptr<ExprAST> Parser::ParsePrimary() {
 std::unique_ptr<ExprAST> Parser::ParsePrimaryImpl() {
     switch (CurTok) {
     case tok_new:
-        fprintf(stderr, "error: NEW is only allowed on the right of an assignment at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: NEW is only allowed on the right of an assignment at line %d\n", Lex.getLine());
         return nullptr;
     case tok_identifier: return ParseIdentifierExpr();
     case tok_number_int: return ParseNumberExpr();
@@ -194,7 +195,7 @@ std::unique_ptr<ExprAST> Parser::ParsePrimaryImpl() {
     }
     case '(':            return ParseParenExpr();
     default:
-        fprintf(stderr, "error: unknown token '%c' (%d) at line %d when expecting an expression\n",
+        cps::sourceDiagnostic(Lex.getLine(), "error: unknown token '%c' (%d) at line %d when expecting an expression\n",
                 (char)CurTok, CurTok, Lex.getLine());
         return nullptr;
     }
@@ -220,14 +221,14 @@ std::unique_ptr<ExprAST> Parser::ParseUnaryImpl() {
         int Line = Lex.getLine();
         getNextToken();
         if (CurTok != tok_identifier) {
-            fprintf(stderr, "error: '^' (address-of) requires a variable, array element or record field at line %d\n",
+            cps::sourceDiagnostic(Lex.getLine(), "error: '^' (address-of) requires a variable, array element or record field at line %d\n",
                     Line);
             return nullptr;
         }
         std::string BaseName = Lex.IdentifierStr;
         getNextToken();
         if (CurTok == '(') {
-            fprintf(stderr, "error: cannot take the address of a function result at line %d\n", Line);
+            cps::sourceDiagnostic(Lex.getLine(), "error: cannot take the address of a function result at line %d\n", Line);
             return nullptr;
         }
         std::vector<DesignatorAccess> Accesses;
@@ -294,7 +295,7 @@ std::optional<std::vector<std::unique_ptr<ExprAST>>> Parser::ParseExprList(char 
 
         if (CurTok == CloseDelim) break;
         if (CurTok != ',') {
-            fprintf(stderr, "error: Expected ',' or '%c' at line %d\n", CloseDelim, Lex.getLine());
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected ',' or '%c' at line %d\n", CloseDelim, Lex.getLine());
             return std::nullopt;
         }
         getNextToken();

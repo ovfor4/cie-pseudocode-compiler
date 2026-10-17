@@ -1,3 +1,4 @@
+#include "cps/Diagnostics.h"
 #include "cps/Lexer.h"
 #include <algorithm>
 #include <charconv>
@@ -29,7 +30,7 @@ int Lexer::readToken() {
         if (LastChar == '"') {
             LastChar = Input.get();
         } else {
-            fprintf(stderr, "error: Unterminated string literal at line %d\n", CurrentLine);
+            cps::sourceDiagnostic(CurrentLine, "error: Unterminated string literal at line %d\n", CurrentLine);
             HadError = true;
         }
 
@@ -39,7 +40,7 @@ int Lexer::readToken() {
     if (LastChar == '\'') {
         int CharCode = Input.get();
         if (CharCode == EOF || CharCode == '\n') {
-            fprintf(stderr, "error: Unterminated char literal at line %d\n", CurrentLine);
+            cps::sourceDiagnostic(CurrentLine, "error: Unterminated char literal at line %d\n", CurrentLine);
             HadError = true;
             CharVal = '?';
             StringVal.assign(1, CharVal);
@@ -50,7 +51,7 @@ int Lexer::readToken() {
 
         int ClosingQuote = Input.get();
         if (ClosingQuote != '\'') {
-            fprintf(stderr, "error: CHAR literal must contain exactly one character (line %d)\n", CurrentLine);
+            cps::sourceDiagnostic(CurrentLine, "error: CHAR literal must contain exactly one character (line %d)\n", CurrentLine);
             HadError = true;
             while (ClosingQuote != EOF && ClosingQuote != '\n' && ClosingQuote != '\'') {
                 ClosingQuote = Input.get();
@@ -181,7 +182,7 @@ int Lexer::readToken() {
         auto Parsed = std::from_chars(NumStr.data(), NumStr.data() + NumStr.size(), NumVal);
         if (Parsed.ec != std::errc{} ||
             NumVal > uint64_t(std::numeric_limits<int64_t>::max()) + 1) {
-            fprintf(stderr, "error: Integer literal is outside the i64 range at line %d\n", TokenLine);
+            cps::sourceDiagnostic(CurrentLine, "error: Integer literal is outside the i64 range at line %d\n", TokenLine);
             HadError = true;
             NumVal = 0;
         }

@@ -1,3 +1,4 @@
+#include "cps/Diagnostics.h"
 #include "cps/FunctionGen.h"
 #include "cps/CodeGen.h"
 #include "cps/ExceptionHandler.h"
@@ -30,7 +31,7 @@ void FunctionGen::reportError(const char *Fmt, ...) {
     va_start(Args, Fmt);
     fprintf(stderr, "error: ");
     vfprintf(stderr, Fmt, Args);
-    if (DiagnosticLine) fprintf(stderr, " at line %d", DiagnosticLine);
+    if (DiagnosticLine) fprintf(stderr, "%s", lineSuffix(DiagnosticLine).c_str());
     fprintf(stderr, "\n");
     va_end(Args);
     HadError = true;
@@ -258,10 +259,10 @@ static Value *GenerateCall(llvm::Module &Module,
                            ExceptionHandler &Exceptions,
                            const std::string &CalleeName,
                            const std::vector<llvm::Value*> &Args,
-                           bool &HadError) {
+                           bool &HadError, int DiagnosticLine) {
     Function *CalleeF = Module.getFunction(CalleeName);
     if (!CalleeF) {
-        fprintf(stderr, "error: Call to undefined function %s\n", CalleeName.c_str());
+        sourceDiagnostic(DiagnosticLine, "error: Call to undefined function %s\n", CalleeName.c_str());
         HadError = true;
         return nullptr;
     }
@@ -275,7 +276,7 @@ static Value *GenerateCall(llvm::Module &Module,
 
 llvm::Value *FunctionGen::emitCall(const std::string &Callee, const std::vector<llvm::Value*> &Args) {
     const FuncSig *Sig = getSignature(Callee);
-    return GenerateCall(Module, Exceptions, Sig ? Sig->Name : Callee, Args, HadError);
+    return GenerateCall(Module, Exceptions, Sig ? Sig->Name : Callee, Args, HadError, DiagnosticLine);
 }
 
 void FunctionGen::emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal) {

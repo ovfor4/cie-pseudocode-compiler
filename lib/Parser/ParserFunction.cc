@@ -1,3 +1,4 @@
+#include "cps/Diagnostics.h"
 #include "cps/Parser.h"
 #include "cps/FunctionAST.h"
 #include <cstdio>
@@ -13,7 +14,7 @@ bool Parser::ParseSignedIntBound(int64_t &Out) {
         getNextToken();
     }
     if (CurTok != tok_number_int) {
-        fprintf(stderr, "error: Array parameter bounds must be integer literals at line %d\n",
+        cps::sourceDiagnostic(Lex.getLine(), "error: Array parameter bounds must be integer literals at line %d\n",
                 Lex.getLine());
         return false;
     }
@@ -35,7 +36,7 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
     while (CurTok != ')') {
         if (CurTok == tok_byref) {
             if (!AllowByRef) {
-                fprintf(stderr, "error: BYREF parameters are not allowed in a FUNCTION (procedures only) at line %d\n",
+                cps::sourceDiagnostic(Lex.getLine(), "error: BYREF parameters are not allowed in a FUNCTION (procedures only) at line %d\n",
                         Lex.getLine());
                 return std::nullopt;
             }
@@ -47,7 +48,7 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
         }
 
         if (CurTok != tok_identifier) {
-            fprintf(stderr, "error: Expected argument name at line %d\n", Lex.getLine());
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected argument name at line %d\n", Lex.getLine());
             return std::nullopt;
         }
         ParamDecl P;
@@ -57,7 +58,7 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
         getNextToken();
 
         if (CurTok != tok_colon) {
-            fprintf(stderr, "error: Expected ':' after argument name at line %d\n", Lex.getLine());
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected ':' after argument name at line %d\n", Lex.getLine());
             return std::nullopt;
         }
         getNextToken();
@@ -71,7 +72,7 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
                     int64_t Lo = 0, Hi = 0;
                     if (!ParseSignedIntBound(Lo)) return std::nullopt;
                     if (CurTok != tok_colon) {
-                        fprintf(stderr, "error: Expected ':' between array parameter bounds at line %d\n",
+                        cps::sourceDiagnostic(Lex.getLine(), "error: Expected ':' between array parameter bounds at line %d\n",
                                 Lex.getLine());
                         return std::nullopt;
                     }
@@ -80,7 +81,7 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
                     P.DeclaredBounds.emplace_back(Lo, Hi);
                     if (CurTok == ']') break;
                     if (CurTok != ',') {
-                        fprintf(stderr, "error: Expected ',' or ']' in array parameter bounds at line %d\n",
+                        cps::sourceDiagnostic(Lex.getLine(), "error: Expected ',' or ']' in array parameter bounds at line %d\n",
                                 Lex.getLine());
                         return std::nullopt;
                     }
@@ -92,7 +93,7 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
                 P.Rank = 1; // ARRAY OF T: bounds travel with the argument
             }
             if (CurTok != tok_of) {
-                fprintf(stderr, "error: Expected OF after ARRAY in parameter '%s' at line %d\n",
+                cps::sourceDiagnostic(Lex.getLine(), "error: Expected OF after ARRAY in parameter '%s' at line %d\n",
                         P.Name.c_str(), Lex.getLine());
                 return std::nullopt;
             }
@@ -101,13 +102,13 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
 
         P.TypeName = ParseTypeName(false);
         if (P.TypeName.empty()) {
-            fprintf(stderr, "error: Expected argument type for '%s'\n", P.Name.c_str());
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected argument type for '%s'\n", P.Name.c_str());
             return std::nullopt;
         }
 
         for (const ParamDecl &Prev : Params) {
             if (sameIdentifier(Prev.Name, P.Name)) {
-                fprintf(stderr, "error: Duplicate parameter name '%s' at line %d\n",
+                cps::sourceDiagnostic(Lex.getLine(), "error: Duplicate parameter name '%s' at line %d\n",
                         P.Name.c_str(), Lex.getLine());
                 return std::nullopt;
             }
@@ -116,12 +117,12 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
 
         if (CurTok == ')') break;
         if (CurTok != ',') {
-            fprintf(stderr, "error: Expected ',' or ')'\n");
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected ',' or ')'\n");
             return std::nullopt;
         }
         getNextToken();
         if (CurTok == ')') {
-            fprintf(stderr, "error: Expected another parameter after ',' at line %d\n", Lex.getLine());
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected another parameter after ',' at line %d\n", Lex.getLine());
             return std::nullopt;
         }
     }
@@ -133,15 +134,15 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
     int Line = Lex.getLine();
     getNextToken();
     if (CurTok == tok_delete || (CurTok == tok_identifier && sameIdentifier(Lex.IdentifierStr, "DELETE"))) {
-        fprintf(stderr, "error: destructor DELETE must be a PROCEDURE at line %d\n", Line);
+        cps::sourceDiagnostic(Lex.getLine(), "error: destructor DELETE must be a PROCEDURE at line %d\n", Line);
         return nullptr;
     }
     if (CurTok == tok_new || (CurTok == tok_identifier && sameIdentifier(Lex.IdentifierStr, "NEW"))) {
-        fprintf(stderr, "error: constructor NEW must be a PROCEDURE at line %d\n", Line);
+        cps::sourceDiagnostic(Lex.getLine(), "error: constructor NEW must be a PROCEDURE at line %d\n", Line);
         return nullptr;
     }
     if (CurTok != tok_identifier) {
-        fprintf(stderr, "error: Expected function name\n");
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected function name\n");
         return nullptr;
     }
 
@@ -155,13 +156,13 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
     if (CurTok == tok_returns) {
         getNextToken();
         if (CurTok == tok_array) {
-            fprintf(stderr, "error: A FUNCTION cannot RETURN an array; use a BYREF PROCEDURE parameter instead at line %d\n",
+            cps::sourceDiagnostic(Lex.getLine(), "error: A FUNCTION cannot RETURN an array; use a BYREF PROCEDURE parameter instead at line %d\n",
                     Lex.getLine());
             return nullptr;
         }
         RetType = ParseTypeName(true);
         if (RetType.empty()) {
-            fprintf(stderr, "error: Expected return type for function '%s'\n", Name.c_str());
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected return type for function '%s'\n", Name.c_str());
             return nullptr;
         }
     }
@@ -171,7 +172,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endfunction});
 
     if (CurTok != tok_endfunction) {
-        fprintf(stderr, "error: expected ENDFUNCTION\n");
+        cps::sourceDiagnostic(Lex.getLine(), "error: expected ENDFUNCTION\n");
         return nullptr;
     }
     getNextToken();
@@ -185,17 +186,17 @@ std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerC
     int Line = Lex.getLine();
     getNextToken();
     if (CurTok != tok_identifier && CurTok != tok_new && CurTok != tok_delete) {
-        fprintf(stderr, "error: Expected procedure name\n");
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected procedure name\n");
         return nullptr;
     }
 
     std::string Name = CurTok == tok_new ? "NEW" : CurTok == tok_delete ? "DELETE" : Lex.IdentifierStr;
     if (OwnerClass.empty() && sameIdentifier(Name, "DELETE")) {
-        fprintf(stderr, "error: destructor DELETE is only allowed in a CLASS at line %d\n", Line);
+        cps::sourceDiagnostic(Lex.getLine(), "error: destructor DELETE is only allowed in a CLASS at line %d\n", Line);
         return nullptr;
     }
     if (OwnerClass.empty() && sameIdentifier(Name, "NEW")) {
-        fprintf(stderr, "error: constructor NEW is only allowed in a CLASS at line %d\n", Line);
+        cps::sourceDiagnostic(Lex.getLine(), "error: constructor NEW is only allowed in a CLASS at line %d\n", Line);
         return nullptr;
     }
     getNextToken();
@@ -203,7 +204,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerC
     auto Args = ParsePrototypeArgs(/*AllowByRef=*/true);
     if (!Args) return nullptr;
     if (sameIdentifier(Name, "DELETE") && !Args->empty()) {
-        fprintf(stderr, "error: destructor DELETE must have no parameters at line %d\n", Line);
+        cps::sourceDiagnostic(Lex.getLine(), "error: destructor DELETE must have no parameters at line %d\n", Line);
         return nullptr;
     }
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID", false, OwnerClass, IsPublic);
@@ -211,7 +212,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerC
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endprocedure});
 
     if (CurTok != tok_endprocedure) {
-        fprintf(stderr, "error: expected ENDPROCEDURE\n");
+        cps::sourceDiagnostic(Lex.getLine(), "error: expected ENDPROCEDURE\n");
         return nullptr;
     }
     getNextToken();
@@ -225,7 +226,7 @@ std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
     int Line = Lex.getLine();
     getNextToken();
     if (CurTok != tok_identifier) {
-        fprintf(stderr, "error: Expected callee name after CALL\n");
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected callee name after CALL\n");
         return nullptr;
     }
 

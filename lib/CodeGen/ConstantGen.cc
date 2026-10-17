@@ -1,3 +1,4 @@
+#include "cps/Diagnostics.h"
 #include "cps/CodeGen.h"
 #include <cstdio>
 
@@ -21,7 +22,7 @@ void CodeGen::warnMemberShadow(const std::string &Name, int Line) const {
     const TypeInfo *Class = resolveType(CurrentClass);
     const RecordPayload *Record = Class ? Class->asRecord() : nullptr;
     if (Record && Record->findField(Name)) {
-        fprintf(stderr, "warning: Declaration of %s shadows a field of class %s at line %d\n",
+        cps::sourceDiagnostic(Line, "warning: Declaration of %s shadows a field of class %s at line %d\n",
                 Name.c_str(), CurrentClass.c_str(), Line);
     }
 }

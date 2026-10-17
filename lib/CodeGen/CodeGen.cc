@@ -1,3 +1,4 @@
+#include "cps/Diagnostics.h"
 #include "cps/CodeGen.h"
 #include "cps/ArrayHandler.h"
 #include "cps/FileHandler.h"
@@ -25,7 +26,7 @@ void CodeGen::reportError(const char *Fmt, ...) {
     va_start(Args, Fmt);
     fprintf(stderr, "error: ");
     vfprintf(stderr, Fmt, Args);
-    if (DiagnosticLine) fprintf(stderr, " at line %d", DiagnosticLine);
+    if (DiagnosticLine) fprintf(stderr, "%s", lineSuffix(DiagnosticLine).c_str());
     fprintf(stderr, "\n");
     va_end(Args);
     HadError = true;

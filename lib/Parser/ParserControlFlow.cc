@@ -1,3 +1,4 @@
+#include "cps/Diagnostics.h"
 #include "cps/Parser.h"
 #include "cps/FunctionAST.h"
 #include <cstdio>
@@ -8,13 +9,13 @@ std::unique_ptr<StmtAST> Parser::ParseTryStmt() {
     getNextToken();
     auto Body = ParseBlock({tok_catch, tok_endtry});
     if (CurTok != tok_catch) {
-        fprintf(stderr, "error: Expected CATCH in TRY at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected CATCH in TRY at line %d\n", Lex.getLine());
         return nullptr;
     }
     getNextToken();
     auto CatchBody = ParseBlock({tok_endtry, tok_catch});
     if (CurTok != tok_endtry) {
-        fprintf(stderr, "error: Expected ENDTRY after CATCH at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected ENDTRY after CATCH at line %d\n", Lex.getLine());
         return nullptr;
     }
     getNextToken();
@@ -27,7 +28,7 @@ std::unique_ptr<StmtAST> Parser::ParseIfStmt() {
     if (!Cond) return nullptr;
 
     if (CurTok != tok_then) {
-        fprintf(stderr, "error: expected THEN at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: expected THEN at line %d\n", Lex.getLine());
         return nullptr;
     }
     getNextToken();
@@ -41,7 +42,7 @@ std::unique_ptr<StmtAST> Parser::ParseIfStmt() {
     }
 
     if (CurTok != tok_endif) {
-        fprintf(stderr, "error: expected ENDIF at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: expected ENDIF at line %d\n", Lex.getLine());
         return nullptr;
     }
     getNextToken();
@@ -59,7 +60,7 @@ std::unique_ptr<StmtAST> Parser::ParseWhileStmt() {
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endwhile});
 
     if (CurTok != tok_endwhile) {
-        fprintf(stderr, "error: expected ENDWHILE\n");
+        cps::sourceDiagnostic(Lex.getLine(), "error: expected ENDWHILE\n");
         return nullptr;
     }
     getNextToken();
@@ -73,7 +74,7 @@ std::unique_ptr<StmtAST> Parser::ParseRepeatStmt() {
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_until});
 
     if (CurTok != tok_until) {
-        fprintf(stderr, "error: expected UNTIL\n");
+        cps::sourceDiagnostic(Lex.getLine(), "error: expected UNTIL\n");
         return nullptr;
     }
     getNextToken();
@@ -87,14 +88,14 @@ std::unique_ptr<StmtAST> Parser::ParseRepeatStmt() {
 std::unique_ptr<StmtAST> Parser::ParseForStmt() {
     getNextToken();
     if (CurTok != tok_identifier) {
-        fprintf(stderr, "error: expected identifier after FOR\n");
+        cps::sourceDiagnostic(Lex.getLine(), "error: expected identifier after FOR\n");
         return nullptr;
     }
     std::string VarName = Lex.IdentifierStr;
     getNextToken();
 
     if (CurTok != tok_assign) {
-        fprintf(stderr, "error: expected '<-' in FOR loop\n");
+        cps::sourceDiagnostic(Lex.getLine(), "error: expected '<-' in FOR loop\n");
         return nullptr;
     }
     getNextToken();
@@ -103,7 +104,7 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
     if (!Start) return nullptr;
 
     if (CurTok != tok_to) {
-        fprintf(stderr, "error: expected TO in FOR loop\n");
+        cps::sourceDiagnostic(Lex.getLine(), "error: expected TO in FOR loop\n");
         return nullptr;
     }
     getNextToken();
@@ -121,18 +122,18 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_next});
 
     if (CurTok != tok_next) {
-        fprintf(stderr, "error: expected NEXT\n");
+        cps::sourceDiagnostic(Lex.getLine(), "error: expected NEXT\n");
         return nullptr;
     }
     getNextToken();
     
     if (CurTok != tok_identifier) {
-        fprintf(stderr, "error: expected identifier after NEXT (e.g., NEXT %s)\n", VarName.c_str());
+        cps::sourceDiagnostic(Lex.getLine(), "error: expected identifier after NEXT (e.g., NEXT %s)\n", VarName.c_str());
         return nullptr;
     }
 
     if (!sameIdentifier(Lex.IdentifierStr, VarName)) {
-        fprintf(stderr, "error: NEXT identifier '%s' does not match FOR variable '%s'\n",
+        cps::sourceDiagnostic(Lex.getLine(), "error: NEXT identifier '%s' does not match FOR variable '%s'\n",
                 Lex.IdentifierStr.c_str(), VarName.c_str());
         return nullptr;
     }
@@ -177,12 +178,12 @@ bool Parser::atCaseBoundary() {
 std::unique_ptr<StmtAST> Parser::ParseCaseStmt() {
     getNextToken();
     if (CurTok != tok_of) {
-        fprintf(stderr, "error: Expected OF after CASE at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected OF after CASE at line %d\n", Lex.getLine());
         return nullptr;
     }
     getNextToken();
     if (CurTok != tok_identifier) {
-        fprintf(stderr, "error: Expected identifier after CASE OF at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected identifier after CASE OF at line %d\n", Lex.getLine());
         return nullptr;
     }
     std::string Selector = Lex.IdentifierStr;
@@ -191,7 +192,7 @@ std::unique_ptr<StmtAST> Parser::ParseCaseStmt() {
     bool SeenOtherwise = false;
     while (CurTok != tok_endcase && CurTok != tok_eof) {
         if (SeenOtherwise || !isCaseLabel()) {
-            fprintf(stderr, "error: Expected CASE label on a new line (OTHERWISE must be last) at line %d\n", Lex.getLine());
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected CASE label on a new line (OTHERWISE must be last) at line %d\n", Lex.getLine());
             return nullptr;
         }
         CaseBranch Branch;
@@ -212,7 +213,7 @@ std::unique_ptr<StmtAST> Parser::ParseCaseStmt() {
             if (!Branch.Lower) return nullptr;
         }
         if (CurTok != tok_colon) {
-            fprintf(stderr, "error: Expected ':' after CASE label at line %d\n", Lex.getLine());
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected ':' after CASE label at line %d\n", Lex.getLine());
             return nullptr;
         }
         getNextToken();
@@ -220,7 +221,7 @@ std::unique_ptr<StmtAST> Parser::ParseCaseStmt() {
         Branches.push_back(std::move(Branch));
     }
     if (CurTok != tok_endcase || Branches.empty()) {
-        fprintf(stderr, "error: Expected nonempty CASE and ENDCASE at line %d\n", Lex.getLine());
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected nonempty CASE and ENDCASE at line %d\n", Lex.getLine());
         return nullptr;
     }
     getNextToken();
