@@ -18,7 +18,7 @@ Literals include integers, decimal real numbers, TRUE/FALSE, strings in double q
 
 Declare variables before use. See DECLARE for built-in types and arrays, TYPE for records/enumerations/pointers, and CLASS for public/private fields and methods.
 
-The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions with stack unwinding. Runtime check failures print the source line and error reason to standard output before throwing and can be caught. An uncaught exception also prints a generic termination message and returns status 1. There is no error object or what() support.
+The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions with stack unwinding. Runtime check failures print the source line and error reason to standard error before throwing and can be caught. An uncaught exception also prints a generic termination message and returns status 1. There is no error object or what() support.
 
 Multi-file builds use the compiler extensions INCLUDE and GLOBAL. Pass every source file on the command line and include the files whose definitions are needed. The entry file contains the sole top-level executable code, or a parameterless FUNCTION MAIN returning INTEGER; definitions alone do not form a runnable program.
 

@@ -108,7 +108,7 @@ cpsc me.cps lib.cps -r
 
 With **-r**, return the executed program's exit status. MAIN's INTEGER result is truncated to 32 bits before returning to the operating system. In PATH mode, failure to launch `lli` or a child-process crash returns 1.
 
-An uncaught program exception returns 1 after printing `Unhandled exception. Program terminated.` to standard output. Runtime check failures print the source line and error reason to standard output before throwing and can be handled with TRY/CATCH/ENDTRY.
+An uncaught program exception returns 1 after printing `Unhandled exception. Program terminated.` to standard error. Runtime check failures print the source line and error reason to standard error before throwing and can be handled with TRY/CATCH/ENDTRY.
 
 # NOTES
 
