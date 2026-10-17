@@ -170,10 +170,10 @@ public:
 };
 
 class InputStmtAST : public StmtAST {
-    std::string Name;
+    std::unique_ptr<ExprAST> Target;
 public:
-    InputStmtAST(const std::string &Name) : Name(Name) {}
-    const std::string &getName() const { return Name; }
+    InputStmtAST(std::unique_ptr<ExprAST> Target) : Target(std::move(Target)) {}
+    ExprAST *getTarget() const { return Target.get(); }
 };
 
 class OutputStmtAST : public StmtAST {

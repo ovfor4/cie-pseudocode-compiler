@@ -116,14 +116,17 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
         std::string Name = Lex.IdentifierStr;
         int Line = Lex.getLine();
         getNextToken();
-        if (CurTok == '[' || CurTok == '.' || CurTok == '^') {
-            // Consume the whole designator so it cannot replay as statements.
-            std::vector<DesignatorAccess> Dummy;
-            ParseDesignatorSuffix(Dummy);
-            fprintf(stderr, "error: INPUT target must be a plain variable at line %d\n", Line);
-            return nullptr;
-        }
-        return std::make_unique<InputStmtAST>(Name);
+        std::vector<DesignatorAccess> Accesses;
+        if (!ParseDesignatorSuffix(Accesses)) return nullptr;
+        std::unique_ptr<ExprAST> Target;
+        if (Accesses.empty())
+            Target = std::make_unique<VariableExprAST>(Name);
+        else if (Accesses.size() == 1 && Accesses[0].Kind == AccessKind::Index)
+            Target = std::make_unique<ArrayAccessExprAST>(Name, std::move(Accesses[0].Indices), Line);
+        else
+            Target = std::make_unique<DesignatorExprAST>(Name, std::move(Accesses), Line);
+        Target->setLine(Line);
+        return std::make_unique<InputStmtAST>(std::move(Target));
     }
     else if (CurTok == tok_output) {
         getNextToken();

@@ -121,29 +121,20 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     }
 
     if (auto *In = dynamic_cast<InputStmtAST*>(Stmt)) {
-        const SymbolInfo *Info = getSymbolInfo(In->getName());
-        if (!Info) {
-            reportError("Unknown variable name %s", In->getName().c_str());
-            return;
-        }
-        if (!requireWritable(*Info, In->getName())) return;
-        if (Info->IsArray) {
-            reportError("INPUT for entire array %s is not supported", In->getName().c_str());
-            return;
-        }
-
-        const TypeInfo *TypeInfo = resolveType(Info->TypeName);
+        LValueInfo Target;
+        if (!emitLValue(In->getTarget(), Target)) return;
+        const TypeInfo *TypeInfo = resolveType(Target.TypeName);
         if (!TypeInfo) {
-            reportError("Unknown type for INPUT %s", In->getName().c_str());
+            reportError("Unknown type for INPUT %s", Target.TypeName.c_str());
             return;
         }
 
         std::vector<Value*> Args;
         if (TypeInfo->isC()) {
-            emitCInput(Info, TypeInfo);
+            emitCInput(Target.Addr, TypeInfo);
         } else if (TypeInfo->isReal()) {
             Args.push_back(ScanfFloatFormatStr);
-            Args.push_back(Info->Storage);
+            Args.push_back(Target.Addr);
             Builder->CreateCall(ScanfFunc, Args);
         } else if (TypeInfo->isBoolean()) {
             AllocaInst *TempInt = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(), "tmp_bool_input");
@@ -153,21 +144,21 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
 
             Value *Val = Builder->CreateLoad(Type::getInt64Ty(*TheContext), TempInt);
             Value *BoolVal = Builder->CreateICmpNE(Val, ConstantInt::get(*TheContext, APInt(64, 0)), "bool_cast");
-            Builder->CreateStore(BoolVal, Info->Storage);
+            Builder->CreateStore(BoolVal, Target.Addr);
         } else if (TypeInfo->isString()) {
             Value *Mem = Builder->CreateCall(MallocFunc, ConstantInt::get(*TheContext, APInt(64, 1024)), "input_str");
             Args.push_back(ScanfStringFormatStr);
             Args.push_back(Mem);
             Builder->CreateCall(ScanfFunc, Args);
-            Builder->CreateStore(Mem, Info->Storage);
+            Builder->CreateStore(Mem, Target.Addr);
         } else if (TypeInfo->isChar()) {
             Value *CharFmt = Builder->CreateGlobalString(" %c", "fmt_in_char", 0, TheModule.get());
             Args.push_back(CharFmt);
-            Args.push_back(Info->Storage);
+            Args.push_back(Target.Addr);
             Builder->CreateCall(ScanfFunc, Args);
         } else if (TypeInfo->Kind == TypeKind::Integer) {
             Args.push_back(ScanfFormatStr);
-            Args.push_back(Info->Storage);
+            Args.push_back(Target.Addr);
             Builder->CreateCall(ScanfFunc, Args);
         } else {
             // Enum/Record/Pointer and any future kind: scanf'ing raw bytes

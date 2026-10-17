@@ -177,7 +177,7 @@ void CodeGen::emitCOutput(Value *Val, const TypeInfo *Info, bool AppendNewline) 
     Builder->CreateCall(PrintfFunc, {Fmt, Val});
 }
 
-void CodeGen::emitCInput(const SymbolInfo *Symbol, const TypeInfo *Info) {
+void CodeGen::emitCInput(Value *Addr, const TypeInfo *Info) {
     if (Info->Kind != TypeKind::CScalar || Info->isVoid()) {
         reportError("INPUT is not supported for C pointer or void type %s", Info->Name.c_str());
         return;
@@ -191,9 +191,9 @@ void CodeGen::emitCInput(const SymbolInfo *Symbol, const TypeInfo *Info) {
         Builder->CreateCall(ScanfFunc, {Fmt, Temp});
         Value *Input = Builder->CreateLoad(NativeInt->LLVMType, Temp);
         Value *Bool = convertNumericValue(Input, NativeInt, Info);
-        Builder->CreateStore(Bool, Symbol->Storage);
+        Builder->CreateStore(Bool, Addr);
         return;
     }
     Value *Fmt = Builder->CreateGlobalString(Info->CInputFormat, "fmt_c_input", 0, TheModule.get());
-    Builder->CreateCall(ScanfFunc, {Fmt, Symbol->Storage});
+    Builder->CreateCall(ScanfFunc, {Fmt, Addr});
 }

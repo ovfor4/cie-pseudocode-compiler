@@ -89,7 +89,7 @@ class CodeGen {
     llvm::Value *emitCBinaryOp(int Op, llvm::Value *L, const TypeInfo *Left,
                                llvm::Value *R, const TypeInfo *Right, int Line);
     void emitCOutput(llvm::Value *Val, const TypeInfo *Info, bool AppendNewline);
-    void emitCInput(const SymbolInfo *Symbol, const TypeInfo *Info);
+    void emitCInput(llvm::Value *Addr, const TypeInfo *Info);
 
     // TYPE-system registration (Designator.cc) and operators (TypeCheckGen.cc).
     void runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements);
