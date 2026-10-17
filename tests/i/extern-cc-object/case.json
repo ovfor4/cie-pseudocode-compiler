@@ -1,0 +1,5 @@
+{
+  "objects": [
+    {"source": "lib.cc", "output": "lib.o"}
+  ]
+}
