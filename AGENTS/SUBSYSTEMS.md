@@ -47,6 +47,8 @@ ArrayTable) afterwards.
 `PrototypeAST` (IsExternal, IsVariadic, unnamed `argN` params). `FunctionGen::emitExternPrototype`
 validates C types, records a `FuncSig` with `IsExternal`, the declared `FunctionType` and
 sext/zext attributes for sub-32-bit integers, and `getOrInsertFunction`s the exact symbol.
+Identical redeclarations append a FuncSig per declaring unit (visibility unchanged) and
+`resolveCall` takes the first visible one; mismatched signatures are errors.
 Calls go through `FunctionGen::emitCall(const FuncSig &, ...)` with that type, so a
 runtime declaration of the same libc symbol with another type is harmless.
 `CodeGen::emitVariadicArgument` applies C default promotions. The driver (`main.cc`)
@@ -54,7 +56,7 @@ resolves INCLUDE_OBJ paths, reads defined global symbols with `llvm::object`
 (`collectObjectSymbols`; `"__libc"` uses `collectLibcSymbols` over the embedded runtime's
 libc/libm inputs, copied to aligned buffers), rejects missing symbols, and passes objects
 to `compileNative`, `runEmbedded` (`addObjectFile`) or lli (`-extra-object=`).
-Linux is verified; the Windows/macOS libc file-name rules and the lli path are not.
+Linux EMBEDDED and PATH (lli) runs are verified; the Windows/macOS libc file-name rules are not.
 
 **User types** (`TypeSystem` + `Designator.cc` + `TypeCheckGen.cc`):
 `Designator.cc` owns the type pre-pass and lvalue access; `TypeCheckGen.cc` owns

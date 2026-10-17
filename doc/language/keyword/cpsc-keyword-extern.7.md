@@ -19,7 +19,7 @@ Parameters list only types. Parameter and result types must be C types: C_INT, C
 
 A final `...` makes the function variadic. Variadic arguments must also be C values; they receive C default argument promotions (float to double, narrow integers and _Bool to int or unsigned int).
 
-Every EXTERN symbol must be defined by an object named with INCLUDE_OBJ, otherwise compilation fails. EXTERN cannot be combined with OVERLOAD, and a name may be declared once across all input files; put shared declarations in one file and INCLUDE it.
+Every EXTERN symbol must be defined by an object named with INCLUDE_OBJ, otherwise compilation fails. EXTERN cannot be combined with OVERLOAD or share a name with a FUNCTION or PROCEDURE. As in C, the same function may be declared again in the same or another input file when the signature is identical (equivalent C aliases match); conflicting declarations are errors. Each file sees its own declarations and those of the files it includes.
 
 # EXAMPLE
 

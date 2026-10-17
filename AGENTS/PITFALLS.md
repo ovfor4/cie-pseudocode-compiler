@@ -151,7 +151,8 @@ test programs.
   The driver checks every EXTERN symbol against INCLUDE_OBJ inputs before CodeGen;
   `"__libc"` must be included explicitly even though the runtime always links libc.
   Only `.o` user objects; INCLUDE_OBJ is global across inputs. `-S` does not link them.
-  Two EXTERNs differing only in case conflict (pseudocode names are case insensitive).
+  Identical EXTERN redeclarations (same or other files, CIdentity-equal types) are allowed;
+  differing ones fail. Two EXTERNs differing only in case conflict (pseudocode names are case insensitive).
 
 ## Not implemented (9618 features)
 
