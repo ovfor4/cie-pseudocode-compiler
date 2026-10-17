@@ -1,6 +1,7 @@
 #include "cps/CodeGen.h"
 #include "cps/ArrayHandler.h"
 #include "cps/FileHandler.h"
+#include "cps/MemoryHandler.h"
 #include "cps/ExceptionHandler.h"
 #include "Builtins.h"
 #include "llvm/IR/Instructions.h"
@@ -60,6 +61,9 @@ CodeGen::CodeGen() {
     StrConvHandler = std::make_unique<StringConversionHandler>(*TheContext, *Builder, *TheModule);
     Files = std::make_unique<FileHandler>(*TheContext, *Builder, *TheModule, *RuntimeChecker,
                                          *Exceptions);
+
+    Memory = std::make_unique<MemoryHandler>(*TheContext, *Builder, *TheModule, *Types,
+                                             *RuntimeChecker, *Exceptions);
 
     // Array parameters are bound into ArrayHandler through this inversion so
     // FunctionGen never sees the array subsystem.

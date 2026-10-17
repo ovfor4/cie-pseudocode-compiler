@@ -1,0 +1,14 @@
+TRUE
+TRUE
+42
+11:22
+TRUE
+[Fatal] line 34: Invalid memory address (not an active allocation)
+double free caught
+[Fatal] line 40: Invalid memory address (not an active allocation)
+stack address caught
+[Fatal] line 48: Invalid memory address (not an active allocation)
+interior address caught
+[Fatal] line 54: Memory allocation failed
+allocation failure caught
+99

@@ -1,9 +1,12 @@
 #include "cps/CodeGen.h"
 #include "cps/ArrayHandler.h"
 #include "cps/FileHandler.h"
+#include "cps/MemoryHandler.h"
 #include "cps/Lexer.h"
 #include "cps/TypeAST.h"
 #include "Builtins.h"
+#include <climits>
+#include <cstddef>
 
 using namespace llvm;
 using namespace cps;
@@ -184,6 +187,16 @@ Value *CodeGen::emitCall(const std::string &Callee,
             return nullptr;
         }
     }
+    if (Name == "MALLOC") {
+        Value *Size = emitAllocationSize(ArgExprs[0].get());
+        if (!Size) return nullptr;
+        return Memory->emitAllocate(Size, Line);
+    }
+    if (Name == "FREE") {
+        Value *Address = emitCoercedExpr(ArgExprs[0].get(), resolveType("C_TYPE(\"void*\")"));
+        if (!Address) return nullptr;
+        return Memory->emitRelease(Address, Line);
+    }
     if (Name == "LENGTH") {
         Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
         if (!Str) return nullptr;
@@ -278,4 +291,20 @@ Value *CodeGen::emitCall(const std::string &Callee,
     std::vector<Value*> Args;
     if (!marshalCallArgs(Name, ArgExprs, Line, Args)) return nullptr;
     return FuncGen->emitCall(Name, Args);
+}
+
+Value *CodeGen::emitAllocationSize(ExprAST *Expr) {
+    SaveAndRestore<int> Location(DiagnosticLine, Expr->getLine() ? Expr->getLine() : DiagnosticLine);
+    const TypeInfo *Info = getExprTypeInfo(Expr);
+    if (isWholeArrayVar(Expr) || !Info ||
+        !(Info->Kind == TypeKind::Integer ||
+          (Info->Kind == TypeKind::CScalar && Info->isIntegral()))) {
+        reportError("Allocation size must be INTEGER or a C integer");
+        return nullptr;
+    }
+    Value *Size = emitExpr(Expr);
+    if (!Size) return nullptr;
+    auto *SizeTy = Type::getIntNTy(*TheContext, sizeof(std::size_t) * CHAR_BIT);
+    return Builder->CreateIntCast(Size, SizeTy,
+                                  Info->Kind == TypeKind::Integer || Info->CSigned, "allocation_size");
 }

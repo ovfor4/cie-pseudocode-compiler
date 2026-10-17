@@ -64,6 +64,8 @@ Closing and auxiliary keywords are documented with their main constructs: THEN/E
 - [cpsc-function-num_to_str(7)](function/cpsc-function-num_to_str.7.md): convert a number to text.
 - [cpsc-function-str_to_num(7)](function/cpsc-function-str_to_num.7.md): convert text to a real number.
 - [cpsc-function-eof(7)](function/cpsc-function-eof.7.md): test for the end of a text file.
+- [cpsc-function-malloc(7)](function/cpsc-function-malloc.7.md): allocate raw memory.
+- [cpsc-function-free(7)](function/cpsc-function-free.7.md): release an explicit allocation.
 
 # UNSUPPORTED FEATURES
 

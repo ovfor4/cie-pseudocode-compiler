@@ -22,6 +22,7 @@ namespace cps {
 
 class ArrayHandler;
 class FileHandler;
+class MemoryHandler;
 class ExceptionHandler;
 class CastExprAST;
 
@@ -52,6 +53,7 @@ class CodeGen {
     std::unique_ptr<StringHandler> StrHandler;
     std::unique_ptr<StringConversionHandler> StrConvHandler;
     std::unique_ptr<FileHandler> Files;
+    std::unique_ptr<MemoryHandler> Memory;
 
     llvm::FunctionCallee PrintfFunc;
     llvm::FunctionCallee ScanfFunc;
@@ -106,6 +108,7 @@ class CodeGen {
     bool emitLValue(ExprAST *E, LValueInfo &Out);
     // The rvalue read: load + the STRING null->"" guard.
     llvm::Value *loadFromLValue(const LValueInfo &LV);
+    llvm::Value *emitAllocationSize(ExprAST *Expr);
     llvm::Value *emitCall(const std::string &Callee,
                           const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line);
     bool marshalCallArgs(const std::string &Callee,

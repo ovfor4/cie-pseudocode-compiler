@@ -17,10 +17,9 @@ already terminated the block.
 
 **New builtin function:** add a `{Name, Arity, ReturnTypeName}` row to the shared
 `Builtins` table in the internal `lib/CodeGen/Builtins.h` (single source of truth — arity checking in
-`emitExpr`, the return type in `getExprTypeInfo`, and the reject-user-redefinition check
+`emitCall`, the return type in `getExprTypeInfo`, and the reject-user-redefinition check
 all read it), then implement IR emission as a method on the fitting handler
-(String/StringConversion) or inline, and add the name intercept in `emitExpr`'s
-CallExprAST section — null-check every emitted argument before use, like the existing
+(String/StringConversion) or inline, and add the name intercept in `CodeGen::emitCall` — null-check every emitted argument before use, like the existing
 branches do. Builtins are plain identifiers — nothing is needed in lexer/parser.
 
 **New binary operator:** token (if multi-char) → one line in `BinopPrecedence`

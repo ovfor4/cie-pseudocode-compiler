@@ -98,7 +98,7 @@ CodeGen, AST nodes or the symbol table; `CodeGen::emitStmt`'s four file branches
 intercept) evaluate/coerce operands and hand over `llvm::Value*`s plus the statement
 line. Calls into throwing helpers go through ExceptionHandler. On first file use,
 `ensureRuntime()` synthesizes the whole runtime once — the
-only module-level helper functions in the project: internal-linkage `__cps_file_find/
+file module-level helpers: internal-linkage `__cps_file_find/
 open/read/write/close/eof` plus a 16-slot open-file table (`__cps_file_names/handles/
 modes` parallel globals; mode byte 0 = free). Files are keyed by filename *content*
 (strcmp scan), consistent with STRING comparison; the name pointer is stored as-is
@@ -107,3 +107,5 @@ malloc/realloc buffer per line and strips one trailing `\r`; fopen modes are tex
 `"r"/"w"/"a"` (Windows CRT translates CRLF). File-free programs get byte-identical IR —
 nothing is declared or emitted eagerly. Helper bodies are built with the *shared*
 Builder (RuntimeCheck emits through the same one), saving/restoring the insert block.
+
+**Explicit memory** (`MemoryHandler`): lazily emits internal allocation/find/release helpers and a linked list of live allocation start addresses. Only explicit MALLOC allocations enter the list; STRING/ARRAY internals retain their existing ownership. FREE validates non-null addresses, unlinks and frees the tracking node, releases the block and returns the original address. Zero-byte allocation returns null. Node allocation precedes the user allocation; if the latter fails, its node is freed before the diagnostic and anonymous throw. Helpers use RuntimeCheck and ExceptionHandler, including source-line arguments and per-function unwind preparation. Sizes accept INTEGER and C integers and convert to native size_t. Address reuse can make stale aliases indistinguishable from current allocations; dereferences are not checked against this list.
