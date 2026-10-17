@@ -1,6 +1,7 @@
 #include "EmbeddedRunner.h"
 #include "cps/CodeGen.h"
 #include "llvm/ExecutionEngine/Orc/AbsoluteSymbols.h"
+#include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
 #include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
@@ -387,6 +388,19 @@ int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects)
                      << llvm::toString(std::move(Err)) << "\n";
         return 1;
     }
+#ifdef _WIN32
+    // Process-wide lookup may find C functions in ucrtbase.dll, loaded by
+    // system DLLs, whose stdio buffers differ from the host's msvcrt. Prefer
+    // the host CRT so EXTERN calls such as puts share stdout with OUTPUT.
+    auto CRT = llvm::orc::DynamicLibrarySearchGenerator::Load(
+        "msvcrt.dll", J->getDataLayout().getGlobalPrefix());
+    if (!CRT) {
+        llvm::errs() << "error: cannot load the embedded C runtime: "
+                     << llvm::toString(CRT.takeError()) << "\n";
+        return 1;
+    }
+    J->getMainJITDylib().addGenerator(std::move(*CRT));
+#endif
 
     // Keep CodeGen's module and context alive; the JIT owns an independent copy.
     llvm::orc::ThreadSafeContext TSCtx(std::make_unique<llvm::LLVMContext>());
