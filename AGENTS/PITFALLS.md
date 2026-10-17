@@ -113,5 +113,5 @@ array-typed record fields, whole-array RETURN, class methods/constructors/destru
 NEW and class inheritance. Compiler fixtures now live in `tests/` (see TESTING.md).
 Nightly CI runs the compiler suites, packaged EMBEDDED smoke checks and existing
 plugin tests. The initial standard conflicts and missing diagnostic locations are fixed on
-Linux; see `tests/FAILURES.md` for the historical baseline and coverage gaps.
+Linux.
 WHILE uses the standard header without DO; old WHILE DO programs must be migrated.

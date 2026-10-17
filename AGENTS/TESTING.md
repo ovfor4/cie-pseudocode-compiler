@@ -1,6 +1,6 @@
 # Compiler testing
 
-Compiler tests live in `tests/`; run instructions and findings are in its README and FAILURES files. `BUILD_TESTING` defaults to OFF and needs only Perl (core modules) when enabled. Python remains a compiler build dependency. CMake builds independent C++ reference executables with the same host ABI and registers one CTest entry per `case.json`, plus harness and generator checks.
+Compiler tests live in `tests/`; run instructions are in its README. `BUILD_TESTING` defaults to OFF and needs only Perl (core modules) when enabled. Python remains a compiler build dependency. CMake builds independent C++ reference executables with the same host ABI and registers one CTest entry per `case.json`, plus harness and generator checks.
 
 Each case directory has `program.cps` and `case.json`. Suite i adds `expected.txt`, optional `input.txt`, input files under `files/`, expected text-file contents under `expected-files/`, and independently written trace notes with human-review status. Suite ii adds `reference.cc` and `generate.pl`; the generator accepts seed and random count, emits the total record count followed by one ASCII record per line, and each program emits one result line per record. Suite iii stores an `errors` list of `{reason: regex, line: integer}` in its manifest. A cause and its line must appear on the same error diagnostic. EOF after a final newline is the following source line.
 

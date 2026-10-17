@@ -4,7 +4,7 @@ A compiler for CIE Pseudocode (A Level 9618 Computer Science)
 
 [Usage quick reference](doc/cpsc.1.md) · [Build guide](doc/build.md) · [Installation and releases](doc/install.md)
 
-[Compiler tests](tests/README.md) · [Known test failures](tests/FAILURES.md)
+[Compiler tests](tests/README.md)
 
 Download the Linux x86_64, Windows x86_64 or macOS 15+ Apple Silicon compiler package and VS Code extension from [Nightly Build](https://github.com/ovfor4/cie-pseudocode-compiler/releases/tag/nightly-build). The compiler uses EMBEDDED mode and needs no LLVM installation. Each push to `main` removes the previous attachments before rebuilding all four packages; each package appears when its build and checks finish.
 

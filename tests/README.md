@@ -9,7 +9,7 @@ ctest --test-dir build --output-on-failure --parallel 2
 perl tests/summarize.pl build/test-results
 ```
 
-Use `ctest --test-dir build -L '^ii$' --output-on-failure` for one suite, or `-R '^i/arrays$'` for one case. CTest returns failure if any case fails; it continues through the other cases. [Historical failures and coverage gaps](FAILURES.md) are intentionally visible, with no expected-failure exemptions.
+Use `ctest --test-dir build -L '^ii$' --output-on-failure` for one suite, or `-R '^i/arrays$'` for one case. CTest returns failure if any case fails; it continues through the other cases. There are no expected-failure exemptions. Rejection of valid CIE syntax must not be treated as a successful negative test.
 
 The suites are **i**: independently traced fixed outputs, **ii**: C++ differential tests with Perl inputs, and **iii**: rejected programs with required causes and source lines. Fixed expectations are **pending human review**; each case's notes explain the trace and distinguish CIE rules from project extensions. REAL calculations are observed through BOOLEAN/INTEGER output; REAL text and REAL-to-string formatting remain outside this suite.
 
