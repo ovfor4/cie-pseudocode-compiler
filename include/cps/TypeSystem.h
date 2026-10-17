@@ -112,6 +112,7 @@ struct SymbolInfo {
     llvm::Constant *ConstantValue = nullptr; // Non-null for CONSTANT; no storage.
     unsigned ScopeID = 0;
     bool IsReference = false; // Storage is a slot containing the current object address.
+    bool IsGlobal = false;
 };
 
 class TypeSystem {

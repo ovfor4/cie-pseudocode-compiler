@@ -35,11 +35,11 @@ bool CodeGen::prepareSymbolDeclaration(const std::string &Name, bool IsConstant)
     auto &Scope = ConstantScopes.back();
     auto It = Symbols.find(Name);
     if (It != Symbols.end()) {
-        if (It->second.ScopeID == Scope.ID) {
+        if (It->second.ScopeID == Scope.ID && !It->second.IsGlobal) {
             reportError("Declaration of %s conflicts with an existing declaration in this scope", Name.c_str());
             return false;
         }
-        if (IsConstant || It->second.ConstantValue) Scope.Saved.emplace(Name, It->second);
+        if (IsConstant || It->second.ConstantValue || It->second.IsGlobal) Scope.Saved.emplace(Name, It->second);
     } else if (IsConstant) {
         Scope.Saved.emplace(Name, std::nullopt);
     }

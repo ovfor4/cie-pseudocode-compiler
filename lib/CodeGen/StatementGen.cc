@@ -14,10 +14,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     if (!Stmt) return;
 
     if (dynamic_cast<IncludeStmtAST*>(Stmt)) return;
-    if (dynamic_cast<GlobalBlockAST*>(Stmt)) {
-        reportError("GLOBAL is not supported yet");
-        return;
-    }
+    if (dynamic_cast<GlobalBlockAST*>(Stmt)) return;
 
     if (auto *Class = dynamic_cast<ClassTypeDeclAST*>(Stmt)) {
         for (const auto &Method : Class->getMethods()) {

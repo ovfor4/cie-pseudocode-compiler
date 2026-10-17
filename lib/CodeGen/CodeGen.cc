@@ -166,8 +166,9 @@ void CodeGen::selectUnit(size_t Unit) {
 void CodeGen::importSymbols() {
     Symbols.clear();
     for (size_t I = 0; I < Exports.size(); ++I) {
-        if (I != CurrentUnit && isVisible(I))
-            Symbols.insert(Exports[I].begin(), Exports[I].end());
+        if (!isVisible(I)) continue;
+        for (const auto &[Name, Info] : Exports[I])
+            if (I != CurrentUnit || Info.IsGlobal) Symbols.emplace(Name, Info);
     }
 }
 
@@ -285,6 +286,13 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
             }
         }
         Exports[I] = Symbols;
+    }
+    for (int Phase = 0; Phase < 2; ++Phase) {
+        for (size_t I = 0; I < Sources.size(); ++I) {
+            selectUnit(I);
+            importSymbols();
+            runGlobalPrePass(Sources[I], Phase);
+        }
     }
     for (size_t I = 0; I < Sources.size(); ++I) {
         selectUnit(I);

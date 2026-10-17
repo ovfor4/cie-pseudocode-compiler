@@ -41,6 +41,7 @@ class CodeGen {
     bool isVisible(size_t Owner) const;
     void selectUnit(size_t Unit);
     void importSymbols();
+    void runGlobalPrePass(const SourceUnit &Unit, int Phase);
     IdentifierMap<SymbolInfo> Symbols;
     IdentifierMap<IdentifierMap<FunctionDefAST*>> ClassMethods;
     std::string CurrentClass;
