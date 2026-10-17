@@ -77,11 +77,16 @@ test programs.
   already-invalid programs can hit it).
 
 - **CLASS subset (§10).** `CLASS`/`ENDCLASS`/`PUBLIC`/`PRIVATE` are reserved.
-  CLASS is a top-level record-derived value type with optional per-field access
+  CLASS is a top-level record-derived value type with optional per-member access
   keywords (no DECLARE). Omitting access defaults to public, per the guide.
   TYPE fields cannot specify access and remain public. Private fields
-  cannot be accessed externally; whole-value initialization/copying is allowed.
-  CLASS inherits record limitations, including no array fields or empty bodies.
+  and methods cannot be accessed outside methods of the owning class;
+  whole-value initialization/copying is allowed. Methods modify the receiver;
+  `this` aliases the object itself, not a pointer. `this <- Other` copies a value.
+  Bare fields are supported, but calls to the current object's methods require
+  `this.Method(...)`; unqualified calls remain global. Parameters and local
+  declarations shadowing fields warn without failing compilation. Method-only
+  classes are allowed; empty classes and array fields remain unsupported.
 
 - **Exception extensions.** TRY requires exactly one parameterless CATCH and
   ENDTRY. Bare THROW raises a new anonymous exception even inside CATCH; there is
@@ -109,7 +114,7 @@ SET types (`SET`/`DEFINE` are reserved with dedicated errors),
 random files (OPENFILE...FOR RANDOM/SEEK/GETRECORD/PUTRECORD — TYPE is done, so these
 are unblocked now; the RANDOM keyword is reserved and gives a dedicated parse error),
 DATE, string escape sequences,
-array-typed record fields, whole-array RETURN, class methods/constructors/destructors,
+array-typed record fields, whole-array RETURN, class constructors/destructors,
 NEW and class inheritance. Compiler fixtures now live in `tests/` (see TESTING.md).
 Nightly CI runs the compiler suites, packaged EMBEDDED smoke checks and existing
 plugin tests. The initial standard conflicts and missing diagnostic locations are fixed on

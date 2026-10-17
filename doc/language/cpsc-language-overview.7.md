@@ -16,7 +16,7 @@ Parenthesized type casts, such as (C_INT)Number, have unary precedence. C_INT, C
 
 Literals include integers, decimal real numbers, TRUE/FALSE, strings in double quotes, and single-byte characters in single quotes. Negative numbers use unary minus. There are no string or character escape sequences. Comments begin with `//` and continue to the end of the line.
 
-Declare variables before use. See DECLARE for built-in types and arrays, TYPE for records/enumerations/pointers, and CLASS for public/private fields.
+Declare variables before use. See DECLARE for built-in types and arrays, TYPE for records/enumerations/pointers, and CLASS for public/private fields and methods.
 
 The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions with stack unwinding. Runtime check failures print the source line and error reason to standard output before throwing and can be caught. An uncaught exception also prints a generic termination message and returns status 1. There is no error object or what() support.
 
@@ -41,7 +41,7 @@ The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions 
 - [cpsc-keyword-closefile(7)](keyword/cpsc-keyword-closefile.7.md): close a text file.
 - [cpsc-keyword-type(7)](keyword/cpsc-keyword-type.7.md): define enumerations, pointers, and records.
 - [cpsc-keyword-c_type(7)](keyword/cpsc-keyword-c_type.7.md): import native C types and explicitly cast values.
-- [cpsc-keyword-class(7)](keyword/cpsc-keyword-class.7.md): define a class with public and private fields.
+- [cpsc-keyword-class(7)](keyword/cpsc-keyword-class.7.md): define a class with fields and methods.
 - [cpsc-keyword-and(7)](keyword/cpsc-keyword-and.7.md): combine conditions with logical AND.
 - [cpsc-keyword-or(7)](keyword/cpsc-keyword-or.7.md): combine conditions with logical OR.
 - [cpsc-keyword-not(7)](keyword/cpsc-keyword-not.7.md): negate a condition.
@@ -70,7 +70,7 @@ Closing and auxiliary keywords are documented with their main constructs: THEN/E
 
 # UNSUPPORTED FEATURES
 
-DATE, SET types and DEFINE, random-file operations (RANDOM/SEEK/GETRECORD/PUTRECORD), INT, RAND, string escapes, whole-array assignment or return, array fields, and class methods/constructors/destructors/inheritance (NEW/INHERITS/SUPER).
+DATE, SET types and DEFINE, random-file operations (RANDOM/SEEK/GETRECORD/PUTRECORD), INT, RAND, string escapes, whole-array assignment or return, array fields, and class constructors/destructors/inheritance (NEW/INHERITS/SUPER).
 
 The individual pages note relevant differences from the Cambridge 2026 pseudocode guide. This manual describes the compiler's current support.
 

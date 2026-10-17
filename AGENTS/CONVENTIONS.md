@@ -129,7 +129,7 @@ The parser drops a failed statement and resyncs at the
 next token that can start a statement or end a block (`syncToStatementStart`), then
 continues; the failure is always diagnosed and reflected in the exit code.
 
-**Calls share one dispatch path.** `CodeGen::emitCall` handles expression calls, CALL statements and bare `name(args)` statements; statement calls discard results. Explicit casts may bridge C void* and nominal pseudocode pointer types.
+**Calls share argument marshalling.** `CodeGen::emitCall` handles global expression calls, CALL statements and bare `name(args)` statements; `emitMemberCall` resolves member access and adds a hidden receiver address. Both use `marshalCallArgs` and FunctionGen for user calls; statement calls discard results. Explicit casts may bridge C void* and nominal pseudocode pointer types.
 
 **User calls dispatch on the declared signature.** `FunctionGen::emitPrototype` records every
 function's pseudocode signature (`FuncSig`: return type name + per-param `ParamSig`
@@ -140,10 +140,12 @@ arguments through `emitCoercedExpr`, and dispatches whole-array arguments to
 `ArrayHandler::emitArrayArgument`. RETURN values go through `emitCoercedExpr` against
 the declared return type. Top-level prototypes are pre-registered (after the TYPE
 pre-pass) before statement emission, so call-before-definition is fine; a call with
-no registered signature is a compile error. Function names get no mangling, so
+no registered signature is a compile error. Global function names get no mangling, so
 `emitPrototype` rejects names that collide with runtime/libc symbols
 (`isReservedRuntimeName`), builtins, or enum values. Signatures retain the first
-declaration spelling for LLVM lookup, independently of call-site casing.
+declaration spelling for LLVM lookup, independently of call-site casing. Methods use
+`Class.Method` names and a hidden leading receiver address; their FuncSig parameters
+contain only explicit source parameters. Method prototypes are pre-registered too.
 
 **Parameter modes are sticky and BYREF is procedure-only (guide §8.3).** In
 `(BYREF a : T, b : T)` the `b` is BYREF too; unannotated parameters default to

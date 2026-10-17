@@ -62,9 +62,24 @@ Shared body/field parsing lives in `ParserType.cc`. TYPE fields always have
 `IsPublic = true`; CLASS fields default to public or accept an explicit
 PUBLIC/PRIVATE keyword and carry that flag through `defineRecord` into
 `RecordFieldInfo`. Both the static
-designator type walk and `emitLValue` reject private field access, including
-address-of, array elements and pointer dereferences. There is no class method
-context or language-level inheritance yet.
+designator type walk and `emitLValue` check private field access against the
+current method's owning class, including address-of, array elements and pointer
+dereferences. Other instances of the same class are accessible from its methods.
+
+Class ASTs also own their `FunctionDefAST` methods. PrototypeAST retains the owner
+and access level; `getLinkName()` qualifies method symbols as `Class.Method`, while
+global function names remain unmangled. CodeGen registers methods separately in
+`ClassMethods` and pre-registers their prototypes after the type pre-pass.
+`MemberCallExprAST` keeps an addressable receiver separate from explicit arguments;
+`MemberCallStmtAST` discards its result. `emitMemberCall` checks access and prepends
+the receiver address to arguments marshalled by the existing `marshalCallArgs`.
+The hidden receiver is not part of FuncSig's explicit parameter list.
+FunctionGen binds field aliases and `this` to the incoming receiver storage before
+binding explicit parameters. CodeGen saves/restores `CurrentClass` around each
+function body; unqualified calls still resolve globally. Local declarations and
+parameters may shadow fields with a source-line warning; `this.Field` remains
+explicit. `this` cannot be redeclared within methods. Constructors and language-level
+inheritance remain unsupported.
 
 **Runtime checks** (`RuntimeCheck`): array bounds, file misuse, enum ranges, null
 dereferences and array-parameter bounds contracts are checked at their emit sites.

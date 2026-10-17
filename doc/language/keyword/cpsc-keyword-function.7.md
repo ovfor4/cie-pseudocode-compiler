@@ -21,6 +21,8 @@ As a compiler extension, `name(arguments)` may also be a complete statement that
 
 Parameters use `name : type`, optionally prefixed by BYVAL. BYVAL is the default; BYREF is forbidden for functions (guide section 8.3). Array parameters accept `ARRAY OF type` (one dimension) or `ARRAY[lower:upper, ...] OF type` (integer literal bounds). BYVAL arrays are copied. RETURNS, RETURN, BYVAL, and ENDFUNCTION belong here.
 
+A FUNCTION inside CLASS defines a member function, called as `Object.Method(arguments)`. It follows the same parameter and return rules. Within a method, use `this.Method(arguments)` to call another method on the current object; see [cpsc-keyword-class(7)](cpsc-keyword-class.7.md).
+
 # EXAMPLE
 
 ```text
@@ -32,4 +34,4 @@ OUTPUT Double(4)
 
 # SEE ALSO
 
-[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-procedure(7)](cpsc-keyword-procedure.7.md), [cpsc-keyword-call(7)](cpsc-keyword-call.7.md).
+[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-class(7)](cpsc-keyword-class.7.md), [cpsc-keyword-procedure(7)](cpsc-keyword-procedure.7.md), [cpsc-keyword-call(7)](cpsc-keyword-call.7.md).

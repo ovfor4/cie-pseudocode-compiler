@@ -289,12 +289,12 @@ do not modify the real release for local verification.
 | `lib/Parser/ParserExpression.cc`, `ParserControlFlow.cc` | Expressions/designators and control-flow statement parsing (including ordered CASE branches) |
 | `lib/Parser/ParserFunction.cc` | FUNCTION/PROCEDURE/CALL/RETURN + parameter-list parsing |
 | `lib/Parser/ParserFile.cc` | OPENFILE/READFILE/WRITEFILE/CLOSEFILE parsing |
-| `lib/Parser/ParserType.cc` | Type names, variable/array/constant declarations, TYPE/ENDTYPE and CLASS/ENDCLASS declarations, shared field parsing, SET/DEFINE reserved stubs |
+| `lib/Parser/ParserType.cc` | Type names, variable/array/constant declarations, TYPE/ENDTYPE and CLASS/ENDCLASS declarations, shared field and method parsing, SET/DEFINE reserved stubs |
 | `lib/CodeGen/CodeGen.cc` | Initialization, symbols, call arguments and main() compilation |
 | `lib/CodeGen/ExpressionGen.cc`, `StatementGen.cc`, `ControlFlowGen.cc` | Expression/statement dispatch and control-flow emission |
 | `lib/CodeGen/ConstantGen.cc` | Literal constants, declaration conflicts and lexical binding restoration |
 | `lib/CodeGen/ValueTypeGen.cc`, `OutputGen.cc`, `Builtins.h` | Expression typing, coercion/declarations, scalar output and the shared builtin table |
-| `lib/CodeGen/Designator.cc`, `TypeCheckGen.cc` | TYPE pre-pass and lvalue access; type admission and user-kind binary operators |
+| `lib/CodeGen/Designator.cc`, `TypeCheckGen.cc` | TYPE pre-pass, member lookup/calls and lvalue access; type admission and user-kind binary operators |
 | `lib/CodeGen/CTypeGen.cc` | CodeGen methods for native C scalar conversions, casts, arithmetic and input/output |
 | `lib/CodeGen/NativeTypeSystem.cc` | Builtin registration, native C type imports/aliases and scalar promotion |
 | `lib/CodeGen/MemoryHandler.cc` | Explicit raw memory allocation, resizing and release with a live-address tracking list |

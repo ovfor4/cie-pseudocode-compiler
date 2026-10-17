@@ -18,6 +18,8 @@ Invoke with CALL. Parameters use `name : type`, optionally prefixed by BYVAL or 
 
 Arrays accept `ARRAY OF type` or `ARRAY[lower:upper, ...] OF type`; explicit bounds must be integer literals. BYVAL copies the array; BYREF shares it. Bare RETURN can exit a procedure before a block terminator; RETURN with a value is invalid. BYVAL, BYREF, RETURN, and ENDPROCEDURE belong here. Calls may precede top-level definitions.
 
+A PROCEDURE inside CLASS defines a member procedure, called as `Object.Method(arguments)` or `CALL Object.Method(arguments)`. It follows the same parameter rules and modifies the receiver. Within a method, `this` refers directly to the current object; see [cpsc-keyword-class(7)](cpsc-keyword-class.7.md).
+
 # EXAMPLE
 
 ```text
@@ -31,4 +33,4 @@ OUTPUT Count
 
 # SEE ALSO
 
-[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-call(7)](cpsc-keyword-call.7.md), [cpsc-keyword-function(7)](cpsc-keyword-function.7.md).
+[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-class(7)](cpsc-keyword-class.7.md), [cpsc-keyword-call(7)](cpsc-keyword-call.7.md), [cpsc-keyword-function(7)](cpsc-keyword-function.7.md).
