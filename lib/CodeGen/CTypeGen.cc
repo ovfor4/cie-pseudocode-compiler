@@ -62,6 +62,9 @@ Value *CodeGen::emitCast(CastExprAST *Cast) {
         return nullptr;
     }
     const TypeInfo *Source = getExprTypeInfo(Operand);
+    if (Source && ((Source->Kind == TypeKind::Pointer && Target->CIdentity == "void*") ||
+                   (Source->CIdentity == "void*" && Target->Kind == TypeKind::Pointer)))
+        return emitExpr(Operand);
     if (!Source || Source->isVoid() || Source->isUserKind() || Target->isUserKind()) {
         reportError("Unsupported operand or target for cast to %s", Target->Name.c_str());
         return nullptr;

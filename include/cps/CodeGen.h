@@ -106,6 +106,8 @@ class CodeGen {
     bool emitLValue(ExprAST *E, LValueInfo &Out);
     // The rvalue read: load + the STRING null->"" guard.
     llvm::Value *loadFromLValue(const LValueInfo &LV);
+    llvm::Value *emitCall(const std::string &Callee,
+                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line);
     bool marshalCallArgs(const std::string &Callee,
                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
                          int Line,

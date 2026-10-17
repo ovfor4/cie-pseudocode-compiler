@@ -124,110 +124,8 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         return emitBinaryOp(Bin->getOp(), L, LT, R, RT, Bin->getLine());
     }
 
-    if (auto *Call = dynamic_cast<CallExprAST*>(Expr)) {
-        std::string Name = Call->getCallee();
-        if (const BuiltinInfo *B = findBuiltin(Name)) {
-            Name = B->Name;
-            if (Call->getArgs().size() != B->Arity) {
-                reportError("%s expects %u arg%s", B->Name, B->Arity, B->Arity == 1 ? "" : "s");
-                return nullptr;
-            }
-        }
-        if (Name == "LENGTH") {
-            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
-            if (!Str) return nullptr;
-            return StrHandler->emitLength(Str);
-        }
-        if (Name == "MID") {
-            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
-            Value *Start = emitCoercedExpr(Call->getArgs()[1].get(), resolveType("INTEGER"));
-            Value *Len = emitCoercedExpr(Call->getArgs()[2].get(), resolveType("INTEGER"));
-            if (!Str || !Start || !Len) return nullptr;
-            return StrHandler->emitMid(Str, Start, Len);
-        }
-        if (Name == "RIGHT") {
-            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
-            Value *Len = emitCoercedExpr(Call->getArgs()[1].get(), resolveType("INTEGER"));
-            if (!Str || !Len) return nullptr;
-            return StrHandler->emitRight(Str, Len);
-        }
-        if (Name == "LEFT") {
-            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
-            Value *Len = emitCoercedExpr(Call->getArgs()[1].get(), resolveType("INTEGER"));
-            if (!Str || !Len) return nullptr;
-            return StrHandler->emitLeft(Str, Len);
-        }
-        if (Name == "LCASE") {
-            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
-            if (!Str) return nullptr;
-            return StrHandler->emitLCase(Str);
-        }
-        if (Name == "UCASE") {
-            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
-            if (!Str) return nullptr;
-            return StrHandler->emitUCase(Str);
-        }
-        if (Name == "ASC") {
-            const TypeInfo *ArgType = getExprTypeInfo(Call->getArgs()[0].get());
-            if (ArgType && (ArgType->isUserKind() || ArgType->isC())) {
-                reportError("ASC expects a CHAR or STRING (got %s)", ArgType->Name.c_str());
-                return nullptr;
-            }
-            Value *ArgVal = emitExpr(Call->getArgs()[0].get());
-            if (!ArgVal) return nullptr;
-            Value *CharVal = nullptr;
-            if (ArgType && ArgType->isChar()) {
-                CharVal = coerceValueToType(ArgVal, resolveType("CHAR"));
-            } else {
-                CharVal = Builder->CreateLoad(Type::getInt8Ty(*TheContext), ArgVal, "char_load");
-            }
-            Value *AscVal = Builder->CreateZExt(CharVal, Type::getInt32Ty(*TheContext), "asc_val");
-            return coerceValueToType(AscVal, resolveType("INTEGER"));
-        }
-        if (Name == "CHR") {
-            Value *IntVal = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("INTEGER"));
-            if (!IntVal) return nullptr;
-            Value *CharVal = Builder->CreateTrunc(IntVal, Type::getInt8Ty(*TheContext), "chr_val");
-            return coerceValueToType(CharVal, resolveType("STRING"));
-        }
-        if (Name == "IS_NUM") {
-            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
-            if (!Str) return nullptr;
-            return StrConvHandler->emitIsNum(Str);
-        }
-        if (Name == "NUM_TO_STR") {
-            const TypeInfo *ArgType = getExprTypeInfo(Call->getArgs()[0].get());
-            if (ArgType && (ArgType->isUserKind() || ArgType->isC())) {
-                reportError("NUM_TO_STR expects a number (got %s)", ArgType->Name.c_str());
-                return nullptr;
-            }
-            Value *NumV = emitExpr(Call->getArgs()[0].get());
-            if (!NumV) return nullptr;
-            bool IsReal = NumV->getType()->isDoubleTy();
-            if (NumV->getType()->isIntegerTy(8)) {
-                NumV = coerceValueToType(NumV, resolveType("INTEGER"));
-            }
-            return StrConvHandler->emitNumToStr(NumV, IsReal);
-        }
-        if (Name == "STR_TO_NUM") {
-            Value *Str = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
-            if (!Str) return nullptr;
-            return StrConvHandler->emitStrToNum(Str, true);
-        }
-        if (Name == "EOF") {
-            if (isWholeArrayVar(Call->getArgs()[0].get())) {
-                reportError("Cannot use a whole array as the EOF filename");
-                return nullptr;
-            }
-            Value *FileName = emitCoercedExpr(Call->getArgs()[0].get(), resolveType("STRING"));
-            if (!FileName) return nullptr;
-            return Files->emitEof(FileName, Call->getLine());
-        }
-
-        std::vector<Value*> Args;
-        if (!marshalCallArgs(Name, Call->getArgs(), Call->getLine(), Args)) return nullptr;
-        return FuncGen->emitCallExpr(Call, Args);
-    }
+    if (auto *Call = dynamic_cast<CallExprAST*>(Expr))
+        return emitCall(Call->getCallee(), Call->getArgs(), Call->getLine());
 
     if (auto *D = dynamic_cast<DesignatorExprAST*>(Expr)) {
         LValueInfo LV;
@@ -273,4 +171,111 @@ Value *CodeGen::emitBinaryOp(int Op, Value *L, const TypeInfo *LT,
     default: break;
     }
     return ArithHandler->emitBinaryOp(Op, L, R, Line);
+}
+
+Value *CodeGen::emitCall(const std::string &Callee,
+                         const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line) {
+    SaveAndRestore<int> Location(DiagnosticLine, Line ? Line : DiagnosticLine);
+    std::string Name = Callee;
+    if (const BuiltinInfo *B = findBuiltin(Name)) {
+        Name = B->Name;
+        if (ArgExprs.size() != B->Arity) {
+            reportError("%s expects %u arg%s", B->Name, B->Arity, B->Arity == 1 ? "" : "s");
+            return nullptr;
+        }
+    }
+    if (Name == "LENGTH") {
+        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
+        if (!Str) return nullptr;
+        return StrHandler->emitLength(Str);
+    }
+    if (Name == "MID") {
+        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
+        Value *Start = emitCoercedExpr(ArgExprs[1].get(), resolveType("INTEGER"));
+        Value *Len = emitCoercedExpr(ArgExprs[2].get(), resolveType("INTEGER"));
+        if (!Str || !Start || !Len) return nullptr;
+        return StrHandler->emitMid(Str, Start, Len);
+    }
+    if (Name == "RIGHT") {
+        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
+        Value *Len = emitCoercedExpr(ArgExprs[1].get(), resolveType("INTEGER"));
+        if (!Str || !Len) return nullptr;
+        return StrHandler->emitRight(Str, Len);
+    }
+    if (Name == "LEFT") {
+        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
+        Value *Len = emitCoercedExpr(ArgExprs[1].get(), resolveType("INTEGER"));
+        if (!Str || !Len) return nullptr;
+        return StrHandler->emitLeft(Str, Len);
+    }
+    if (Name == "LCASE") {
+        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
+        if (!Str) return nullptr;
+        return StrHandler->emitLCase(Str);
+    }
+    if (Name == "UCASE") {
+        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
+        if (!Str) return nullptr;
+        return StrHandler->emitUCase(Str);
+    }
+    if (Name == "ASC") {
+        const TypeInfo *ArgType = getExprTypeInfo(ArgExprs[0].get());
+        if (ArgType && (ArgType->isUserKind() || ArgType->isC())) {
+            reportError("ASC expects a CHAR or STRING (got %s)", ArgType->Name.c_str());
+            return nullptr;
+        }
+        Value *ArgVal = emitExpr(ArgExprs[0].get());
+        if (!ArgVal) return nullptr;
+        Value *CharVal = nullptr;
+        if (ArgType && ArgType->isChar()) {
+            CharVal = coerceValueToType(ArgVal, resolveType("CHAR"));
+        } else {
+            CharVal = Builder->CreateLoad(Type::getInt8Ty(*TheContext), ArgVal, "char_load");
+        }
+        Value *AscVal = Builder->CreateZExt(CharVal, Type::getInt32Ty(*TheContext), "asc_val");
+        return coerceValueToType(AscVal, resolveType("INTEGER"));
+    }
+    if (Name == "CHR") {
+        Value *IntVal = emitCoercedExpr(ArgExprs[0].get(), resolveType("INTEGER"));
+        if (!IntVal) return nullptr;
+        Value *CharVal = Builder->CreateTrunc(IntVal, Type::getInt8Ty(*TheContext), "chr_val");
+        return coerceValueToType(CharVal, resolveType("STRING"));
+    }
+    if (Name == "IS_NUM") {
+        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
+        if (!Str) return nullptr;
+        return StrConvHandler->emitIsNum(Str);
+    }
+    if (Name == "NUM_TO_STR") {
+        const TypeInfo *ArgType = getExprTypeInfo(ArgExprs[0].get());
+        if (ArgType && (ArgType->isUserKind() || ArgType->isC())) {
+            reportError("NUM_TO_STR expects a number (got %s)", ArgType->Name.c_str());
+            return nullptr;
+        }
+        Value *NumV = emitExpr(ArgExprs[0].get());
+        if (!NumV) return nullptr;
+        bool IsReal = NumV->getType()->isDoubleTy();
+        if (NumV->getType()->isIntegerTy(8)) {
+            NumV = coerceValueToType(NumV, resolveType("INTEGER"));
+        }
+        return StrConvHandler->emitNumToStr(NumV, IsReal);
+    }
+    if (Name == "STR_TO_NUM") {
+        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
+        if (!Str) return nullptr;
+        return StrConvHandler->emitStrToNum(Str, true);
+    }
+    if (Name == "EOF") {
+        if (isWholeArrayVar(ArgExprs[0].get())) {
+            reportError("Cannot use a whole array as the EOF filename");
+            return nullptr;
+        }
+        Value *FileName = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
+        if (!FileName) return nullptr;
+        return Files->emitEof(FileName, Line);
+    }
+
+    std::vector<Value*> Args;
+    if (!marshalCallArgs(Name, ArgExprs, Line, Args)) return nullptr;
+    return FuncGen->emitCall(Name, Args);
 }

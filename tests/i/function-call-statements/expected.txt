@@ -1,0 +1,6 @@
+17
+23
+7
+19
+[Fatal] line 33: Division by zero
+caught

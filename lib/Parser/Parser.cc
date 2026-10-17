@@ -221,6 +221,13 @@ std::unique_ptr<StmtAST> Parser::ParseAssignStmt() {
     int Line = Lex.getLine();
     getNextToken();
 
+    if (CurTok == '(') {
+        getNextToken();
+        auto Args = ParseExprList(')', true);
+        if (!Args) return nullptr;
+        return std::make_unique<CallStmtAST>(Name, std::move(*Args), Line);
+    }
+
     std::vector<DesignatorAccess> Accesses;
     if (!ParseDesignatorSuffix(Accesses)) return nullptr;
 

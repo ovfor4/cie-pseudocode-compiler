@@ -243,14 +243,9 @@ static Value *GenerateCall(llvm::Module &Module,
     return Exceptions.emitCall(CalleeF, Args, "calltmp");
 }
 
-llvm::Value *FunctionGen::emitCallExpr(CallExprAST *Call, const std::vector<llvm::Value*> &Args) {
-    const FuncSig *Sig = getSignature(Call->getCallee());
-    return GenerateCall(Module, Exceptions, Sig ? Sig->Name : Call->getCallee(), Args, HadError);
-}
-
-void FunctionGen::emitCallStmt(CallStmtAST *Call, const std::vector<llvm::Value*> &Args) {
-    const FuncSig *Sig = getSignature(Call->getCallee());
-    GenerateCall(Module, Exceptions, Sig ? Sig->Name : Call->getCallee(), Args, HadError);
+llvm::Value *FunctionGen::emitCall(const std::string &Callee, const std::vector<llvm::Value*> &Args) {
+    const FuncSig *Sig = getSignature(Callee);
+    return GenerateCall(Module, Exceptions, Sig ? Sig->Name : Callee, Args, HadError);
 }
 
 void FunctionGen::emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal) {

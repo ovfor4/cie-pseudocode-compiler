@@ -87,9 +87,7 @@ public:
 
     llvm::Function *emitFunctionDef(FunctionDefAST *FuncAST, const std::function<void(StmtAST*)> &StmtEmitter, unsigned ScopeID);
 
-    llvm::Value *emitCallExpr(CallExprAST *Call, const std::vector<llvm::Value*> &Args);
-    
-    void emitCallStmt(CallStmtAST *Call, const std::vector<llvm::Value*> &Args);
+    llvm::Value *emitCall(const std::string &Callee, const std::vector<llvm::Value*> &Args);
 
     void emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal);
 };

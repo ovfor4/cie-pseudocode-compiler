@@ -131,7 +131,9 @@ The parser drops a failed statement and resyncs at the
 next token that can start a statement or end a block (`syncToStatementStart`), then
 continues; the failure is always diagnosed and reflected in the exit code.
 
-**Calls dispatch on the declared signature.** `FunctionGen::emitPrototype` records every
+**Calls share one dispatch path.** `CodeGen::emitCall` handles expression calls, CALL statements and bare `name(args)` statements; statement calls discard results. Explicit casts may bridge C void* and nominal pseudocode pointer types.
+
+**User calls dispatch on the declared signature.** `FunctionGen::emitPrototype` records every
 function's pseudocode signature (`FuncSig`: return type name + per-param `ParamSig`
 {type name, mode, array rank/bounds}); `CodeGen::marshalCallArgs` — the single
 call-marshalling path for both call-expr and call-stmt — requires BYREF arguments to be

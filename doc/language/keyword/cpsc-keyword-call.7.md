@@ -12,7 +12,7 @@ CALL name(arguments)
 
 # DESCRIPTION
 
-Invoke a previously declared procedure with its parameters. Empty argument lists may be written `CALL name()` or `CALL name`. Use function calls in expressions to obtain their results.
+Invoke a previously declared procedure with its parameters. Empty argument lists may be written `CALL name()` or `CALL name`. Use function calls in expressions to obtain their results. As compiler extensions, CALL also accepts functions and discards their results, and `name(arguments)` may stand alone without CALL for either a function or a procedure. Built-ins use the same argument checks in expressions and statements.
 
 # EXAMPLE
 

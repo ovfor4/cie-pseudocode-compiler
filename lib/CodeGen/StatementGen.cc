@@ -55,9 +55,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     }
 
     if (auto *Call = dynamic_cast<CallStmtAST*>(Stmt)) {
-        std::vector<Value*> Args;
-        if (!marshalCallArgs(Call->getCallee(), Call->getArgs(), Call->getLine(), Args)) return;
-        FuncGen->emitCallStmt(Call, Args);
+        emitCall(Call->getCallee(), Call->getArgs(), Call->getLine());
         return;
     }
 

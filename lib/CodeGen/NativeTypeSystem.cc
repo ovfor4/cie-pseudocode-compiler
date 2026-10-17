@@ -106,6 +106,7 @@ void TypeSystem::registerBuiltins() {
     defineCAlias("C_CHAR", "char", Err);
     defineCAlias("C_STRING", "char*", Err);
     defineCAlias("C_DOUBLE", "double", Err);
+    importCType("void*", Err);
 }
 
 
