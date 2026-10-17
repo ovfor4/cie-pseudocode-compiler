@@ -189,6 +189,8 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
 
     IdentifierMap<size_t> Definitions;
     std::optional<size_t> CodeUnit;
+    FunctionDefAST *Entry = nullptr;
+    size_t EntryUnit = 0;
     auto Reserve = [&](const std::string &Name) {
         auto [It, Added] = Definitions.emplace(Name, CurrentUnit);
         if (!Added && It->second != CurrentUnit)
@@ -202,6 +204,15 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
             std::string TypeName;
             if (auto *F = dynamic_cast<FunctionDefAST*>(S.get())) {
                 Reserve(F->getProto()->getName());
+                if (sameIdentifier(F->getProto()->getName(), "MAIN")) {
+                    if (Entry) reportError("Multiple MAIN definitions in %s and %s",
+                                           Sources[EntryUnit].Path.c_str(), Sources[I].Path.c_str());
+                    Entry = F;
+                    EntryUnit = I;
+                    if (!F->getProto()->getParams().empty() ||
+                        !sameIdentifier(F->getProto()->getReturnType(), "INTEGER"))
+                        reportError("MAIN must be a FUNCTION with no parameters returning INTEGER");
+                }
             } else if (auto *E = dynamic_cast<EnumTypeDeclAST*>(S.get())) {
                 TypeName = E->getName();
                 for (const auto &V : E->getValueNames()) Reserve(V);
@@ -231,7 +242,14 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
         }
     }
     if (HadError) return;
-    MainUnit = CodeUnit.value_or(0);
+    if (Entry && CodeUnit) {
+        selectUnit(EntryUnit);
+        SaveAndRestore<int> Location(DiagnosticLine, Entry->getLine());
+        reportError("FUNCTION MAIN in %s cannot coexist with top-level code in %s",
+                    Sources[EntryUnit].Path.c_str(), Sources[*CodeUnit].Path.c_str());
+        return;
+    }
+    MainUnit = Entry ? EntryUnit : CodeUnit.value_or(0);
     FunctionType *FT = FunctionType::get(Type::getInt32Ty(*TheContext), false);
     Function *F = Function::Create(FT, Function::ExternalLinkage, "main", TheModule.get());
     BasicBlock *BB = BasicBlock::Create(*TheContext, "entry", F);
@@ -268,7 +286,8 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
             if (auto *Class = dynamic_cast<ClassTypeDeclAST*>(Stmt.get())) {
                 for (const auto &Method : Class->getMethods()) {
                     SaveAndRestore<int> MethodLocation(DiagnosticLine, Method->getLine());
-                    FuncGen->emitPrototype(Method->getProto());
+                    if (findMethod(Class->getName(), Method->getProto()->getName()) == Method->getProto())
+                        FuncGen->emitPrototype(Method->getProto());
                 }
             }
         }
@@ -300,13 +319,18 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
         for (const auto &Stmt : Sources[I].Statements) emitStmt(Stmt.get());
     }
     selectUnit(MainUnit);
-    if (!CodeUnit && !HadError) {
+    if (!CodeUnit && !Entry && !HadError) {
         SaveAndRestore<int> Location(DiagnosticLine, Sources.size() > 1 ? 1 : 0);
         reportError("no main program");
     }
 
     if (!Builder->GetInsertBlock()->hasTerminator()) {
-        Exceptions->recordExit(Builder->CreateRet(ConstantInt::get(*TheContext, APInt(32, 0))));
+        Value *Status = ConstantInt::get(*TheContext, APInt(32, 0));
+        if (Entry) {
+            Value *Result = Exceptions->emitCall(TheModule->getFunction("__cps_main"), {}, "main_result");
+            Status = Builder->CreateTrunc(Result, Type::getInt32Ty(*TheContext));
+        }
+        Exceptions->recordExit(Builder->CreateRet(Status));
     }
 
     finishStackObjects(F);

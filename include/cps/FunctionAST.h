@@ -1,5 +1,6 @@
 #pragma once
 #include "cps/AST.h"
+#include "cps/Identifier.h"
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -46,7 +47,10 @@ public:
     bool isExternal() const { return IsExternal; }
     const std::string &getOwnerClass() const { return OwnerClass; }
     bool isPublic() const { return IsPublic; }
-    std::string getLinkName() const { return OwnerClass.empty() ? Name : OwnerClass + "." + Name; }
+    std::string getLinkName() const {
+        if (!OwnerClass.empty()) return OwnerClass + "." + Name;
+        return sameIdentifier(Name, "MAIN") ? "__cps_main" : Name;
+    }
 };
 
 class FunctionDefAST : public StmtAST {

@@ -12,7 +12,7 @@ using namespace cps;
 // FUNCTION/PROCEDURE with one of these names would hijack the runtime.
 static bool isReservedRuntimeName(const std::string &Name) {
     static const char *Reserved[] = {
-        "main", "printf", "scanf", "malloc", "free", "strlen", "memcpy",
+        "__cps_main", "printf", "scanf", "malloc", "free", "strlen", "memcpy",
         "strcpy", "strcat", "toupper", "tolower", "sprintf", "snprintf", "strtol", "strtoll",
         "strtod", "memset", "exit",
         "fopen", "fclose", "fgetc", "ungetc", "fputs", "fputc",
@@ -105,7 +105,7 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
 }
 
 const FuncSig *FunctionGen::getSignature(const std::string &Name) const {
-    auto It = Signatures.find(Name);
+    auto It = Signatures.find(sameIdentifier(Name, "MAIN") ? "__cps_main" : Name);
     return It == Signatures.end() || (Visible && !Visible(It->second.OwnerUnit))
                ? nullptr : &It->second;
 }
@@ -180,7 +180,10 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
         return nullptr;
     }
     if (!F) {
-        F = Function::Create(FT, Function::ExternalLinkage, Proto->getLinkName(), &Module);
+        F = Function::Create(FT,
+            Proto->getOwnerClass().empty() && sameIdentifier(Proto->getName(), "MAIN")
+                ? Function::InternalLinkage : Function::ExternalLinkage,
+            Proto->getLinkName(), &Module);
     }
     Exceptions.prepareFunction(F);
 
