@@ -142,7 +142,10 @@ arguments through `emitCoercedExpr`, and dispatches whole-array arguments to
 `ArrayHandler::emitArrayArgument`. RETURN values go through `emitCoercedExpr` against
 the declared return type. Top-level prototypes are pre-registered (after the TYPE
 pre-pass) before statement emission, so call-before-definition is fine; a call with
-no registered signature is a compile error. Global function names except MAIN get no mangling, so
+no registered signature is a compile error. OVERLOAD signatures append canonical
+parameter types to the link name; ordinary names except MAIN get no mangling.
+`getOverloads` filters by visibility and `resolveCall` selects exact static types/ranks.
+Return types, modes and bounds never distinguish overloads. In all cases,
 `emitPrototype` rejects names that collide with runtime/libc symbols
 (`isReservedRuntimeName`), builtins, or enum values. Signatures retain the first
 declaration spelling for LLVM lookup, independently of call-site casing. Methods use

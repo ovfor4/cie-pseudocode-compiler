@@ -88,7 +88,7 @@ Driver behavior (`tools/driver/main.cc`):
   matched against command-line inputs with fs::equivalent. The driver rejects repeated
   inputs and computes transitive symbol visibility; cycles do not copy statements.
   CodeGen records owners for signatures, types and exported constants/globals and filters
-  lookup by the current unit. Cross-file duplicate definitions are always errors.
+  lookup by the current unit. Cross-file duplicate definitions are errors; distinct explicit OVERLOAD signatures may share a name.
   The entry file contains the only top-level code, or parameterless FUNCTION MAIN
   returning INTEGER; MAIN plus top-level code and builds without either entry are errors.
   SourceUnit borrows parsed statements for compilation. Type names are reserved across

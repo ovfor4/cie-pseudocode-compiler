@@ -20,6 +20,8 @@ Arrays accept `ARRAY OF type` or `ARRAY[lower:upper, ...] OF type`; explicit bou
 
 A PROCEDURE inside CLASS defines a member procedure, called as `Object.Method(arguments)` or `CALL Object.Method(arguments)`. It follows the same parameter rules and modifies the receiver. Within a method, `this` refers directly to the current object; see [cpsc-keyword-class(7)](cpsc-keyword-class.7.md).
 
+Prefix a definition with OVERLOAD to share its name with other explicitly marked definitions having different parameter signatures. Calls then require exact argument types; see [cpsc-keyword-overload(7)](cpsc-keyword-overload.7.md).
+
 # EXAMPLE
 
 ```text
@@ -33,4 +35,4 @@ OUTPUT Count
 
 # SEE ALSO
 
-[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-class(7)](cpsc-keyword-class.7.md), [cpsc-keyword-call(7)](cpsc-keyword-call.7.md), [cpsc-keyword-function(7)](cpsc-keyword-function.7.md).
+[cpsc-keyword-overload(7)](cpsc-keyword-overload.7.md), [cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-class(7)](cpsc-keyword-class.7.md), [cpsc-keyword-call(7)](cpsc-keyword-call.7.md), [cpsc-keyword-function(7)](cpsc-keyword-function.7.md).

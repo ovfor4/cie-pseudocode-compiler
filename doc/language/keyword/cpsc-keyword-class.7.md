@@ -26,7 +26,7 @@ object <- NEW ClassName(arguments)
 
 # DESCRIPTION
 
-Declare a class at top level with at least one field or method. Fields and methods are public by default; PUBLIC or PRIVATE may be specified for each member. Fields do not use DECLARE. ENDCLASS closes the declaration. Fields and methods share a case-insensitive member namespace; duplicate names and method overloading are rejected.
+Declare a class at top level with at least one field or method. Fields and methods are public by default; PUBLIC or PRIVATE may be specified for each member. Fields do not use DECLARE. ENDCLASS closes the declaration. Fields and methods share a case-insensitive member namespace; fields and methods cannot share a name. Methods with distinct parameter signatures may share a name when every definition is prefixed with OVERLOAD, after any access keyword; see [cpsc-keyword-overload(7)](cpsc-keyword-overload.7.md).
 
 Call methods as `Object.Method(arguments)` in expressions or as standalone statements, or use `CALL Object.Method(arguments)`. A receiver may be a variable, array element, nested field, or pointer dereference. Calls may precede definitions; methods may call later methods or recurse. Parameters and return values follow the ordinary FUNCTION and PROCEDURE rules. Access on function or method results remains unsupported.
 
@@ -36,7 +36,7 @@ Parameters and local variables, arrays, or constants may shadow fields; this pro
 
 Classes retain record value semantics: zero initialization, whole-value copying, arrays, pointers, and ordinary function/procedure parameters. Methods modify the receiver's storage. The object reference `this` may be read, returned, or passed as an object, including BYREF to a procedure; `this <- Other` copies Other into the current object without rebinding the reference. PRIVATE fields still initialize and copy with the whole value.
 
-A constructor is a PROCEDURE named NEW, following guide section 10.2. It may be PUBLIC or PRIVATE; FUNCTION NEW and global PROCEDURE NEW are errors. Member names are case insensitive, so New and new also name the constructor. Only one NEW is allowed per class. Explicit `Object.NEW(arguments)`, `CALL Object.NEW(arguments)` and `this.NEW(arguments)` behave like ordinary member calls and may be repeated; they do not zero the object or reconstruct its fields.
+A constructor is a PROCEDURE named NEW, following guide section 10.2. It may be PUBLIC or PRIVATE; FUNCTION NEW and global PROCEDURE NEW are errors. Member names are case insensitive, so New and new also name the constructor. Multiple NEW procedures are allowed when every definition specifies OVERLOAD and their parameter signatures differ. Explicit `Object.NEW(arguments)`, `CALL Object.NEW(arguments)` and `this.NEW(arguments)` behave like ordinary member calls and may be repeated; they do not zero the object or reconstruct its fields.
 
 `DECLARE Object : ClassName`, `DECLARE Object : ClassName()` and `DECLARE Object : ClassName(arguments)` zero the object's storage, construct its fields recursively in declaration order, then call its NEW procedure. These automatic DECLARE, field and array calls are compiler extensions. Array elements and class-valued fields in records or classes use parameterless construction, before the enclosing constructor runs. A required constructor argument cannot be omitted; supplying arguments to a class without NEW is an error. Empty parentheses are allowed for a class without NEW. Constructor arguments after ARRAY OF are unsupported. A declaration executed again, such as inside a loop, first destroys its previous live incarnation, then zeroes and constructs its original storage again.
 
@@ -67,4 +67,4 @@ OUTPUT Item.Get()
 
 # SEE ALSO
 
-[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-delete(7)](cpsc-keyword-delete.7.md), [cpsc-keyword-type(7)](cpsc-keyword-type.7.md), [cpsc-keyword-function(7)](cpsc-keyword-function.7.md), [cpsc-keyword-procedure(7)](cpsc-keyword-procedure.7.md), [cpsc-keyword-call(7)](cpsc-keyword-call.7.md).
+[cpsc-keyword-overload(7)](cpsc-keyword-overload.7.md), [cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-delete(7)](cpsc-keyword-delete.7.md), [cpsc-keyword-type(7)](cpsc-keyword-type.7.md), [cpsc-keyword-function(7)](cpsc-keyword-function.7.md), [cpsc-keyword-procedure(7)](cpsc-keyword-procedure.7.md), [cpsc-keyword-call(7)](cpsc-keyword-call.7.md).

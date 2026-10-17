@@ -6,7 +6,8 @@ Every bullet below was confirmed against the source, most also by compiling and 
 test programs.
 
 - **Multi-file extensions.** INCLUDE imports symbols, never text; every included file
-  must also be an input. Duplicate exports across files fail even without visibility.
+  must also be an input. Duplicate exports across files fail even without visibility, except distinct
+  signatures whose definitions all specify OVERLOAD.
   Only one file may contain top-level code; top-level DECLARE is a main local, not an
   export. Definitions-only builds now fail without FUNCTION MAIN returning INTEGER.
   MAIN cannot coexist with top-level code. GLOBAL accepts only the five primitive
@@ -42,8 +43,8 @@ test programs.
   returns REAL. NUM_TO_STR formats INTEGER with bounded snprintf `"%lld"` (the full signed
   i64 range) and REAL with `"%f"`. REAL buffers cover the full fixed-point double range.
 - **`getExprTypeInfo` returns nullptr** for expressions it can't classify (null-check it
-  at any new call site) and internally defaults to INTEGER for arithmetic binaries and
-  unknown-function calls; OUTPUT reports an error for a nullptr result.
+  at any new call site) and internally defaults to INTEGER for unclassified arithmetic expressions; unknown or unmatched calls now diagnose and return nullptr.
+  OUTPUT reports an error for a nullptr result.
 - **CONSTANT** accepts only literals (including negative numeric literals), never expressions or other names. Constants have lexical block scope and may shadow outer names; bindings hiding constants are restored on block exit too. Functions inherit previously declared constants from their own unit and all visible imported top-level constants. Constants have no writable storage: assignment, INPUT, READFILE targets, FOR variables, BYREF and address-of are rejected.
 - **CASE OF** reads its selector once and tests expression labels in source order, with inclusive TO ranges and an optional final OTHERWISE. Label headers occupy their own source line; bodies may begin after the colon or on subsequent lines. Comparisons reuse ordinary operator rules; records and whole arrays are unsupported.
 - The lexer emits no newline tokens; most grammar is keyword-delimited, while CASE
@@ -83,6 +84,15 @@ test programs.
   followed by `.` is swallowed into a REAL literal, so `1.foo` mislexes (only
   already-invalid programs can hit it).
 
+- **OVERLOAD extension.** OVERLOAD is reserved and prefixes FUNCTION/PROCEDURE
+  (after PUBLIC/PRIVATE for methods). Every same-name definition must opt in.
+  Only count, canonical parameter types and array rank distinguish signatures:
+  return type, BYREF/BYVAL and array bounds do not. Calls match exact static types,
+  even for a single OVERLOAD definition; ordinary functions still coerce arguments.
+  Call visibility filters the set, but duplicate signatures conflict across all
+  inputs. MAIN and builtins cannot be overloaded. NEW supports overloads; DECLARE,
+  fields and arrays needing default construction require a matching no-argument NEW.
+  Private access is checked after selection, never used to select a public fallback.
 - **CLASS subset (§10).** `CLASS`/`ENDCLASS`/`PUBLIC`/`PRIVATE` are reserved.
   CLASS is a top-level record-derived value type with optional per-member access
   keywords (no DECLARE). Omitting access defaults to public, per the guide.

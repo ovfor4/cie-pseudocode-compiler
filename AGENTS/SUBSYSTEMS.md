@@ -24,15 +24,20 @@ are a compile error there). Arrays keep their per-element newlines and dispatch
 continues with the next expression; a final array requires no extra newline.
 
 **Functions** (`FunctionGen`): plain LLVM functions, external linkage, exact pseudocode
-name (MAIN uses internal __cps_main). Params are `ParamDecl{name, typeString, mode, array rank/bounds}`. BYVAL args are
+name unless OVERLOAD appends a canonical parameter list (MAIN uses internal __cps_main). Params are `ParamDecl{name, typeString, mode, array rank/bounds}`. BYVAL args are
 copied into entry-block allocas (whole structs for records); BYREF args bind the
 incoming pointer directly as the variable's storage; array params are handed to the
 binder callback CodeGen injects (`setArrayParamBinder`) so FunctionGen never sees
 ArrayHandler. Missing RETURNS defaults the return type to INTEGER; procedures use
 "VOID". `emitPrototype` records each function's pseudocode signature in a `FuncSig`
-map (`FunctionGen::getSignature`); `CodeGen::marshalCallArgs` dispatches call arguments
-on those *declared* `ParamSig`s, and `getExprTypeInfo` reads return types from the same
-map. Top-level prototypes are pre-registered at the start of `compile()` (after the
+overload-set map (`FunctionGen::getOverloads`, filtered by unit visibility).
+`resolveCall` selects exact static parameter types/ranks for OVERLOAD, while a single
+ordinary definition keeps implicit conversions. Parameter keys exclude return types,
+modes and bounds; equivalent C aliases use CIdentity. Every same-name definition must
+be OVERLOAD; duplicate keys fail even across invisible units. FunctionGen tracks
+prototype registration separately from source names and indexes signatures by LLVM
+link name for RETURN (`getSignatureByLink`). `CodeGen::marshalCallArgs` consumes the
+selected FuncSig, and `getExprTypeInfo` resolves the same calls without emitting IR. Top-level prototypes are pre-registered at the start of `compile()` (after the
 TYPE pre-pass), so calls may precede definitions; calling a name with no signature is a
 compile error (no extern is fabricated). Functions inherit visible GLOBAL storage and previously declared own top-level CONSTANT values, plus imported constants from the start; local constants use the same Symbols table with lexical binding restoration. Body emission is inverted: CodeGen injects a
 `StmtEmitter` callback, and must restore its own insert point (and the exchanged
@@ -67,9 +72,12 @@ current method's owning class, including address-of, array elements and pointer
 dereferences. Other instances of the same class are accessible from its methods.
 
 Class ASTs also own their `FunctionDefAST` methods. PrototypeAST retains the owner
-and access level; `getLinkName()` qualifies method symbols as `Class.Method`, while
-global function names remain unmangled. CodeGen registers methods separately in
-`ClassMethods` and pre-registers their prototypes after the type pre-pass.
+and access level; `getLinkName()` supplies the source key `Class.Method`.
+FunctionGen appends `(canonical parameter types)` only for OVERLOAD, leaving ordinary
+symbols unchanged. CodeGen registers methods separately in
+`ClassMethods` overload vectors and pre-registers their prototypes after the type pre-pass.
+`resolveMethod` uses `resolveCall`; access is checked on the selected overload.
+Constructor/default-construction paths select NEW through this same resolver.
 `MemberCallExprAST` keeps an addressable receiver separate from explicit arguments;
 `MemberCallStmtAST` discards its result. `emitMemberCall` checks access and prepends
 the receiver address to arguments marshalled by the existing `marshalCallArgs`.

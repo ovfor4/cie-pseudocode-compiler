@@ -38,6 +38,7 @@ Multi-file builds use the compiler extensions INCLUDE and GLOBAL. Pass every sou
 - [cpsc-keyword-for(7)](keyword/cpsc-keyword-for.7.md): iterate over an integer range.
 - [cpsc-keyword-function(7)](keyword/cpsc-keyword-function.7.md): define a function that returns a value.
 - [cpsc-keyword-procedure(7)](keyword/cpsc-keyword-procedure.7.md): define a procedure and parameter modes.
+- [cpsc-keyword-overload(7)](keyword/cpsc-keyword-overload.7.md): explicitly overload functions, procedures and constructors.
 - [cpsc-keyword-call(7)](keyword/cpsc-keyword-call.7.md): invoke a procedure.
 - [cpsc-keyword-openfile(7)](keyword/cpsc-keyword-openfile.7.md): open a text file.
 - [cpsc-keyword-readfile(7)](keyword/cpsc-keyword-readfile.7.md): read a line from a text file.

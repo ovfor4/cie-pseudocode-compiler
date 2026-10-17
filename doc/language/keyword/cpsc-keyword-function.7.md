@@ -25,6 +25,8 @@ A FUNCTION inside CLASS defines a member function, called as `Object.Method(argu
 
 As a compiler extension, a top-level `FUNCTION MAIN RETURNS INTEGER` with no parameters supplies the program entry point. MAIN is case insensitive and cannot coexist with top-level executable statements in any input file. Its INTEGER result, truncated to 32 bits, is returned as the process exit status. An uncaught exception prints the generic termination message and returns 1. A PROCEDURE MAIN or a MAIN with parameters or a non-INTEGER result is an error. The usual default INTEGER result type also applies when RETURNS is omitted.
 
+Prefix a definition with OVERLOAD to share its name with other explicitly marked definitions having different parameter signatures. Calls then require exact argument types; see [cpsc-keyword-overload(7)](cpsc-keyword-overload.7.md).
+
 # EXAMPLE
 
 ```text
@@ -36,4 +38,4 @@ OUTPUT Double(4)
 
 # SEE ALSO
 
-[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-class(7)](cpsc-keyword-class.7.md), [cpsc-keyword-procedure(7)](cpsc-keyword-procedure.7.md), [cpsc-keyword-call(7)](cpsc-keyword-call.7.md).
+[cpsc-keyword-overload(7)](cpsc-keyword-overload.7.md), [cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-class(7)](cpsc-keyword-class.7.md), [cpsc-keyword-procedure(7)](cpsc-keyword-procedure.7.md), [cpsc-keyword-call(7)](cpsc-keyword-call.7.md).
