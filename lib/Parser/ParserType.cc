@@ -124,7 +124,9 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
         if (AtField()) {
             // Class fields default to public, like record fields.
             bool IsPublic = CurTok != tok_private;
-            if (IsClass && (CurTok == tok_public || CurTok == tok_private)) getNextToken();
+            if (IsClass && (CurTok == tok_public || CurTok == tok_private) &&
+                (Lex.peekToken() == tok_function || Lex.peekToken() == tok_procedure))
+                getNextToken();
             if (IsClass && (CurTok == tok_function || CurTok == tok_procedure)) {
                 auto Method = CurTok == tok_function ? ParseFunction(Name, IsPublic)
                                                     : ParseProcedure(Name, IsPublic);

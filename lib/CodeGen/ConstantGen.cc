@@ -1,4 +1,5 @@
 #include "cps/CodeGen.h"
+#include <cstdio>
 
 using namespace llvm;
 using namespace cps;
@@ -13,6 +14,16 @@ void CodeGen::emitScopedBlock(const std::vector<std::unique_ptr<StmtAST>> &Body)
         else Symbols.erase(Name);
     }
     ConstantScopes.pop_back();
+}
+
+void CodeGen::warnMemberShadow(const std::string &Name, int Line) const {
+    if (CurrentClass.empty()) return;
+    const TypeInfo *Class = resolveType(CurrentClass);
+    const RecordPayload *Record = Class ? Class->asRecord() : nullptr;
+    if (Record && Record->findField(Name)) {
+        fprintf(stderr, "warning: Declaration of %s shadows a field of class %s at line %d\n",
+                Name.c_str(), CurrentClass.c_str(), Line);
+    }
 }
 
 bool CodeGen::prepareSymbolDeclaration(const std::string &Name, bool IsConstant) {
@@ -31,6 +42,7 @@ bool CodeGen::prepareSymbolDeclaration(const std::string &Name, bool IsConstant)
     } else if (IsConstant) {
         Scope.Saved.emplace(Name, std::nullopt);
     }
+    warnMemberShadow(Name, DiagnosticLine);
     return true;
 }
 

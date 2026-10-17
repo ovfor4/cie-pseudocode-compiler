@@ -43,6 +43,7 @@ class CodeGen {
     std::vector<ConstantScope> ConstantScopes = {{0, {}}};
     unsigned NextScopeID = 1;
     void emitScopedBlock(const std::vector<std::unique_ptr<StmtAST>> &Body);
+    void warnMemberShadow(const std::string &Name, int Line) const;
     bool prepareSymbolDeclaration(const std::string &Name, bool IsConstant = false);
     bool requireWritable(const SymbolInfo &Info, const std::string &Name);
     void emitConstantStmt(ConstantStmtAST *Stmt);

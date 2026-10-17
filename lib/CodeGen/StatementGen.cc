@@ -23,6 +23,8 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
 
     if (auto *FuncDef = dynamic_cast<FunctionDefAST*>(Stmt)) {
         SaveAndRestore<std::string> ClassContext(CurrentClass, FuncDef->getProto()->getOwnerClass());
+        for (const auto &Param : FuncDef->getProto()->getParams())
+            warnMemberShadow(Param.Name, Param.Line ? Param.Line : DiagnosticLine);
         BasicBlock *SavedBlock = Builder->GetInsertBlock();
         // Function bodies get a fresh array scope (metadata SSA values belong
         // to the emitting function), mirroring FunctionGen's Symbols handling.

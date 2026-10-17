@@ -51,6 +51,7 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
             return std::nullopt;
         }
         ParamDecl P;
+        P.Line = Lex.getLine();
         P.Name = Lex.IdentifierStr;
         P.Mode = Current;
         getNextToken();

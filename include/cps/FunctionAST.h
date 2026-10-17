@@ -21,6 +21,7 @@ struct ParamDecl {
     bool IsArray = false;
     int Rank = 0; // 0 = scalar
     std::vector<std::pair<int64_t, int64_t>> DeclaredBounds;
+    int Line = 0;
 };
 
 class PrototypeAST {
