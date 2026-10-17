@@ -288,7 +288,7 @@ sub main {
     my @args = @_;
     local @ARGV = @args;
     my ($opt_case, $opt_cpsc, $opt_run_mode, $opt_reference, $opt_perl, $opt_seed,
-        $opt_count, $opt_results);
+        $opt_count, $opt_results, $opt_cc, $opt_cxx);
     $opt_perl = 'perl';
     $opt_seed = '';
     $opt_count = 10000;
@@ -302,6 +302,8 @@ sub main {
         'seed=s'      => \$opt_seed,
         'count=i'     => \$opt_count,
         'results=s'   => \$opt_results,
+        'cc=s'        => \$opt_cc,
+        'cxx=s'       => \$opt_cxx,
     );
     if (!$parsed || !defined($opt_case) || !defined($opt_cpsc) || !defined($opt_run_mode)) {
         warn "usage: $0 --case MANIFEST --cpsc CPSC --run-mode MODE [options]\n";
@@ -462,6 +464,24 @@ sub main {
             my $execute = sub {
                 my ($mode) = @_;
                 my $work = workspace($case_dir, $directory, $mode);
+                my @sources = @sources;
+                if (@{$config->{objects} // []}) {
+                    # INCLUDE_OBJ resolves beside the source, so run from a copy.
+                    my $tree = File::Spec->catdir($work, 'src');
+                    make_path($tree);
+                    copy_tree($case_dir, $tree);
+                    @sources = map { File::Spec->catfile($tree, split(m{/}, $_)) }
+                        @{$config->{sources} // ['program.cps']};
+                    for my $object (@{$config->{objects}}) {
+                        my $compiler = $object->{source} =~ /\.c$/ ? $opt_cc : $opt_cxx;
+                        die "objects need --cc and --cxx\n" unless defined $compiler;
+                        my $built = run_command($commands, [$compiler, '-c',
+                            File::Spec->catfile($tree, split(m{/}, $object->{source})),
+                            '-o', File::Spec->catfile($tree, split(m{/}, $object->{output}))],
+                            $work, '', 120);
+                        check_result($built, '');
+                    }
+                }
                 my $command;
                 if ($mode eq 'native') {
                     my $target = File::Spec->catfile($work,

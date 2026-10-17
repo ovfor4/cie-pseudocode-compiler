@@ -23,6 +23,7 @@ foreach(suite i ii iii)
             "${CMAKE_CURRENT_SOURCE_DIR}/run.pl"
             --case "${manifest}" --cpsc "$<TARGET_FILE:cpsc>"
             --run-mode "${CPSC_RUN_MODE}" --perl "${PERL_EXECUTABLE}"
+            --cc "${CMAKE_C_COMPILER}" --cxx "${CMAKE_CXX_COMPILER}"
             --seed "${CPSC_TEST_SEED}" --count "${CPSC_TEST_COUNT}"
             --results "${CMAKE_BINARY_DIR}/test-results" ${reference_args})
         set_tests_properties("${suite}/${case_name}" PROPERTIES
