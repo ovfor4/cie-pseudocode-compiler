@@ -38,6 +38,7 @@ public:
         : Context(C), Builder(B), Module(M), Types(TS), Checker(RC), Exceptions(EH) {}
 
     llvm::Value *emitAllocate(llvm::Value *Size, int Line);
+    void emitValidate(llvm::Value *Address, int Line);
     llvm::Value *emitRelease(llvm::Value *Address, int Line);
     llvm::Value *emitResize(llvm::Value *Address, llvm::Value *Size, int Line);
 };

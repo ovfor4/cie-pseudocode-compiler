@@ -2,6 +2,7 @@
 #include "cps/ArrayHandler.h"
 #include "cps/FileAST.h"
 #include "cps/FileHandler.h"
+#include "cps/MemoryHandler.h"
 #include "cps/ExceptionHandler.h"
 #include "cps/TypeAST.h"
 
@@ -49,6 +50,19 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
         Builder->SetInsertPoint(BasicBlock::Create(*TheContext, "unreachable_code", F));
     }
 
+    if (auto *Delete = dynamic_cast<DeleteStmtAST*>(Stmt)) {
+        LValueInfo Object;
+        if (!emitLValue(Delete->getTarget(), Object)) return;
+        const TypeInfo *Info = resolveType(Object.TypeName);
+        if (!Info || !Info->IsClass) {
+            reportError("DELETE requires a class object");
+            return;
+        }
+        Memory->emitValidate(Object.Addr, Stmt->getLine());
+        if (emitDestroy(Object.TypeName, Object.Addr, Stmt->getLine()))
+            Memory->emitRelease(Object.Addr, Stmt->getLine());
+        return;
+    }
     if (auto *Try = dynamic_cast<TryStmtAST*>(Stmt)) {
         emitTryStmt(Try);
         return;

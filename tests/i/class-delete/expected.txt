@@ -1,0 +1,10 @@
+pair
+pair
+pair
+leaf:2
+leaf:1
+[Fatal] line 24: Invalid memory address (not an active allocation)
+double caught
+[Fatal] line 30: Invalid memory address (not an active allocation)
+stack caught
+leaf:2

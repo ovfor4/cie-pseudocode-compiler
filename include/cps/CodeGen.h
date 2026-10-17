@@ -40,6 +40,8 @@ class CodeGen {
     llvm::Value *emitMethodCall(const std::string &Class, llvm::Value *Receiver,
                                 const std::string &Name,
                                 const std::vector<std::unique_ptr<ExprAST>> &Args, int Line);
+    bool typeNeedsDestruction(const std::string &TypeName) const;
+    bool emitDestroy(const std::string &TypeName, llvm::Value *Addr, int Line);
     bool typeNeedsConstruction(const std::string &TypeName) const;
     bool emitConstruct(const std::string &TypeName, llvm::Value *Addr,
                        const std::vector<std::unique_ptr<ExprAST>> &Args, int Line);

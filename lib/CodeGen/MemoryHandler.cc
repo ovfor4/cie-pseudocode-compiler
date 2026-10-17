@@ -152,3 +152,8 @@ Value *MemoryHandler::emitResize(Value *Address, Value *Size, int Line) {
     ensureRuntime();
     return Exceptions.emitCall(ResizeFn, {Address, Size, Builder.getInt32(Line)}, "resized");
 }
+
+void MemoryHandler::emitValidate(Value *Address, int Line) {
+    ensureRuntime();
+    Exceptions.emitCall(FindFn, {Address, Builder.getInt32(Line)});
+}

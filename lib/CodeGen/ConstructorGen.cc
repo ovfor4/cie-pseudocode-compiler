@@ -80,3 +80,30 @@ void CodeGen::emitAssignment(const LValueInfo &Target, ExprAST *Expr, const Symb
     Value *Val = emitCoercedExpr(Expr, Info);
     if (Val) Builder->CreateStore(Val, Target.Addr);
 }
+
+bool CodeGen::typeNeedsDestruction(const std::string &TypeName) const {
+    if (findMethod(TypeName, "DELETE")) return true;
+    const TypeInfo *Info = resolveType(TypeName);
+    if (Info && Info->asRecord()) {
+        for (const auto &[Name, Field] : Info->Record.Fields)
+            if (typeNeedsDestruction(Field.TypeName)) return true;
+    }
+    return false;
+}
+
+bool CodeGen::emitDestroy(const std::string &TypeName, Value *Addr, int Line) {
+    SaveAndRestore<int> Location(DiagnosticLine, Line);
+    const TypeInfo *Info = resolveType(TypeName);
+    if (!Info) return false;
+    if (findMethod(TypeName, "DELETE") &&
+        !emitMethodCall(TypeName, Addr, "DELETE", {}, Line)) return false;
+    if (Info->asRecord()) {
+        for (auto It = Info->Record.Fields.rbegin(); It != Info->Record.Fields.rend(); ++It) {
+            const auto &Field = It->second;
+            if (!typeNeedsDestruction(Field.TypeName)) continue;
+            Value *FieldAddr = Builder->CreateStructGEP(Info->LLVMType, Addr, Field.Index);
+            if (!emitDestroy(Field.TypeName, FieldAddr, Line)) return false;
+        }
+    }
+    return true;
+}
