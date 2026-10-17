@@ -325,6 +325,12 @@ static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
         ExecutorSymbolDef::fromPtr(&std::strtoll);
 #endif
 #ifdef _WIN32
+    // Generated diagnostics write to stderr through __acrt_iob_func(2). The
+    // msvcrt DLL only exports __iob_func, so bind the host's shim directly.
+    Symbols[Intern("__acrt_iob_func")] =
+        ExecutorSymbolDef::fromPtr(&__acrt_iob_func);
+#endif
+#ifdef _WIN32
     // The JIT-generated main references __main on MinGW; provide a no-op so
     // the host CRT is not initialized a second time.
     Symbols[Intern("__main")] =

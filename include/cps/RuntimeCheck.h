@@ -14,10 +14,9 @@ class RuntimeCheck {
     llvm::LLVMContext &TheContext;
     llvm::IRBuilder<> &Builder;
 
-    llvm::FunctionCallee SnprintfFunc;
-    llvm::FunctionCallee WriteFunc;
-    llvm::FunctionCallee StrLenFunc;
-    llvm::GlobalVariable *ErrBuf;
+    llvm::FunctionCallee FprintfFunc;
+    llvm::FunctionCallee StderrFunc;   // Windows: __acrt_iob_func(2)
+    llvm::GlobalVariable *StderrVar;   // elsewhere: the C library's stderr
     ExceptionHandler &Exceptions;
     llvm::Value *DivZeroMsg;
     llvm::Value *OutOfBoundsMsg;
