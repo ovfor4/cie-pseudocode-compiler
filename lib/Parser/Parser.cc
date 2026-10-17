@@ -47,6 +47,7 @@ void Parser::syncToStatementStart() {
     while (CurTok != tok_eof) {
         switch (CurTok) {
         case tok_include: case tok_global: case tok_endglobal:
+        case tok_include_obj: case tok_extern:
         case tok_delete: case tok_constant: case tok_declare: case tok_identifier: case tok_input: case tok_output:
         case tok_case: case tok_endcase: case tok_otherwise:
         case tok_if: case tok_while: case tok_repeat: case tok_for:
@@ -96,21 +97,32 @@ std::unique_ptr<StmtAST> Parser::ParseStatement() {
 }
 
 std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
-    if (CurTok == tok_include || CurTok == tok_global) {
-        bool Include = CurTok == tok_include;
+    if (CurTok == tok_extern) {
+        if (BlockDepth != 1) {
+            sourceDiagnostic(Lex.getLine(), "error: EXTERN is only allowed at top level at line %d\n", Lex.getLine());
+            getNextToken();
+            return nullptr;
+        }
+        return ParseExternDecl();
+    }
+    if (CurTok == tok_include || CurTok == tok_include_obj || CurTok == tok_global) {
+        const char *Keyword = CurTok == tok_include ? "INCLUDE" : CurTok == tok_include_obj ? "INCLUDE_OBJ" : "GLOBAL";
+        bool Object = CurTok == tok_include_obj;
+        bool Include = Object || CurTok == tok_include;
         int Line = Lex.getLine();
         getNextToken();
         if (BlockDepth != 1) {
-            sourceDiagnostic(Line, "error: %s is only allowed at top level at line %d\n",
-                             Include ? "INCLUDE" : "GLOBAL", Line);
+            sourceDiagnostic(Line, "error: %s is only allowed at top level at line %d\n", Keyword, Line);
             return nullptr;
         }
         if (Include) {
             if (CurTok != tok_string_literal) {
-                sourceDiagnostic(Line, "error: INCLUDE requires a string literal at line %d\n", Line);
+                sourceDiagnostic(Line, "error: %s requires a string literal at line %d\n", Keyword, Line);
                 return nullptr;
             }
-            auto Stmt = std::make_unique<IncludeStmtAST>(Lex.StringVal);
+            std::unique_ptr<StmtAST> Stmt;
+            if (Object) Stmt = std::make_unique<IncludeObjStmtAST>(Lex.StringVal);
+            else Stmt = std::make_unique<IncludeStmtAST>(Lex.StringVal);
             getNextToken();
             return Stmt;
         }

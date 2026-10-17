@@ -107,6 +107,14 @@ public:
     const std::string &getPath() const { return Path; }
 };
 
+// INCLUDE_OBJ "path" adds an object file (or the built-in "__libc") to the link.
+class IncludeObjStmtAST : public StmtAST {
+    std::string Path;
+public:
+    explicit IncludeObjStmtAST(std::string Path) : Path(std::move(Path)) {}
+    const std::string &getPath() const { return Path; }
+};
+
 class GlobalBlockAST : public StmtAST {
     std::vector<std::unique_ptr<StmtAST>> Body;
 public:

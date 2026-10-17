@@ -222,6 +222,95 @@ std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerC
     return Def;
 }
 
+// EXTERN "C" EXTERN_FUNCTION <name>(<type>, ... [, ...]) RETURNS <type>
+// EXTERN "C" EXTERN_PROCEDURE <name>(<type>, ... [, ...])
+// Parameters are unnamed; a trailing ... makes the prototype variadic.
+std::unique_ptr<StmtAST> Parser::ParseExternDecl() {
+    int Line = Lex.getLine();
+    getNextToken();
+    if (CurTok != tok_string_literal || Lex.StringVal != "C") {
+        cps::sourceDiagnostic(Lex.getLine(), "error: EXTERN must be followed by \"C\" at line %d\n", Lex.getLine());
+        return nullptr;
+    }
+    getNextToken();
+    if (CurTok != tok_extern_function && CurTok != tok_extern_procedure) {
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected EXTERN_FUNCTION or EXTERN_PROCEDURE after EXTERN \"C\" at line %d\n",
+                Lex.getLine());
+        return nullptr;
+    }
+    bool IsFunction = CurTok == tok_extern_function;
+    getNextToken();
+    if (CurTok != tok_identifier) {
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected C function name at line %d\n", Lex.getLine());
+        return nullptr;
+    }
+    std::string Name = Lex.IdentifierStr;
+    getNextToken();
+
+    std::vector<ParamDecl> Params;
+    bool IsVariadic = false;
+    if (CurTok != '(') {
+        cps::sourceDiagnostic(Lex.getLine(), "error: Expected '(' after C function name '%s' at line %d\n",
+                Name.c_str(), Lex.getLine());
+        return nullptr;
+    }
+    getNextToken();
+    while (CurTok != ')') {
+        if (CurTok == tok_ellipsis) {
+            IsVariadic = true;
+            getNextToken();
+            if (CurTok != ')') {
+                cps::sourceDiagnostic(Lex.getLine(), "error: '...' must be the last parameter at line %d\n", Lex.getLine());
+                return nullptr;
+            }
+            break;
+        }
+        if (CurTok == tok_byref || CurTok == tok_byval) {
+            cps::sourceDiagnostic(Lex.getLine(), "error: EXTERN parameters cannot be BYREF or BYVAL; use a C pointer type at line %d\n",
+                    Lex.getLine());
+            return nullptr;
+        }
+        ParamDecl P;
+        P.Line = Lex.getLine();
+        P.TypeName = ParseTypeName(false);
+        if (P.TypeName.empty()) return nullptr;
+        P.Name = "arg" + std::to_string(Params.size() + 1);
+        Params.push_back(std::move(P));
+        if (CurTok == ')') break;
+        if (CurTok != ',') {
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected ',' or ')' at line %d\n", Lex.getLine());
+            return nullptr;
+        }
+        getNextToken();
+        if (CurTok == ')') {
+            cps::sourceDiagnostic(Lex.getLine(), "error: Expected another parameter after ',' at line %d\n", Lex.getLine());
+            return nullptr;
+        }
+    }
+    getNextToken();
+
+    std::string RetType = "VOID";
+    if (CurTok == tok_returns) {
+        if (!IsFunction) {
+            cps::sourceDiagnostic(Lex.getLine(), "error: EXTERN_PROCEDURE cannot have RETURNS at line %d\n", Lex.getLine());
+            return nullptr;
+        }
+        getNextToken();
+        RetType = ParseTypeName(false);
+        if (RetType.empty()) return nullptr;
+    } else if (IsFunction) {
+        cps::sourceDiagnostic(Lex.getLine(), "error: EXTERN_FUNCTION '%s' requires RETURNS at line %d\n",
+                Name.c_str(), Line);
+        return nullptr;
+    }
+
+    auto Proto = std::make_unique<PrototypeAST>(Name, std::move(Params), RetType, /*IsExternal=*/true);
+    Proto->setVariadic(IsVariadic);
+    auto Decl = std::make_unique<ExternDeclAST>(std::move(Proto));
+    Decl->setLine(Line);
+    return Decl;
+}
+
 std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
     int Line = Lex.getLine();
     getNextToken();

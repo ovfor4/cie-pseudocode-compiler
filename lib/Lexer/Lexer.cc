@@ -75,6 +75,10 @@ int Lexer::readToken() {
 
         if (IdentifierStr == "CONSTANT") return tok_constant;
         if (IdentifierStr == "INCLUDE") return tok_include;
+        if (IdentifierStr == "INCLUDE_OBJ") return tok_include_obj;
+        if (IdentifierStr == "EXTERN") return tok_extern;
+        if (IdentifierStr == "EXTERN_FUNCTION") return tok_extern_function;
+        if (IdentifierStr == "EXTERN_PROCEDURE") return tok_extern_procedure;
         if (IdentifierStr == "GLOBAL") return tok_global;
         if (IdentifierStr == "ENDGLOBAL") return tok_endglobal;
         if (IdentifierStr == "DECLARE") return tok_declare;
@@ -227,6 +231,19 @@ int Lexer::readToken() {
     if (LastChar == ':') {
         LastChar = Input.get();
         return tok_colon;
+    }
+
+    if (LastChar == '.' && Input.peek() == '.') {
+        Input.get();
+        if (Input.peek() == '.') {
+            Input.get();
+            LastChar = Input.get();
+            return tok_ellipsis;
+        }
+        cps::sourceDiagnostic(CurrentLine, "error: Expected '...' at line %d\n", CurrentLine);
+        HadError = true;
+        LastChar = Input.get();
+        return tok_ellipsis;
     }
 
     if (LastChar == '(') { LastChar = Input.get(); return '('; }

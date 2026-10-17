@@ -103,6 +103,9 @@ enum Token {
     tok_new = -613, tok_delete = -614,
 
     tok_include = -650, tok_global = -651, tok_endglobal = -652,
+    tok_include_obj = -653, tok_extern = -654,
+    tok_extern_function = -655, tok_extern_procedure = -656,
+    tok_ellipsis = -657, // ...
 
     tok_try = -700,
     tok_catch = -701,

@@ -33,6 +33,7 @@ class PrototypeAST {
     bool IsOverload;
     std::string OwnerClass;
     bool IsPublic;
+    bool IsVariadic = false;
 
 public:
     PrototypeAST(const std::string &Name,
@@ -47,6 +48,8 @@ public:
     const std::string &getReturnType() const { return ReturnType; }
     bool isOverload() const { return IsOverload; }
     bool isExternal() const { return IsExternal; }
+    bool isVariadic() const { return IsVariadic; }
+    void setVariadic(bool V) { IsVariadic = V; }
     const std::string &getOwnerClass() const { return OwnerClass; }
     bool isPublic() const { return IsPublic; }
     std::string getLinkName() const {
@@ -66,6 +69,16 @@ public:
 
     PrototypeAST *getProto() const { return Proto.get(); }
     const std::vector<std::unique_ptr<StmtAST>> &getBody() const { return Body; }
+};
+
+// EXTERN "C" EXTERN_FUNCTION/EXTERN_PROCEDURE: a body-less C prototype whose
+// name is the exact C symbol.
+class ExternDeclAST : public StmtAST {
+    std::unique_ptr<PrototypeAST> Proto;
+
+public:
+    explicit ExternDeclAST(std::unique_ptr<PrototypeAST> Proto) : Proto(std::move(Proto)) {}
+    PrototypeAST *getProto() const { return Proto.get(); }
 };
 
 class CallExprAST : public ExprAST {
