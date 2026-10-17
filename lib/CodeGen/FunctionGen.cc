@@ -194,6 +194,10 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     FunctionType *FT = FunctionType::get(RetType, ArgTypes, false);
     auto &Overloads = Signatures[Sig.Name];
     for (const FuncSig &Existing : Overloads) {
+        if (Existing.IsExternal) {
+            reportError("Function %s is already declared EXTERN", Proto->getName().c_str());
+            return nullptr;
+        }
         if (!Sig.IsOverload || !Existing.IsOverload) {
             reportError("Function %s cannot be redefined. Multiple definition of %s; every overload must be declared OVERLOAD",
                         Proto->getName().c_str(), Proto->getName().c_str());
@@ -304,12 +308,36 @@ bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
         if (Attribute::AttrKind K = Extension(Info); K != Attribute::None) RetAttrs.addAttribute(K);
     }
 
+    // Repeated identical EXTERN declarations, as in C, share one symbol; each
+    // keeps its own unit so visibility follows the declaring file.
     auto &Overloads = Signatures[Sig.Name];
+    if (!Overloads.empty() && Overloads.front().IsExternal) {
+        const FuncSig &First = Overloads.front();
+        auto Same = [&](const std::string &A, const std::string &B) {
+            if (sameIdentifier(A, "VOID") || sameIdentifier(B, "VOID"))
+                return sameIdentifier(A, B);
+            const TypeInfo *L = Types.resolve(A);
+            return L && L->sameType(Types.resolve(B));
+        };
+        bool Matches = First.IsVariadic == Sig.IsVariadic && First.Params.size() == Sig.Params.size() &&
+                       Same(First.ReturnTypeName, Sig.ReturnTypeName);
+        for (size_t I = 0; Matches && I < Sig.Params.size(); ++I)
+            Matches = Same(First.Params[I].TypeName, Sig.Params[I].TypeName);
+        if (!Matches) {
+            reportError("Conflicting EXTERN declarations of %s", Name.c_str());
+            return false;
+        }
+        Sig.ExternType = First.ExternType;
+        Sig.ExternAttrs = First.ExternAttrs;
+        PrototypeLinks.emplace(Proto, Name);
+        Overloads.push_back(std::move(Sig));
+        return true;
+    }
     if (!Overloads.empty()) {
         if (Overloads.front().OwnerUnit != CurrentUnit)
             reportError("Duplicate definition %s in %s and %s", Name.c_str(),
                         UnitPaths[Overloads.front().OwnerUnit].c_str(), UnitPaths[CurrentUnit].c_str());
-        else reportError("Function %s cannot be redefined", Name.c_str());
+        else reportError("EXTERN %s conflicts with FUNCTION/PROCEDURE %s", Name.c_str(), Name.c_str());
         return false;
     }
     Sig.ExternType = FunctionType::get(RetType, ArgTypes, Proto->isVariadic());

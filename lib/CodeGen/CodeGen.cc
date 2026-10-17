@@ -187,14 +187,16 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
     });
     FuncGen->setVisibility([this](size_t Owner) { return isVisible(Owner); });
 
-    struct Definition { size_t Unit; bool IsFunction; bool IsOverload; };
+    struct Definition { size_t Unit; bool IsFunction; bool IsOverload; bool IsExtern; };
     IdentifierMap<Definition> Definitions;
     std::optional<size_t> CodeUnit;
     FunctionDefAST *Entry = nullptr;
     size_t EntryUnit = 0;
-    auto Reserve = [&](const std::string &Name, bool IsFunction = false, bool IsOverload = false) {
-        auto [It, Added] = Definitions.emplace(Name, Definition{CurrentUnit, IsFunction, IsOverload});
-        bool Compatible = IsFunction && IsOverload && It->second.IsFunction && It->second.IsOverload;
+    auto Reserve = [&](const std::string &Name, bool IsFunction = false, bool IsOverload = false,
+                       bool IsExtern = false) {
+        auto [It, Added] = Definitions.emplace(Name, Definition{CurrentUnit, IsFunction, IsOverload, IsExtern});
+        bool Compatible = (IsFunction && IsOverload && It->second.IsFunction && It->second.IsOverload) ||
+                          (IsExtern && It->second.IsExtern);
         if (!Added && It->second.Unit != CurrentUnit && !Compatible)
             reportError("Duplicate definition %s in %s and %s", Name.c_str(),
                         Sources[It->second.Unit].Path.c_str(), Sources[CurrentUnit].Path.c_str());
@@ -216,7 +218,7 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
                         reportError("MAIN must be a FUNCTION with no parameters returning INTEGER");
                 }
             } else if (auto *X = dynamic_cast<ExternDeclAST*>(S.get())) {
-                Reserve(X->getProto()->getName(), true);
+                Reserve(X->getProto()->getName(), true, false, true);
             } else if (dynamic_cast<IncludeObjStmtAST*>(S.get())) {
             } else if (auto *E = dynamic_cast<EnumTypeDeclAST*>(S.get())) {
                 TypeName = E->getName();
@@ -461,6 +463,8 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
         return nullptr;
     }
     if (Overloads.size() == 1 && !Overloads.front()->IsOverload) return Overloads.front();
+    // Visible EXTERN redeclarations are identical by construction.
+    if (Overloads.front()->IsExternal) return Overloads.front();
     struct ArgumentType { const TypeInfo *Type; int Rank; };
     std::vector<ArgumentType> Actual;
     std::string Key;

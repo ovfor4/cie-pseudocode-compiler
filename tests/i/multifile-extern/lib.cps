@@ -1,0 +1,6 @@
+INCLUDE_OBJ "__libc"
+TYPE NativeInt = C_TYPE("int")
+EXTERN "C" EXTERN_FUNCTION abs(NativeInt) RETURNS C_INT
+FUNCTION Twice(N : C_INT) RETURNS C_INT
+    RETURN abs(N) + abs(N)
+ENDFUNCTION
