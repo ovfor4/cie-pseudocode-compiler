@@ -11,10 +11,10 @@ using namespace cps;
 // (TYPE NodePtr = ^Node before TYPE Node — required for linked structures);
 // by-value record fields still require their record type to be complete,
 // which pass B's source order enforces.
-void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
+void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements, int Phase) {
     std::string Err;
 
-    for (const auto &S : Statements) {
+    if (Phase == 0) for (const auto &S : Statements) {
         SaveAndRestore<int> Location(DiagnosticLine, S->getLine());
         bool Ok = true;
         if (auto *C = dynamic_cast<CTypeDeclAST*>(S.get()))
@@ -29,7 +29,7 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
         if (!Ok) reportError("%s", Err.c_str());
     }
 
-    for (const auto &S : Statements) {
+    if (Phase == 1) for (const auto &S : Statements) {
         SaveAndRestore<int> Location(DiagnosticLine, S->getLine());
         bool Ok = true;
         if (auto *E = dynamic_cast<EnumTypeDeclAST*>(S.get())) {
@@ -42,7 +42,7 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
         if (!Ok) reportError("%s", Err.c_str());
     }
 
-    for (const auto &S : Statements) {
+    if (Phase == 2) for (const auto &S : Statements) {
         auto *Class = dynamic_cast<ClassTypeDeclAST*>(S.get());
         if (!Class) continue;
         auto &Methods = ClassMethods[Class->getName()];

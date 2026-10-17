@@ -111,7 +111,7 @@ bool TypeSystem::sameType(const std::string &Left, const std::string &Right) con
 
 const TypeInfo *TypeSystem::resolve(const std::string &TypeName) const {
     auto It = Types.find(TypeName);
-    if (It == Types.end()) {
+    if (It == Types.end() || (Visible && !Visible(TypeName))) {
         return nullptr;
     }
     return &It->second;
@@ -271,7 +271,8 @@ bool TypeSystem::definePointer(const std::string &Name,
 
 const EnumConstant *TypeSystem::lookupEnumConstant(const std::string &Name) const {
     auto It = EnumConstants.find(Name);
-    return It == EnumConstants.end() ? nullptr : &It->second;
+    return It == EnumConstants.end() || (Visible && !Visible(It->second.TypeName))
+               ? nullptr : &It->second;
 }
 
 Type *TypeSystem::getLLVMType(const std::string &TypeName) const {

@@ -5,6 +5,7 @@
 #include "cps/MemoryHandler.h"
 #include "cps/ExceptionHandler.h"
 #include "Builtins.h"
+#include "cps/TypeAST.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Verifier.h"
 #include <cstdarg>
@@ -152,7 +153,84 @@ const TypeInfo *CodeGen::resolveType(const std::string &TypeName) const {
     return Types->resolve(TypeName);
 }
 
+bool CodeGen::isVisible(size_t Owner) const {
+    return !Units || (*Units)[CurrentUnit].Visible[Owner];
+}
+
+void CodeGen::selectUnit(size_t Unit) {
+    CurrentUnit = Unit;
+    DiagnosticSource = Units->size() > 1 ? (*Units)[Unit].Path : "";
+    FuncGen->setCurrentUnit(Unit);
+}
+
+void CodeGen::importSymbols() {
+    Symbols.clear();
+    for (size_t I = 0; I < Exports.size(); ++I) {
+        if (I != CurrentUnit && isVisible(I))
+            Symbols.insert(Exports[I].begin(), Exports[I].end());
+    }
+}
+
 void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
+    compile(std::vector<SourceUnit>{{"", Statements, {true}}});
+}
+
+void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
+    SaveAndRestore<const std::vector<SourceUnit> *> SourceContext(Units, &Sources);
+    SaveAndRestore<std::string> SourceName(DiagnosticSource);
+    if (Sources.empty()) { reportError("no main program"); return; }
+    Exports.resize(Sources.size());
+    Types->setVisibility([this](const std::string &Name) {
+        auto It = TypeOwners.find(Name);
+        return It == TypeOwners.end() || isVisible(It->second);
+    });
+    FuncGen->setVisibility([this](size_t Owner) { return isVisible(Owner); });
+
+    IdentifierMap<size_t> Definitions;
+    std::optional<size_t> CodeUnit;
+    auto Reserve = [&](const std::string &Name) {
+        auto [It, Added] = Definitions.emplace(Name, CurrentUnit);
+        if (!Added && It->second != CurrentUnit)
+            reportError("Duplicate definition %s in %s and %s", Name.c_str(),
+                        Sources[It->second].Path.c_str(), Sources[CurrentUnit].Path.c_str());
+    };
+    for (size_t I = 0; I < Sources.size(); ++I) {
+        selectUnit(I);
+        for (const auto &S : Sources[I].Statements) {
+            SaveAndRestore<int> Location(DiagnosticLine, S->getLine());
+            std::string TypeName;
+            if (auto *F = dynamic_cast<FunctionDefAST*>(S.get())) {
+                Reserve(F->getProto()->getName());
+            } else if (auto *E = dynamic_cast<EnumTypeDeclAST*>(S.get())) {
+                TypeName = E->getName();
+                for (const auto &V : E->getValueNames()) Reserve(V);
+            } else if (auto *R = dynamic_cast<RecordTypeDeclAST*>(S.get())) {
+                TypeName = R->getName();
+            } else if (auto *P = dynamic_cast<PointerTypeDeclAST*>(S.get())) {
+                TypeName = P->getName();
+            } else if (auto *C = dynamic_cast<CTypeDeclAST*>(S.get())) {
+                TypeName = C->getName();
+            } else if (auto *C = dynamic_cast<ConstantStmtAST*>(S.get())) {
+                Reserve(C->getName());
+            } else if (auto *G = dynamic_cast<GlobalBlockAST*>(S.get())) {
+                for (const auto &Body : G->getBody())
+                    if (auto *D = dynamic_cast<DeclareStmtAST*>(Body.get())) Reserve(D->getName());
+            } else if (!dynamic_cast<IncludeStmtAST*>(S.get())) {
+                if (CodeUnit && *CodeUnit != I) {
+                    reportError("Top-level code in both %s and %s",
+                                Sources[*CodeUnit].Path.c_str(), Sources[I].Path.c_str());
+                    return;
+                }
+                CodeUnit = I;
+            }
+            if (!TypeName.empty()) {
+                Reserve(TypeName);
+                TypeOwners.emplace(TypeName, I);
+            }
+        }
+    }
+    if (HadError) return;
+    MainUnit = CodeUnit.value_or(0);
     FunctionType *FT = FunctionType::get(Type::getInt32Ty(*TheContext), false);
     Function *F = Function::Create(FT, Function::ExternalLinkage, "main", TheModule.get());
     BasicBlock *BB = BasicBlock::Create(*TheContext, "entry", F);
@@ -162,28 +240,61 @@ void CodeGen::compile(const std::vector<std::unique_ptr<StmtAST>> &Statements) {
     BasicBlock *UnhandledBB = BasicBlock::Create(*TheContext, "unhandled_exception", F);
     Exceptions->pushHandler(UnhandledBB);
 
-    // User types first: prototypes may name them in parameters/returns.
-    runTypePrePass(Statements);
+    // Reserve names across every unit before resolving any type payload.
+    for (size_t I = 0; I < Sources.size(); ++I) {
+        selectUnit(I);
+        runTypePrePass(Sources[I].Statements, 0);
+    }
+    // Complete included units first. The visited set makes include cycles harmless.
+    std::vector<bool> Visited(Sources.size(), false);
+    std::function<void(size_t)> DefineTypes = [&](size_t I) {
+        if (Visited[I]) return;
+        Visited[I] = true;
+        for (size_t J = 0; J < Sources.size(); ++J)
+            if (J != I && Sources[I].Visible[J]) DefineTypes(J);
+        selectUnit(I);
+        runTypePrePass(Sources[I].Statements, 1);
+        runTypePrePass(Sources[I].Statements, 2);
+    };
+    for (size_t I = 0; I < Sources.size(); ++I) DefineTypes(I);
 
-    // Pre-register every top-level FUNCTION/PROCEDURE prototype so calls may
-    // precede definitions.
-    for (const auto &Stmt : Statements) {
-        SaveAndRestore<int> Location(DiagnosticLine, Stmt->getLine());
-        if (auto *FuncDef = dynamic_cast<FunctionDefAST*>(Stmt.get())) {
-            FuncGen->emitPrototype(FuncDef->getProto());
+    for (size_t I = 0; I < Sources.size(); ++I) {
+        selectUnit(I);
+        for (const auto &Stmt : Sources[I].Statements) {
+            SaveAndRestore<int> Location(DiagnosticLine, Stmt->getLine());
+            if (auto *FuncDef = dynamic_cast<FunctionDefAST*>(Stmt.get()))
+                FuncGen->emitPrototype(FuncDef->getProto());
+            if (auto *Class = dynamic_cast<ClassTypeDeclAST*>(Stmt.get())) {
+                for (const auto &Method : Class->getMethods()) {
+                    SaveAndRestore<int> MethodLocation(DiagnosticLine, Method->getLine());
+                    FuncGen->emitPrototype(Method->getProto());
+                }
+            }
         }
     }
 
-    for (const auto &[Class, Methods] : ClassMethods) {
-        for (const auto &[Name, Method] : Methods) {
-            SaveAndRestore<int> Location(DiagnosticLine, Method->getLine());
-            FuncGen->emitPrototype(Method->getProto());
+    // Constants are literal exports. Own constants are still installed only
+    // when their declaration is encountered during body emission.
+    for (size_t I = 0; I < Sources.size(); ++I) {
+        selectUnit(I);
+        Symbols.clear();
+        for (const auto &Stmt : Sources[I].Statements) {
+            if (auto *Constant = dynamic_cast<ConstantStmtAST*>(Stmt.get())) {
+                SaveAndRestore<int> Location(DiagnosticLine, Stmt->getLine());
+                emitConstantStmt(Constant);
+            }
         }
+        Exports[I] = Symbols;
     }
-
-    for (const auto &Stmt : Statements) {
-        SaveAndRestore<int> Location(DiagnosticLine, Stmt->getLine());
-        emitStmt(Stmt.get());
+    for (size_t I = 0; I < Sources.size(); ++I) {
+        selectUnit(I);
+        importSymbols();
+        for (const auto &Stmt : Sources[I].Statements) emitStmt(Stmt.get());
+    }
+    selectUnit(MainUnit);
+    if (!CodeUnit && !HadError) {
+        SaveAndRestore<int> Location(DiagnosticLine, Sources.size() > 1 ? 1 : 0);
+        reportError("no main program");
     }
 
     if (!Builder->GetInsertBlock()->hasTerminator()) {

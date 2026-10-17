@@ -13,8 +13,9 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     SaveAndRestore<int> Location(DiagnosticLine, Stmt && Stmt->getLine() ? Stmt->getLine() : DiagnosticLine);
     if (!Stmt) return;
 
-    if (dynamic_cast<IncludeStmtAST*>(Stmt) || dynamic_cast<GlobalBlockAST*>(Stmt)) {
-        reportError("INCLUDE and GLOBAL are not supported yet");
+    if (dynamic_cast<IncludeStmtAST*>(Stmt)) return;
+    if (dynamic_cast<GlobalBlockAST*>(Stmt)) {
+        reportError("GLOBAL is not supported yet");
         return;
     }
 

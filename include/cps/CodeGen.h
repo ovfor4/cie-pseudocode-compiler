@@ -5,6 +5,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "cps/AST.h"
+#include "cps/SourceUnit.h"
 #include "cps/RuntimeCheck.h"
 #include "cps/FunctionGen.h"
 #include "cps/TypeSystem.h"
@@ -32,6 +33,14 @@ class CodeGen {
     std::unique_ptr<llvm::Module> TheModule;
     std::unique_ptr<llvm::IRBuilder<>> Builder;
     int DiagnosticLine = 0;
+    const std::vector<SourceUnit> *Units = nullptr;
+    size_t CurrentUnit = 0;
+    size_t MainUnit = 0;
+    IdentifierMap<size_t> TypeOwners;
+    std::vector<IdentifierMap<SymbolInfo>> Exports;
+    bool isVisible(size_t Owner) const;
+    void selectUnit(size_t Unit);
+    void importSymbols();
     IdentifierMap<SymbolInfo> Symbols;
     IdentifierMap<IdentifierMap<FunctionDefAST*>> ClassMethods;
     std::string CurrentClass;
@@ -123,7 +132,7 @@ class CodeGen {
     void emitCInput(llvm::Value *Addr, const TypeInfo *Info);
 
     // TYPE-system registration (Designator.cc) and operators (TypeCheckGen.cc).
-    void runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements);
+    void runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements, int Phase);
     llvm::Value *emitUserKindBinaryOp(int Op, llvm::Value *L, const TypeInfo *LT,
                                       llvm::Value *R, const TypeInfo *RT, int Line);
 
@@ -161,6 +170,8 @@ public:
     CodeGen();
     ~CodeGen();
     void compile(const std::vector<std::unique_ptr<StmtAST>> &Statements);
+    void compile(const std::vector<SourceUnit> &Sources);
+    size_t getMainUnit() const { return MainUnit; }
     void print(llvm::raw_ostream &Output);
     const llvm::Module &getModule() const { return *TheModule; }
     bool hadError() const { return HadError; }

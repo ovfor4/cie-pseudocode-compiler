@@ -106,7 +106,8 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
 
 const FuncSig *FunctionGen::getSignature(const std::string &Name) const {
     auto It = Signatures.find(Name);
-    return It == Signatures.end() ? nullptr : &It->second;
+    return It == Signatures.end() || (Visible && !Visible(It->second.OwnerUnit))
+               ? nullptr : &It->second;
 }
 
 Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
@@ -134,6 +135,7 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     }
 
     FuncSig Sig;
+    Sig.OwnerUnit = CurrentUnit;
     Sig.Name = Proto->getLinkName();
     Sig.ReturnTypeName = Proto->getReturnType();
 

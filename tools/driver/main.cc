@@ -1,4 +1,5 @@
 #include "cps/Lexer.h"
+#include "cps/Diagnostics.h"
 #include "cps/Parser.h"
 #include "cps/CodeGen.h"
 #include "NativeCompiler.h"
@@ -85,7 +86,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    std::string InputPath;
+    std::vector<std::string> InputPaths;
     std::string OutputPath;
     bool Run = false;
     bool EmitIR = false;
@@ -108,15 +109,12 @@ int main(int argc, char **argv) {
         } else if (Arg.empty() || Arg[0] == '-') {
             llvm::errs() << "cpsc: error: unknown argument '" << Arg << "'\n";
             return compilationTerminated();
-        } else if (!InputPath.empty()) {
-            llvm::errs() << "cpsc: error: only one source file is supported\n";
-            return compilationTerminated();
         } else {
-            InputPath = Arg;
+            InputPaths.push_back(Arg);
         }
     }
 
-    if (InputPath.empty()) {
+    if (InputPaths.empty()) {
         llvm::errs() << "cpsc: fatal error: no input files\n";
         return compilationTerminated();
     }
@@ -138,36 +136,79 @@ int main(int argc, char **argv) {
 #endif
     }
     const bool Save = !Run || EmitIR || !OutputPath.empty();
+    std::vector<std::vector<std::unique_ptr<cps::StmtAST>>> Programs(InputPaths.size());
+    std::vector<cps::SourceUnit> Units;
+    for (size_t I = 0; I < InputPaths.size(); ++I) {
+        const auto &InputPath = InputPaths[I];
+        for (size_t J = 0; J < I; ++J) {
+            if (llvm::sys::fs::equivalent(InputPath, InputPaths[J])) {
+                llvm::errs() << "cpsc: error: duplicate input file '" << InputPath << "'\n";
+                return compilationTerminated();
+            }
+        }
+        std::ifstream Input(InputPath, std::ios::binary);
+        if (!Input) {
+            llvm::errs() << "cpsc: fatal error: cannot open source file '" << InputPath << "'\n";
+            return compilationTerminated();
+        }
+        cps::DiagnosticSource = InputPaths.size() > 1 ? InputPath : "";
+        cps::Lexer Lex(Input);
+        cps::Parser Parser(Lex);
+        Programs[I] = Parser.Parse();
+        if (Input.bad()) {
+            llvm::errs() << "cpsc: fatal error: cannot read source file '" << InputPath << "'\n";
+            return compilationTerminated();
+        }
+        if (Lex.hadError() || Parser.hadError()) return compilationTerminated();
+        Units.push_back({InputPath, Programs[I], std::vector<bool>(InputPaths.size(), false)});
+        Units.back().Visible[I] = true;
+    }
+    for (size_t I = 0; I < Units.size(); ++I) {
+        cps::DiagnosticSource = Units.size() > 1 ? Units[I].Path : "";
+        for (const auto &Stmt : Units[I].Statements) {
+            auto *Include = dynamic_cast<cps::IncludeStmtAST*>(Stmt.get());
+            if (!Include) continue;
+            llvm::SmallString<256> Path(Include->getPath());
+            if (!llvm::sys::path::is_absolute(Path)) {
+                Path = llvm::sys::path::parent_path(Units[I].Path);
+                llvm::sys::path::append(Path, Include->getPath());
+            }
+            bool Found = false;
+            for (size_t J = 0; J < Units.size(); ++J) {
+                if (llvm::sys::fs::equivalent(Path, Units[J].Path)) {
+                    Units[I].Visible[J] = true;
+                    Found = true;
+                }
+            }
+            if (!Found) {
+                cps::sourceDiagnostic(Stmt->getLine(),
+                    "error: cannot INCLUDE '%s': not given on the command line at line %d\n",
+                    Include->getPath().c_str(), Stmt->getLine());
+                return compilationTerminated();
+            }
+        }
+    }
+    for (size_t K = 0; K < Units.size(); ++K)
+        for (size_t I = 0; I < Units.size(); ++I)
+            for (size_t J = 0; J < Units.size(); ++J)
+                Units[I].Visible[J] = Units[I].Visible[J] ||
+                    (Units[I].Visible[K] && Units[K].Visible[J]);
+
+    cps::CodeGen CG;
+    CG.compile(Units);
+    if (CG.hadError()) return compilationTerminated();
+
     if (OutputPath.empty() && Save) {
-        llvm::SmallString<256> DefaultPath(InputPath);
+        llvm::SmallString<256> DefaultPath(InputPaths[CG.getMainUnit()]);
         llvm::sys::path::replace_extension(DefaultPath, EmitIR ? ".ll" : ".out");
         OutputPath = std::string(DefaultPath);
     }
-
-    std::ifstream Input(InputPath, std::ios::binary);
-    if (!Input) {
-        llvm::errs() << "cpsc: fatal error: cannot open source file '" << InputPath << "'\n";
-        return compilationTerminated();
+    for (const auto &InputPath : InputPaths) {
+        if (Save && llvm::sys::fs::equivalent(InputPath, OutputPath)) {
+            llvm::errs() << "cpsc: error: output file must not be the source file\n";
+            return compilationTerminated();
+        }
     }
-    if (Save && llvm::sys::fs::equivalent(InputPath, OutputPath)) {
-        llvm::errs() << "cpsc: error: output file must not be the source file\n";
-        return compilationTerminated();
-    }
-
-    cps::Lexer Lex(Input);
-
-    cps::Parser Parser(Lex);
-    auto Statements = Parser.Parse();
-    if (Input.bad()) {
-        llvm::errs() << "cpsc: fatal error: cannot read source file '" << InputPath << "'\n";
-        return compilationTerminated();
-    }
-    if (Lex.hadError() || Parser.hadError()) return compilationTerminated();
-
-    cps::CodeGen CG;
-    CG.compile(Statements);
-
-    if (CG.hadError()) return compilationTerminated();
 
     if (Save && !EmitIR) {
         if (!compileNative(CG, OutputPath, argv[0])) return compilationTerminated();

@@ -5,6 +5,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Type.h"
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <string>
 #include <utility>
@@ -118,6 +119,7 @@ class TypeSystem {
     IdentifierMap<TypeInfo> Types;
     IdentifierMap<EnumConstant> EnumConstants;
 
+    std::function<bool(const std::string &)> Visible;
     void registerBuiltins();
     const TypeInfo *registerType(const std::string &TypeName,
                                  llvm::Type *LLVMType,
@@ -126,6 +128,7 @@ class TypeSystem {
 public:
     explicit TypeSystem(llvm::LLVMContext &Ctx);
 
+    void setVisibility(std::function<bool(const std::string &)> Predicate) { Visible = std::move(Predicate); }
     const TypeInfo *resolve(const std::string &TypeName) const;
 
     // Two-pass user-type registration (pass A then pass B, both in source

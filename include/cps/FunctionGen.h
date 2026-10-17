@@ -38,6 +38,7 @@ struct FuncSig {
     std::string Name;
     std::string ReturnTypeName;
     std::vector<ParamSig> Params;
+    size_t OwnerUnit = 0;
 };
 
 class FunctionGen {
@@ -63,6 +64,8 @@ private:
     void reportError(const char *Fmt, ...);
 
     IdentifierMap<FuncSig> Signatures;
+    size_t CurrentUnit = 0;
+    std::function<bool(size_t)> Visible;
     ArrayParamBinder BindArrayParam;
     std::function<void(llvm::Value *, const std::string &, int)> RegisterCopy;
 
@@ -86,6 +89,8 @@ public:
         RegisterCopy = std::move(Registrar);
     }
 
+    void setCurrentUnit(size_t Unit) { CurrentUnit = Unit; }
+    void setVisibility(std::function<bool(size_t)> Predicate) { Visible = std::move(Predicate); }
     const FuncSig *getSignature(const std::string &Name) const;
 
     llvm::Function *emitPrototype(PrototypeAST *Proto);
