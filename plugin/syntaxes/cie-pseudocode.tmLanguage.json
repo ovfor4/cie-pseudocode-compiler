@@ -21,7 +21,7 @@
       "name": "keyword.control.throw.cpp"
     },
     {
-      "match": "(?<!\\w)(?:IF|THEN|ELSE|ENDIF|WHILE|DO|ENDWHILE|REPEAT|UNTIL|FOR|TO|STEP|NEXT|RETURN|CALL|NEW)(?!\\w)",
+      "match": "(?<!\\w)(?:IF|THEN|ELSE|ENDIF|WHILE|DO|ENDWHILE|REPEAT|UNTIL|FOR|TO|STEP|NEXT|RETURN|CALL|NEW|DELETE)(?!\\w)",
       "name": "keyword.control.cie-pseudocode"
     },
     {

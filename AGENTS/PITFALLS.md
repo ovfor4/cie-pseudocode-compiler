@@ -95,6 +95,20 @@ test programs.
   elements, BYREF, this and pointer dereferences receive a value copy from NEW;
   the temporary allocation leaks. Old address-of pointers retain the previous object.
   Private access and ordinary argument checks apply to automatic construction too.
+  DELETE is reserved; a parameterless PROCEDURE DELETE defines an ordinary method.
+  Explicit calls do not recurse into fields or affect Alive tracking. Keyword DELETE
+  validates an active allocation start before destroying the object and its fields,
+  then frees memory and leaves aliases dangling; FREE skips all destruction.
+  DECLARE storage and shallow BYVAL copies are destroyed in reverse declaration order
+  at normal function exit or when unwinding leaves the frame. Arrays reverse their
+  flat element order. Repeated DECLARE destroys its previous incarnation first.
+  Lifetimes are function-scoped, even for declarations inside blocks. NEW rebinding
+  keeps automatic destruction attached to original storage; heap objects are never
+  auto-destroyed. Main objects are destroyed only on normal program end. Alive is
+  cleared before destructor calls, preventing retries if a destructor throws.
+  Private DELETE access is checked for automatic destruction too. A destructor
+  throwing during unwinding propagates and interrupts remaining cleanup rather
+  than terminating as C++ would.
 
 - **Exception extensions.** TRY requires exactly one parameterless CATCH and
   ENDTRY. Bare THROW raises a new anonymous exception even inside CATCH; there is
@@ -122,7 +136,7 @@ SET types (`SET`/`DEFINE` are reserved with dedicated errors),
 random files (OPENFILE...FOR RANDOM/SEEK/GETRECORD/PUTRECORD — TYPE is done, so these
 are unblocked now; the RANDOM keyword is reserved and gives a dedicated parse error),
 DATE, string escape sequences,
-array-typed record fields, whole-array RETURN, destructors/DELETE
+array-typed record fields, whole-array RETURN
 and class inheritance (INHERITS/SUPER). Compiler fixtures now live in `tests/` (see TESTING.md).
 Nightly CI runs the compiler suites, packaged EMBEDDED smoke checks and existing
 plugin tests. The initial standard conflicts and missing diagnostic locations are fixed on

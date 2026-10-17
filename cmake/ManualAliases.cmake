@@ -31,4 +31,5 @@ set(CPSC_MANUAL_ALIASES
     "cpsc-keyword-public:cpsc-keyword-class"
     "cpsc-keyword-private:cpsc-keyword-class"
     "cpsc-keyword-endclass:cpsc-keyword-class"
+    "cpsc-keyword-new:cpsc-keyword-class"
 )

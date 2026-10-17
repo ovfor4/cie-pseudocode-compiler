@@ -41,6 +41,7 @@ The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions 
 - [cpsc-keyword-closefile(7)](keyword/cpsc-keyword-closefile.7.md): close a text file.
 - [cpsc-keyword-type(7)](keyword/cpsc-keyword-type.7.md): define enumerations, pointers, and records.
 - [cpsc-keyword-c_type(7)](keyword/cpsc-keyword-c_type.7.md): import native C types and explicitly cast values.
+- [cpsc-keyword-delete(7)](keyword/cpsc-keyword-delete.7.md): destroy objects and release heap allocations.
 - [cpsc-keyword-class(7)](keyword/cpsc-keyword-class.7.md): define a class with fields and methods.
 - [cpsc-keyword-and(7)](keyword/cpsc-keyword-and.7.md): combine conditions with logical AND.
 - [cpsc-keyword-or(7)](keyword/cpsc-keyword-or.7.md): combine conditions with logical OR.
@@ -70,7 +71,7 @@ Closing and auxiliary keywords are documented with their main constructs: THEN/E
 
 # UNSUPPORTED FEATURES
 
-DATE, SET types and DEFINE, random-file operations (RANDOM/SEEK/GETRECORD/PUTRECORD), INT, RAND, string escapes, whole-array assignment or return, array fields, and class constructors/destructors/inheritance (NEW/INHERITS/SUPER).
+DATE, SET types and DEFINE, random-file operations (RANDOM/SEEK/GETRECORD/PUTRECORD), INT, RAND, string escapes, whole-array assignment or return, array fields, and class inheritance (INHERITS/SUPER).
 
 The individual pages note relevant differences from the Cambridge 2026 pseudocode guide. This manual describes the compiler's current support.
 

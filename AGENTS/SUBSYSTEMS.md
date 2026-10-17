@@ -92,8 +92,22 @@ class parameters; `symbolAddress` loads their current object address for all val
 lvalue, address-of, receiver and BYREF paths. Field aliases, this and BYREF parameters
 bind addresses directly. Assignment-only `NewExprAST` uses checked MemoryHandler
 allocation (at least one byte for method-only classes), zero initialization and
-construction, then rebinds reference slots or copies into other destinations. Ordinary assignment always copies. Heap lifetimes
-remain unmanaged; destructors, DELETE and INHERITS/SUPER are unsupported.
+construction, then rebinds reference slots or copies into other destinations. Ordinary assignment always copies. Heap objects require explicit keyword DELETE; INHERITS/SUPER remain unsupported.
+
+`ConstructorGen.cc` also owns `typeNeedsDestruction` and recursive `emitDestroy`:
+ordinary DELETE method first, then fields in reverse declaration order. Explicit
+DELETE method calls remain ordinary calls without field recursion. Keyword DELETE
+resolves a class lvalue, validates its allocation start through MemoryHandler before
+any destruction, destroys it, then releases it through FREE; aliases remain dangling.
+Stack lifetimes use a per-function `StackObjects` list saved/restored around function
+emission. DECLARE and shallow BYVAL copies share registration (the copy point is
+marked), including arrays and records with class fields. Each record retains the
+original address, an entry-initialized Alive flag and, for arrays, a runtime element
+count in an entry slot. Array buffer addresses also live in entry slots so deferred
+cleanup never references branch-local bound SSA values. Repeated DECLARE destroys
+its previous live incarnation first. Alive becomes true only after construction or
+copy completes and is cleared before destruction. Rebinding a reference slot with
+NEW does not change the original address tracked for automatic destruction.
 
 **Runtime checks** (`RuntimeCheck`): array bounds, file misuse, enum ranges, null
 dereferences and array-parameter bounds contracts are checked at their emit sites.
@@ -109,7 +123,16 @@ an entry-block alloca for its exception pointer. A potentially throwing call wit
 a handler or active catch emits an `invoke` and a landing pad that finishes catches being left and transfers
 to the nearest handler, or resumes unwinding when only cleanup is needed. CATCH
 uses `__cxa_begin_catch` and removes its own TRY target before emitting its body;
-normal exit and RETURN call `__cxa_end_catch`. Bare THROW always creates a new
+normal exit and RETURN call `__cxa_end_catch`. User functions enable cleanup
+support before their first call: loop back edges can make later DECLARE sites alive
+at earlier invokes. Without a local handler, cleanup landing pads end active catches
+and resume unwinding. Returns (before catch cleanup) and cleanup resumes record exit
+points with their handler/catch state; CodeGen fills reverse, Alive-guarded destruction
+only when the function is fully emitted. Normal-exit destructor calls use that saved
+state and may create further cleanup pads. During unwind filling, a reentrancy guard
+emits plain calls; a throwing destructor propagates and interrupts remaining cleanup
+instead of terminating. Main records only its normal return, leaving its final
+uncaught-exception handler free of automatic object destruction. Bare THROW always creates a new
 anonymous integer exception, using `_ZTIi` internally without exposing a value.
 Generated main owns the final catch target, prints the generic uncaught message,
 and returns 1. Native binaries require the C++ runtime; EmbeddedRunner defines
@@ -137,4 +160,4 @@ malloc/realloc buffer per line and strips one trailing `\r`; fopen modes are tex
 nothing is declared or emitted eagerly. Helper bodies are built with the *shared*
 Builder (RuntimeCheck emits through the same one), saving/restoring the insert block.
 
-**Explicit memory** (`MemoryHandler`): lazily emits internal allocation/find/release/resize helpers and a linked list of live allocation start addresses. Explicit MALLOC/REALLOC and keyword NEW allocations enter the list; STRING/ARRAY internals retain their existing ownership. FREE validates non-null addresses, unlinks and frees the tracking node, releases the block and returns the original address. Zero-byte allocation returns null. REALLOC validates non-null addresses before its zero-size release path; null behaves as MALLOC. Positive-size resizing updates the node only after success, leaving the old block and record intact on failure. Node allocation precedes the user allocation; if the latter fails, its node is freed before the diagnostic and anonymous throw. Helpers use RuntimeCheck and ExceptionHandler, including source-line arguments and per-function unwind preparation. Sizes accept INTEGER and C integers and convert to native size_t. Address reuse can make stale aliases indistinguishable from current allocations; dereferences are not checked against this list.
+**Explicit memory** (`MemoryHandler`): lazily emits internal allocation/find/release/resize helpers and a linked list of live allocation start addresses. Explicit MALLOC/REALLOC and keyword NEW allocations enter the list; STRING/ARRAY internals retain their existing ownership. `emitValidate` always calls the find helper, including for null, so keyword DELETE validates before running destructors. FREE validates non-null addresses, unlinks and frees the tracking node, releases the block and returns the original address. Zero-byte allocation returns null. REALLOC validates non-null addresses before its zero-size release path; null behaves as MALLOC. Positive-size resizing updates the node only after success, leaving the old block and record intact on failure. Node allocation precedes the user allocation; if the latter fails, its node is freed before the diagnostic and anonymous throw. Helpers use RuntimeCheck and ExceptionHandler, including source-line arguments and per-function unwind preparation. Sizes accept INTEGER and C integers and convert to native size_t. Address reuse can make stale aliases indistinguishable from current allocations; dereferences are not checked against this list.
