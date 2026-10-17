@@ -1,0 +1,14 @@
+{
+  "errors": [
+    {
+      "reason": "(?i)Duplicate definition Same in",
+      "line": 1,
+      "file": "second.cps"
+    }
+  ],
+  "sources": [
+    "program.cps",
+    "first.cps",
+    "second.cps"
+  ]
+}

@@ -160,7 +160,7 @@ bool CodeGen::isVisible(size_t Owner) const {
 void CodeGen::selectUnit(size_t Unit) {
     CurrentUnit = Unit;
     DiagnosticSource = Units->size() > 1 ? (*Units)[Unit].Path : "";
-    FuncGen->setCurrentUnit(Unit);
+    FuncGen->setCurrentUnit(Unit, (*Units)[Unit].Path);
 }
 
 void CodeGen::importSymbols() {
@@ -187,15 +187,17 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
     });
     FuncGen->setVisibility([this](size_t Owner) { return isVisible(Owner); });
 
-    IdentifierMap<size_t> Definitions;
+    struct Definition { size_t Unit; bool IsFunction; bool IsOverload; };
+    IdentifierMap<Definition> Definitions;
     std::optional<size_t> CodeUnit;
     FunctionDefAST *Entry = nullptr;
     size_t EntryUnit = 0;
-    auto Reserve = [&](const std::string &Name) {
-        auto [It, Added] = Definitions.emplace(Name, CurrentUnit);
-        if (!Added && It->second != CurrentUnit)
+    auto Reserve = [&](const std::string &Name, bool IsFunction = false, bool IsOverload = false) {
+        auto [It, Added] = Definitions.emplace(Name, Definition{CurrentUnit, IsFunction, IsOverload});
+        bool Compatible = IsFunction && IsOverload && It->second.IsFunction && It->second.IsOverload;
+        if (!Added && It->second.Unit != CurrentUnit && !Compatible)
             reportError("Duplicate definition %s in %s and %s", Name.c_str(),
-                        Sources[It->second].Path.c_str(), Sources[CurrentUnit].Path.c_str());
+                        Sources[It->second.Unit].Path.c_str(), Sources[CurrentUnit].Path.c_str());
     };
     for (size_t I = 0; I < Sources.size(); ++I) {
         selectUnit(I);
@@ -203,7 +205,7 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
             SaveAndRestore<int> Location(DiagnosticLine, S->getLine());
             std::string TypeName;
             if (auto *F = dynamic_cast<FunctionDefAST*>(S.get())) {
-                Reserve(F->getProto()->getName());
+                Reserve(F->getProto()->getName(), true, F->getProto()->isOverload());
                 if (sameIdentifier(F->getProto()->getName(), "MAIN")) {
                     if (Entry) reportError("Multiple MAIN definitions in %s and %s",
                                            Sources[EntryUnit].Path.c_str(), Sources[I].Path.c_str());
@@ -326,7 +328,7 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
 
     if (!Builder->GetInsertBlock()->hasTerminator()) {
         Value *Status = ConstantInt::get(*TheContext, APInt(32, 0));
-        if (Entry) {
+        if (Entry && !HadError) {
             Value *Result = Exceptions->emitCall(TheModule->getFunction("__cps_main"), {}, "main_result");
             Status = Builder->CreateTrunc(Result, Type::getInt32Ty(*TheContext));
         }
@@ -356,16 +358,13 @@ void CodeGen::print(raw_ostream &Output) {
 // Collects the arguments for a call to a user FUNCTION/PROCEDURE, dispatching
 // on the *declared* signature: BYREF parameters take the variable's alloca,
 // BYVAL parameters are evaluated and coerced to the declared parameter type.
-bool CodeGen::marshalCallArgs(const std::string &Callee,
+bool CodeGen::marshalCallArgs(const FuncSig &Signature,
                               const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
                               int Line,
                               std::vector<Value*> &Out) {
     SaveAndRestore<int> Location(DiagnosticLine, Line ? Line : DiagnosticLine);
-    const FuncSig *Sig = FuncGen->getSignature(Callee);
-    if (!Sig) {
-        reportError("Call to undefined function %s", Callee.c_str());
-        return false;
-    }
+    const FuncSig *Sig = &Signature;
+    const std::string &Callee = Sig->Name;
     if (ArgExprs.size() != Sig->Params.size()) {
         reportError("Incorrect # arguments passed to %s", Callee.c_str());
         return false;
@@ -423,4 +422,46 @@ bool CodeGen::marshalCallArgs(const std::string &Callee,
         }
     }
     return true;
+}
+
+// Resolve using static source types only; argument evaluation belongs to marshalling.
+const FuncSig *CodeGen::resolveCall(const std::string &Name,
+                                  const std::vector<std::unique_ptr<ExprAST>> &Args) {
+    auto Overloads = FuncGen->getOverloads(Name);
+    if (Overloads.empty()) {
+        reportError("Call to undefined function %s", Name.c_str());
+        return nullptr;
+    }
+    if (Overloads.size() == 1 && !Overloads.front()->IsOverload) return Overloads.front();
+    struct ArgumentType { const TypeInfo *Type; int Rank; };
+    std::vector<ArgumentType> Actual;
+    std::string Key;
+    for (const auto &Arg : Args) {
+        const ArrayMetadata *Array = nullptr;
+        if (auto *Var = dynamic_cast<VariableExprAST *>(Arg.get())) {
+            const SymbolInfo *Symbol = getSymbolInfo(Var->getName());
+            if (Symbol && Symbol->IsArray) Array = Arrays->getMetadata(Var->getName());
+        }
+        const TypeInfo *Type = Array ? Types->resolve(Array->ElementTypeName) : getExprTypeInfo(Arg.get());
+        int Rank = Array ? Array->Rank : 0;
+        Actual.push_back({Type, Rank});
+        if (!Key.empty()) Key += ", ";
+        if (Rank) Key += "ARRAY" + std::to_string(Rank) + " OF ";
+        Key += Type ? Type->Name : "?";
+    }
+    for (const FuncSig *Sig : Overloads) {
+        if (Sig->Params.size() != Actual.size()) continue;
+        bool Match = true;
+        for (size_t I = 0; I < Actual.size(); ++I) {
+            const ParamSig &P = Sig->Params[I];
+            if (Actual[I].Rank != (P.IsArray ? P.Rank : 0) || !Actual[I].Type ||
+                !Actual[I].Type->sameType(Types->resolve(P.TypeName))) {
+                Match = false;
+                break;
+            }
+        }
+        if (Match) return Sig;
+    }
+    reportError("No matching overload for %s(%s)", Name.c_str(), Key.c_str());
+    return nullptr;
 }

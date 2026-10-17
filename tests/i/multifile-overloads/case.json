@@ -1,0 +1,7 @@
+{
+  "sources": [
+    "program.cps",
+    "integer.cps",
+    "real.cps"
+  ]
+}

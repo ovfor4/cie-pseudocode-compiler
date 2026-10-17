@@ -8,7 +8,7 @@ using namespace cps;
 
 using namespace cps::detail;
 
-const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
+const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
     if (!Expr) return nullptr;
 
     if (dynamic_cast<IntegerExprAST*>(Expr)) return resolveType("INTEGER");
@@ -129,20 +129,11 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) const {
         if (const BuiltinInfo *B = findBuiltin(Name)) {
             return resolveType(B->ReturnTypeName);
         }
-        if (const FuncSig *Sig = FuncGen->getSignature(Name)) {
+        if (const FuncSig *Sig = resolveCall(Name, Call->getArgs())) {
             return resolveType(Sig->ReturnTypeName);
         }
 
-        Function *CalleeF = TheModule->getFunction(Name);
-        if (!CalleeF) return resolveType("INTEGER");
-
-        Type *RetTy = CalleeF->getReturnType();
-        if (RetTy->isVoidTy()) return resolveType("VOID");
-        if (RetTy->isDoubleTy()) return resolveType("REAL");
-        if (RetTy->isIntegerTy(1)) return resolveType("BOOLEAN");
-        if (RetTy->isIntegerTy(8)) return resolveType("CHAR");
-        if (RetTy->isPointerTy()) return resolveType("STRING");
-        return resolveType("INTEGER");
+        return nullptr;
     }
 
     return nullptr;

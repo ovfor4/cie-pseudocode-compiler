@@ -100,7 +100,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     if (auto *Ret = dynamic_cast<ReturnStmtAST*>(Stmt)) {
         Function *F = Builder->GetInsertBlock()->getParent();
         const FuncSig *Sig = F->getName() == "main" ? nullptr
-            : FuncGen->getSignature(F->getName().str());
+            : FuncGen->getSignatureByLink(F->getName().str());
         // The generated wrapper has no signature; user MAIN uses __cps_main.
         if (!Sig) {
             reportError("RETURN is only allowed inside a FUNCTION or PROCEDURE");

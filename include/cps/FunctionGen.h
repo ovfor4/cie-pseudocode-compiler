@@ -36,6 +36,10 @@ struct ParamSig {
 // back from LLVM types.
 struct FuncSig {
     std::string Name;
+    std::string LinkName;
+    std::string ParamKey;
+    bool IsOverload = false;
+    const PrototypeAST *Prototype = nullptr;
     std::string ReturnTypeName;
     std::vector<ParamSig> Params;
     size_t OwnerUnit = 0;
@@ -63,7 +67,10 @@ private:
     int &DiagnosticLine;
     void reportError(const char *Fmt, ...);
 
-    IdentifierMap<FuncSig> Signatures;
+    IdentifierMap<std::vector<FuncSig>> Signatures;
+    IdentifierMap<std::pair<std::string, size_t>> LinkIndex;
+    std::map<const PrototypeAST *, std::string> PrototypeLinks;
+    std::map<size_t, std::string> UnitPaths;
     size_t CurrentUnit = 0;
     std::function<bool(size_t)> Visible;
     ArrayParamBinder BindArrayParam;
@@ -89,9 +96,11 @@ public:
         RegisterCopy = std::move(Registrar);
     }
 
-    void setCurrentUnit(size_t Unit) { CurrentUnit = Unit; }
+    void setCurrentUnit(size_t Unit, const std::string &Path) { CurrentUnit = Unit; UnitPaths[Unit] = Path; }
     void setVisibility(std::function<bool(size_t)> Predicate) { Visible = std::move(Predicate); }
-    const FuncSig *getSignature(const std::string &Name) const;
+    std::vector<const FuncSig *> getOverloads(const std::string &Name) const;
+    bool hasFunction(const std::string &Name) const { return !getOverloads(Name).empty(); }
+    const FuncSig *getSignatureByLink(const std::string &Name) const;
 
     llvm::Function *emitPrototype(PrototypeAST *Proto);
 

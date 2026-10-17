@@ -1,0 +1,14 @@
+{
+  "errors": [
+    {
+      "reason": "No matching overload for Area\\(REAL\\)",
+      "line": 2,
+      "file": "program.cps"
+    }
+  ],
+  "sources": [
+    "program.cps",
+    "integer.cps",
+    "real.cps"
+  ]
+}

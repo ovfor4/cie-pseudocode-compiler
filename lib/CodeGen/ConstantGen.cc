@@ -60,7 +60,7 @@ void CodeGen::emitConstantStmt(ConstantStmtAST *Stmt) {
         return;
     }
     if (ConstantScopes.back().ID == 0 &&
-        (FuncGen->getSignature(Name) || isBuiltinName(Name))) {
+        (FuncGen->hasFunction(Name) || isBuiltinName(Name))) {
         reportError("Constant %s conflicts with a function name", Name.c_str());
         return;
     }

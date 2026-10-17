@@ -1,0 +1,36 @@
+{
+  "errors": [
+    {
+      "reason": "every overload must be declared OVERLOAD",
+      "line": 4
+    },
+    {
+      "reason": "Function Ret cannot be redefined",
+      "line": 10
+    },
+    {
+      "reason": "Function Mode cannot be redefined",
+      "line": 15
+    },
+    {
+      "reason": "No matching overload for Exact\\(INTEGER\\)",
+      "line": 20
+    },
+    {
+      "reason": "Function Bounds cannot be redefined",
+      "line": 23
+    },
+    {
+      "reason": "built-in function and cannot be redefined",
+      "line": 25
+    },
+    {
+      "reason": "No matching overload for Exact\\(STRING\\)",
+      "line": 28
+    },
+    {
+      "reason": "No matching overload for Exact\\(\\)",
+      "line": 29
+    }
+  ]
+}

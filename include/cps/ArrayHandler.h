@@ -40,7 +40,6 @@ class ArrayHandler {
     llvm::Value *computeFlatIndex(const std::string &Name, const std::vector<llvm::Value*> &Indices);
     llvm::Value *getArrayBasePointer(const std::string &Name);
     llvm::Value *getElementPointer(const std::string &Name, llvm::Value *Offset);
-    const ArrayMetadata *getMetadata(const std::string &Name) const;
     // Shared bounds math: DimSize_i = (Upper_i - Lower_i) + 1, row-major
     // multipliers back-to-front, TotalElements = product of the sizes.
     void computeDimsAndMultipliers(const std::string &Name,
@@ -68,6 +67,7 @@ public:
                  TypeSystem &TS,
                  RuntimeCheck &RC);
 
+    const ArrayMetadata *getMetadata(const std::string &Name) const;
     void setupExternalFunctions();
 
     void emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG);

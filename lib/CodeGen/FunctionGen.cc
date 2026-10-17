@@ -104,13 +104,28 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
     }
 }
 
-const FuncSig *FunctionGen::getSignature(const std::string &Name) const {
+std::vector<const FuncSig *> FunctionGen::getOverloads(const std::string &Name) const {
+    std::vector<const FuncSig *> Result;
     auto It = Signatures.find(sameIdentifier(Name, "MAIN") ? "__cps_main" : Name);
-    return It == Signatures.end() || (Visible && !Visible(It->second.OwnerUnit))
-               ? nullptr : &It->second;
+    if (It != Signatures.end())
+        for (const FuncSig &Sig : It->second)
+            if (!Visible || Visible(Sig.OwnerUnit)) Result.push_back(&Sig);
+    return Result;
+}
+
+const FuncSig *FunctionGen::getSignatureByLink(const std::string &Name) const {
+    auto It = LinkIndex.find(Name);
+    if (It == LinkIndex.end()) return nullptr;
+    return &Signatures.at(It->second.first)[It->second.second];
 }
 
 Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
+    auto Registered = PrototypeLinks.find(Proto);
+    if (Registered != PrototypeLinks.end()) return Module.getFunction(Registered->second);
+    if (Proto->isOverload() && Proto->getOwnerClass().empty() && sameIdentifier(Proto->getName(), "MAIN")) {
+        reportError("MAIN cannot be declared OVERLOAD");
+        return nullptr;
+    }
     if (Proto->getOwnerClass().empty()) {
         if (isReservedRuntimeName(Proto->getName())) {
             reportError("'%s' is a reserved runtime symbol and cannot be a FUNCTION/PROCEDURE name",
@@ -137,6 +152,8 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     FuncSig Sig;
     Sig.OwnerUnit = CurrentUnit;
     Sig.Name = Proto->getLinkName();
+    Sig.IsOverload = Proto->isOverload();
+    Sig.Prototype = Proto;
     Sig.ReturnTypeName = Proto->getReturnType();
 
     std::vector<Type*> ArgTypes;
@@ -167,29 +184,38 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
             }
             ArgTypes.push_back(T);
         }
+        if (!Sig.ParamKey.empty()) Sig.ParamKey += ",";
+        if (P.IsArray) Sig.ParamKey += "ARRAY" + std::to_string(P.Rank) + " OF ";
+        Sig.ParamKey += Info ? (Info->isC() ? "C:" + Info->CIdentity : Info->Name) : P.TypeName;
         Sig.Params.push_back(std::move(PS));
     }
 
     Type *RetType = getLLVMType(Proto->getReturnType());
     FunctionType *FT = FunctionType::get(RetType, ArgTypes, false);
-    const FuncSig *Existing = getSignature(Proto->getLinkName());
-    Function *F = Module.getFunction(Existing ? Existing->Name : Proto->getLinkName());
-    if (F && F->getFunctionType() != FT) {
-        reportError("Function %s conflicts with an existing declaration of a different type",
-                Proto->getName().c_str());
-        return nullptr;
+    auto &Overloads = Signatures[Sig.Name];
+    for (const FuncSig &Existing : Overloads) {
+        if (!Sig.IsOverload || !Existing.IsOverload) {
+            reportError("Function %s cannot be redefined. Multiple definition of %s; every overload must be declared OVERLOAD",
+                        Proto->getName().c_str(), Proto->getName().c_str());
+            return nullptr;
+        }
+        if (sameIdentifier(Existing.ParamKey, Sig.ParamKey)) {
+            if (Existing.OwnerUnit != CurrentUnit)
+                reportError("Duplicate definition %s in %s and %s", Sig.Name.c_str(),
+                            UnitPaths[Existing.OwnerUnit].c_str(), UnitPaths[CurrentUnit].c_str());
+            else reportError("Function %s cannot be redefined", Proto->getName().c_str());
+            return nullptr;
+        }
     }
-    if (!F) {
-        F = Function::Create(FT,
-            Proto->getOwnerClass().empty() && sameIdentifier(Proto->getName(), "MAIN")
-                ? Function::InternalLinkage : Function::ExternalLinkage,
-            Proto->getLinkName(), &Module);
-    }
+    Sig.LinkName = Sig.Name + (Sig.IsOverload ? "(" + Sig.ParamKey + ")" : "");
+    Function *F = Function::Create(FT,
+        Proto->getOwnerClass().empty() && sameIdentifier(Proto->getName(), "MAIN")
+            ? Function::InternalLinkage : Function::ExternalLinkage,
+        Sig.LinkName, &Module);
     Exceptions.prepareFunction(F);
-
-    // Keep the first registration: on a duplicate definition the first one
-    // wins and the second is rejected by emitFunctionDef.
-    Signatures.emplace(Proto->getLinkName(), std::move(Sig));
+    PrototypeLinks.emplace(Proto, Sig.LinkName);
+    LinkIndex.emplace(Sig.LinkName, std::make_pair(Sig.Name, Overloads.size()));
+    Overloads.push_back(std::move(Sig));
 
     Function::arg_iterator AI = F->arg_begin();
     if (!Proto->getOwnerClass().empty()) (AI++)->setName("this");
@@ -280,8 +306,7 @@ static Value *GenerateCall(llvm::Module &Module,
 }
 
 llvm::Value *FunctionGen::emitCall(const std::string &Callee, const std::vector<llvm::Value*> &Args) {
-    const FuncSig *Sig = getSignature(Callee);
-    return GenerateCall(Module, Exceptions, Sig ? Sig->Name : Callee, Args, HadError, DiagnosticLine);
+    return GenerateCall(Module, Exceptions, Callee, Args, HadError, DiagnosticLine);
 }
 
 void FunctionGen::emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal) {

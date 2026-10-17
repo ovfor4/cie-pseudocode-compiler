@@ -120,7 +120,7 @@ class CodeGen {
     void registerSymbol(const std::string &Name, llvm::Value *Storage, const std::string &TypeName, bool IsArray = false);
     const SymbolInfo *getSymbolInfo(const std::string &Name) const;
     bool isWholeArrayVar(ExprAST *Expr) const;
-    const TypeInfo *getExprTypeInfo(ExprAST *Expr) const;
+    const TypeInfo *getExprTypeInfo(ExprAST *Expr);
     llvm::Value *coerceValueToType(llvm::Value *Val, const TypeInfo *TargetInfo);
     llvm::Value *convertNumericValue(llvm::Value *Val, const TypeInfo *Source,
                                      const TypeInfo *Target);
@@ -150,7 +150,9 @@ class CodeGen {
     llvm::Value *emitAllocationSize(ExprAST *Expr);
     llvm::Value *emitCall(const std::string &Callee,
                           const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line);
-    bool marshalCallArgs(const std::string &Callee,
+    const FuncSig *resolveCall(const std::string &Name,
+                               const std::vector<std::unique_ptr<ExprAST>> &Args);
+    bool marshalCallArgs(const FuncSig &Signature,
                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
                          int Line,
                          std::vector<llvm::Value*> &Out);

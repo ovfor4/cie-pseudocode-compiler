@@ -97,8 +97,9 @@ Value *CodeGen::emitMethodCall(const std::string &Class, Value *Receiver,
         return nullptr;
     }
     std::vector<Value*> Args = {Receiver};
-    if (!marshalCallArgs(Method->getLinkName(), ArgExprs, Line, Args)) return nullptr;
-    return FuncGen->emitCall(Method->getLinkName(), Args);
+    const FuncSig *Sig = resolveCall(Method->getLinkName(), ArgExprs);
+    if (!Sig || !marshalCallArgs(*Sig, ArgExprs, Line, Args)) return nullptr;
+    return FuncGen->emitCall(Sig->LinkName, Args);
 }
 
 // Resolves a designator (or legacy variable/array-access node) to the address

@@ -299,8 +299,9 @@ Value *CodeGen::emitCall(const std::string &Callee,
     }
 
     std::vector<Value*> Args;
-    if (!marshalCallArgs(Name, ArgExprs, Line, Args)) return nullptr;
-    return FuncGen->emitCall(Name, Args);
+    const FuncSig *Sig = resolveCall(Name, ArgExprs);
+    if (!Sig || !marshalCallArgs(*Sig, ArgExprs, Line, Args)) return nullptr;
+    return FuncGen->emitCall(Sig->LinkName, Args);
 }
 
 Value *CodeGen::emitAllocationSize(ExprAST *Expr) {
