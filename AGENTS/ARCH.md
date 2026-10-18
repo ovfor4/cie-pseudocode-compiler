@@ -141,7 +141,9 @@ Driver behavior (`tools/driver/main.cc`):
   Windows x86_64 keeps the GNU C++ runtime and `__gxx_personality_seh0` with a
   small in-process COFF adapter: per-graph `__ImageBase` shared by relocations
   and SEH registration, default backend liveness for `.pdata`, JITLink
-  pointer-jump stubs for the `.xdata` personality references, and
+  pointer-jump stubs for external direct CALL/JMP PCRel32 references in user
+  objects and `.xdata` personality references (shared per target; data references
+  are preserved), and
   `RtlAddFunctionTable`/`RtlDeleteFunctionTable` via JITLink allocation actions
   covering teardown and link-failure cleanup, with table validation in the
   registration callback; registration failure blocks entry.

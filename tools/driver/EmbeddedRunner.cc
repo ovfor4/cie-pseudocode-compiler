@@ -36,10 +36,54 @@ namespace {
 // which does not apply to the current MinGW build. This plugin provides only
 // the linking and registration pieces needed for in-process execution:
 // a per-graph __ImageBase shared by relocations and SEH registration,
-// JITLink stubs for the GNU personality symbols referenced from .xdata,
+// JITLink stubs for external direct branches and GNU personalities in .xdata,
 // and RtlAddFunctionTable/RtlDeleteFunctionTable via JITLink allocation
 // actions. Exception propagation still uses the existing C++ ABI, LLVM
 // exception instructions and platform unwinder.
+
+static llvm::Error addCOFFJumpStubs(llvm::jitlink::LinkGraph &G) {
+    using namespace llvm;
+    using namespace llvm::jitlink;
+    using namespace llvm::jitlink::x86_64;
+    GOTTableManager GOT(G);
+    PLTTableManager PLT(G, GOT);
+    // Creating a stub may add sections/blocks. Visit only the original blocks.
+    std::vector<Block *> Blocks(G.blocks().begin(), G.blocks().end());
+    for (auto *B : Blocks) {
+        bool Executable = (B->getSection().getMemProt() & orc::MemProt::Exec) !=
+                          orc::MemProt::None;
+        for (auto &E : B->edges()) {
+            Symbol &Target = E.getTarget();
+            if (!Target.isExternal())
+                continue;
+            bool Personality = false;
+            if (B->getSection().getName() == ".xdata" && Target.hasName()) {
+                StringRef Name = *Target.getName();
+                Personality = Name == "__gxx_personality_seh0" ||
+                              Name == "__gxx_personality_sj0" ||
+                              Name == "__gxx_personality_v0";
+            }
+            // COFF's private PCRel32 kind is lowered only in PreFixup.
+            // Use its name rather than confusing it with x86_64::PCRel32.
+            // Only E8/E9 direct branches with a plain symbol target need a
+            // jump stub; RIP-relative data and indirect calls must stay intact.
+            bool DirectBranch = false;
+            if (Executable && !B->isZeroFill() && E.getAddend() == 0 &&
+                StringRef(G.getEdgeKindName(E.getKind())) == "PCRel32") {
+                auto Content = B->getContent();
+                size_t Offset = E.getOffset();
+                if (Offset > 0 && Offset <= Content.size() &&
+                    Content.size() - Offset >= 4) {
+                    unsigned char Opcode = Content[Offset - 1];
+                    DirectBranch = Opcode == 0xe8 || Opcode == 0xe9;
+                }
+            }
+            if (Personality || DirectBranch)
+                E.setTarget(PLT.getEntryForTarget(G, Target));
+        }
+    }
+    return Error::success();
+}
 
 static llvm::Error registerSEHTable(llvm::orc::ExecutorAddrRange TableRange,
                                      llvm::orc::ExecutorAddr ImageBase) {
@@ -127,30 +171,10 @@ public:
         // must live near JIT code. Retarget .xdata personality references
         // to this graph's anonymous pointer jump stubs; the stub pointer
         // itself uses a 64-bit relocation to reach the far host runtime.
-        // The same target reuses the same stub. Only personality symbols
-        // are rewritten here.
-        Config.PostPrunePasses.push_back([](LinkGraph &G) -> Error {
-            auto *XDataSec = G.findSectionByName(".xdata");
-            if (!XDataSec)
-                return Error::success();
-            using namespace llvm::jitlink::x86_64;
-            GOTTableManager GOT(G);
-            PLTTableManager PLT(G, GOT);
-            for (auto *B : XDataSec->blocks()) {
-                for (auto &E : B->edges()) {
-                    Symbol &Target = E.getTarget();
-                    if (!Target.isExternal() || !Target.hasName())
-                        continue;
-                    StringRef Name = *Target.getName();
-                    if (Name != "__gxx_personality_seh0" &&
-                        Name != "__gxx_personality_sj0" &&
-                        Name != "__gxx_personality_v0")
-                        continue;
-                    E.setTarget(PLT.getEntryForTarget(G, Target));
-                }
-            }
-            return Error::success();
-        });
+        // External direct calls/jumps from user objects also need nearby
+        // stubs: their PCRel32 displacement cannot reach a distant CRT DLL.
+        // The same target reuses the same stub, including personality uses.
+        Config.PostPrunePasses.push_back(addCOFFJumpStubs);
 
         // COFF unwind tables use 32-bit image-relative addresses, so the
         // image base must sit at or below the lowest JIT address. Alias the
