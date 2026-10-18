@@ -180,6 +180,26 @@ bool collectLibcSymbols(llvm::StringSet<> &Out) {
     return true;
 }
 
+bool unpackCxxRuntime(std::vector<std::unique_ptr<llvm::MemoryBuffer>> &Archives) {
+    llvm::json::Object *Metadata = nullptr;
+    std::optional<llvm::json::Value> Manifest;
+    llvm::SmallVector<uint8_t, 0> Data;
+    if (!unpackRuntime(Metadata, Manifest, Data)) return false;
+    for (const auto &Entry : *Metadata->getArray("files")) {
+        const auto &File = *Entry.getAsObject();
+        llvm::StringRef Path = *File.getString("path");
+        llvm::StringRef Name = llvm::sys::path::filename(Path);
+        // The unwind and C libraries continue to come from the host process.
+        if (*File.getBoolean("script") ||
+            !(Name == "libstdc++.a" || Name == "libc++.a" || Name == "libc++abi.a" ||
+              Name == "libgcc.a" || Name == "libmingwex.a" || Name == "libm.a")) continue;
+        llvm::StringRef Contents(reinterpret_cast<const char *>(Data.data()) +
+                                     *File.getInteger("offset"), *File.getInteger("size"));
+        Archives.push_back(llvm::MemoryBuffer::getMemBufferCopy(Contents, Path));
+    }
+    return true;
+}
+
 bool compileNative(const cps::CodeGen &CG, llvm::StringRef OutputPath, const char *Argv0,
                    const std::vector<std::string> &Objects) {
     TemporaryDirectory Runtime;

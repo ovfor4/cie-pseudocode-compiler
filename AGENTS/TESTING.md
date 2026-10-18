@@ -12,7 +12,7 @@ the reason, line and exact absolute input path must match the same diagnostic.
 The harness contract tests reject wrong filenames, filename prefixes and split
 reason/location messages.
 
-Suite i and ii cases may list `objects` as `{source, output}` pairs, for example `lib.c` to `lib.o`. The runner copies the case directory beside the results, builds each object there with the host C (`.c`) or C++ (`.cc`) compiler passed by `--cc` and `--cxx`, and compiles `sources` from the copy so `INCLUDE_OBJ "lib.o"` resolves. Keep C++ objects free of the C++ runtime library: `-r` loads only the C library.
+Suite i and ii cases may list `objects` as `{source, output}` pairs, for example `lib.c` to `lib.o`. The runner copies the case directory beside the results, builds each object there with the host C (`.c`) or C++ (`.cc`) compiler passed by `--cc` and `--cxx`, and compiles `sources` from the copy so `INCLUDE_OBJ "lib.o"` resolves. C++ objects may use the embedded C++ runtime in EMBEDDED mode; the JIT lazily loads the captured standard-library and compiler-support archives while retaining the host exception ABI. PATH mode depends on the external lli runtime configuration.
 
 Optional manifest fields are `exit_code` for expected program status (default 0) and `timeout` for execution/reference seconds (default 30; file-intensive cases use 180). Compilation has a 120-second timeout. Do not make a known compiler defect pass by changing the expectation, adding an exemption or comparing only a permissive substring of program output.
 

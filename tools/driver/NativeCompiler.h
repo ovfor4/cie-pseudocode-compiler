@@ -2,6 +2,8 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -19,3 +21,6 @@ bool collectObjectSymbols(llvm::StringRef Path, llvm::StringSet<> &Out, std::str
 
 // Defined global symbols of the embedded C library (INCLUDE_OBJ "__libc").
 bool collectLibcSymbols(llvm::StringSet<> &Out);
+
+// Owning copies of the embedded C++ and compiler-support static archives.
+bool unpackCxxRuntime(std::vector<std::unique_ptr<llvm::MemoryBuffer>> &Archives);

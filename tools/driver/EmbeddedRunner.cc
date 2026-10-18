@@ -1,4 +1,6 @@
 #include "EmbeddedRunner.h"
+#include "NativeCompiler.h"
+#include "llvm/Object/ObjectFile.h"
 #include "cps/CodeGen.h"
 #include "llvm/ExecutionEngine/Orc/AbsoluteSymbols.h"
 #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
@@ -321,6 +323,22 @@ static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
     using llvm::orc::ExecutorSymbolDef;
     Symbols[Intern("__cxa_allocate_exception")] =
         ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_allocate_exception);
+    Symbols[Intern("__cxa_current_exception_type")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_current_exception_type);
+    Symbols[Intern("__cxa_demangle")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_demangle);
+    Symbols[Intern("__cxa_free_exception")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_free_exception);
+    Symbols[Intern("__cxa_rethrow")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_rethrow);
+    Symbols[Intern("__cxa_get_exception_ptr")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_get_exception_ptr);
+    Symbols[Intern("__cxa_guard_acquire")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_guard_acquire);
+    Symbols[Intern("__cxa_guard_release")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_guard_release);
+    Symbols[Intern("__cxa_guard_abort")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_guard_abort);
     Symbols[Intern("__cxa_throw")] =
         ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_throw);
     Symbols[Intern("__cxa_begin_catch")] =
@@ -370,6 +388,37 @@ static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
         llvm::orc::absoluteSymbols(std::move(Symbols)));
 }
 
+static llvm::Error loadCxxRuntime(llvm::orc::LLJIT &J) {
+    std::vector<std::unique_ptr<llvm::MemoryBuffer>> Archives;
+    if (!unpackCxxRuntime(Archives))
+        return llvm::make_error<llvm::StringError>("cannot unpack the C++ runtime", llvm::inconvertibleErrorCode());
+    for (auto &Archive : Archives) {
+        auto Generator = llvm::orc::StaticLibraryDefinitionGenerator::Create(
+            J.getObjLinkingLayer(), std::move(Archive),
+            [](llvm::object::Archive &, llvm::MemoryBufferRef Buffer, size_t) -> llvm::Expected<bool> {
+                auto Object = llvm::object::ObjectFile::createObjectFile(Buffer);
+                if (!Object) { llvm::consumeError(Object.takeError()); return false; }
+                // Keep one exception ABI and unwinder. ABI archive members must
+                // not replace the host addresses registered above.
+                for (const auto &Symbol : (*Object)->symbols()) {
+                    auto Flags = Symbol.getFlags();
+                    if (!Flags) return Flags.takeError();
+                    if (*Flags & llvm::object::SymbolRef::SF_Undefined) continue;
+                    auto Name = Symbol.getName();
+                    if (!Name) return Name.takeError();
+                    llvm::StringRef N = *Name;
+                    if ((*Object)->isMachO() && N.starts_with("_")) N = N.drop_front();
+                    if (N.starts_with("__cxa_") || N.starts_with("__gxx_personality_") ||
+                        N.starts_with("_Unwind_") || N == "_ZTIi") return false;
+                }
+                return true;
+            });
+        if (!Generator) return Generator.takeError();
+        J.getMainJITDylib().addGenerator(std::move(*Generator));
+    }
+    return llvm::Error::success();
+}
+
 int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects) {
     if (llvm::InitializeNativeTarget() || llvm::InitializeNativeTargetAsmPrinter()) {
         llvm::errs() << "error: cannot initialize the embedded LLVM target\n";
@@ -409,6 +458,11 @@ int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects)
 
     if (auto Err = defineRuntimeSymbols(*J)) {
         llvm::errs() << "error: cannot define embedded runtime symbols: "
+                     << llvm::toString(std::move(Err)) << "\n";
+        return 1;
+    }
+    if (auto Err = loadCxxRuntime(*J)) {
+        llvm::errs() << "error: cannot load embedded C++ runtime: "
                      << llvm::toString(std::move(Err)) << "\n";
         return 1;
     }

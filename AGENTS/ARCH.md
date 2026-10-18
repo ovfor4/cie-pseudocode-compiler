@@ -355,3 +355,5 @@ See [MAN.md](MAN.md) before editing the command or syntax manuals. It defines
 source layout, naming, prose formatting and the small checks needed for changes.
 
 **Library units.** Line-leading `#LIB` marks SourceUnit::IsLibrary. RuntimeCheck uses the externally visible i32 `__cps_user_line`; FunctionGen’s shared call hook updates it only on non-library to library calls. Runtime helper line arguments use RuntimeCheck::lineValue too. Compiler diagnostics retain the owning file location.
+
+The embedded JIT lazily loads the captured C++ standard-library and compiler-support archives using StaticLibraryDefinitionGenerator. Members defining exception ABI or unwind symbols are filtered so all exception frames use the host runtime; additional host ABI functions are exposed explicitly. Archive buffers own their extracted bytes for the JIT lifetime.
