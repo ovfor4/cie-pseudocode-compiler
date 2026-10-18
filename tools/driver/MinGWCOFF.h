@@ -6,6 +6,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include <cstddef>
 #include <cstring>
 
 namespace {
@@ -20,7 +21,7 @@ inline bool isCOFFUnwindSection(llvm::StringRef Name, llvm::StringRef Base) {
 // symbol used by relocations. Express their implicit association with .text$foo
 // as ordinary associative COMDATs in a private copy of the object instead.
 inline llvm::Expected<std::unique_ptr<llvm::MemoryBuffer>>
-normalizeMinGWUnwindSections(std::unique_ptr<llvm::MemoryBuffer> Buffer) {
+normalizeMinGWObject(std::unique_ptr<llvm::MemoryBuffer> Buffer) {
     using namespace llvm;
     auto Object = object::ObjectFile::createObjectFile(Buffer->getMemBufferRef());
     if (!Object)
@@ -48,8 +49,28 @@ normalizeMinGWUnwindSections(std::unique_ptr<llvm::MemoryBuffer> Buffer) {
 
     struct Association { size_t Offset; int32_t Parent; };
     SmallVector<Association, 16> Associations;
+    SmallVector<size_t, 2> PureVirtualReferences;
     for (const auto &Symbol : COFF->symbols()) {
         auto Sym = COFF->getCOFFSymbol(Symbol);
+        if (auto *Weak = Sym.getWeakExternal()) {
+            auto Name = Symbol.getName();
+            if (!Name)
+                return Name.takeError();
+            if (*Name == "__cxa_pure_virtual" &&
+                Weak->Characteristics == COFF::IMAGE_WEAK_EXTERN_SEARCH_NOLIBRARY) {
+                auto Fallback = COFF->getSymbol(Weak->TagIndex);
+                if (!Fallback)
+                    return Fallback.takeError();
+                if (Fallback->isAbsolute() && Fallback->getValue() == 0) {
+                    size_t Offset = reinterpret_cast<const char *>(Sym.getRawPtr()) -
+                                    Buffer->getBufferStart();
+                    Offset += Sym.isBigObj()
+                                  ? offsetof(object::coff_symbol32, StorageClass)
+                                  : offsetof(object::coff_symbol16, StorageClass);
+                    PureVirtualReferences.push_back(Offset);
+                }
+            }
+        }
         auto *Def = Sym.getSectionDefinition();
         if (!Def || Def->Selection != COFF::IMAGE_COMDAT_SELECT_ANY ||
             Sym.getSectionNumber() <= 0 ||
@@ -77,7 +98,7 @@ normalizeMinGWUnwindSections(std::unique_ptr<llvm::MemoryBuffer> Buffer) {
                                     Buffer->getBufferStart()),
                                 Parent->second});
     }
-    if (Associations.empty())
+    if (Associations.empty() && PureVirtualReferences.empty())
         return std::move(Buffer);
 
     auto Copy = WritableMemoryBuffer::getNewUninitMemBuffer(
@@ -91,6 +112,12 @@ normalizeMinGWUnwindSections(std::unique_ptr<llvm::MemoryBuffer> Buffer) {
         Def->NumberLowPart = A.Parent & 0xffff;
         Def->NumberHighPart = static_cast<uint32_t>(A.Parent) >> 16;
     }
+    // JITLink cannot alias a weak external to an absolute-zero fallback.
+    // The runner always supplies the host's __cxa_pure_virtual, so this known
+    // optional ABI reference can be an ordinary external. Keep its auxiliary
+    // entry count intact so the remaining symbol indices do not move.
+    for (size_t Offset : PureVirtualReferences)
+        Copy->getBufferStart()[Offset] = COFF::IMAGE_SYM_CLASS_EXTERNAL;
     return std::unique_ptr<MemoryBuffer>(std::move(Copy));
 }
 

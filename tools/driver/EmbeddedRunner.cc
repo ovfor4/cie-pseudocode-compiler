@@ -31,6 +31,9 @@
 // Parse all LLVM COFF declarations and helpers before introducing those macros.
 #include <windows.h>
 #endif
+#ifdef __MINGW32__
+#include <io.h>
+#endif
 
 namespace {
 
@@ -284,7 +287,7 @@ public:
 
     void emit(std::unique_ptr<llvm::orc::MaterializationResponsibility> R,
               std::unique_ptr<llvm::MemoryBuffer> O) override {
-        auto Normalized = normalizeMinGWUnwindSections(std::move(O));
+        auto Normalized = normalizeMinGWObject(std::move(O));
         if (!Normalized) {
             getExecutionSession().reportError(Normalized.takeError());
             R->failMaterialization();
@@ -345,6 +348,12 @@ extern "C" void __cps_jit_noop__main() {}
 #if defined(__MINGW32__) && defined(__x86_64__)
 extern "C" void ___chkstk_ms(void);
 #endif
+#ifdef __MINGW32__
+// Use the initialized guard and failure handler from the statically linked
+// host runtime rather than loading a second guard and its CRT initializer.
+extern "C" uintptr_t __stack_chk_guard;
+extern "C" void __stack_chk_fail(void);
+#endif
 
 static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
     llvm::orc::SymbolMap Symbols;
@@ -370,6 +379,8 @@ static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
         ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_guard_abort);
     Symbols[Intern("__cxa_throw")] =
         ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_throw);
+    Symbols[Intern("__cxa_pure_virtual")] =
+        ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_pure_virtual);
     Symbols[Intern("__cxa_begin_catch")] =
         ExecutorSymbolDef::fromPtr(&__cxxabiv1::__cxa_begin_catch);
     Symbols[Intern("__cxa_end_catch")] =
@@ -396,6 +407,12 @@ static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
         ExecutorSymbolDef::fromPtr(&__ms_snprintf);
     Symbols[Intern("strtoll")] =
         ExecutorSymbolDef::fromPtr(&std::strtoll);
+    // msvcrt.dll exports _write; MinGW archive members call its POSIX alias.
+    Symbols[Intern("write")] = ExecutorSymbolDef::fromPtr(&_write);
+    Symbols[Intern("__stack_chk_guard")] =
+        ExecutorSymbolDef::fromPtr(&__stack_chk_guard);
+    Symbols[Intern("__stack_chk_fail")] =
+        ExecutorSymbolDef::fromPtr(&__stack_chk_fail);
 #endif
 #ifdef _WIN32
     // Generated diagnostics write to stderr through __acrt_iob_func(2). The

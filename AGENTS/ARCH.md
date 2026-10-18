@@ -142,7 +142,11 @@ Driver behavior (`tools/driver/main.cc`):
   small in-process COFF adapter: `MinGWCOFF.h` normalizes symbol-less MinGW
   `.pdata$NAME`/`.xdata$NAME` COMDATs to associative COMDATs of `.text$NAME`
   in private object-buffer copies before graph construction, including lazy
-  runtime archive members. Per-graph `__ImageBase` is shared by relocations
+  runtime archive members. It also makes MinGW's weak `__cxa_pure_virtual`
+  reference with an absolute-zero fallback an ordinary external, resolved to
+  the host ABI function. The runner binds the host's initialized stack guard,
+  stack-check failure handler and `write` alias (`_write`) on MinGW.
+  Per-graph `__ImageBase` is shared by relocations
   and SEH registration, with default backend liveness for `.pdata` and
   associative code edges retaining the suffixed unwind sections. JITLink uses
   pointer-jump stubs for external direct CALL/JMP PCRel32 references in user
