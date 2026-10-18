@@ -20,7 +20,6 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <windows.h>
 #include <limits>
 #include "llvm/ExecutionEngine/JITLink/JITLink.h"
 #include "llvm/ExecutionEngine/JITLink/x86_64.h"
@@ -28,6 +27,9 @@
 #include "llvm/ExecutionEngine/Orc/Shared/WrapperFunctionUtils.h"
 #include "llvm/Support/Endian.h"
 #include "MinGWCOFF.h"
+// Windows IMAGE_* macros conflict with LLVM COFF enums and inline helpers.
+// Parse all LLVM COFF declarations and helpers before introducing those macros.
+#include <windows.h>
 #endif
 
 namespace {
