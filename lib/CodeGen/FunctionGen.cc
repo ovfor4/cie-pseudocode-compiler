@@ -13,7 +13,7 @@ using namespace cps;
 // FUNCTION/PROCEDURE with one of these names would hijack the runtime.
 static bool isReservedRuntimeName(const std::string &Name) {
     static const char *Reserved[] = {
-        "__cps_main", "printf", "scanf", "malloc", "free", "strlen", "memcpy",
+        "__cps_main", "__cps_user_line", "printf", "scanf", "malloc", "free", "strlen", "memcpy",
         "strcpy", "strcat", "toupper", "tolower", "sprintf", "snprintf", "strtol", "strtoll",
         "strtod", "memset", "exit", "fprintf",
         "fopen", "fclose", "fgetc", "ungetc", "fputs", "fputc",

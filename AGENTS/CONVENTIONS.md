@@ -85,7 +85,7 @@ before ArithmeticHandler. Ordering is case-sensitive byte lexicographic order;
 mixed STRING/non-STRING comparisons are errors. Whole-array comparisons remain unsupported; records/classes require an explicit
 operator overload for comparisons.
 
-**Strings are malloc'd and never freed — by design.** Every string-producing operation
+**Built-in strings are malloc'd and never freed — by design.** Every string-producing operation
 (`&`, MID/LEFT/RIGHT/LCASE/UCASE, NUM_TO_STR, CHR, READFILE, CHAR/number→STRING
 coercion) mallocs a fresh buffer; string literals and BOOLEAN→STRING coercion instead
 return pointers to shared module globals, so a STRING value may alias a global. `MemoryHandler` declares `free` for explicit user memory only; it must never free internal STRING buffers. Don't "fix" leaks piecemeal; it's a global design decision.

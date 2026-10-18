@@ -30,3 +30,17 @@ foreach(suite i ii iii)
             LABELS "${suite}" TIMEOUT 900)
     endforeach()
 endforeach()
+
+# Keep the library beside its built objects without assuming a build directory name.
+set(cpsc_library_case "${CMAKE_BINARY_DIR}/test-cases/i/exp-string")
+foreach(file program.cps case.json expected.txt expected-stderr.txt)
+    configure_file("library/exp-string/${file}" "${cpsc_library_case}/${file}" COPYONLY)
+endforeach()
+add_test(NAME "i/exp-string" COMMAND "${PERL_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/run.pl"
+    --case "${cpsc_library_case}/case.json" --cpsc "$<TARGET_FILE:cpsc>"
+    --run-mode "${CPSC_RUN_MODE}" --perl "${PERL_EXECUTABLE}"
+    --cc "${CMAKE_C_COMPILER}" --cxx "${CMAKE_CXX_COMPILER}"
+    --seed "${CPSC_TEST_SEED}" --count "${CPSC_TEST_COUNT}"
+    --results "${CMAKE_BINARY_DIR}/test-results")
+set_tests_properties("i/exp-string" PROPERTIES LABELS "i" TIMEOUT 900)

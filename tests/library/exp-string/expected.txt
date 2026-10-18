@@ -1,0 +1,10 @@
+helloworld
+0
+3
+20500
+20500
+421.250000
+TRUE
+conversion caught
+length caught
+heap
