@@ -142,6 +142,20 @@ void CodeGen::emitAssignment(const LValueInfo &Target, ExprAST *Expr, const Symb
         }
         return;
     }
+    if (Info && Info->IsClass) {
+        auto Resolution = resolveOperator(tok_assign, Info, getExprTypeInfo(Expr));
+        if (Resolution.Ambiguous) {
+            reportError("Ambiguous assignment operator");
+            return;
+        }
+        if (const FuncSig *Sig = Resolution.Signature) {
+            if (!checkOperatorAccess(*Sig)) return;
+            std::vector<Value *> Args = {Target.Addr};
+            if (marshalCallArgs(*Sig, std::vector<ExprAST *>{Expr}, DiagnosticLine, Args))
+                FuncGen->emitCall(*Sig, Args);
+            return;
+        }
+    }
     Value *Val = emitCoercedExpr(Expr, Info);
     if (Val) Builder->CreateStore(Val, Target.Addr);
 }

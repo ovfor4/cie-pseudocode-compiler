@@ -57,3 +57,5 @@ OUTPUT Sum.Value
 # SEE ALSO
 
 [cpsc-keyword-overload(7)](cpsc-keyword-overload.7.md), [cpsc-keyword-function(7)](cpsc-keyword-function.7.md), [cpsc-keyword-class(7)](cpsc-keyword-class.7.md), [cpsc-keyword-include(7)](cpsc-keyword-include.7.md).
+
+A class may define `OVERLOAD PROCEDURE OPERATOR<-(BYREF Other : ClassName)` or an overload taking another exact static type. Assignment to a class lvalue selects this member before falling back to same-class bitwise assignment. The procedure takes exactly one explicit parameter; BYREF may bind a materialized temporary. Keyword NEW assignment retains its allocation behavior. Self-assignment handling belongs to the operator body.

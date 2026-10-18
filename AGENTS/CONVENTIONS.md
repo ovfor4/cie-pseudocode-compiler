@@ -211,3 +211,5 @@ ExceptionHandler, truncates its result and retains the final uncaught handler.
 Identifiers may begin with an underscore. The case-insensitive `__cps_` prefix is reserved in every user identifier, including EXTERN declarations.
 
 **Library units.** Line-leading `#LIB` marks SourceUnit::IsLibrary. RuntimeCheck uses the externally visible i32 `__cps_user_line`; FunctionGen’s shared call hook updates it only on non-library to library calls. Runtime helper line arguments use RuntimeCheck::lineValue too. Compiler diagnostics retain the owning file location.
+
+Assignment operators are member-only `OVERLOAD PROCEDURE OPERATOR<-` with one explicit parameter. emitAssignment resolves the exact RHS static type before fallback storage copying. Internal assignment/constructor BYREF bindings may use designators or materialized temporaries; ordinary BYREF calls still require bare variables.

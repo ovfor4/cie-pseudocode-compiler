@@ -214,12 +214,23 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
 std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerClass, bool IsPublic, bool IsOverload) {
     int Line = Lex.getLine();
     getNextToken();
-    if (CurTok != tok_identifier && CurTok != tok_new && CurTok != tok_delete) {
+    if (CurTok != tok_identifier && CurTok != tok_new && CurTok != tok_delete && CurTok != tok_operator) {
         cps::sourceDiagnostic(Lex.getLine(), "error: Expected procedure name\n");
         return nullptr;
     }
 
-    std::string Name = CurTok == tok_new ? "NEW" : CurTok == tok_delete ? "DELETE" : Lex.IdentifierStr;
+    int Operator = 0;
+    bool IsOperator = CurTok == tok_operator;
+    std::string OperatorName;
+    if (IsOperator) {
+        OperatorName = ParseOperatorName(Operator);
+        if (OperatorName.empty()) return nullptr;
+        if (Operator != tok_assign || OwnerClass.empty() || !IsOverload) {
+            sourceDiagnostic(Line, "error: Assignment operator must be an OVERLOAD member PROCEDURE at line %d\n", Line);
+            return nullptr;
+        }
+    }
+    std::string Name = IsOperator ? OperatorName : CurTok == tok_new ? "NEW" : CurTok == tok_delete ? "DELETE" : Lex.IdentifierStr;
     if (OwnerClass.empty() && sameIdentifier(Name, "DELETE")) {
         cps::sourceDiagnostic(Lex.getLine(), "error: destructor DELETE is only allowed in a CLASS at line %d\n", Line);
         return nullptr;
@@ -228,7 +239,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerC
         cps::sourceDiagnostic(Lex.getLine(), "error: constructor NEW is only allowed in a CLASS at line %d\n", Line);
         return nullptr;
     }
-    getNextToken();
+    if (!IsOperator) getNextToken();
 
     auto Args = ParsePrototypeArgs(/*AllowByRef=*/true);
     if (!Args) return nullptr;
@@ -237,6 +248,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerC
         return nullptr;
     }
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID", false, OwnerClass, IsPublic, IsOverload);
+    Proto->setOperator(Operator);
 
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endprocedure});
 

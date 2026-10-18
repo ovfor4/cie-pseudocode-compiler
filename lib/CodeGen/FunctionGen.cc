@@ -132,6 +132,12 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
             return nullptr;
         }
     }
+    if (Proto->getOperator() == tok_assign &&
+        (Proto->getOwnerClass().empty() || !Proto->isOverload() ||
+         !sameIdentifier(Proto->getReturnType(), "VOID"))) {
+        reportError("Assignment operator must be an OVERLOAD member PROCEDURE");
+        return nullptr;
+    }
     if (int Op = Proto->getOperator()) {
         size_t Count = Proto->getParams().size() + !Proto->getOwnerClass().empty();
         bool ValidCount = Op == '-' ? Count == 1 || Count == 2

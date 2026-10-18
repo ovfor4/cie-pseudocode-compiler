@@ -8,6 +8,7 @@ inline std::string operatorSpelling(int Op) {
     switch (Op) {
     case '+': case '-': case '*': case '/': case '&': case '<': case '>':
         return std::string(1, static_cast<char>(Op));
+    case tok_assign: return "<-";
     case tok_div: return "DIV";
     case tok_mod: return "MOD";
     case tok_eq: return "=";
