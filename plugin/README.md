@@ -10,10 +10,10 @@ Download the VSIX from [Nightly Build](https://github.com/ovfor4/cie-pseudocode-
 
 If you installed the old extension (`ovfor4.cie-pseudocode`), uninstall it before installing `ovfor4.plugin`. Update any explicit `editor.defaultFormatter` setting to `ovfor4.plugin`.
 
-In the Extensions panel, choose **... > Install from VSIX...** and select `plugin-0.1.0.vsix`, or run:
+In the Extensions panel, choose **... > Install from VSIX...** and select the downloaded `cpsc-plugin-<date>-<time>-<commit>.vsix` (for example, `cpsc-plugin-20261018-054123-1b0b287.vsix`), or run:
 
 ```sh
-code --install-extension plugin-0.1.0.vsix
+code --install-extension cpsc-plugin-20261018-054123-1b0b287.vsix
 ```
 
 Open a `.cps` file. The language mode should show **CIE Pseudocode**.

@@ -15,7 +15,15 @@ npm run package
 ```
 
 `npm run package` runs syntax checks and the existing Node tests, then uses vsce
-to generate `plugin-0.1.0.vsix`. Runtime dependencies are not bundled.
+through `scripts/package.js` to generate `cpsc-plugin-YYYYMMDD-HHMMSS-commit.vsix`.
+Both filename components come from HEAD: its UTC commit timestamp and Git short ID.
+The internal version is `YYYYMMDD.HHMMSS.0+commit`; the numeric time component
+has no leading zeros (midnight is `0`). For example, the file
+`cpsc-plugin-20261018-054123-1b0b287.vsix` contains version
+`20261018.54123.0+1b0b287` in both package.json and the VSIX manifest.
+The source manifest and lockfile retain their development version; vsce overrides
+only the packaged version, without modifying source files or creating commits/tags.
+Missing Git or unreadable HEAD fails packaging. Runtime dependencies are not bundled.
 `@vscode/vsce`, `vscode-textmate` and `vscode-oniguruma` are development tools only.
 
 Do simple verification before each feature commit and follow the global commit
@@ -49,7 +57,7 @@ Existing local editor smoke scripts, if present, live under the ignored
 
 ## Packaging and installation
 
-`.vscodeignore` excludes tests, agent instructions, dependencies and build
+`.vscodeignore` excludes tests, packaging scripts, agent instructions, dependencies and build
 artifacts. Git ignores dependencies, VSIX files and editor test downloads.
 Check the generated package contains the runtime files, grammar, language
 configuration, concise English README and notices, without `AGENTS/` or tests.
@@ -57,7 +65,7 @@ configuration, concise English README and notices, without `AGENTS/` or tests.
 For a local installation, use the Extensions panel's **Install from VSIX...** or:
 
 ```sh
-code --install-extension plugin-0.1.0.vsix --force
+code --install-extension cpsc-plugin-20261018-054123-1b0b287.vsix --force
 ```
 
 In a remote terminal, `code` installs into the connected remote editor. For an

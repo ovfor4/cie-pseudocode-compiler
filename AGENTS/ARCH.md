@@ -297,8 +297,9 @@ that exactly one nonempty package exists for each build before any release API
 calls. It then checks main's current SHA to avoid modifying nightly for a
 superseded push. Release upload failures do not roll back deleted assets.
 The workflow uses `GITHUB_TOKEN` with `contents: write`.
-Compiler package names retain the existing commit-based version; the VSIX uses
-`plugin/package.json`'s version. Before committing workflow changes, run
+Compiler and VSIX package names use HEAD's UTC commit timestamp and short ID.
+The VSIX internal version is `YYYYMMDD.HHMMSS.0+commit`, with leading zeros
+removed from the numeric time component. Before committing workflow changes, run
 actionlint, simulate release API calls, and smoke-test the packages locally;
 do not modify the real release for local verification.
 

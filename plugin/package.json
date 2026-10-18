@@ -20,9 +20,9 @@
     "Formatters"
   ],
   "scripts": {
-    "check": "node --check src/extension.js && node --check src/indentation.js && node --check src/lexical.js && node --check src/brackets.js && node --check src/runner.js",
+    "check": "node --check src/extension.js && node --check src/indentation.js && node --check src/lexical.js && node --check src/brackets.js && node --check src/runner.js && node --check scripts/package.js",
     "test": "node --test test/*.test.js",
-    "package": "npm run check && npm test && vsce package --no-dependencies"
+    "package": "npm run check && npm test && node scripts/package.js"
   },
   "contributes": {
     "commands": [

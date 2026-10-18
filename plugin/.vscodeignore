@@ -1,5 +1,6 @@
 node_modules/**
 test/**
+scripts/**
 AGENTS/**
 AGENTS.md
 .gitignore
