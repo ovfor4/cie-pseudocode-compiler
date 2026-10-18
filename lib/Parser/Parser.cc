@@ -299,6 +299,12 @@ std::unique_ptr<StmtAST> Parser::ParseAssignStmt() {
         getNextToken();
         auto Args = ParseExprList(')', true);
         if (!Args) return nullptr;
+        if (CurTok == '.') {
+            auto Result = ParseResultMethods(std::make_unique<CallExprAST>(Name, std::move(*Args), Line), Line);
+            if (!Result) return nullptr;
+            return std::make_unique<MemberCallStmtAST>(
+                std::unique_ptr<MemberCallExprAST>(static_cast<MemberCallExprAST *>(Result.release())));
+        }
         return std::make_unique<CallStmtAST>(Name, std::move(*Args), Line);
     }
 

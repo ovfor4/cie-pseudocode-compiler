@@ -390,6 +390,7 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
         return false;
     }
 
+    std::vector<size_t> Transfers;
     for (size_t i = 0; i < ArgExprs.size(); ++i) {
         if (i >= Sig->Params.size()) {
             Value *V = emitVariadicArgument(ArgExprs[i], Callee, i + 1);
@@ -423,6 +424,26 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
 
         if (IsByRef) {
             auto *Var = dynamic_cast<VariableExprAST*>(ArgExpr);
+            bool InternalBinding = Signature.Prototype &&
+                (sameIdentifier(Signature.Prototype->getName(), "NEW") ||
+                 Signature.Prototype->getOperator() == tok_assign);
+            if (!Var && InternalBinding) {
+                const TypeInfo *Actual = getExprTypeInfo(ArgExpr);
+                if (!Actual || !Actual->sameType(resolveType(TypeName))) {
+                    reportError("BYREF argument to %s has an incompatible type", Callee.c_str());
+                    return false;
+                }
+                if (isObjectLValue(ArgExpr)) {
+                    LValueInfo LV;
+                    if (!emitLValue(ArgExpr, LV)) return false;
+                    Out.push_back(LV.Addr);
+                } else {
+                    Value *Storage = materializeOperatorReceiver(emitExpr(ArgExpr), Actual);
+                    if (!Storage) return false;
+                    Out.push_back(Storage);
+                }
+                continue;
+            }
             if (!Var) {
                 reportError("BYREF argument to %s must be a variable", Callee.c_str());
                 return false;
@@ -442,11 +463,12 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
             }
             Out.push_back(symbolAddress(*Info));
         } else {
-            Value *V = emitCoercedExpr(ArgExpr, resolveType(TypeName));
+            Value *V = emitOwnedValue(ArgExpr, resolveType(TypeName), Transfers);
             if (!V) return false;
             Out.push_back(V);
         }
     }
+    transferObjects(Transfers);
     return true;
 }
 

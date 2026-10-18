@@ -91,7 +91,7 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
         IRBuilder<> TmpB(&F->getEntryBlock(), F->getEntryBlock().begin());
         AllocaInst *Alloca = TmpB.CreateAlloca(ArgType, nullptr, P.Name);
 
-        // Shallow BYVAL copy. The common lifetime hook is the future copy-constructor point.
+        // The caller constructs class arguments; this slot takes ownership of the value.
         Builder.CreateStore(ArgVal, Alloca);
         const TypeInfo *Info = Types.resolve(P.TypeName);
         if (Info && Info->IsClass) {
@@ -123,6 +123,15 @@ const FuncSig *FunctionGen::getSignatureByLink(const std::string &Name) const {
 Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     auto Registered = PrototypeLinks.find(Proto);
     if (Registered != PrototypeLinks.end()) return Module.getFunction(Registered->second);
+    if (!Proto->getOwnerClass().empty() && sameIdentifier(Proto->getName(), "NEW") &&
+        Proto->getParams().size() == 1) {
+        const auto &P = Proto->getParams()[0];
+        if (!P.IsArray && sameIdentifier(P.TypeName, Proto->getOwnerClass()) &&
+            P.Mode != PassMode::ByRef) {
+            reportError("A copy constructor must take BYREF to its own class");
+            return nullptr;
+        }
+    }
     if (int Op = Proto->getOperator()) {
         size_t Count = Proto->getParams().size() + !Proto->getOwnerClass().empty();
         bool ValidCount = Op == '-' ? Count == 1 || Count == 2

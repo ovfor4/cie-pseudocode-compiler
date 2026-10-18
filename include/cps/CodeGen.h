@@ -66,6 +66,7 @@ class CodeGen {
         llvm::AllocaInst *Count; // Non-null for an array; Addr then holds its buffer pointer.
         int Line;
         bool IsCopy;
+        bool Temporary = false;
     };
     std::vector<StackObject> StackObjects;
     size_t registerStackObject(llvm::Value *Addr, const std::string &TypeName, int Line,
@@ -73,6 +74,14 @@ class CodeGen {
     void activateStackObject(size_t Index, llvm::Value *Count = nullptr);
     void emitStackObjectCleanup(const StackObject &Object);
     void finishStackObjects(llvm::Function *F);
+    void cleanupTemporaries(size_t Start = 0);
+    bool isObjectLValue(ExprAST *Expr) const;
+    llvm::Value *emitOwnedValue(ExprAST *Expr, const TypeInfo *Type,
+                               std::vector<size_t> &Transfers);
+    llvm::Value *copyClassValue(const TypeInfo *Type, llvm::Value *Address,
+                                 std::vector<size_t> &Transfers);
+    void transferObjects(const std::vector<size_t> &Objects);
+    void emitStmtImpl(StmtAST *Stmt);
     struct ConstantScope {
         unsigned ID;
         IdentifierMap<std::optional<SymbolInfo>> Saved;

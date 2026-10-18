@@ -8,6 +8,70 @@
 using namespace llvm;
 using namespace cps;
 
+bool CodeGen::isObjectLValue(ExprAST *Expr) const {
+    return dynamic_cast<VariableExprAST *>(Expr) || dynamic_cast<ArrayAccessExprAST *>(Expr) ||
+           dynamic_cast<DesignatorExprAST *>(Expr);
+}
+
+void CodeGen::transferObjects(const std::vector<size_t> &Objects) {
+    for (size_t Index : Objects)
+        if (Index != size_t(-1)) Builder->CreateStore(Builder->getFalse(), StackObjects[Index].Alive);
+}
+
+Value *CodeGen::emitOwnedValue(ExprAST *Expr, const TypeInfo *Type,
+                               std::vector<size_t> &Transfers) {
+    if (!Type || !Type->IsClass) return emitCoercedExpr(Expr, Type);
+    const TypeInfo *Source = getExprTypeInfo(Expr);
+    if (!Source || !Source->sameType(Type)) return emitCoercedExpr(Expr, Type);
+    Value *Value = nullptr;
+    if (isObjectLValue(Expr)) {
+        LValueInfo LV;
+        if (!emitLValue(Expr, LV)) return nullptr;
+        return copyClassValue(Type, LV.Addr, Transfers);
+    }
+    Value = emitCoercedExpr(Expr, Type);
+    if (!Value) return nullptr;
+    // A pending argument owns its result until all remaining arguments succeed.
+    auto *Storage = materializeOperatorReceiver(Value, Type);
+    if (typeNeedsDestruction(Type->Name)) Transfers.push_back(StackObjects.size() - 1);
+    return Builder->CreateLoad(Type->LLVMType, Storage);
+}
+
+Value *CodeGen::copyClassValue(const TypeInfo *Type, Value *Address,
+                                std::vector<size_t> &Transfers) {
+    const FuncSig *Copy = nullptr;
+    for (const FuncSig *Sig : FuncGen->getOverloads(Type->Name + ".NEW"))
+        if (Sig->IsOverload && Sig->Params.size() == 1 && Sig->Params[0].IsByRef &&
+            !Sig->Params[0].IsArray && Type->sameType(resolveType(Sig->Params[0].TypeName)))
+            Copy = Sig;
+    if (!Copy) return Builder->CreateLoad(Type->LLVMType, Address);
+    if (!checkOperatorAccess(*Copy)) return nullptr;
+    auto *Storage = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
+                                           Type->LLVMType, "copy_object");
+    size_t Lifetime = registerStackObject(Storage, Type->Name, DiagnosticLine, false, true);
+    if (Lifetime != size_t(-1)) StackObjects[Lifetime].Temporary = true;
+    Builder->CreateStore(Types->getZeroValue(Type->Name), Storage);
+    for (const auto &[Name, Field] : Type->Record.Fields) {
+        if (typeNeedsConstruction(Field.TypeName) &&
+            !emitDefaultConstruct(Field.TypeName,
+                Builder->CreateStructGEP(Type->LLVMType, Storage, Field.Index), DiagnosticLine))
+            return nullptr;
+    }
+    if (!FuncGen->emitCall(*Copy, {Storage, Address})) return nullptr;
+    activateStackObject(Lifetime);
+    Transfers.push_back(Lifetime);
+    return Builder->CreateLoad(Type->LLVMType, Storage, "copied_value");
+}
+
+void CodeGen::cleanupTemporaries(size_t Start) {
+    if (!Builder->GetInsertBlock() || Builder->GetInsertBlock()->hasTerminator()) return;
+    // Destructor emission can itself register temporaries. Copy each record before emitting.
+    for (size_t I = StackObjects.size(); I > Start; --I) {
+        auto Object = StackObjects[I - 1];
+        if (Object.Temporary) emitStackObjectCleanup(Object);
+    }
+}
+
 bool CodeGen::typeNeedsConstruction(const std::string &TypeName) const {
     if (findMethod(TypeName, "NEW")) return true;
     const TypeInfo *Info = resolveType(TypeName);
@@ -169,8 +233,8 @@ void CodeGen::emitStackObjectCleanup(const StackObject &Object) {
 }
 
 void CodeGen::finishStackObjects(Function *F) {
-    Exceptions->fillCleanups(F, [this] {
+    Exceptions->fillCleanups(F, [this](bool TemporariesOnly) {
         for (auto It = StackObjects.rbegin(); It != StackObjects.rend(); ++It)
-            emitStackObjectCleanup(*It);
+            if (!TemporariesOnly || It->Temporary) emitStackObjectCleanup(*It);
     });
 }

@@ -56,12 +56,12 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
         getNextToken();
         auto Args = ParseExprList(')', true);
         if (!Args) return nullptr;
-        if (CurTok == '[' || CurTok == '.' || CurTok == '^') {
+        if (CurTok == '[' || CurTok == '^') {
             cps::sourceDiagnostic(Lex.getLine(), "error: record/array/pointer access on a function result is not supported at line %d\n",
                     Lex.getLine());
             return nullptr;
         }
-        return std::make_unique<CallExprAST>(IdName, std::move(*Args), Line);
+        return ParseResultMethods(std::make_unique<CallExprAST>(IdName, std::move(*Args), Line), Line);
     }
 
     std::vector<DesignatorAccess> Accesses;
@@ -95,12 +95,13 @@ std::unique_ptr<MemberCallExprAST> Parser::ParseMemberCall(
         if (!Parsed) return nullptr;
         Args = std::move(*Parsed);
     }
-    if (CurTok == '[' || CurTok == '.' || CurTok == '^') {
+    if (CurTok == '[' || CurTok == '^') {
         cps::sourceDiagnostic(Lex.getLine(), "error: record/array/pointer access on a function result is not supported at line %d\n",
                 Lex.getLine());
         return nullptr;
     }
-    return std::make_unique<MemberCallExprAST>(std::move(Receiver), Method, std::move(Args), Line);
+    auto Result = ParseResultMethods(std::make_unique<MemberCallExprAST>(std::move(Receiver), Method, std::move(Args), Line), Line);
+    return std::unique_ptr<MemberCallExprAST>(static_cast<MemberCallExprAST *>(Result.release()));
 }
 
 // Postfix accessor chain after an identifier: '[' exprs ']' | '.' IDENT | '^'
@@ -173,11 +174,38 @@ std::unique_ptr<ExprAST> Parser::ParseParenExpr() {
     return V;
 }
 
+std::unique_ptr<ExprAST> Parser::ParseResultMethods(std::unique_ptr<ExprAST> Expr, int Line) {
+    while (CurTok == '.' && !atCaseBoundary()) {
+        getNextToken();
+        std::string Name;
+        if (CurTok == tok_operator) {
+            int Op;
+            Name = ParseOperatorName(Op);
+            if (Name.empty()) return nullptr;
+        } else if (CurTok == tok_identifier || CurTok == tok_delete) {
+            Name = CurTok == tok_delete ? "DELETE" : Lex.IdentifierStr;
+            getNextToken();
+        } else {
+            sourceDiagnostic(Lex.getLine(), "error: Expected method name at line %d\n", Lex.getLine());
+            return nullptr;
+        }
+        if (CurTok != '(') {
+            sourceDiagnostic(Lex.getLine(), "error: Expected '(' after method name at line %d\n", Lex.getLine());
+            return nullptr;
+        }
+        getNextToken();
+        auto Args = ParseExprList(')', true);
+        if (!Args) return nullptr;
+        Expr = std::make_unique<MemberCallExprAST>(std::move(Expr), Name, std::move(*Args), Line);
+    }
+    return Expr;
+}
+
 std::unique_ptr<ExprAST> Parser::ParsePrimary() {
     int Line = Lex.getLine();
     auto Expr = ParsePrimaryImpl();
     if (Expr && !Expr->getLine()) Expr->setLine(Line);
-    return Expr;
+    return Expr ? ParseResultMethods(std::move(Expr), Line) : nullptr;
 }
 
 std::unique_ptr<ExprAST> Parser::ParsePrimaryImpl() {

@@ -38,6 +38,7 @@ class Parser {
     std::unique_ptr<ExprAST> ParseUnaryImpl();
     std::unique_ptr<ExprAST> ParseUnary(); 
     std::unique_ptr<ExprAST> ParsePrimaryImpl();
+    std::unique_ptr<ExprAST> ParseResultMethods(std::unique_ptr<ExprAST> Expr, int Line);
     std::unique_ptr<ExprAST> ParsePrimary();
     std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS); 
 

@@ -45,6 +45,7 @@ Value *CodeGen::materializeOperatorReceiver(Value *Val, const TypeInfo *Type) {
     size_t Object = registerStackObject(Storage, Type->Name, DiagnosticLine, false, true);
     Builder->CreateStore(Val, Storage);
     activateStackObject(Object);
+    if (Object != size_t(-1)) StackObjects[Object].Temporary = true;
     return Storage;
 }
 
@@ -76,8 +77,25 @@ Value *CodeGen::emitOperatorCall(const FuncSig &Signature, ExprAST *Left, ExprAS
 Value *CodeGen::emitOperatorValues(const FuncSig &Signature, Value *Left,
                                    const TypeInfo *LeftType, Value *Right) {
     if (!checkOperatorAccess(Signature)) return nullptr;
-    if (!Signature.Prototype->getOwnerClass().empty())
-        Left = materializeOperatorReceiver(Left, LeftType);
-    if (!Left) return nullptr;
-    return FuncGen->emitCall(Signature, {Left, Right});
+    bool Member = !Signature.Prototype->getOwnerClass().empty();
+    std::vector<Value *> Args;
+    std::vector<size_t> Transfers;
+    auto Capture = [&](Value *Val, const TypeInfo *Type) -> Value * {
+        auto *Slot = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
+                                           Type->LLVMType, "case_operand");
+        Builder->CreateStore(Val, Slot);
+        return Slot;
+    };
+    if (Member) Args.push_back(Capture(Left, LeftType));
+    else {
+        if (LeftType->IsClass) Left = copyClassValue(LeftType, Capture(Left, LeftType), Transfers);
+        if (!Left) return nullptr;
+        Args.push_back(Left);
+    }
+    const TypeInfo *RightType = resolveType(Signature.Params[Member ? 0 : 1].TypeName);
+    if (RightType->IsClass) Right = copyClassValue(RightType, Capture(Right, RightType), Transfers);
+    if (!Right) return nullptr;
+    Args.push_back(Right);
+    transferObjects(Transfers);
+    return FuncGen->emitCall(Signature, Args);
 }

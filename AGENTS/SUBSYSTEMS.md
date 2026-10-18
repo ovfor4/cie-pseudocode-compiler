@@ -134,8 +134,7 @@ DELETE method calls remain ordinary calls without field recursion. Keyword DELET
 resolves a class lvalue, validates its allocation start through MemoryHandler before
 any destruction, destroys it, then releases it through FREE; aliases remain dangling.
 Stack lifetimes use a per-function `StackObjects` list saved/restored around function
-emission. DECLARE and shallow BYVAL copies share registration (the copy point is
-marked), including arrays and records with class fields. Each record retains the
+emission. DECLARE and BYVAL copies share ownership registration, including arrays and records with class fields. Each record retains the
 original address, an entry-initialized Alive flag and, for arrays, a runtime element
 count in an entry slot. Array buffer addresses also live in entry slots so deferred
 cleanup never references branch-local bound SSA values. Repeated DECLARE destroys
@@ -195,3 +194,5 @@ nothing is declared or emitted eagerly. Helper bodies are built with the *shared
 Builder (RuntimeCheck emits through the same one), saving/restoring the insert block.
 
 **Explicit memory** (`MemoryHandler`): lazily emits internal allocation/find/release/resize helpers and a linked list of live allocation start addresses. Explicit MALLOC/REALLOC and keyword NEW allocations enter the list; STRING/ARRAY internals retain their existing ownership. `emitValidate` always calls the find helper, including for null, so keyword DELETE validates before running destructors. FREE validates non-null addresses, unlinks and frees the tracking node, releases the block and returns the original address. Zero-byte allocation returns null. REALLOC validates non-null addresses before its zero-size release path; null behaves as MALLOC. Positive-size resizing updates the node only after success, leaving the old block and record intact on failure. Node allocation precedes the user allocation; if the latter fails, its node is freed before the diagnostic and anonymous throw. Helpers use RuntimeCheck and ExceptionHandler, including source-line arguments and per-function unwind preparation. Sizes accept INTEGER and C integers and convert to native size_t. Address reuse can make stale aliases indistinguishable from current allocations; dereferences are not checked against this list.
+
+**Class copies and temporaries.** Callers construct BYVAL class arguments with a same-class BYREF OVERLOAD NEW; the callee's RegisterCopy hook takes ownership. emitOwnedValue constructs lvalue copies and keeps pending arguments Alive until marshalling succeeds. RETURN copies lvalues and transfers rvalues. StackObject::Temporary uses statement cleanup and deferred temporary-only cleanup before local handlers, while ordinary objects remain function-scoped. Function-result method receivers are materialized by the same path as operator receivers.

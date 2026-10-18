@@ -32,7 +32,7 @@ After validation, DELETE calls the object's DELETE method if present, then recur
 
 Automatic destruction (RAII) applies to original storage created by DECLARE, including main-level declarations, arrays and records containing class values, and to BYVAL copies containing class values. Destruction occurs in reverse declaration order on RETURN, at the end of a function or procedure, and at normal program end. Array elements are destroyed in reverse flat element order. Block exit alone does not destroy these function-scoped lifetimes. A declaration executed again first destroys its previous live incarnation, then zeroes and constructs the original storage again.
 
-A completed construction or BYVAL copy marks the object alive. Destruction clears this state before calling the method, so a throwing destructor is never retried automatically. BYVAL copies are shallow. NEW rebinding changes the variable's current address, while automatic destruction still targets its original storage; the heap object requires explicit DELETE.
+A completed construction or BYVAL copy marks the object alive. Destruction clears this state before calling the method, so a throwing destructor is never retried automatically. BYVAL class copies use a copy constructor when defined; other aggregate copies remain shallow. NEW rebinding changes the variable's current address, while automatic destruction still targets its original storage; the heap object requires explicit DELETE.
 
 Exception unwinding destroys live objects in each function frame being left before the caller's CATCH runs. A CATCH inside the same function retains its objects until function exit. An uncaught exception reaching main's final handler skips destruction of main-level objects. If a destructor throws during unwinding, its exception propagates and interrupts the remaining cleanup instead of terminating as C++ would.
 
@@ -55,3 +55,5 @@ DELETE Object
 # SEE ALSO
 
 [cpsc-keyword-class(7)](cpsc-keyword-class.7.md), [cpsc-keyword-declare(7)](cpsc-keyword-declare.7.md), [cpsc-keyword-try(7)](cpsc-keyword-try.7.md), [cpsc-function-free(7)](../function/cpsc-function-free.7.md).
+
+An `OVERLOAD PROCEDURE NEW(BYREF Other : ClassName)` defines a copy constructor. BYVAL class arguments and RETURN of class lvalues invoke it; a same-class BYVAL constructor is rejected. Classes without one retain bitwise copying. Class results transfer ownership directly into BYVAL arguments, RETURN and ordinary assignment. Discarded results and temporary receivers live until the statement ends, including exception exits. Ordinary user BYREF calls still require bare variables; constructor calls can bind temporaries.

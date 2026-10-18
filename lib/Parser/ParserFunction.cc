@@ -374,6 +374,12 @@ std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
         Args = std::move(*Parsed);
     }
 
+    if (CurTok == '.') {
+        auto Result = ParseResultMethods(std::make_unique<CallExprAST>(Callee, std::move(Args), Line), Line);
+        if (!Result) return nullptr;
+        return std::make_unique<MemberCallStmtAST>(
+            std::unique_ptr<MemberCallExprAST>(static_cast<MemberCallExprAST *>(Result.release())));
+    }
     return std::make_unique<CallStmtAST>(Callee, std::move(Args), Line);
 }
 

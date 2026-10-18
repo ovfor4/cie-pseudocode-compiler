@@ -162,7 +162,7 @@ builtin result types. Returns may be any supported function result, including
 non-BOOLEAN comparisons/logic. emitCoercedExpr rejects implicit STRING to BOOLEAN;
 CASE separately requires BOOLEAN comparisons. Operators use shared argument
 marshalling and exception-aware calls. Member lvalues keep their original address;
-rvalues are materialized and registered for the existing function-scoped cleanup.
+rvalues are materialized with Alive tracking and destroyed at statement end.
 
 **Parameter modes are sticky and BYREF is procedure-only (guide §8.3).** In
 `(BYREF a : T, b : T)` the `b` is BYREF too; unannotated parameters default to

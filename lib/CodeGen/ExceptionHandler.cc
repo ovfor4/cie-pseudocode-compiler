@@ -94,7 +94,7 @@ void ExceptionHandler::recordExit(Instruction *Before, bool Unwinding) {
     CleanupPoints[F].push_back({Before, States[F], Unwinding});
 }
 
-void ExceptionHandler::fillCleanups(Function *F, const std::function<void()> &Destroy) {
+void ExceptionHandler::fillCleanups(Function *F, const std::function<void(bool)> &Destroy) {
     IRBuilderBase::InsertPointGuard Guard(Builder);
     SaveAndRestore<FunctionState> StateGuard(States[F]);
     auto &Points = CleanupPoints[F];
@@ -107,7 +107,7 @@ void ExceptionHandler::fillCleanups(Function *F, const std::function<void()> &De
         auto *Continuation = BB->splitBasicBlock(Point.Before->getIterator(), "after_destruction");
         BB->getTerminator()->eraseFromParent();
         Builder.SetInsertPoint(BB);
-        Destroy();
+        Destroy(Point.TemporariesOnly);
         Builder.CreateBr(Continuation);
     }
     Points.clear();
@@ -133,7 +133,8 @@ BasicBlock *ExceptionHandler::emitUnwindDestination() {
     for (unsigned I = TargetDepth; I < State.CatchDepth; ++I) Builder.CreateCall(EndCatch);
     if (Handler) {
         Builder.CreateStore(Builder.CreateExtractValue(LP, 0), Handler->Exception);
-        Builder.CreateBr(Handler->Target);
+        auto *Branch = Builder.CreateBr(Handler->Target);
+        CleanupPoints[F].push_back({Branch, States[F], true, true});
     } else {
         recordExit(Builder.CreateResume(LP), true);
     }

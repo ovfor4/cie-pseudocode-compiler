@@ -124,7 +124,7 @@ test programs.
   Explicit calls do not recurse into fields or affect Alive tracking. Keyword DELETE
   validates an active allocation start before destroying the object and its fields,
   then frees memory and leaves aliases dangling; FREE skips all destruction.
-  DECLARE storage and shallow BYVAL copies are destroyed in reverse declaration order
+  DECLARE storage and BYVAL copies are destroyed in reverse declaration order
   at normal function exit or when unwinding leaves the frame. Arrays reverse their
   flat element order. Repeated DECLARE destroys its previous incarnation first.
   Lifetimes are function-scoped, even for declarations inside blocks. NEW rebinding
@@ -178,3 +178,5 @@ Linux.
 WHILE accepts both the standard header without DO and the older WHILE DO form.
 
 - **Literal escapes.** C++17 escapes are decoded by the lexer. Unicode escapes encode UTF-8 in strings; CHAR Unicode escapes must be ASCII. Built-in STRING remains NUL-terminated: `"a\0b"` is observed as `"a"`.
+
+- **Copy limits.** Classes may define a same-class BYREF copy constructor. Classes without one, whole TYPE records containing class fields, and BYVAL arrays still copy bits; owning handles inside these aggregate copies need explicit care. Class rvalues transfer ownership when consumed; discarded results and temporary receivers are destroyed at statement end.

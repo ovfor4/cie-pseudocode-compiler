@@ -98,7 +98,17 @@ const FuncSig *CodeGen::resolveMethod(const std::string &Class, const std::strin
 Value *CodeGen::emitMemberCall(MemberCallExprAST *Call) {
     SaveAndRestore<int> Location(DiagnosticLine, Call->getLine());
     LValueInfo Receiver;
-    if (!emitLValue(Call->getReceiver(), Receiver)) return nullptr;
+    if (isObjectLValue(Call->getReceiver())) {
+        if (!emitLValue(Call->getReceiver(), Receiver)) return nullptr;
+    } else {
+        const TypeInfo *Type = getExprTypeInfo(Call->getReceiver());
+        if (!Type || !Type->IsClass) {
+            reportError("A temporary method receiver must be a class");
+            return nullptr;
+        }
+        Receiver = {materializeOperatorReceiver(emitExpr(Call->getReceiver()), Type), Type->Name};
+        if (!Receiver.Addr) return nullptr;
+    }
     return emitMethodCall(Receiver.TypeName, Receiver.Addr, Call->getMethod(),
                           Call->getArgs(), Call->getLine());
 }

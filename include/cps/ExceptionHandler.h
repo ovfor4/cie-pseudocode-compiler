@@ -25,6 +25,7 @@ class ExceptionHandler {
         llvm::Instruction *Before;
         FunctionState State;
         bool Unwinding;
+        bool TemporariesOnly = false;
     };
     std::map<llvm::Function *, std::vector<CleanupPoint>> CleanupPoints;
     bool FillingUnwind = false;
@@ -50,7 +51,7 @@ public:
     llvm::Instruction *emitReturnCleanup();
     void enableCleanups(llvm::Function *F);
     void recordExit(llvm::Instruction *Before, bool Unwinding = false);
-    void fillCleanups(llvm::Function *F, const std::function<void()> &Destroy);
+    void fillCleanups(llvm::Function *F, const std::function<void(bool)> &Destroy);
 
     llvm::Value *emitCall(llvm::FunctionCallee Callee, llvm::ArrayRef<llvm::Value *> Args,
                           const llvm::Twine &Name = "");

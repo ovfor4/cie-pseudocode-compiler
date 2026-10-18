@@ -29,6 +29,7 @@ void CodeGen::emitTryStmt(TryStmtAST *Stmt) {
 void CodeGen::emitIfStmt(IfStmtAST *Stmt) {
     Value *CondV = emitCoercedExpr(Stmt->getCond(), resolveType("BOOLEAN"));
     if (!CondV) return;
+    cleanupTemporaries();
 
     Function *TheFunction = Builder->GetInsertBlock()->getParent();
     BasicBlock *ThenBB = BasicBlock::Create(*TheContext, "then", TheFunction);
@@ -65,6 +66,7 @@ void CodeGen::emitWhileStmt(WhileStmtAST *Stmt) {
     Builder->SetInsertPoint(CondBB);
     Value *CondV = emitCoercedExpr(Stmt->getCond(), resolveType("BOOLEAN"));
     if (!CondV) return;
+    cleanupTemporaries();
 
     Builder->CreateCondBr(CondV, LoopBB, AfterBB);
 
@@ -100,6 +102,7 @@ void CodeGen::emitRepeatStmt(RepeatStmtAST *Stmt) {
     Builder->SetInsertPoint(CondBB);
     Value *CondV = emitCoercedExpr(Stmt->getCond(), resolveType("BOOLEAN"));
     if (!CondV) return;
+    cleanupTemporaries();
 
     Builder->CreateCondBr(CondV, AfterBB, LoopBB);
 
@@ -127,6 +130,8 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
     Value *Alloca = Symbol->Storage;
     Builder->CreateStore(StartVal, Alloca);
 
+    cleanupTemporaries();
+
     // STEP is evaluated exactly once, before the loop.
     Value *StepVal = nullptr;
     if (Stmt->getStep()) {
@@ -136,6 +141,7 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
         StepVal = ConstantInt::get(*TheContext, APInt(64, 1));
     }
 
+    cleanupTemporaries();
     BasicBlock *CondBB = BasicBlock::Create(*TheContext, "forcond", TheFunction);
     BasicBlock *LoopBB = BasicBlock::Create(*TheContext, "forloop", TheFunction);
     BasicBlock *IncBB = BasicBlock::Create(*TheContext, "forinc", TheFunction);
@@ -147,6 +153,7 @@ void CodeGen::emitForStmt(ForStmtAST *Stmt) {
     Value *CurVar = Builder->CreateLoad(Type::getInt64Ty(*TheContext), Alloca, VarName.c_str());
     Value *EndVal = emitCoercedExpr(Stmt->getEnd(), resolveType("INTEGER"));
     if (!EndVal) return;
+    cleanupTemporaries();
 
     // The loop direction depends on the STEP value at run time.
     Value *StepNonNeg = Builder->CreateICmpSGE(StepVal,

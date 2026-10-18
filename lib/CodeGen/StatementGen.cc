@@ -10,6 +10,12 @@ using namespace llvm;
 using namespace cps;
 
 void CodeGen::emitStmt(StmtAST *Stmt) {
+    size_t Start = StackObjects.size();
+    emitStmtImpl(Stmt);
+    cleanupTemporaries(Start);
+}
+
+void CodeGen::emitStmtImpl(StmtAST *Stmt) {
     SaveAndRestore<int> Location(DiagnosticLine, Stmt && Stmt->getLine() ? Stmt->getLine() : DiagnosticLine);
     if (!Stmt) return;
 
@@ -89,12 +95,18 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
     }
 
     if (auto *Call = dynamic_cast<MemberCallStmtAST*>(Stmt)) {
-        emitMemberCall(Call->getCall());
+        Value *Result = emitMemberCall(Call->getCall());
+        const TypeInfo *Type = getExprTypeInfo(Call->getCall());
+        if (Result && Type && Type->IsClass) materializeOperatorReceiver(Result, Type);
         return;
     }
 
     if (auto *Call = dynamic_cast<CallStmtAST*>(Stmt)) {
-        emitCall(Call->getCallee(), Call->getArgs(), Call->getLine());
+        Value *Result = emitCall(Call->getCallee(), Call->getArgs(), Call->getLine());
+        const FuncSig *Sig = FuncGen->hasFunction(Call->getCallee())
+            ? resolveCall(Call->getCallee(), Call->getArgs()) : nullptr;
+        const TypeInfo *Type = Sig ? resolveType(Sig->ReturnTypeName) : nullptr;
+        if (Result && Type && Type->IsClass) materializeOperatorReceiver(Result, Type);
         return;
     }
 
@@ -117,9 +129,12 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
         }
         Value *RetVal = nullptr;
         if (Ret->getRetVal()) {
-            RetVal = emitCoercedExpr(Ret->getRetVal(), resolveType(Sig->ReturnTypeName));
+            std::vector<size_t> Transfers;
+            RetVal = emitOwnedValue(Ret->getRetVal(), resolveType(Sig->ReturnTypeName), Transfers);
+            transferObjects(Transfers);
             if (!RetVal) return;
         }
+        cleanupTemporaries();
         FuncGen->emitReturn(Ret, RetVal);
         return;
     }

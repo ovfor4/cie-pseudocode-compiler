@@ -1,0 +1,23 @@
+pass:1
+destroy:11
+destroy:2
+pass:2
+destroy:12
+destroy:3
+destroy:3
+destroy:8
+destroy:8
+destroy:4
+4
+destroy:4
+destroy:6
+destroy:6
+caught:3
+destroy:9
+destroy:9
+argument caught:3
+counts:9:3
+destroy:8
+destroy:1
+destroy:1
+remaining:0
