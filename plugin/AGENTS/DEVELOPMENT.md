@@ -15,7 +15,7 @@ npm run package
 ```
 
 `npm run package` runs syntax checks and the existing Node tests, then uses vsce
-to generate `cie-pseudocode-0.1.0.vsix`. Runtime dependencies are not bundled.
+to generate `plugin-0.1.0.vsix`. Runtime dependencies are not bundled.
 `@vscode/vsce`, `vscode-textmate` and `vscode-oniguruma` are development tools only.
 
 Do simple verification before each feature commit and follow the global commit
@@ -57,7 +57,7 @@ configuration, concise English README and notices, without `AGENTS/` or tests.
 For a local installation, use the Extensions panel's **Install from VSIX...** or:
 
 ```sh
-code --install-extension cie-pseudocode-0.1.0.vsix --force
+code --install-extension plugin-0.1.0.vsix --force
 ```
 
 In a remote terminal, `code` installs into the connected remote editor. For an

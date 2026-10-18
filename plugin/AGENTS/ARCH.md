@@ -95,7 +95,8 @@ Follow the current compiler, rather than implementing every PDF feature:
 
 Language defaults use real Tabs, display width 4, disabled indentation detection,
 full automatic indentation, on-type formatting and native bracket pair colors.
-The default formatter is `ovfor4.cie-pseudocode`. User and workspace settings can
+The extension name and display name are `plugin`; its ID is `ovfor4.plugin`.
+The default formatter is `ovfor4.plugin`. User and workspace settings can
 override editor defaults.
 
 The author credit is `_ov4`. The publisher ID stays `ovfor4`, because vsce accepts

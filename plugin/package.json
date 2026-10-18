@@ -1,6 +1,6 @@
 {
-  "name": "cie-pseudocode",
-  "displayName": "CIE Pseudocode",
+  "name": "plugin",
+  "displayName": "plugin",
   "description": "CIE pseudocode highlighting, Tab indentation, bracket checking and terminal execution for .cps files.",
   "version": "0.1.0",
   "publisher": "ovfor4",
@@ -73,7 +73,7 @@
         "editor.detectIndentation": false,
         "editor.autoIndent": "full",
         "editor.formatOnType": true,
-        "editor.defaultFormatter": "ovfor4.cie-pseudocode",
+        "editor.defaultFormatter": "ovfor4.plugin",
         "editor.bracketPairColorization.enabled": true,
         "editor.bracketPairColorization.independentColorPoolPerBracketType": false
       }
