@@ -79,6 +79,7 @@ private:
     std::map<size_t, std::string> UnitPaths;
     size_t CurrentUnit = 0;
     std::function<bool(size_t)> Visible;
+    std::function<void(const FuncSig &)> BeforeCall;
     ArrayParamBinder BindArrayParam;
     std::function<void(llvm::Value *, const std::string &, int)> RegisterCopy;
 
@@ -103,6 +104,7 @@ public:
     }
 
     void setCurrentUnit(size_t Unit, const std::string &Path) { CurrentUnit = Unit; UnitPaths[Unit] = Path; }
+    void setCallHook(std::function<void(const FuncSig &)> Hook) { BeforeCall = std::move(Hook); }
     void setVisibility(std::function<bool(size_t)> Predicate) { Visible = std::move(Predicate); }
     std::vector<const FuncSig *> getOverloads(const std::string &Name) const;
     bool hasFunction(const std::string &Name) const { return !getOverloads(Name).empty(); }

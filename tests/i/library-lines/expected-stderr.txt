@@ -1,0 +1,4 @@
+[Fatal] line 3: Array index out of bounds
+[Fatal] line 8: Array argument bounds [1:3] do not match the declared parameter bounds [1:2]
+[Fatal] line 13: File 'unopened' is not open
+[Fatal] line 18: Division by zero

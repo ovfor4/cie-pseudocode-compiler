@@ -11,7 +11,18 @@ using namespace cps;
 
 RuntimeCheck::RuntimeCheck(Module &M, LLVMContext &C, IRBuilder<> &B, ExceptionHandler &EH)
     : TheModule(M), TheContext(C), Builder(B), Exceptions(EH) {
+    UserLine = new GlobalVariable(TheModule, Builder.getInt32Ty(), false,
+                                  GlobalValue::ExternalLinkage, Builder.getInt32(0), "__cps_user_line");
     setupExternalFunctions();
+}
+
+Value *RuntimeCheck::lineValue(int Line) {
+    return LibraryMode ? Builder.CreateLoad(Builder.getInt32Ty(), UserLine, "user_line")
+                       : static_cast<Value *>(Builder.getInt32(Line));
+}
+
+void RuntimeCheck::setUserLine(int Line) {
+    Builder.CreateStore(Builder.getInt32(Line), UserLine);
 }
 
 void RuntimeCheck::setupExternalFunctions() {
@@ -54,7 +65,7 @@ void RuntimeCheck::emitStderr(Value *Msg, ArrayRef<Value *> FmtArgs) {
 }
 
 void RuntimeCheck::emitCheck(Value *Condition, Value *Msg, int Line) {
-    emitCheck(Condition, Msg, {ConstantInt::get(TheContext, APInt(32, Line))});
+    emitCheck(Condition, Msg, {lineValue(Line)});
 }
 
 void RuntimeCheck::emitCheck(Value *Condition, Value *Msg, ArrayRef<Value *> FmtArgs) {
@@ -105,7 +116,7 @@ void RuntimeCheck::emitEnumRangeCheck(Value *Ordinal, uint64_t ValueCount,
 
     Value *NameStr = Builder.CreateGlobalString(TypeName, "enum_name", 0, &TheModule);
     emitCheck(OutOfRange, EnumRangeMsg,
-              {ConstantInt::get(TheContext, APInt(32, Line)), NameStr});
+              {lineValue(Line), NameStr});
 }
 
 void RuntimeCheck::emitNullDerefCheck(Value *Ptr, int Line) {
@@ -125,6 +136,6 @@ void RuntimeCheck::emitArrayArgBoundsCheck(Value *ActualLower, Value *ActualUppe
     Value *Mismatch = Builder.CreateOr(LoDiff, HiDiff, "arg_bounds_ne");
 
     emitCheck(Mismatch, ArrayArgBoundsMsg,
-              {ConstantInt::get(TheContext, APInt(32, Line)),
+              {lineValue(Line),
                ActualLower, ActualUpper, DeclLo, DeclHi});
 }

@@ -18,6 +18,8 @@ class RuntimeCheck {
     llvm::FunctionCallee StderrFunc;   // Windows: __acrt_iob_func(2)
     llvm::GlobalVariable *StderrVar;   // elsewhere: the C library's stderr
     ExceptionHandler &Exceptions;
+    bool LibraryMode = false;
+    llvm::GlobalVariable *UserLine;
     llvm::Value *DivZeroMsg;
     llvm::Value *OutOfBoundsMsg;
     llvm::Value *EnumRangeMsg;
@@ -30,6 +32,10 @@ class RuntimeCheck {
 public:
     RuntimeCheck(llvm::Module &M, llvm::LLVMContext &C, llvm::IRBuilder<> &B,
                  ExceptionHandler &EH);
+
+    void setLibraryMode(bool Enabled) { LibraryMode = Enabled; }
+    llvm::Value *lineValue(int Line);
+    void setUserLine(int Line);
 
     // Format a runtime diagnostic (printf-style) and write it to stderr.
     void emitStderr(llvm::Value *Msg, llvm::ArrayRef<llvm::Value *> FmtArgs = {});

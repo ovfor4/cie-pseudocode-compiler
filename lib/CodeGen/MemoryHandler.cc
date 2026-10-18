@@ -114,12 +114,12 @@ void MemoryHandler::buildRelease() {
 
 Value *MemoryHandler::emitAllocate(Value *Size, int Line) {
     ensureRuntime();
-    return Exceptions.emitCall(AllocateFn, {Size, Builder.getInt32(Line)}, "allocated");
+    return Exceptions.emitCall(AllocateFn, {Size, Checker.lineValue(Line)}, "allocated");
 }
 
 Value *MemoryHandler::emitRelease(Value *Address, int Line) {
     ensureRuntime();
-    return Exceptions.emitCall(ReleaseFn, {Address, Builder.getInt32(Line)}, "released");
+    return Exceptions.emitCall(ReleaseFn, {Address, Checker.lineValue(Line)}, "released");
 }
 
 void MemoryHandler::buildResize() {
@@ -150,10 +150,10 @@ void MemoryHandler::buildResize() {
 
 Value *MemoryHandler::emitResize(Value *Address, Value *Size, int Line) {
     ensureRuntime();
-    return Exceptions.emitCall(ResizeFn, {Address, Size, Builder.getInt32(Line)}, "resized");
+    return Exceptions.emitCall(ResizeFn, {Address, Size, Checker.lineValue(Line)}, "resized");
 }
 
 void MemoryHandler::emitValidate(Value *Address, int Line) {
     ensureRuntime();
-    Exceptions.emitCall(FindFn, {Address, Builder.getInt32(Line)});
+    Exceptions.emitCall(FindFn, {Address, Checker.lineValue(Line)});
 }

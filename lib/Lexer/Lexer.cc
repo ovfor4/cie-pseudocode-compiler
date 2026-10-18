@@ -91,11 +91,27 @@ std::string Lexer::readEscape(bool IsChar) {
 
 int Lexer::readToken() {
     while (isspace(LastChar)) {
-        if (LastChar == '\n') CurrentLine++;
+        if (LastChar == '\n') { CurrentLine++; LineStart = true; }
         LastChar = Input.get();
     }
 
     TokenLine = CurrentLine;
+    if (LastChar == '#' && LineStart) {
+        std::string Directive;
+        do {
+            Directive += static_cast<char>(LastChar);
+            LastChar = Input.get();
+        } while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
+        while (!Directive.empty() && isspace(static_cast<unsigned char>(Directive.back())))
+            Directive.pop_back();
+        if (Directive == "#LIB") Library = true;
+        else {
+            cps::sourceDiagnostic(TokenLine, "error: Unknown compiler directive at line %d\n", TokenLine);
+            HadError = true;
+        }
+        return readToken();
+    }
+    LineStart = false;
 
     if (LastChar == '"' || LastChar == '\'') {
         const int Quote = LastChar;

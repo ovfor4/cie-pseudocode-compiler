@@ -246,31 +246,31 @@ void FileHandler::emitOpen(Value *NameStr, FileMode Mode, int Line) {
     ensureRuntime();
     Exceptions.emitCall(OpenFn, {NameStr,
                                 ConstantInt::get(Type::getInt8Ty(Context), uint8_t(Mode)),
-                                ConstantInt::get(Context, APInt(32, Line))});
+                                Checker.lineValue(Line)});
 }
 
 Value *FileHandler::emitRead(Value *NameStr, int Line) {
     if (!NameStr) return nullptr;
     ensureRuntime();
-    return Exceptions.emitCall(ReadFn, {NameStr, ConstantInt::get(Context, APInt(32, Line))},
+    return Exceptions.emitCall(ReadFn, {NameStr, Checker.lineValue(Line)},
                               "file_line");
 }
 
 void FileHandler::emitWrite(Value *NameStr, Value *DataStr, int Line) {
     if (!NameStr || !DataStr) return;
     ensureRuntime();
-    Exceptions.emitCall(WriteFn, {NameStr, DataStr, ConstantInt::get(Context, APInt(32, Line))});
+    Exceptions.emitCall(WriteFn, {NameStr, DataStr, Checker.lineValue(Line)});
 }
 
 void FileHandler::emitClose(Value *NameStr, int Line) {
     if (!NameStr) return;
     ensureRuntime();
-    Exceptions.emitCall(CloseFn, {NameStr, ConstantInt::get(Context, APInt(32, Line))});
+    Exceptions.emitCall(CloseFn, {NameStr, Checker.lineValue(Line)});
 }
 
 Value *FileHandler::emitEof(Value *NameStr, int Line) {
     if (!NameStr) return nullptr;
     ensureRuntime();
-    return Exceptions.emitCall(EofFn, {NameStr, ConstantInt::get(Context, APInt(32, Line))},
+    return Exceptions.emitCall(EofFn, {NameStr, Checker.lineValue(Line)},
                               "file_eof");
 }

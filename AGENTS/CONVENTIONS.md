@@ -209,3 +209,5 @@ __cps_main with internal linkage. The generated i32 main wrapper calls it throug
 ExceptionHandler, truncates its result and retains the final uncaught handler.
 
 Identifiers may begin with an underscore. The case-insensitive `__cps_` prefix is reserved in every user identifier, including EXTERN declarations.
+
+**Library units.** Line-leading `#LIB` marks SourceUnit::IsLibrary. RuntimeCheck uses the externally visible i32 `__cps_user_line`; FunctionGen’s shared call hook updates it only on non-library to library calls. Runtime helper line arguments use RuntimeCheck::lineValue too. Compiler diagnostics retain the owning file location.

@@ -353,3 +353,5 @@ they are pure data with virtual destructors only — no codegen/visitor methods.
 
 See [MAN.md](MAN.md) before editing the command or syntax manuals. It defines
 source layout, naming, prose formatting and the small checks needed for changes.
+
+**Library units.** Line-leading `#LIB` marks SourceUnit::IsLibrary. RuntimeCheck uses the externally visible i32 `__cps_user_line`; FunctionGen’s shared call hook updates it only on non-library to library calls. Runtime helper line arguments use RuntimeCheck::lineValue too. Compiler diagnostics retain the owning file location.

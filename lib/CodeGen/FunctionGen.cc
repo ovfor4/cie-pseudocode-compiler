@@ -451,6 +451,7 @@ llvm::Value *FunctionGen::emitCall(const std::string &Callee, const std::vector<
 }
 
 llvm::Value *FunctionGen::emitCall(const FuncSig &Sig, const std::vector<llvm::Value*> &Args) {
+    if (BeforeCall) BeforeCall(Sig);
     if (!Sig.IsExternal) return emitCall(Sig.LinkName, Args);
     FunctionCallee Callee(Sig.ExternType, Module.getNamedValue(Sig.LinkName));
     Value *Call = Sig.ExternType->getReturnType()->isVoidTy()

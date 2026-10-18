@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
             return compilationTerminated();
         }
         if (Lex.hadError() || Parser.hadError()) return compilationTerminated();
-        Units.push_back({InputPath, Programs[I], std::vector<bool>(InputPaths.size(), false)});
+        Units.push_back({InputPath, Programs[I], std::vector<bool>(InputPaths.size(), false), Lex.isLibrary()});
         Units.back().Visible[I] = true;
     }
     for (size_t I = 0; I < Units.size(); ++I) {

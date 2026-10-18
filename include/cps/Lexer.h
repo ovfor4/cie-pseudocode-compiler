@@ -120,6 +120,8 @@ class Lexer {
     int CurrentLine = 1;
     int TokenLine = 1;
     bool HadError = false;
+    bool Library = false;
+    bool LineStart = true;
     struct TokenData {
         int Kind, Line;
         std::string Identifier, String;
@@ -145,6 +147,7 @@ public:
     int peekToken(unsigned Offset = 0);
     int peekLine(unsigned Offset = 0);
     int getLine() const { return TokenLine; }
+    bool isLibrary() const { return Library; }
     bool hadError() const { return HadError; }
 };
 

@@ -9,5 +9,6 @@ struct SourceUnit {
     std::string Path;
     const std::vector<std::unique_ptr<StmtAST>> &Statements;
     std::vector<bool> Visible;
+    bool IsLibrary = false;
 };
 }

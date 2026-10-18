@@ -24,6 +24,8 @@ The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions 
 
 Multi-file builds use the compiler extensions INCLUDE and GLOBAL. Pass every source file on the command line and include the files whose definitions are needed. The entry file contains the sole top-level executable code, or a parameterless FUNCTION MAIN returning INTEGER; definitions alone do not form a runnable program.
 
+#LIB marks a library source unit. A line-leading `#` starts a compiler directive, not a comment; unknown directives are errors. Library runtime diagnostics report the first user call site. See [cpsc-keyword-lib(7)](keyword/cpsc-keyword-lib.7.md).
+
 # KEYWORDS
 
 - [cpsc-keyword-include(7)](keyword/cpsc-keyword-include.7.md): import definitions from another compilation unit.

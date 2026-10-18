@@ -161,6 +161,11 @@ void CodeGen::selectUnit(size_t Unit) {
     CurrentUnit = Unit;
     DiagnosticSource = Units->size() > 1 ? (*Units)[Unit].Path : "";
     FuncGen->setCurrentUnit(Unit, (*Units)[Unit].Path);
+    RuntimeChecker->setLibraryMode((*Units)[Unit].IsLibrary);
+    FuncGen->setCallHook([this](const FuncSig &Sig) {
+        if (!(*Units)[CurrentUnit].IsLibrary && (*Units)[Sig.OwnerUnit].IsLibrary)
+            RuntimeChecker->setUserLine(DiagnosticLine);
+    });
 }
 
 void CodeGen::importSymbols() {
