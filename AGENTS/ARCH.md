@@ -139,14 +139,18 @@ Driver behavior (`tools/driver/main.cc`):
   the generic LLVM IR platform with EH-frame registration. macOS uses LLJIT's
   unwind registration, selecting compact unwind or EH-frame per host capability.
   Windows x86_64 keeps the GNU C++ runtime and `__gxx_personality_seh0` with a
-  small in-process COFF adapter: per-graph `__ImageBase` shared by relocations
-  and SEH registration, default backend liveness for `.pdata`, JITLink
+  small in-process COFF adapter: `MinGWCOFF.h` normalizes symbol-less MinGW
+  `.pdata$NAME`/`.xdata$NAME` COMDATs to associative COMDATs of `.text$NAME`
+  in private object-buffer copies before graph construction, including lazy
+  runtime archive members. Per-graph `__ImageBase` is shared by relocations
+  and SEH registration, with default backend liveness for `.pdata` and
+  associative code edges retaining the suffixed unwind sections. JITLink uses
   pointer-jump stubs for external direct CALL/JMP PCRel32 references in user
-  objects and `.xdata` personality references (shared per target; data references
-  are preserved), and
+  objects and `.xdata`/`.xdata$NAME` personality references (shared per target;
+  data references are preserved), and
   `RtlAddFunctionTable`/`RtlDeleteFunctionTable` via JITLink allocation actions
-  covering teardown and link-failure cleanup, with table validation in the
-  registration callback; registration failure blocks entry.
+  for `.pdata` and `.pdata$NAME`, covering teardown and link-failure cleanup,
+  with table validation in the registration callback; registration failure blocks entry.
   The JIT builds its `ObjectLinkingLayer` through one file-local factory (COFF
   flags stay format-conditional, SEH plugin installed before LLJIT ownership)
   so Windows COFF does not fall back

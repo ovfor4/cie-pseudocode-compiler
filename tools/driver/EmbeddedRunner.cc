@@ -27,6 +27,7 @@
 #include "llvm/ExecutionEngine/Orc/LinkGraphLinkingLayer.h"
 #include "llvm/ExecutionEngine/Orc/Shared/WrapperFunctionUtils.h"
 #include "llvm/Support/Endian.h"
+#include "MinGWCOFF.h"
 #endif
 
 namespace {
@@ -59,7 +60,8 @@ static llvm::Error addCOFFJumpStubs(llvm::jitlink::LinkGraph &G) {
             if (!Target.isExternal())
                 continue;
             bool Personality = false;
-            if (B->getSection().getName() == ".xdata" && Target.hasName()) {
+            if (isCOFFUnwindSection(B->getSection().getName(), ".xdata") &&
+                Target.hasName()) {
                 StringRef Name = *Target.getName();
                 Personality = Name == "__gxx_personality_seh0" ||
                               Name == "__gxx_personality_sj0" ||
@@ -168,7 +170,8 @@ public:
 
         // SEH table liveness relies on the COFF backend's default
         // SEHFrameKeepAlivePass(".pdata"), which keeps .pdata alive from its
-        // referenced function/unwind blocks. No custom PrePrune pass here.
+        // referenced function/unwind blocks. Normalized .pdata$/.xdata$
+        // sections are kept alive by their associative COMDAT code edges.
         // COFF unwind tables address the personality by 32-bit RVA, so it
         // must live near JIT code. Retarget .xdata personality references
         // to this graph's anonymous pointer jump stubs; the stub pointer
@@ -209,48 +212,49 @@ public:
         // After relocations are applied, register the function table with
         // the system unwinder via allocation actions. Table contents are
         // validated in the registration callback; here only locate the
-        // non-empty .pdata and the graph-local image base.
+        // non-empty .pdata/.pdata$ sections and the graph-local image base.
         Config.PostFixupPasses.push_back(
             [](LinkGraph &G) -> Error {
                 using namespace llvm::orc::shared;
-                auto *PDataSec = G.findSectionByName(".pdata");
-                if (!PDataSec)
-                    return Error::success();
-                jitlink::SectionRange Range(*PDataSec);
-                if (Range.empty())
-                    return Error::success();
-                auto TableRange = Range.getRange();
-                // Resolve the graph-local image base established above.
-                auto *ImageBaseSym =
-                    G.findDefinedSymbolByName(G.intern("__ImageBase"));
-                if (!ImageBaseSym)
-                    return make_error<JITLinkError>(
-                        "missing embedded __ImageBase for SEH registration");
-                ExecutorAddr ImageBase = ImageBaseSym->getAddress();
-                if (ImageBase.isNull())
-                    return make_error<JITLinkError>(
-                        "invalid embedded SEH image base");
-                // Registration failure must prevent entry to JIT code; the
-                // deregistration action also covers link-failure cleanup and
-                // normal teardown before the memory is released.
-                auto RegisterAction =
-                    WrapperFunctionCall::Create<SPSArgList<SPSExecutorAddrRange,
-                                                           SPSExecutorAddr>>(
-                        ExecutorAddr::fromPtr(
-                            &cps_register_seh_table_alloc_action),
-                        TableRange, ImageBase);
-                if (!RegisterAction)
-                    return RegisterAction.takeError();
-                auto DeregisterAction =
-                    WrapperFunctionCall::Create<SPSArgList<SPSExecutorAddrRange,
-                                                           SPSExecutorAddr>>(
-                        ExecutorAddr::fromPtr(
-                            &cps_deregister_seh_table_alloc_action),
-                        TableRange, ImageBase);
-                if (!DeregisterAction)
-                    return DeregisterAction.takeError();
-                G.allocActions().push_back(
-                    {std::move(*RegisterAction), std::move(*DeregisterAction)});
+                for (auto &Sec : G.sections()) {
+                    if (!isCOFFUnwindSection(Sec.getName(), ".pdata"))
+                        continue;
+                    jitlink::SectionRange Range(Sec);
+                    if (Range.empty())
+                        continue;
+                    auto TableRange = Range.getRange();
+                    // Resolve the graph-local image base established above.
+                    auto *ImageBaseSym =
+                        G.findDefinedSymbolByName(G.intern("__ImageBase"));
+                    if (!ImageBaseSym)
+                        return make_error<JITLinkError>(
+                            "missing embedded __ImageBase for SEH registration");
+                    ExecutorAddr ImageBase = ImageBaseSym->getAddress();
+                    if (ImageBase.isNull())
+                        return make_error<JITLinkError>(
+                            "invalid embedded SEH image base");
+                    // Registration failure must prevent entry to JIT code; the
+                    // deregistration action also covers link-failure cleanup and
+                    // normal teardown before the memory is released.
+                    auto RegisterAction =
+                        WrapperFunctionCall::Create<SPSArgList<SPSExecutorAddrRange,
+                                                               SPSExecutorAddr>>(
+                            ExecutorAddr::fromPtr(
+                                &cps_register_seh_table_alloc_action),
+                            TableRange, ImageBase);
+                    if (!RegisterAction)
+                        return RegisterAction.takeError();
+                    auto DeregisterAction =
+                        WrapperFunctionCall::Create<SPSArgList<SPSExecutorAddrRange,
+                                                               SPSExecutorAddr>>(
+                            ExecutorAddr::fromPtr(
+                                &cps_deregister_seh_table_alloc_action),
+                            TableRange, ImageBase);
+                    if (!DeregisterAction)
+                        return DeregisterAction.takeError();
+                    G.allocActions().push_back(
+                        {std::move(*RegisterAction), std::move(*DeregisterAction)});
+                }
                 return Error::success();
             });
         (void)MR;
@@ -269,6 +273,24 @@ public:
                                      llvm::orc::ResourceKey,
                                      llvm::orc::ResourceKey) override {}
 };
+
+// Both user objects and lazily extracted runtime archive members pass through
+// this layer, before JITLink builds their graphs or runs plugin passes.
+class MinGWObjectLinkingLayer final : public llvm::orc::ObjectLinkingLayer {
+public:
+    using ObjectLinkingLayer::ObjectLinkingLayer;
+
+    void emit(std::unique_ptr<llvm::orc::MaterializationResponsibility> R,
+              std::unique_ptr<llvm::MemoryBuffer> O) override {
+        auto Normalized = normalizeMinGWUnwindSections(std::move(O));
+        if (!Normalized) {
+            getExecutionSession().reportError(Normalized.takeError());
+            R->failMaterialization();
+            return;
+        }
+        ObjectLinkingLayer::emit(std::move(R), std::move(*Normalized));
+    }
+};
 #endif
 
 // Embedded JITLink object layer. Created before LLJIT takes ownership so
@@ -278,8 +300,13 @@ static std::unique_ptr<llvm::orc::ObjectLinkingLayer>
 createEmbeddedObjectLayer(llvm::orc::ExecutionSession &ES,
                           llvm::jitlink::JITLinkMemoryManager &MM,
                           const llvm::Triple &TT) {
-    auto Layer =
-        std::make_unique<llvm::orc::ObjectLinkingLayer>(ES, MM);
+    std::unique_ptr<llvm::orc::ObjectLinkingLayer> Layer;
+#if defined(_WIN32) && defined(__x86_64__)
+    if (TT.isOSBinFormatCOFF() && TT.getArch() == llvm::Triple::x86_64)
+        Layer = std::make_unique<MinGWObjectLinkingLayer>(ES, MM);
+    else
+#endif
+        Layer = std::make_unique<llvm::orc::ObjectLinkingLayer>(ES, MM);
     if (TT.isOSBinFormatCOFF()) {
         Layer->setOverrideObjectFlagsWithResponsibilityFlags(true);
         Layer->setAutoClaimResponsibilityForObjectSymbols(true);
