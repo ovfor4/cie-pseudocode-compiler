@@ -32,6 +32,8 @@ Overloads may be defined in separate input files. A caller sees only its own and
 
 Methods use the same rules; fields and methods cannot share a name. Constructor calls select NEW by their explicit arguments. DECLARE without arguments, class-valued fields and array elements select a parameterless NEW; if NEW exists but has no matching parameterless overload, compilation fails. PRIVATE checks apply to the selected method or constructor.
 
+Operator definitions use OVERLOAD FUNCTION OPERATOR followed by the operator symbol or keyword. They support global and member forms with exact operand types; see [cpsc-keyword-operator(7)](cpsc-keyword-operator.7.md).
+
 # EXAMPLE
 
 ```text

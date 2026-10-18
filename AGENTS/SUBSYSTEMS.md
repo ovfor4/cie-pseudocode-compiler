@@ -43,6 +43,16 @@ compile error (no extern is fabricated). Functions inherit visible GLOBAL storag
 `StmtEmitter` callback, and must restore its own insert point (and the exchanged
 ArrayTable) afterwards.
 
+**Operator overloads** (`OperatorGen.cc`): PrototypeAST retains the operator token;
+FunctionGen validates operand count and requires a record/class/enum operand.
+Global signatures and left-class methods share exact-type selection, used by
+ValueTypeGen and ExpressionGen before builtin operations. Missing candidates leave
+builtin rules intact; ties are errors. Member access is checked after selection.
+The raw-expression argument-marshalling overload borrows AST pointers for operator
+calls; ordinary calls adapt their unique_ptr lists into it. Member receivers use
+lvalue storage or a materialized, Alive-tracked temporary. CASE calls the value
+entry point with its already captured selector and requires BOOLEAN results.
+
 **EXTERN "C"** (`ExternDeclAST`, `IncludeObjStmtAST`): the parser builds a body-less
 `PrototypeAST` (IsExternal, IsVariadic, unnamed `argN` params). `FunctionGen::emitExternPrototype`
 validates C types, records a `FuncSig` with `IsExternal`, the declared `FunctionType` and
@@ -71,7 +81,7 @@ constants live in a TypeSystem-owned table, resolved in `emitExpr`'s
 `VariableExprAST` branch after `Symbols` misses. The lvalue layer
 (`emitLValue`/`loadFromLValue`) resolves designator chains to `{address, type name}`;
 `emitCoercedExpr` is the single name-level admission gate; `emitUserKindBinaryOp`
-intercepts binary operators ahead of ArithmeticHandler (which, like StringHandler and
+intercepts built-in binary operators ahead of ArithmeticHandler (which, like StringHandler and
 FileHandler, is deliberately ignorant of user kinds). The enum range check after
 `E ± INTEGER` is the only site that can produce an invalid ordinal — every other
 producer (constants, same-name copies, zero-init, memset-0 arrays) is valid by

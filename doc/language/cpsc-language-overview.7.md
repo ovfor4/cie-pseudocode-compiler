@@ -8,7 +8,9 @@ cpsc-language-overview - supported cpsc pseudocode syntax
 
 Keywords are uppercase and case-sensitive. Identifiers, including built-in function names, are case insensitive. Indentation is for readability; blocks use explicit closing keywords. Identifiers begin with a letter and continue with letters, digits, or underscores.
 
-Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`, `<`, `>`, `<=`, and `>=`. STRING comparisons compare contents, case-sensitively. Use `+`, `-`, `*`, and `/` for arithmetic; `/` always returns REAL. Use `&` to join strings.
+Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`, `<`, `>`, `<=`, and `>=`. Built-in STRING comparisons compare contents, case-sensitively. Use `+`, `-`, `*`, and `/` for arithmetic; built-in `/` always returns REAL. Use `&` to join strings.
+
+User-defined types can overload operators with OVERLOAD FUNCTION OPERATOR; expressions then use the declared result type. See [cpsc-keyword-operator(7)](keyword/cpsc-keyword-operator.7.md). STRING cannot be implicitly converted to BOOLEAN.
 
 Precedence, from highest to lowest: unary operators, `* / DIV MOD`, `+ - &`, comparisons, AND, OR. Parentheses override precedence.
 
@@ -38,6 +40,7 @@ Multi-file builds use the compiler extensions INCLUDE and GLOBAL. Pass every sou
 - [cpsc-keyword-for(7)](keyword/cpsc-keyword-for.7.md): iterate over an integer range.
 - [cpsc-keyword-function(7)](keyword/cpsc-keyword-function.7.md): define a function that returns a value.
 - [cpsc-keyword-procedure(7)](keyword/cpsc-keyword-procedure.7.md): define a procedure and parameter modes.
+- [cpsc-keyword-operator(7)](keyword/cpsc-keyword-operator.7.md): overload unary and binary operators.
 - [cpsc-keyword-overload(7)](keyword/cpsc-keyword-overload.7.md): explicitly overload functions, procedures and constructors.
 - [cpsc-keyword-call(7)](keyword/cpsc-keyword-call.7.md): invoke a procedure.
 - [cpsc-keyword-openfile(7)](keyword/cpsc-keyword-openfile.7.md): open a text file.

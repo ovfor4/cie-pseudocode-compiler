@@ -83,8 +83,8 @@ pseudocode types *backwards* from LLVM types (`getExprTypeInfo`'s fallback,
 only explicitly declared pointer types compare addresses. STRING's six comparison
 operators use `strcmp` in `StringHandler`, dispatched by pseudocode type in CodeGen
 before ArithmeticHandler. Ordering is case-sensitive byte lexicographic order;
-mixed STRING/non-STRING comparisons are errors. Whole-array and record comparisons
-remain unsupported.
+mixed STRING/non-STRING comparisons are errors. Whole-array comparisons remain unsupported; records/classes require an explicit
+operator overload for comparisons.
 
 **Strings are malloc'd and never freed — by design.** Every string-producing operation
 (`&`, MID/LEFT/RIGHT/LCASE/UCASE, NUM_TO_STR, CHR, READFILE, CHAR/number→STRING
@@ -151,6 +151,19 @@ Return types, modes and bounds never distinguish overloads. In all cases,
 declaration spelling for LLVM lookup, independently of call-site casing. Methods use
 `Class.Method` names and a hidden leading receiver address; their FuncSig parameters
 contain only explicit source parameters. Method prototypes are pre-registered too.
+
+**Operator overloads share static selection.** OPERATOR is a reserved keyword;
+`OVERLOAD FUNCTION OPERATOR+(...)` records the token on PrototypeAST. Canonical
+names contain a space (`OPERATOR +`, `Class.OPERATOR AND`) to avoid collisions with
+ordinary identifiers. `OperatorGen.cc` probes visible global and left-class member
+signatures without emitting diagnostics or evaluating operands. Matching is exact;
+member/global ties are ambiguous and access is checked only after selection.
+Both getExprTypeInfo and emission must consult this resolver before hardcoded
+builtin result types. Returns may be any supported function result, including
+non-BOOLEAN comparisons/logic. emitCoercedExpr rejects implicit STRING to BOOLEAN;
+CASE separately requires BOOLEAN comparisons. Operators use shared argument
+marshalling and exception-aware calls. Member lvalues keep their original address;
+rvalues are materialized and registered for the existing function-scoped cleanup.
 
 **Parameter modes are sticky and BYREF is procedure-only (guide §8.3).** In
 `(BYREF a : T, b : T)` the `b` is BYREF too; unannotated parameters default to

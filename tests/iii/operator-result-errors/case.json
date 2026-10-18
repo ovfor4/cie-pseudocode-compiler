@@ -1,0 +1,20 @@
+{
+  "errors": [
+    {
+      "reason": "Cannot implicitly convert STRING to BOOLEAN",
+      "line": 8
+    },
+    {
+      "reason": "Cannot implicitly convert STRING to BOOLEAN",
+      "line": 12
+    },
+    {
+      "reason": "Cannot implicitly convert STRING to BOOLEAN",
+      "line": 17
+    },
+    {
+      "reason": "CASE comparison must return BOOLEAN",
+      "line": 19
+    }
+  ]
+}

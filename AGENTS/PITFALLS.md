@@ -46,7 +46,7 @@ test programs.
   at any new call site) and internally defaults to INTEGER for unclassified arithmetic expressions; unknown or unmatched calls now diagnose and return nullptr.
   OUTPUT reports an error for a nullptr result.
 - **CONSTANT** accepts only literals (including negative numeric literals), never expressions or other names. Constants have lexical block scope and may shadow outer names; bindings hiding constants are restored on block exit too. Functions inherit previously declared constants from their own unit and all visible imported top-level constants. Constants have no writable storage: assignment, INPUT, READFILE targets, FOR variables, BYREF and address-of are rejected.
-- **CASE OF** reads its selector once and tests expression labels in source order, with inclusive TO ranges and an optional final OTHERWISE. Label headers occupy their own source line; bodies may begin after the colon or on subsequent lines. Comparisons reuse ordinary operator rules; records and whole arrays are unsupported.
+- **CASE OF** reads its selector once and tests expression labels in source order, with inclusive TO ranges and an optional final OTHERWISE. Label headers occupy their own source line; bodies may begin after the colon or on subsequent lines. Comparisons reuse ordinary operator rules; records/classes need BOOLEAN-returning comparison overloads, and whole arrays are unsupported.
 - The lexer emits no newline tokens; most grammar is keyword-delimited, while CASE
   uses token line information to recognize labels. Bare `RETURN` is recognized
   before block terminators and the next CASE label.
@@ -93,6 +93,14 @@ test programs.
   inputs. MAIN and builtins cannot be overloaded. NEW supports overloads; DECLARE,
   fields and arrays needing default construction require a matching no-argument NEW.
   Private access is checked after selection, never used to select a public fallback.
+- **OPERATOR extension.** Requires OVERLOAD FUNCTION, with supported unary/binary
+  arity and at least one record/class/enum operand. Pointer aliases alone do not
+  qualify. Exact matching considers visible globals and left-class members
+  together; ties are errors, including private/public ties. Comparison and logic
+  result types are declared, not assumed BOOLEAN; implicit STRING to BOOLEAN is
+  rejected. CASE comparisons must return BOOLEAN. AND/OR overloads evaluate both
+  operands. Temporary member receivers have function-scoped cleanup, not C++
+  full-expression lifetimes. Explicit calls use OPERATOR+(a,b) or a.OPERATOR+(b).
 - **CLASS subset (§10).** `CLASS`/`ENDCLASS`/`PUBLIC`/`PRIVATE` are reserved.
   CLASS is a top-level record-derived value type with optional per-member access
   keywords (no DECLARE). Omitting access defaults to public, per the guide.

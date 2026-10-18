@@ -1,0 +1,7 @@
+{
+  "sources": [
+    "program.cps",
+    "operators.cps",
+    "types.cps"
+  ]
+}

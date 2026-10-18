@@ -315,6 +315,7 @@ do not modify the real release for local verification.
 | `lib/Parser/ParserType.cc` | Type names, variable/array/constant declarations, TYPE/ENDTYPE and CLASS/ENDCLASS declarations, shared field and method parsing, SET/DEFINE reserved stubs |
 | `lib/CodeGen/CodeGen.cc` | Initialization, symbols, call arguments and main() compilation |
 | `lib/CodeGen/ExpressionGen.cc`, `StatementGen.cc`, `ControlFlowGen.cc` | Expression/statement dispatch and control-flow emission |
+| `lib/CodeGen/OperatorGen.cc`, `include/cps/Operator.h` | Exact global/member operator selection, calls and temporary receivers; shared operator spellings |
 | `lib/CodeGen/GlobalGen.cc` | Primitive GLOBAL declaration and constant-initializer passes |
 | `lib/CodeGen/ConstantGen.cc` | Literal constants, declaration conflicts and lexical binding restoration |
 | `lib/CodeGen/ValueTypeGen.cc`, `OutputGen.cc`, `Builtins.h` | Expression typing, coercion/declarations, scalar output and the shared builtin table |
