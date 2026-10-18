@@ -116,6 +116,32 @@ target_link_libraries(cpsc PRIVATE
 
 include(cmake/NativeCompiler.cmake)
 
+# Build the experimental pseudocode library with the same host C++ ABI.
+file(GLOB cpsc_library_cc CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/pseudocode-lib/*.cc")
+file(GLOB cpsc_library_sources CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/pseudocode-lib/*.cps")
+set(cpsc_library_outputs)
+foreach(source IN LISTS cpsc_library_cc)
+    get_filename_component(name "${source}" NAME_WE)
+    set(output "${CMAKE_BINARY_DIR}/pseudocode-lib/${name}.o")
+    add_custom_command(OUTPUT "${output}"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/pseudocode-lib"
+        COMMAND "${CMAKE_CXX_COMPILER}" -c -O2 -fPIC -std=c++17 "${source}" -o "${output}"
+        DEPENDS "${source}"
+        VERBATIM)
+    list(APPEND cpsc_library_outputs "${output}")
+endforeach()
+foreach(source IN LISTS cpsc_library_sources)
+    get_filename_component(name "${source}" NAME)
+    set(output "${CMAKE_BINARY_DIR}/pseudocode-lib/${name}")
+    add_custom_command(OUTPUT "${output}"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/pseudocode-lib"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${source}" "${output}"
+        DEPENDS "${source}"
+        VERBATIM)
+    list(APPEND cpsc_library_outputs "${output}")
+endforeach()
+add_custom_target(pseudocode-lib ALL DEPENDS ${cpsc_library_outputs})
+
 option(BUILD_TESTING "Enable compiler conformance tests" OFF)
 if(BUILD_TESTING)
     enable_testing()
