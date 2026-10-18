@@ -21,27 +21,8 @@ defaults:
     shell: bash
 
 jobs:
-  clean:
-    name: Clear nightly attachments
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Delete all existing release assets
-        run: |
-          latest_sha=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
-          if [[ "$latest_sha" != "$GITHUB_SHA" ]]; then
-            echo "This push has been superseded; leaving the release untouched."
-            exit 1
-          fi
-          release_id=$(gh api "repos/$GH_REPO/releases/tags/$CPSC_NIGHTLY_TAG" --jq '.id')
-          gh api --paginate "repos/$GH_REPO/releases/$release_id/assets?per_page=100" \
-            --jq '.[].id' > "$RUNNER_TEMP/nightly-asset-ids"
-          while IFS= read -r asset_id; do
-            gh api --method DELETE "repos/$GH_REPO/releases/assets/$asset_id"
-          done < "$RUNNER_TEMP/nightly-asset-ids"
-
   compiler:
     name: Linux x86_64 compiler
-    needs: clean
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
@@ -122,17 +103,15 @@ jobs:
           done
 
       - name: Upload the compiler package
-        run: |
-          latest_sha=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
-          if [[ "$latest_sha" != "$GITHUB_SHA" ]]; then
-            echo "This push has been superseded; skipping upload."
-            exit 0
-          fi
-          gh release upload "$CPSC_NIGHTLY_TAG" build/cpsc-*-Linux-x86_64.tar.xz --clobber
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: nightly-linux
+          path: build/cpsc-*-Linux-x86_64.tar.xz
+          if-no-files-found: error
+          retention-days: 1
 
   macos:
     name: macOS arm64 compiler
-    needs: clean
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v7.0.1
@@ -231,17 +210,15 @@ jobs:
           done < <(otool -L "$RUNNER_TEMP/nightly-smoke.out" | tail -n +2 | awk '{print $1}')
 
       - name: Upload the macOS package
-        run: |
-          latest_sha=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
-          if [[ "$latest_sha" != "$GITHUB_SHA" ]]; then
-            echo "This push has been superseded; skipping upload."
-            exit 0
-          fi
-          gh release upload "$CPSC_NIGHTLY_TAG" build/cpsc-*-Darwin-arm64.tar.xz --clobber
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: nightly-macos
+          path: build/cpsc-*-Darwin-arm64.tar.xz
+          if-no-files-found: error
+          retention-days: 1
 
   windows:
     name: Windows x86_64 compiler
-    needs: clean
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v7.0.1
@@ -372,17 +349,15 @@ jobs:
           }
 
       - name: Upload the Windows package
-        run: |
-          latest_sha=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
-          if [[ "$latest_sha" != "$GITHUB_SHA" ]]; then
-            echo "This push has been superseded; skipping upload."
-            exit 0
-          fi
-          gh release upload "$CPSC_NIGHTLY_TAG" build/cpsc-*-Windows-*.zip --clobber
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: nightly-windows
+          path: build/cpsc-*-Windows-*.zip
+          if-no-files-found: error
+          retention-days: 1
 
   plugin:
     name: VS Code extension
-    needs: clean
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
@@ -431,10 +406,50 @@ jobs:
           PY
 
       - name: Upload the VSIX
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: nightly-plugin
+          path: plugin/*.vsix
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Update nightly attachments
+    needs: [compiler, macos, windows, plugin]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download all release packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: nightly-*
+          path: release-packages
+
+      - name: Validate and publish all release packages
         run: |
+          shopt -s nullglob
+          linux=(release-packages/nightly-linux/cpsc-*-Linux-x86_64.tar.xz)
+          macos=(release-packages/nightly-macos/cpsc-*-Darwin-arm64.tar.xz)
+          windows=(release-packages/nightly-windows/cpsc-*-Windows-*.zip)
+          plugin=(release-packages/nightly-plugin/*.vsix)
+          for count in "${#linux[@]}" "${#macos[@]}" "${#windows[@]}" "${#plugin[@]}"; do
+            if [[ "$count" -ne 1 ]]; then
+              echo "Expected exactly one package for each of the four builds; leaving the release untouched." >&2
+              exit 1
+            fi
+          done
+          packages=("${linux[@]}" "${macos[@]}" "${windows[@]}" "${plugin[@]}")
+          for package in "${packages[@]}"; do
+            test -s "$package"
+          done
           latest_sha=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
           if [[ "$latest_sha" != "$GITHUB_SHA" ]]; then
-            echo "This push has been superseded; skipping upload."
+            echo "This push has been superseded; leaving the release untouched."
             exit 0
           fi
-          gh release upload "$CPSC_NIGHTLY_TAG" plugin/*.vsix --clobber
+          release_id=$(gh api "repos/$GH_REPO/releases/tags/$CPSC_NIGHTLY_TAG" --jq '.id')
+          gh api --paginate "repos/$GH_REPO/releases/$release_id/assets?per_page=100" \
+            --jq '.[].id' > "$RUNNER_TEMP/nightly-asset-ids"
+          while IFS= read -r asset_id; do
+            gh api --method DELETE "repos/$GH_REPO/releases/assets/$asset_id"
+          done < "$RUNNER_TEMP/nightly-asset-ids"
+          gh release upload "$CPSC_NIGHTLY_TAG" "${packages[@]}" --clobber

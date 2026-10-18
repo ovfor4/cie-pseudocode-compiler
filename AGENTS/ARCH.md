@@ -264,15 +264,17 @@ existing terminator), and an explicit `llvm::Triple` for the embedded target.
 ## Nightly builds
 
 `.github/workflows/nightly-build.yml` runs on every push to `main`, without path
-filters. A shared concurrency group cancels superseded runs. The cleanup job
-requires the existing `nightly-build` release and deletes all uploaded assets,
-including paginated results, before either build starts. It never creates or
-deletes the release and preserves its tag, title and notes. GitHub's generated
+filters. A shared concurrency group cancels superseded runs. A final publish job
+requires all four build jobs to succeed before updating the existing `nightly-build`
+release. Any build or check failure leaves all previous attachments untouched.
+The publish job deletes all old uploaded assets, including paginated results,
+then uploads the four new packages. It never creates or deletes the release
+and preserves its tag, title and notes. GitHub's generated
 source downloads remain available.
 
 The Linux compiler and plugin jobs use Ubuntu 24.04 x86_64; the macOS compiler
 job uses a macOS 15 arm64 runner, and Windows uses Windows Server 2025 x86_64.
-All four check out the push SHA and run independently after cleanup. All three
+All four check out the push SHA and run independently. All three
 compiler jobs use LLVM/Clang/LLD 23, Python (build-time), Release and EMBEDDED settings, Pandoc, and the
 existing `release` target. Linux obtains its toolchain from apt.llvm.org; macOS
 uses Homebrew's LLVM 23 and builds matching static LLD with the helper above. Windows uses `msys2/setup-msys2@v2` with MINGW64,
@@ -284,13 +286,17 @@ packaged binary and checks native generation plus `.ll` output without tool look
 Windows system directories, excluding MSYS2 and LLVM. The macOS check also
 verifies arm64 and rejects non-system dynamic libraries. The plugin uses
 Node.js 22, `npm ci --ignore-scripts` and
-`npm run package`, then checks VSIX contents. Each job uploads directly after
-its own checks pass; failure in one does not block the others. Compiler jobs enable
+`npm run package`, then checks VSIX contents. Each job retains its checked package
+as a separate Actions artifact for one day, failing if the package is missing.
+Compiler jobs enable
 BUILD_TESTING, install Perl for the tests and run all CTest cases with the push SHA as seed before
 their package smoke checks and uploads. Failed tests retain inputs and logs as
 Actions artifacts for 14 days; test summaries appear even on failure. See TESTING.md.
-Cleanup and uploads check main's current SHA to avoid modifying nightly for a
-superseded push. The workflow uses `GITHUB_TOKEN` with `contents: write`.
+The publish job downloads only the current run's `nightly-*` artifacts and checks
+that exactly one nonempty package exists for each build before any release API
+calls. It then checks main's current SHA to avoid modifying nightly for a
+superseded push. Release upload failures do not roll back deleted assets.
+The workflow uses `GITHUB_TOKEN` with `contents: write`.
 Compiler package names retain the existing commit-based version; the VSIX uses
 `plugin/package.json`'s version. Before committing workflow changes, run
 actionlint, simulate release API calls, and smoke-test the packages locally;
