@@ -369,6 +369,14 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
                               const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
                               int Line,
                               std::vector<Value*> &Out) {
+    std::vector<ExprAST*> Args;
+    for (const auto &Arg : ArgExprs) Args.push_back(Arg.get());
+    return marshalCallArgs(Signature, Args, Line, Out);
+}
+
+bool CodeGen::marshalCallArgs(const FuncSig &Signature,
+                              const std::vector<ExprAST*> &ArgExprs,
+                              int Line, std::vector<Value*> &Out) {
     SaveAndRestore<int> Location(DiagnosticLine, Line ? Line : DiagnosticLine);
     const FuncSig *Sig = &Signature;
     const std::string &Callee = Sig->Name;
@@ -379,7 +387,7 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
 
     for (size_t i = 0; i < ArgExprs.size(); ++i) {
         if (i >= Sig->Params.size()) {
-            Value *V = emitVariadicArgument(ArgExprs[i].get(), Callee, i + 1);
+            Value *V = emitVariadicArgument(ArgExprs[i], Callee, i + 1);
             if (!V) return false;
             Out.push_back(V);
             continue;
@@ -387,7 +395,7 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
         const ParamSig &P = Sig->Params[i];
         const std::string &TypeName = P.TypeName;
         bool IsByRef = P.IsByRef;
-        ExprAST *ArgExpr = ArgExprs[i].get();
+        ExprAST *ArgExpr = ArgExprs[i];
 
         if (P.IsArray) {
             if (!Arrays->emitArrayArgument(ArgExpr, P.TypeName, P.Rank, P.DeclaredBounds,

@@ -1,0 +1,20 @@
+{
+  "errors": [
+    {
+      "reason": "Ambiguous overload",
+      "line": 14
+    },
+    {
+      "reason": "Cannot access private method",
+      "line": 15
+    },
+    {
+      "reason": "Cannot access private method",
+      "line": 16
+    },
+    {
+      "reason": "whole array cannot be used as an operand",
+      "line": 18
+    }
+  ]
+}

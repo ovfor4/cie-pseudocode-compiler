@@ -73,6 +73,16 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
     }
 
     if (auto *Unary = dynamic_cast<UnaryExprAST*>(Expr)) {
+        if (isWholeArrayVar(Unary->getOperand())) {
+            reportError("A whole array cannot be used as an operand; index it");
+            return nullptr;
+        }
+        auto Overload = resolveOperator(Unary->getOp(), getExprTypeInfo(Unary->getOperand()));
+        if (Overload.Ambiguous) {
+            reportError("Ambiguous overload for %s", operatorName(Unary->getOp()).c_str());
+            return nullptr;
+        }
+        if (Overload.Signature) return emitOperatorCall(*Overload.Signature, Unary->getOperand());
         if (Unary->getOp() == tok_not) {
             const TypeInfo *Info = getExprTypeInfo(Unary->getOperand());
             Value *Operand = Info && Info->isC()
@@ -123,6 +133,16 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         // '&' path: their admissible operations are decided by name here.
         const TypeInfo *LT = getExprTypeInfo(Bin->getLHS());
         const TypeInfo *RT = getExprTypeInfo(Bin->getRHS());
+        if (LT && RT) {
+            auto Overload = resolveOperator(Bin->getOp(), LT, RT);
+            if (Overload.Ambiguous) {
+                reportError("Ambiguous overload for %s(%s, %s)", operatorName(Bin->getOp()).c_str(),
+                            LT->Name.c_str(), RT->Name.c_str());
+                return nullptr;
+            }
+            if (Overload.Signature)
+                return emitOperatorCall(*Overload.Signature, Bin->getLHS(), Bin->getRHS());
+        }
         Value *L = emitExpr(Bin->getLHS());
         Value *R = emitExpr(Bin->getRHS());
         return emitBinaryOp(Bin->getOp(), L, LT, R, RT, Bin->getLine());
@@ -165,7 +185,7 @@ Value *CodeGen::emitBinaryOp(int Op, Value *L, const TypeInfo *LT,
         reportError("Ambiguous overload for %s(%s, %s)", operatorName(Op).c_str(), LT->Name.c_str(), RT->Name.c_str());
         return nullptr;
     }
-    if (Overload.Signature) return FuncGen->emitCall(*Overload.Signature, {L, R});
+    if (Overload.Signature) return emitOperatorValues(*Overload.Signature, L, LT, R);
     if ((LT && LT->isC()) || (RT && RT->isC()))
         return emitCBinaryOp(Op, L, LT, R, RT, Line);
     if ((LT && LT->isUserKind()) || (RT && RT->isUserKind()))

@@ -140,6 +140,10 @@ std::string Parser::ParseOperatorName(int &Op) {
         return {};
     }
     getNextToken();
+    if (CurTok != '(') {
+        sourceDiagnostic(Lex.getLine(), "error: Expected '(' after operator name at line %d\n", Lex.getLine());
+        return {};
+    }
     return operatorName(Op);
 }
 
@@ -339,13 +343,20 @@ std::unique_ptr<StmtAST> Parser::ParseExternDecl() {
 std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
     int Line = Lex.getLine();
     getNextToken();
-    if (CurTok != tok_identifier) {
+    if (CurTok != tok_identifier && CurTok != tok_operator) {
         cps::sourceDiagnostic(Lex.getLine(), "error: Expected callee name after CALL\n");
         return nullptr;
     }
 
-    std::string Callee = Lex.IdentifierStr;
-    getNextToken();
+    std::string Callee;
+    if (CurTok == tok_operator) {
+        int Op;
+        Callee = ParseOperatorName(Op);
+        if (Callee.empty()) return nullptr;
+    } else {
+        Callee = Lex.IdentifierStr;
+        getNextToken();
+    }
 
     std::vector<DesignatorAccess> Accesses;
     if (!ParseDesignatorSuffix(Accesses)) return nullptr;

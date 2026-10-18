@@ -70,10 +70,14 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
     if (dynamic_cast<AddrOfExprAST*>(Expr)) return nullptr;
 
     if (auto *Unary = dynamic_cast<UnaryExprAST*>(Expr)) {
+        if (isWholeArrayVar(Unary->getOperand())) return nullptr;
+        const TypeInfo *Operand = getExprTypeInfo(Unary->getOperand());
+        auto Overload = resolveOperator(Unary->getOp(), Operand);
+        if (Overload.Ambiguous) return nullptr;
+        if (Overload.Signature) return resolveType(Overload.Signature->ReturnTypeName);
         if (Unary->getOp() == tok_not) {
             return resolveType("BOOLEAN");
         }
-        const TypeInfo *Operand = getExprTypeInfo(Unary->getOperand());
         if (Operand && Operand->isC()) return Types->promoteCScalar(Operand);
         if (Operand && !Operand->isC() && !Operand->isUserKind())
             return Operand->isReal() ? resolveType("REAL") : resolveType("INTEGER");

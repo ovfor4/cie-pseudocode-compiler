@@ -22,7 +22,7 @@ inline std::string operatorSpelling(int Op) {
 }
 
 inline std::string operatorName(int Op) {
-    return "OPERATOR" + operatorSpelling(Op);
+    return "OPERATOR " + operatorSpelling(Op);
 }
 
 } // namespace cps

@@ -160,11 +160,18 @@ class CodeGen {
         bool Ambiguous = false;
     };
     OperatorResolution resolveOperator(int Op, const TypeInfo *Left, const TypeInfo *Right = nullptr);
+    bool checkOperatorAccess(const FuncSig &Signature);
+    llvm::Value *materializeOperatorReceiver(llvm::Value *Value, const TypeInfo *Type);
+    llvm::Value *emitOperatorCall(const FuncSig &Signature, ExprAST *Left, ExprAST *Right = nullptr);
+    llvm::Value *emitOperatorValues(const FuncSig &Signature, llvm::Value *Left,
+                                     const TypeInfo *LeftType, llvm::Value *Right);
     llvm::Value *emitVariadicArgument(ExprAST *Expr, const std::string &Callee, size_t Position);
     bool marshalCallArgs(const FuncSig &Signature,
                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
                          int Line,
                          std::vector<llvm::Value*> &Out);
+    bool marshalCallArgs(const FuncSig &Signature, const std::vector<ExprAST*> &ArgExprs,
+                         int Line, std::vector<llvm::Value*> &Out);
     llvm::Value *symbolAddress(const SymbolInfo &Info);
     void emitAssignment(const LValueInfo &Target, ExprAST *Expr,
                         const SymbolInfo *Symbol = nullptr);

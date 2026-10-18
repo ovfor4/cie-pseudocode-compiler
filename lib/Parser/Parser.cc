@@ -48,7 +48,7 @@ void Parser::syncToStatementStart() {
         switch (CurTok) {
         case tok_include: case tok_global: case tok_endglobal:
         case tok_include_obj: case tok_extern:
-        case tok_delete: case tok_constant: case tok_declare: case tok_identifier: case tok_input: case tok_output:
+        case tok_delete: case tok_constant: case tok_declare: case tok_identifier: case tok_operator: case tok_input: case tok_output:
         case tok_case: case tok_endcase: case tok_otherwise:
         case tok_if: case tok_while: case tok_repeat: case tok_for:
         case tok_overload: case tok_function: case tok_procedure: case tok_call: case tok_return:
@@ -163,7 +163,7 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     if (CurTok == tok_declare) {
         return ParseDeclare();
     }
-    else if (CurTok == tok_identifier) {
+    else if (CurTok == tok_identifier || CurTok == tok_operator) {
         return ParseAssignStmt();
     }
     else if (CurTok == tok_input) {
@@ -284,9 +284,16 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
 // Bare-name and single-index targets degrade to their legacy nodes so the
 // existing assignment code paths stay untouched.
 std::unique_ptr<StmtAST> Parser::ParseAssignStmt() {
-    std::string Name = Lex.IdentifierStr;
     int Line = Lex.getLine();
-    getNextToken();
+    std::string Name;
+    if (CurTok == tok_operator) {
+        int Op;
+        Name = ParseOperatorName(Op);
+        if (Name.empty()) return nullptr;
+    } else {
+        Name = Lex.IdentifierStr;
+        getNextToken();
+    }
 
     if (CurTok == '(') {
         getNextToken();

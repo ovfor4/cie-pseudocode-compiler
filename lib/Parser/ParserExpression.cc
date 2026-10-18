@@ -41,9 +41,16 @@ std::unique_ptr<ExprAST> Parser::ParseNumberExpr() {
 }
 
 std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
-    std::string IdName = Lex.IdentifierStr;
     int Line = Lex.getLine();
-    getNextToken();
+    std::string IdName;
+    if (CurTok == tok_operator) {
+        int Op;
+        IdName = ParseOperatorName(Op);
+        if (IdName.empty()) return nullptr;
+    } else {
+        IdName = Lex.IdentifierStr;
+        getNextToken();
+    }
 
     if (CurTok == '(' && !atCaseBoundary()) {
         getNextToken();
@@ -110,15 +117,21 @@ bool Parser::ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out) {
             Out.push_back(std::move(A));
         } else if (CurTok == '.') {
             getNextToken();
-            if (CurTok != tok_identifier && CurTok != tok_new && CurTok != tok_delete) {
+            if (CurTok != tok_identifier && CurTok != tok_new && CurTok != tok_delete && CurTok != tok_operator) {
                 cps::sourceDiagnostic(Lex.getLine(), "error: Expected field name after '.' at line %d\n", Lex.getLine());
                 return false;
             }
             DesignatorAccess A;
             A.Kind = AccessKind::Field;
-            A.FieldName = CurTok == tok_new ? "NEW" : CurTok == tok_delete ? "DELETE" : Lex.IdentifierStr;
+            if (CurTok == tok_operator) {
+                int Op;
+                A.FieldName = ParseOperatorName(Op);
+                if (A.FieldName.empty()) return false;
+            } else {
+                A.FieldName = CurTok == tok_new ? "NEW" : CurTok == tok_delete ? "DELETE" : Lex.IdentifierStr;
+                getNextToken();
+            }
             Out.push_back(std::move(A));
-            getNextToken();
         } else if (CurTok == '^') {
             getNextToken();
             DesignatorAccess A;
@@ -172,7 +185,7 @@ std::unique_ptr<ExprAST> Parser::ParsePrimaryImpl() {
     case tok_new:
         cps::sourceDiagnostic(Lex.getLine(), "error: NEW is only allowed on the right of an assignment at line %d\n", Lex.getLine());
         return nullptr;
-    case tok_identifier: return ParseIdentifierExpr();
+    case tok_identifier: case tok_operator: return ParseIdentifierExpr();
     case tok_number_int: return ParseNumberExpr();
     case tok_number_real: return ParseNumberExpr();
     case tok_string_literal: {
