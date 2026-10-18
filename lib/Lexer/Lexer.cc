@@ -134,6 +134,7 @@ int Lexer::readToken() {
         if (IdentifierStr == "OR") return tok_or;
         if (IdentifierStr == "NOT") return tok_not;
 
+        if (IdentifierStr == "OPERATOR") return tok_operator;
         if (IdentifierStr == "OVERLOAD") return tok_overload;
         if (IdentifierStr == "FUNCTION") return tok_function;
         if (IdentifierStr == "ENDFUNCTION") return tok_endfunction;

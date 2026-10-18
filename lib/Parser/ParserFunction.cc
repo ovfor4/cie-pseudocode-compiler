@@ -1,6 +1,7 @@
 #include "cps/Diagnostics.h"
 #include "cps/Parser.h"
 #include "cps/FunctionAST.h"
+#include "cps/Operator.h"
 #include <cstdio>
 
 using namespace cps;
@@ -130,6 +131,18 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
     return Params;
 }
 
+std::string Parser::ParseOperatorName(int &Op) {
+    getNextToken(); // OPERATOR
+    Op = CurTok;
+    if (operatorSpelling(Op).empty()) {
+        sourceDiagnostic(Lex.getLine(), "error: Expected a supported operator after OPERATOR at line %d\n", Lex.getLine());
+        getNextToken();
+        return {};
+    }
+    getNextToken();
+    return operatorName(Op);
+}
+
 std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerClass, bool IsPublic, bool IsOverload) {
     int Line = Lex.getLine();
     getNextToken();
@@ -141,13 +154,24 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
         cps::sourceDiagnostic(Lex.getLine(), "error: constructor NEW must be a PROCEDURE at line %d\n", Line);
         return nullptr;
     }
-    if (CurTok != tok_identifier) {
+    if (CurTok != tok_identifier && CurTok != tok_operator) {
         cps::sourceDiagnostic(Lex.getLine(), "error: Expected function name\n");
         return nullptr;
     }
 
-    std::string Name = Lex.IdentifierStr;
-    getNextToken();
+    int Operator = 0;
+    std::string Name;
+    if (CurTok == tok_operator) {
+        Name = ParseOperatorName(Operator);
+        if (Name.empty()) return nullptr;
+        if (!IsOverload) {
+            sourceDiagnostic(Line, "error: An operator function must be declared OVERLOAD at line %d\n", Line);
+            return nullptr;
+        }
+    } else {
+        Name = Lex.IdentifierStr;
+        getNextToken();
+    }
 
     auto Args = ParsePrototypeArgs(/*AllowByRef=*/false);
     if (!Args) return nullptr;
@@ -168,6 +192,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
     }
 
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), RetType, false, OwnerClass, IsPublic, IsOverload);
+    Proto->setOperator(Operator);
 
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endfunction});
 

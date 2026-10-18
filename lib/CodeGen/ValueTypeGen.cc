@@ -81,6 +81,12 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
     }
 
     if (auto *Bin = dynamic_cast<BinaryExprAST*>(Expr)) {
+        const TypeInfo *L = getExprTypeInfo(Bin->getLHS());
+        const TypeInfo *R = getExprTypeInfo(Bin->getRHS());
+        if (!L || !R || isWholeArrayVar(Bin->getLHS()) || isWholeArrayVar(Bin->getRHS())) return nullptr;
+        auto Overload = resolveOperator(Bin->getOp(), L, R);
+        if (Overload.Ambiguous) return nullptr;
+        if (Overload.Signature) return resolveType(Overload.Signature->ReturnTypeName);
         switch (Bin->getOp()) {
             case tok_eq:
             case tok_ne:
@@ -99,8 +105,6 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
                 break;
         }
 
-        const TypeInfo *L = getExprTypeInfo(Bin->getLHS());
-        const TypeInfo *R = getExprTypeInfo(Bin->getRHS());
         if ((L && L->isC()) || (R && R->isC())) return Types->commonCScalar(L, R);
         // Enum arithmetic: E +/- INTEGER (enum on the left) yields the enum;
         // every other user-kind combination has no type (emission rejects it).

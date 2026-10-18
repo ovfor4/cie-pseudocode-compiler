@@ -155,6 +155,11 @@ class CodeGen {
                           const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line);
     const FuncSig *resolveCall(const std::string &Name,
                                const std::vector<std::unique_ptr<ExprAST>> &Args);
+    struct OperatorResolution {
+        const FuncSig *Signature = nullptr;
+        bool Ambiguous = false;
+    };
+    OperatorResolution resolveOperator(int Op, const TypeInfo *Left, const TypeInfo *Right = nullptr);
     llvm::Value *emitVariadicArgument(ExprAST *Expr, const std::string &Callee, size_t Position);
     bool marshalCallArgs(const FuncSig &Signature,
                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,

@@ -67,6 +67,7 @@ enum Token {
 
     tok_colon = -300, // :
 
+    tok_operator = -398,
     tok_overload = -399,
     tok_function = -400, 
     tok_endfunction = -401, 

@@ -46,6 +46,10 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
     }
 
     const TypeInfo *Src = getExprTypeInfo(E);
+    if (Src && Src->Kind == TypeKind::String && Target->Kind == TypeKind::Boolean) {
+        reportError("Cannot implicitly convert STRING to BOOLEAN");
+        return nullptr;
+    }
 
     if (Target->isC() || (Src && Src->isC())) {
         if (auto *Addr = dynamic_cast<AddrOfExprAST*>(E)) {

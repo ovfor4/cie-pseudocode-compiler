@@ -34,6 +34,7 @@ class PrototypeAST {
     std::string OwnerClass;
     bool IsPublic;
     bool IsVariadic = false;
+    int Operator = 0;
 
 public:
     PrototypeAST(const std::string &Name,
@@ -47,6 +48,8 @@ public:
     const std::vector<ParamDecl> &getParams() const { return Params; }
     const std::string &getReturnType() const { return ReturnType; }
     bool isOverload() const { return IsOverload; }
+    int getOperator() const { return Operator; }
+    void setOperator(int Op) { Operator = Op; }
     bool isExternal() const { return IsExternal; }
     bool isVariadic() const { return IsVariadic; }
     void setVariadic(bool V) { IsVariadic = V; }

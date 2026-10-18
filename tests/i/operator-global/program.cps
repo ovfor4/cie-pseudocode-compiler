@@ -1,0 +1,28 @@
+TYPE Box
+DECLARE Value : INTEGER
+ENDTYPE
+OVERLOAD FUNCTION OPERATOR+(a : Box, b : Box) RETURNS Box
+DECLARE result : Box
+result.Value <- a.Value + b.Value
+RETURN result
+ENDFUNCTION
+OVERLOAD FUNCTION OPERATOR&(a : Box, b : STRING) RETURNS STRING
+RETURN NUM_TO_STR(a.Value) & b
+ENDFUNCTION
+OVERLOAD FUNCTION OPERATOR<(a : Box, b : Box) RETURNS STRING
+RETURN "comparison"
+ENDFUNCTION
+OVERLOAD FUNCTION OPERATOR+(a : INTEGER, b : Box) RETURNS INTEGER
+RETURN a + b.Value
+ENDFUNCTION
+DECLARE a : Box
+DECLARE b : Box
+DECLARE result : Box
+a.Value <- 2
+b.Value <- 3
+result <- a + b + a
+OUTPUT result.Value
+OUTPUT a & "!"
+OUTPUT a < b
+OUTPUT 4 + a
+OUTPUT 2 + 3, "x" & "y", 1 < 2

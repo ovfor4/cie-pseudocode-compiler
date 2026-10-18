@@ -204,6 +204,14 @@ void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
                 return nullptr;
             }
             Value *LabelValue = emitExpr(Label);
+            auto Overload = resolveOperator(Op, SelectorType, LabelType);
+            if (Overload.Signature && !Overload.Ambiguous) {
+                const TypeInfo *Result = resolveType(Overload.Signature->ReturnTypeName);
+                if (!Result || Result->Kind != TypeKind::Boolean) {
+                    reportError("CASE comparison must return BOOLEAN");
+                    return nullptr;
+                }
+            }
             return emitBinaryOp(Op, Selected, SelectorType, LabelValue, LabelType, Branch.Line);
         };
         if (!Branch.Lower) {

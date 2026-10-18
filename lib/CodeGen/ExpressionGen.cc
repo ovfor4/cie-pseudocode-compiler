@@ -4,6 +4,7 @@
 #include "cps/MemoryHandler.h"
 #include "cps/Lexer.h"
 #include "cps/TypeAST.h"
+#include "cps/Operator.h"
 #include "Builtins.h"
 #include <climits>
 #include <cstddef>
@@ -155,6 +156,16 @@ Value *CodeGen::emitBinaryOp(int Op, Value *L, const TypeInfo *LT,
                              Value *R, const TypeInfo *RT, int Line) {
     SaveAndRestore<int> Location(DiagnosticLine, Line ? Line : DiagnosticLine);
     if (!L || !R) return nullptr;
+    if (!LT || !RT) {
+        reportError("Cannot determine operand types for %s", operatorName(Op).c_str());
+        return nullptr;
+    }
+    auto Overload = resolveOperator(Op, LT, RT);
+    if (Overload.Ambiguous) {
+        reportError("Ambiguous overload for %s(%s, %s)", operatorName(Op).c_str(), LT->Name.c_str(), RT->Name.c_str());
+        return nullptr;
+    }
+    if (Overload.Signature) return FuncGen->emitCall(*Overload.Signature, {L, R});
     if ((LT && LT->isC()) || (RT && RT->isC()))
         return emitCBinaryOp(Op, L, LT, R, RT, Line);
     if ((LT && LT->isUserKind()) || (RT && RT->isUserKind()))

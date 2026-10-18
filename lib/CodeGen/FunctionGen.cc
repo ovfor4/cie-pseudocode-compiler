@@ -2,6 +2,7 @@
 #include "cps/FunctionGen.h"
 #include "cps/CodeGen.h"
 #include "cps/ExceptionHandler.h"
+#include "cps/Operator.h"
 #include <cstdio>
 #include <cstdarg>
 
@@ -122,6 +123,28 @@ const FuncSig *FunctionGen::getSignatureByLink(const std::string &Name) const {
 Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     auto Registered = PrototypeLinks.find(Proto);
     if (Registered != PrototypeLinks.end()) return Module.getFunction(Registered->second);
+    if (int Op = Proto->getOperator()) {
+        size_t Count = Proto->getParams().size() + !Proto->getOwnerClass().empty();
+        bool ValidCount = Op == '-' ? Count == 1 || Count == 2
+                         : Op == tok_not ? Count == 1 : Count == 2;
+        if (!ValidCount) {
+            reportError("Invalid operand count for %s", Proto->getName().c_str());
+            return nullptr;
+        }
+        bool HasUserOperand = !Proto->getOwnerClass().empty();
+        for (const auto &P : Proto->getParams()) {
+            if (P.IsArray) {
+                reportError("An operator parameter cannot be a whole array");
+                return nullptr;
+            }
+            const TypeInfo *T = Types.resolve(P.TypeName);
+            HasUserOperand |= T && (T->isRecord() || T->isEnum());
+        }
+        if (!HasUserOperand) {
+            reportError("%s requires a record, class or enum operand", Proto->getName().c_str());
+            return nullptr;
+        }
+    }
     if (Proto->isOverload() && Proto->getOwnerClass().empty() && sameIdentifier(Proto->getName(), "MAIN")) {
         reportError("MAIN cannot be declared OVERLOAD");
         return nullptr;

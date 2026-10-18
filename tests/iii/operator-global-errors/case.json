@@ -1,0 +1,24 @@
+{
+  "errors": [
+    {
+      "reason": "Cannot implicitly convert STRING to BOOLEAN",
+      "line": 12
+    },
+    {
+      "reason": "Operator \\+ cannot be applied to a record",
+      "line": 13
+    },
+    {
+      "reason": "requires a record, class or enum operand",
+      "line": 14
+    },
+    {
+      "reason": "Invalid operand count",
+      "line": 17
+    },
+    {
+      "reason": "cannot be redefined",
+      "line": 20
+    }
+  ]
+}
