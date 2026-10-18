@@ -161,8 +161,21 @@ sub write_file {
 }
 
 sub commands_new {
-    my ($directory) = @_;
-    return {dir => $directory, index => 0};
+    my ($directory, $trace) = @_;
+    return {dir => $directory, index => 0, trace => $trace};
+}
+
+sub trace_event {
+    my ($state, $event, %details) = @_;
+    return unless defined $state->{trace};
+    my $line = JSON::PP->new->canonical(1)->encode(
+        {event => $event, pid => $$, time => time(), %details});
+    # Open and close independently for each event: no inherited filehandle or
+    # dependence on the child's standard-stream redirection.
+    open my $fh, '>>:raw', $state->{trace}
+        or die "cannot append to $state->{trace}: $!\n";
+    print {$fh} $line, "\n" or die "cannot write $state->{trace}: $!\n";
+    close $fh or die "cannot close $state->{trace}: $!\n";
 }
 
 sub write_metadata {
@@ -180,33 +193,57 @@ sub run_command {
     $state->{index}++;
     my $stem = File::Spec->catfile($state->{dir}, sprintf('%02d', $state->{index}));
     my %metadata = (command => [@{$command}], cwd => "$cwd", timeout => $timeout + 0);
+    write_metadata($stem, \%metadata);
     write_file($stem . '.stdin', $data);
+    trace_event($state, 'before_fork', stem => $stem, %metadata);
     my $pid = fork();
+    my $fork_error = "$!";
+    trace_event($state, 'after_fork', child_pid => $pid,
+        defined($pid) ? () : (error => $fork_error));
     if (!defined($pid)) {
-        $metadata{launch_error} = "fork failed: $!";
+        $metadata{launch_error} = "fork failed: $fork_error";
         write_metadata($stem, \%metadata);
-        die "cannot launch @{$command}: fork failed: $!\n";
+        die "cannot launch @{$command}: fork failed: $fork_error\n";
     }
     if ($pid == 0) {
-        open STDIN, '<:raw', $stem . '.stdin' or exit 126;
-        open STDOUT, '>:raw', $stem . '.stdout' or exit 126;
-        open STDERR, '>:raw', $stem . '.stderr' or exit 126;
+        open STDIN, '<:raw', $stem . '.stdin' or do {
+            trace_event($state, 'redirect_failed', stream => 'stdin', error => "$!");
+            exit 126;
+        };
+        open STDOUT, '>:raw', $stem . '.stdout' or do {
+            trace_event($state, 'redirect_failed', stream => 'stdout', error => "$!");
+            exit 126;
+        };
+        open STDERR, '>:raw', $stem . '.stderr' or do {
+            trace_event($state, 'redirect_failed', stream => 'stderr', error => "$!");
+            exit 126;
+        };
         if (!chdir($cwd)) {
-            print STDERR "CPSC_LAUNCH_ERROR: cannot chdir to $cwd: $!";
+            my $error = "$!";
+            trace_event($state, 'chdir_failed', cwd => "$cwd", error => $error);
+            print STDERR "CPSC_LAUNCH_ERROR: cannot chdir to $cwd: $error";
             exit 126;
         }
+        trace_event($state, 'before_exec', command => [@{$command}], cwd => "$cwd");
         { exec {$command->[0]} @{$command}; }
-        print STDERR "CPSC_LAUNCH_ERROR: cannot exec @{$command}: $!";
+        my $error = "$!";
+        trace_event($state, 'exec_failed', error => $error);
+        print STDERR "CPSC_LAUNCH_ERROR: cannot exec @{$command}: $error";
         exit 126;
     }
     my $alarm_secs = int($timeout);
     $alarm_secs = 1 if $alarm_secs < 1;
     my $timed_out = 0;
     local $SIG{ALRM} = sub { $timed_out = 1; kill('KILL', $pid); };
+    trace_event($state, 'before_wait', child_pid => $pid);
     alarm($alarm_secs);
-    waitpid($pid, 0);
-    alarm(0);
+    my $waited = waitpid($pid, 0);
     my $status = $?;
+    my $wait_error = "$!";
+    alarm(0);
+    trace_event($state, 'after_wait', child_pid => $pid, waited_pid => $waited,
+        status => $status, timed_out => $timed_out,
+        $waited == -1 ? (error => $wait_error) : ());
     if ($timed_out) {
         waitpid($pid, 0);
         for my $suffix ('.stdout', '.stderr') {
@@ -329,11 +366,25 @@ sub main {
     my $config_text = do { local $/; <$cfg_fh> };
     close $cfg_fh;
     my $config = JSON::PP->new->decode($config_text);
+    my $trace_dir = File::Spec->catdir(File::Spec->rel2abs($opt_results),
+        'diagnostics', $suite);
+    make_path($trace_dir);
+    my $trace = File::Spec->catfile($trace_dir, "$name.jsonl");
+    write_file($trace, '');
+    my $startup = {trace => $trace};
+    trace_event($startup, 'startup', platform => $^O, perl => $^X,
+        case => $case_abs, case_dir => $case_dir, cpsc => $cpsc_abs,
+        results_argument => $opt_results, results => abs_path($opt_results),
+        cwd => Cwd::getcwd(), cc => $opt_cc, cxx => $opt_cxx);
+    trace_event($startup, 'before_git', command => ['git', '-C', $ROOT, 'rev-parse', 'HEAD']);
     open my $git_fh, '-|', 'git', '-C', $ROOT, 'rev-parse', 'HEAD'
         or die "cannot run git: $!\n";
+    trace_event($startup, 'git_opened');
     my $commit = <$git_fh>;
     close $git_fh;
-    if ($? != 0 || !defined($commit)) {
+    my $git_status = $?;
+    trace_event($startup, 'after_git', status => $git_status, output => $commit);
+    if ($git_status != 0 || !defined($commit)) {
         die "cannot determine HEAD commit\n";
     }
     chomp($commit);
@@ -343,7 +394,8 @@ sub main {
         remove_tree($directory);
     }
     make_path($directory);
-    my $commands = commands_new($directory);
+    my $commands = commands_new($directory, $trace);
+    trace_event($commands, 'results_ready', directory => $directory);
     my $report = {
         case         => "$suite/$name",
         commit       => $commit,
@@ -370,9 +422,11 @@ sub main {
             my $err = "$@";
             chomp($err);
             push(@{$report->{failures}}, {stage => $label, message => $err});
+            trace_event($commands, 'stage_failed', stage => $label, error => $err);
             print "FAIL $suite/$name [$label]: $err\n";
         }
         else {
+            trace_event($commands, 'stage_passed', stage => $label);
             print "PASS $suite/$name [$label]\n";
         }
     };
@@ -538,11 +592,13 @@ sub main {
         my $err = "$@";
         chomp($err);
         push(@{$report->{failures}}, {stage => 'setup', message => $err});
+        trace_event($commands, 'stage_failed', stage => 'setup', error => $err);
         print "FAIL $suite/$name [setup]: $err\n";
     }
     $report->{passed} = @{$report->{failures}} ? JSON::PP::false : JSON::PP::true;
     my $report_json = JSON::PP->new->canonical(1)->pretty(1)->encode($report);
     write_file(File::Spec->catfile($directory, 'result.json'), $report_json);
+    trace_event($commands, 'complete', passed => $report->{passed});
     print "Seed: $seed; results: $directory\n";
     return $report->{passed} ? 0 : 1;
 }
