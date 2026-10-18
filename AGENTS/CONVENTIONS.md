@@ -22,8 +22,7 @@ ASCII case-insensitive lookup/comparison through `IdentifierMap`, `IdentifierSet
 and `sameIdentifier`; retain source spelling in ASTs and diagnostics. This includes
 functions, types, enum values, fields and builtins, but not C_TYPE import strings.
 Integer tokens carry a checked unsigned magnitude through lookahead; the parser
-applies the sign and i64 range check, including the minimum value. No escape sequences
-in string/char literals. Comments are `//` to end of line.
+applies the sign and i64 range check, including the minimum value. String/char literals support C++17 byte escapes and Unicode escapes (UTF-8 in STRING, ASCII only in CHAR). Comments are `//` to end of line.
 
 **The lexer reads a caller-owned stream.** Construct it with `Lexer(std::istream &)`;
 the stream must outlive the lexer. Lookahead, line number and error state belong to

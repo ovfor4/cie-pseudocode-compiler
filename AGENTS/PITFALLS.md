@@ -169,10 +169,12 @@ test programs.
 SET types (`SET`/`DEFINE` are reserved with dedicated errors),
 random files (OPENFILE...FOR RANDOM/SEEK/GETRECORD/PUTRECORD — TYPE is done, so these
 are unblocked now; the RANDOM keyword is reserved and gives a dedicated parse error),
-DATE, string escape sequences,
+DATE,
 array-typed record fields, whole-array RETURN
 and class inheritance (INHERITS/SUPER). Compiler fixtures now live in `tests/` (see TESTING.md).
 Nightly CI runs the compiler suites, packaged EMBEDDED smoke checks and existing
 plugin tests. The initial standard conflicts and missing diagnostic locations are fixed on
 Linux.
 WHILE accepts both the standard header without DO and the older WHILE DO form.
+
+- **Literal escapes.** C++17 escapes are decoded by the lexer. Unicode escapes encode UTF-8 in strings; CHAR Unicode escapes must be ASCII. Built-in STRING remains NUL-terminated: `"a\0b"` is observed as `"a"`.

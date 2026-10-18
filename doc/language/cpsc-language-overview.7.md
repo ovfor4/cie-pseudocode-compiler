@@ -16,7 +16,7 @@ Precedence, from highest to lowest: unary operators, `* / DIV MOD`, `+ - &`, com
 
 Parenthesized type casts, such as (C_INT)Number, have unary precedence. C_INT, C_CHAR, C_STRING and C_DOUBLE are native C aliases; TYPE name = C_TYPE("...") imports other supported C base types and pointers. Conversions between C and pseudocode types must be explicit. These are compiler extensions; see [cpsc-keyword-c_type(7)](keyword/cpsc-keyword-c_type.7.md). EXTERN "C" declares C functions from objects named with INCLUDE_OBJ; see [cpsc-keyword-extern(7)](keyword/cpsc-keyword-extern.7.md).
 
-Literals include integers, decimal real numbers, TRUE/FALSE, strings in double quotes, and single-byte characters in single quotes. Negative numbers use unary minus. There are no string or character escape sequences. Comments begin with `//` and continue to the end of the line.
+Literals include integers, decimal real numbers, TRUE/FALSE, strings in double quotes, and single-byte characters in single quotes. Negative numbers use unary minus. String and character literals support C++17 simple escapes (`\' \" \? \\ \a \b \f \n \r \t \v`), one to three octal digits, and `\x` followed by hexadecimal digits (byte values only). Unicode escapes `\uXXXX` and `\UXXXXXXXX` encode valid Unicode scalar values as UTF-8 in strings; in CHAR they must be ASCII. Unknown escapes are errors. Built-in STRING is NUL-terminated, so `"a\0b"` is observed as `"a"`. Comments begin with `//` and continue to the end of the line.
 
 Declare variables before use. See DECLARE for built-in types and arrays, TYPE for records/enumerations/pointers, and CLASS for public/private fields and methods.
 
@@ -81,7 +81,7 @@ Closing and auxiliary keywords are documented with their main constructs: THEN/E
 
 # UNSUPPORTED FEATURES
 
-DATE, SET types and DEFINE, random-file operations (RANDOM/SEEK/GETRECORD/PUTRECORD), INT, RAND, string escapes, whole-array assignment or return, array fields, and class inheritance (INHERITS/SUPER).
+DATE, SET types and DEFINE, random-file operations (RANDOM/SEEK/GETRECORD/PUTRECORD), INT, RAND, whole-array assignment or return, array fields, and class inheritance (INHERITS/SUPER).
 
 The individual pages note relevant differences from the Cambridge 2026 pseudocode guide. This manual describes the compiler's current support.
 

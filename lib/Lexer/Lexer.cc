@@ -10,6 +10,85 @@
 
 using namespace cps;
 
+std::string Lexer::readEscape(bool IsChar) {
+    auto Error = [&](const char *Reason) {
+        cps::sourceDiagnostic(TokenLine, "error: %s at line %d\n", Reason, TokenLine);
+        HadError = true;
+        return std::string("?");
+    };
+    int Escape = Input.get();
+    if (Escape == EOF || Escape == '\n' || Escape == '\r') {
+        LastChar = Escape;
+        return Error("Unterminated escape sequence");
+    }
+    LastChar = Input.get();
+    switch (Escape) {
+    case '\'': return "'";
+    case '"': return "\"";
+    case '?': return "?";
+    case '\\': return "\\";
+    case 'a': return "\a";
+    case 'b': return "\b";
+    case 'f': return "\f";
+    case 'n': return "\n";
+    case 'r': return "\r";
+    case 't': return "\t";
+    case 'v': return "\v";
+    default: break;
+    }
+    auto Hex = [](int C) -> int {
+        if (C >= '0' && C <= '9') return C - '0';
+        if (C >= 'a' && C <= 'f') return C - 'a' + 10;
+        if (C >= 'A' && C <= 'F') return C - 'A' + 10;
+        return -1;
+    };
+    uint32_t Value = 0;
+    if (Escape >= '0' && Escape <= '7') {
+        Value = Escape - '0';
+        for (int I = 1; I < 3 && LastChar >= '0' && LastChar <= '7'; ++I) {
+            Value = Value * 8 + LastChar - '0';
+            LastChar = Input.get();
+        }
+        if (Value > 255) return Error("Octal escape exceeds one byte");
+        return std::string(1, static_cast<char>(Value));
+    }
+    if (Escape == 'x') {
+        if (Hex(LastChar) < 0) return Error("Hex escape requires a digit");
+        bool Overflow = false;
+        while (Hex(LastChar) >= 0) {
+            Value = Value * 16 + Hex(LastChar);
+            if (Value > 255) { Overflow = true; Value = 0; }
+            LastChar = Input.get();
+        }
+        if (Overflow) return Error("Hex escape exceeds one byte");
+        return std::string(1, static_cast<char>(Value));
+    }
+    if (Escape != 'u' && Escape != 'U') return Error("Unknown escape sequence");
+    for (int I = 0; I < (Escape == 'u' ? 4 : 8); ++I) {
+        if (Hex(LastChar) < 0) return Error("Incomplete Unicode escape");
+        Value = Value * 16 + Hex(LastChar);
+        LastChar = Input.get();
+    }
+    if (Value > 0x10ffff || (Value >= 0xd800 && Value <= 0xdfff))
+        return Error("Invalid Unicode code point");
+    if (IsChar && Value > 127) return Error("Unicode CHAR escape must be ASCII");
+    std::string Result;
+    if (Value <= 0x7f) Result += static_cast<char>(Value);
+    else {
+        if (Value <= 0x7ff) Result += static_cast<char>(0xc0 | (Value >> 6));
+        else {
+            if (Value <= 0xffff) Result += static_cast<char>(0xe0 | (Value >> 12));
+            else {
+                Result += static_cast<char>(0xf0 | (Value >> 18));
+                Result += static_cast<char>(0x80 | ((Value >> 12) & 63));
+            }
+            Result += static_cast<char>(0x80 | ((Value >> 6) & 63));
+        }
+        Result += static_cast<char>(0x80 | (Value & 63));
+    }
+    return Result;
+}
+
 int Lexer::readToken() {
     while (isspace(LastChar)) {
         if (LastChar == '\n') CurrentLine++;
@@ -18,54 +97,31 @@ int Lexer::readToken() {
 
     TokenLine = CurrentLine;
 
-    if (LastChar == '"') {
+    if (LastChar == '"' || LastChar == '\'') {
+        const int Quote = LastChar;
+        const bool IsChar = Quote == '\'';
         StringVal.clear();
         LastChar = Input.get();
-
-        while (LastChar != '"' && LastChar != EOF && LastChar != '\n') {
-            StringVal += static_cast<char>(LastChar);
-            LastChar = Input.get();
-        }
-
-        if (LastChar == '"') {
-            LastChar = Input.get();
-        } else {
-            cps::sourceDiagnostic(CurrentLine, "error: Unterminated string literal at line %d\n", CurrentLine);
-            HadError = true;
-        }
-
-        return tok_string_literal;
-    }
-
-    if (LastChar == '\'') {
-        int CharCode = Input.get();
-        if (CharCode == EOF || CharCode == '\n') {
-            cps::sourceDiagnostic(CurrentLine, "error: Unterminated char literal at line %d\n", CurrentLine);
-            HadError = true;
-            CharVal = '?';
-            StringVal.assign(1, CharVal);
-            // Leave the newline/EOF for the main loop so line counting stays right.
-            LastChar = CharCode;
-            return tok_char_literal;
-        }
-
-        int ClosingQuote = Input.get();
-        if (ClosingQuote != '\'') {
-            cps::sourceDiagnostic(CurrentLine, "error: CHAR literal must contain exactly one character (line %d)\n", CurrentLine);
-            HadError = true;
-            while (ClosingQuote != EOF && ClosingQuote != '\n' && ClosingQuote != '\'') {
-                ClosingQuote = Input.get();
+        while (LastChar != Quote && LastChar != EOF && LastChar != '\n') {
+            if (LastChar == '\\') StringVal += readEscape(IsChar);
+            else {
+                StringVal += static_cast<char>(LastChar);
+                LastChar = Input.get();
             }
-            CharVal = static_cast<char>(CharCode);
-            StringVal.assign(1, CharVal);
-            LastChar = (ClosingQuote == '\'') ? Input.get() : ClosingQuote;
-            return tok_char_literal;
         }
-
-        CharVal = static_cast<char>(CharCode);
-        StringVal.assign(1, CharVal);
-        LastChar = Input.get();
-        return tok_char_literal;
+        if (LastChar == Quote) LastChar = Input.get();
+        else {
+            cps::sourceDiagnostic(TokenLine, "error: Unterminated %s literal at line %d\n", IsChar ? "char" : "string", TokenLine);
+            HadError = true;
+        }
+        if (IsChar) {
+            if (StringVal.size() != 1) {
+                cps::sourceDiagnostic(TokenLine, "error: CHAR literal must contain exactly one character at line %d\n", TokenLine);
+                HadError = true;
+            }
+            CharVal = StringVal.size() == 1 ? StringVal[0] : '?';
+        }
+        return IsChar ? tok_char_literal : tok_string_literal;
     }
 
     if (isalpha(LastChar)) {

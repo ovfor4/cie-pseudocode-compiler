@@ -128,6 +128,7 @@ class Lexer {
         char Character;
     };
     std::deque<TokenData> Lookahead;
+    std::string readEscape(bool IsChar);
     int readToken();
     TokenData captureToken(int Kind) const;
     void restoreToken(const TokenData &Token);

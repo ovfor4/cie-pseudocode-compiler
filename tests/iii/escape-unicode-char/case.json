@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "reason": "must be ASCII",
+      "line": 1
+    }
+  ]
+}
