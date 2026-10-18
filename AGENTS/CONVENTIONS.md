@@ -207,3 +207,5 @@ is an LLVM GlobalVariable and must survive FunctionGen's symbol reset. User MAIN
 case insensitive, takes no parameters and returns INTEGER; its LLVM name is
 __cps_main with internal linkage. The generated i32 main wrapper calls it through
 ExceptionHandler, truncates its result and retains the final uncaught handler.
+
+Identifiers may begin with an underscore. The case-insensitive `__cps_` prefix is reserved in every user identifier, including EXTERN declarations.

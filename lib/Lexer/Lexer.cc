@@ -124,11 +124,20 @@ int Lexer::readToken() {
         return IsChar ? tok_char_literal : tok_string_literal;
     }
 
-    if (isalpha(LastChar)) {
+    if (isalpha(LastChar) || LastChar == '_') {
         IdentifierStr = static_cast<char>(LastChar);
         while (isalnum((LastChar = Input.get())) || LastChar == '_')
             IdentifierStr += static_cast<char>(LastChar);
 
+        if (IdentifierStr.size() >= 6) {
+            std::string Prefix = IdentifierStr.substr(0, 6);
+            std::transform(Prefix.begin(), Prefix.end(), Prefix.begin(),
+                           [](unsigned char C) { return std::tolower(C); });
+            if (Prefix == "__cps_") {
+                cps::sourceDiagnostic(TokenLine, "error: Reserved runtime identifier at line %d\n", TokenLine);
+                HadError = true;
+            }
+        }
         if (IdentifierStr == "CONSTANT") return tok_constant;
         if (IdentifierStr == "INCLUDE") return tok_include;
         if (IdentifierStr == "INCLUDE_OBJ") return tok_include_obj;

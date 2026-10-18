@@ -6,7 +6,7 @@ cpsc-language-overview - supported cpsc pseudocode syntax
 
 # DESCRIPTION
 
-Keywords are uppercase and case-sensitive. Identifiers, including built-in function names, are case insensitive. Indentation is for readability; blocks use explicit closing keywords. Identifiers begin with a letter and continue with letters, digits, or underscores.
+Keywords are uppercase and case-sensitive. Identifiers, including built-in function names, are case insensitive. Indentation is for readability; blocks use explicit closing keywords. Identifiers begin with a letter or underscore and continue with letters, digits, or underscores.
 
 Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`, `<`, `>`, `<=`, and `>=`. Built-in STRING comparisons compare contents, case-sensitively. Use `+`, `-`, `*`, and `/` for arithmetic; built-in `/` always returns REAL. Use `&` to join strings.
 
