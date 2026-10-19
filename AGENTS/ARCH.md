@@ -154,8 +154,10 @@ Driver behavior (`tools/driver/main.cc`):
   objects and `.xdata`/`.xdata$NAME` personality references (shared per target;
   data references are preserved), and
   `RtlAddFunctionTable`/`RtlDeleteFunctionTable` via JITLink allocation actions
-  for `.pdata` and `.pdata$NAME`, covering teardown and link-failure cleanup,
-  with table validation in the registration callback; registration failure blocks entry.
+  for one sorted, allocation-owned table combining `.pdata` and `.pdata$NAME`
+  per graph to avoid overlapping unwinder lookup ranges, covering teardown and
+  link-failure cleanup, with table validation in the registration callback;
+  registration failure blocks entry.
   The JIT builds its `ObjectLinkingLayer` through one file-local factory (COFF
   flags stay format-conditional, SEH plugin installed before LLJIT ownership)
   so Windows COFF does not fall back

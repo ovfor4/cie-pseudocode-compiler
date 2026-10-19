@@ -21,6 +21,8 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+#include <algorithm>
+#include <cstring>
 #include <limits>
 #include "llvm/ExecutionEngine/JITLink/JITLink.h"
 #include "llvm/ExecutionEngine/JITLink/x86_64.h"
@@ -49,6 +51,8 @@ namespace {
 // and RtlAddFunctionTable/RtlDeleteFunctionTable via JITLink allocation
 // actions. Exception propagation still uses the existing C++ ABI, LLVM
 // exception instructions and platform unwinder.
+
+static constexpr llvm::StringLiteral COFFSEHTableSection = "$__cpsc_seh";
 
 static llvm::Error addCOFFJumpStubs(llvm::jitlink::LinkGraph &G) {
     using namespace llvm;
@@ -187,6 +191,29 @@ public:
         // The same target reuses the same stub, including personality uses.
         Config.PostPrunePasses.push_back(addCOFFJumpStubs);
 
+        // Tables sharing an image base have overlapping lookup ranges in the
+        // Windows unwinder. Reserve one table for all retained .pdata sections
+        // in this graph, then fill and sort its entries after relocations.
+        Config.PostPrunePasses.push_back([](LinkGraph &G) -> Error {
+            size_t Size = 0;
+            for (auto &Sec : G.sections()) {
+                if (!isCOFFUnwindSection(Sec.getName(), ".pdata"))
+                    continue;
+                for (auto *B : Sec.blocks()) {
+                    if (B->isZeroFill() || B->getSize() % sizeof(RUNTIME_FUNCTION))
+                        return make_error<JITLinkError>(
+                            "invalid embedded SEH function table");
+                    Size += B->getSize();
+                }
+            }
+            if (Size) {
+                auto &Sec = G.createSection(COFFSEHTableSection, MemProt::Read);
+                G.createMutableContentBlock(Sec, Size, ExecutorAddr(),
+                                            alignof(RUNTIME_FUNCTION), 0);
+            }
+            return Error::success();
+        });
+
         // COFF unwind tables use 32-bit image-relative addresses, so the
         // image base must sit at or below the lowest JIT address. Alias the
         // external __ImageBase to the lowest defined block once addresses
@@ -215,52 +242,60 @@ public:
             return Error::success();
         });
 
-        // After relocations are applied, register the function table with
-        // the system unwinder via allocation actions. Table contents are
-        // validated in the registration callback; here only locate the
-        // non-empty .pdata/.pdata$ sections and the graph-local image base.
+        // Copy fixed-up entries into one sorted, allocation-owned table.
+        // Register it once per graph, with deregistration on link failure or
+        // teardown before the table and its code are released.
         Config.PostFixupPasses.push_back(
             [](LinkGraph &G) -> Error {
                 using namespace llvm::orc::shared;
+                auto *TableSec = G.findSectionByName(COFFSEHTableSection);
+                if (!TableSec)
+                    return Error::success();
+                auto *Table = *TableSec->blocks().begin();
+                std::vector<RUNTIME_FUNCTION> Entries;
+                Entries.reserve(Table->getSize() / sizeof(RUNTIME_FUNCTION));
                 for (auto &Sec : G.sections()) {
                     if (!isCOFFUnwindSection(Sec.getName(), ".pdata"))
                         continue;
-                    jitlink::SectionRange Range(Sec);
-                    if (Range.empty())
-                        continue;
-                    auto TableRange = Range.getRange();
-                    // Resolve the graph-local image base established above.
-                    auto *ImageBaseSym =
-                        G.findDefinedSymbolByName(G.intern("__ImageBase"));
-                    if (!ImageBaseSym)
-                        return make_error<JITLinkError>(
-                            "missing embedded __ImageBase for SEH registration");
-                    ExecutorAddr ImageBase = ImageBaseSym->getAddress();
-                    if (ImageBase.isNull())
-                        return make_error<JITLinkError>(
-                            "invalid embedded SEH image base");
-                    // Registration failure must prevent entry to JIT code; the
-                    // deregistration action also covers link-failure cleanup and
-                    // normal teardown before the memory is released.
-                    auto RegisterAction =
-                        WrapperFunctionCall::Create<SPSArgList<SPSExecutorAddrRange,
-                                                               SPSExecutorAddr>>(
-                            ExecutorAddr::fromPtr(
-                                &cps_register_seh_table_alloc_action),
-                            TableRange, ImageBase);
-                    if (!RegisterAction)
-                        return RegisterAction.takeError();
-                    auto DeregisterAction =
-                        WrapperFunctionCall::Create<SPSArgList<SPSExecutorAddrRange,
-                                                               SPSExecutorAddr>>(
-                            ExecutorAddr::fromPtr(
-                                &cps_deregister_seh_table_alloc_action),
-                            TableRange, ImageBase);
-                    if (!DeregisterAction)
-                        return DeregisterAction.takeError();
-                    G.allocActions().push_back(
-                        {std::move(*RegisterAction), std::move(*DeregisterAction)});
+                    for (auto *B : Sec.blocks()) {
+                        size_t Start = Entries.size();
+                        Entries.resize(Start + B->getSize() / sizeof(RUNTIME_FUNCTION));
+                        if (B->getSize())
+                            std::memcpy(Entries.data() + Start, B->getContent().data(),
+                                        B->getSize());
+                    }
                 }
+                std::sort(Entries.begin(), Entries.end(),
+                          [](const RUNTIME_FUNCTION &L, const RUNTIME_FUNCTION &R) {
+                              return L.BeginAddress < R.BeginAddress;
+                          });
+                std::memcpy(Table->getAlreadyMutableContent().data(), Entries.data(),
+                            Table->getSize());
+                ExecutorAddrRange TableRange(Table->getAddress(), Table->getSize());
+                auto *ImageBaseSym =
+                    G.findDefinedSymbolByName(G.intern("__ImageBase"));
+                if (!ImageBaseSym)
+                    return make_error<JITLinkError>(
+                        "missing embedded __ImageBase for SEH registration");
+                ExecutorAddr ImageBase = ImageBaseSym->getAddress();
+                if (ImageBase.isNull())
+                    return make_error<JITLinkError>("invalid embedded SEH image base");
+                auto RegisterAction =
+                    WrapperFunctionCall::Create<SPSArgList<SPSExecutorAddrRange,
+                                                           SPSExecutorAddr>>(
+                        ExecutorAddr::fromPtr(&cps_register_seh_table_alloc_action),
+                        TableRange, ImageBase);
+                if (!RegisterAction)
+                    return RegisterAction.takeError();
+                auto DeregisterAction =
+                    WrapperFunctionCall::Create<SPSArgList<SPSExecutorAddrRange,
+                                                           SPSExecutorAddr>>(
+                        ExecutorAddr::fromPtr(&cps_deregister_seh_table_alloc_action),
+                        TableRange, ImageBase);
+                if (!DeregisterAction)
+                    return DeregisterAction.takeError();
+                G.allocActions().push_back(
+                    {std::move(*RegisterAction), std::move(*DeregisterAction)});
                 return Error::success();
             });
         (void)MR;
