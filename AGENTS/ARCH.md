@@ -147,6 +147,11 @@ Driver behavior (`tools/driver/main.cc`):
   the host ABI function. The fallback is made local, and runtime archive
   interfaces are computed from the normalized object. The runner binds the host's
   initialized stack guard, stack-check failure handler and `write` alias (`_write`) on MinGW.
+  It also binds the host's `_lock_file`/`_unlock_file` compatibility functions,
+  keeping MinGW stdio locks compatible with the host's `FILE` objects.
+  Microsoft msvcrt.dll lacks these exports, so process-wide lookup can select
+  another CRT's incompatible functions. Wine's msvcrt.dll exports them and can
+  mask this defect; Wine success does not replace real Windows verification.
   Per-graph `__ImageBase` is shared by relocations
   and SEH registration, with default backend liveness for `.pdata` and
   associative code edges retaining the suffixed unwind sections. JITLink uses

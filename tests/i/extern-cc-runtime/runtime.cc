@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <string>
 #include <stdexcept>
 extern "C" int string_length() {
@@ -8,6 +9,7 @@ extern "C" int string_length() {
 extern "C" void string_throw() {
     try { throw std::invalid_argument("string failure"); }
     catch (const std::exception &e) {
+        std::fprintf(stderr, "%s\n", e.what());
         if (std::string(e.what()) == "string failure") throw;
     }
 }

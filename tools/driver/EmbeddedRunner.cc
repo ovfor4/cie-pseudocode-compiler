@@ -630,6 +630,10 @@ static llvm::Error defineRuntimeSymbols(llvm::orc::LLJIT &J) {
         ExecutorSymbolDef::fromPtr(&std::strtoll);
     // msvcrt.dll exports _write; MinGW archive members call its POSIX alias.
     Symbols[Intern("write")] = ExecutorSymbolDef::fromPtr(&_write);
+    // Microsoft msvcrt.dll does not export these MinGW compatibility functions.
+    // Keep FILE locks in the host CRT instead of resolving another DLL's copies.
+    Symbols[Intern("_lock_file")] = ExecutorSymbolDef::fromPtr(&_lock_file);
+    Symbols[Intern("_unlock_file")] = ExecutorSymbolDef::fromPtr(&_unlock_file);
     Symbols[Intern("__stack_chk_guard")] =
         ExecutorSymbolDef::fromPtr(&__stack_chk_guard);
     Symbols[Intern("__stack_chk_fail")] =
