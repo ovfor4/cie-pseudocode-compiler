@@ -5,6 +5,7 @@
 #include "llvm/ExecutionEngine/Orc/AbsoluteSymbols.h"
 #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/ExecutionEngine/Orc/ObjectFileInterface.h"
 #include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
 #include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
 #include "llvm/Support/Error.h"
@@ -439,6 +440,18 @@ static llvm::Error loadCxxRuntime(llvm::orc::LLJIT &J) {
     if (!unpackCxxRuntime(Archives))
         return llvm::make_error<llvm::StringError>("cannot unpack the C++ runtime", llvm::inconvertibleErrorCode());
     for (auto &Archive : Archives) {
+        llvm::orc::StaticLibraryDefinitionGenerator::GetObjectFileInterface GetInterface;
+#if defined(_WIN32) && defined(__x86_64__)
+        // Match the normalized object that MinGWObjectLinkingLayer::emit links.
+        GetInterface = [](llvm::orc::ExecutionSession &ES, llvm::MemoryBufferRef Ref)
+            -> llvm::Expected<llvm::orc::MaterializationUnit::Interface> {
+            auto Normalized = normalizeMinGWObject(
+                llvm::MemoryBuffer::getMemBuffer(Ref, false));
+            if (!Normalized)
+                return Normalized.takeError();
+            return llvm::orc::getObjectFileInterface(ES, (*Normalized)->getMemBufferRef());
+        };
+#endif
         auto Generator = llvm::orc::StaticLibraryDefinitionGenerator::Create(
             J.getObjLinkingLayer(), std::move(Archive),
             [](llvm::object::Archive &, llvm::MemoryBufferRef Buffer, size_t) -> llvm::Expected<bool> {
@@ -458,7 +471,7 @@ static llvm::Error loadCxxRuntime(llvm::orc::LLJIT &J) {
                         N.starts_with("_Unwind_") || N == "_ZTIi") return false;
                 }
                 return true;
-            });
+            }, std::move(GetInterface));
         if (!Generator) return Generator.takeError();
         J.getMainJITDylib().addGenerator(std::move(*Generator));
     }

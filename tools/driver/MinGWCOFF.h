@@ -50,6 +50,7 @@ normalizeMinGWObject(std::unique_ptr<llvm::MemoryBuffer> Buffer) {
     struct Association { size_t Offset; int32_t Parent; };
     SmallVector<Association, 16> Associations;
     SmallVector<size_t, 2> PureVirtualReferences;
+    SmallVector<size_t, 2> PureVirtualFallbacks;
     for (const auto &Symbol : COFF->symbols()) {
         auto Sym = COFF->getCOFFSymbol(Symbol);
         if (auto *Weak = Sym.getWeakExternal()) {
@@ -68,6 +69,13 @@ normalizeMinGWObject(std::unique_ptr<llvm::MemoryBuffer> Buffer) {
                                   ? offsetof(object::coff_symbol32, StorageClass)
                                   : offsetof(object::coff_symbol16, StorageClass);
                     PureVirtualReferences.push_back(Offset);
+                    size_t FallbackOffset =
+                        reinterpret_cast<const char *>(Fallback->getRawPtr()) -
+                        Buffer->getBufferStart();
+                    FallbackOffset += Fallback->isBigObj()
+                                          ? offsetof(object::coff_symbol32, StorageClass)
+                                          : offsetof(object::coff_symbol16, StorageClass);
+                    PureVirtualFallbacks.push_back(FallbackOffset);
                 }
             }
         }
@@ -118,6 +126,10 @@ normalizeMinGWObject(std::unique_ptr<llvm::MemoryBuffer> Buffer) {
     // entry count intact so the remaining symbol indices do not move.
     for (size_t Offset : PureVirtualReferences)
         Copy->getBufferStart()[Offset] = COFF::IMAGE_SYM_CLASS_EXTERNAL;
+    // Only the now-unused weak auxiliary record references the fallback.
+    // Keep it local so archive interfaces do not advertise a global definition.
+    for (size_t Offset : PureVirtualFallbacks)
+        Copy->getBufferStart()[Offset] = COFF::IMAGE_SYM_CLASS_STATIC;
     return std::unique_ptr<MemoryBuffer>(std::move(Copy));
 }
 

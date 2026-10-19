@@ -144,8 +144,9 @@ Driver behavior (`tools/driver/main.cc`):
   in private object-buffer copies before graph construction, including lazy
   runtime archive members. It also makes MinGW's weak `__cxa_pure_virtual`
   reference with an absolute-zero fallback an ordinary external, resolved to
-  the host ABI function. The runner binds the host's initialized stack guard,
-  stack-check failure handler and `write` alias (`_write`) on MinGW.
+  the host ABI function. The fallback is made local, and runtime archive
+  interfaces are computed from the normalized object. The runner binds the host's
+  initialized stack guard, stack-check failure handler and `write` alias (`_write`) on MinGW.
   Per-graph `__ImageBase` is shared by relocations
   and SEH registration, with default backend liveness for `.pdata` and
   associative code edges retaining the suffixed unwind sections. JITLink uses
