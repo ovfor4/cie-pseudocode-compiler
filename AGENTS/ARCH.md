@@ -158,6 +158,10 @@ Driver behavior (`tools/driver/main.cc`):
   per graph to avoid overlapping unwinder lookup ranges, covering teardown and
   link-failure cleanup, with table validation in the registration callback;
   registration failure blocks entry.
+  During JIT main execution, a Windows x86_64 vectored exception handler reports
+  fatal faults to stderr with JIT graph/symbol or host module names, per-frame
+  unwind-entry availability and a stack trace, flushes stdout, and leaves the
+  exception unhandled; stack overflows receive only a minimal fault report.
   The JIT builds its `ObjectLinkingLayer` through one file-local factory (COFF
   flags stay format-conditional, SEH plugin installed before LLJIT ownership)
   so Windows COFF does not fall back
