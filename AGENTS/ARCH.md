@@ -127,52 +127,37 @@ Driver behavior (`tools/driver/main.cc`):
   source compilation. Without `-r`, no external tools are checked; clang/clang++
   are never invoked or checked by this mode. Process-launch/crash failures return 1.
   `-r` alone uses temporary IR removed on return, including execution failure.
-- In EMBEDDED mode, `-r` uses LLJIT with JITLink in-process (`tools/driver/EmbeddedRunner.cc`).
-  The JIT owns a copy of CodeGen's module made with `cloneExternalModuleToContext`
-  into an independent `ThreadSafeContext`; CodeGen retains its module and context.
-  The running copy uses the JIT target triple and DataLayout. The JIT target uses
-  Large code model with PIC. Static C++ exception
-  ABI symbols are defined with ORC `absoluteSymbols` using the JIT mangling
-  (MinGW keeps its `snprintf`/`strtoll` aliases and a no-op `__main`; MinGW
-  x86_64 additionally binds the toolchain-provided `___chkstk_ms`); ordinary
-  C library symbols resolve through the ORC process-symbol mechanism. Linux uses
-  the generic LLVM IR platform with EH-frame registration. macOS uses LLJIT's
-  unwind registration, selecting compact unwind or EH-frame per host capability.
-  Windows x86_64 keeps the GNU C++ runtime and `__gxx_personality_seh0` with a
-  small in-process COFF adapter: `MinGWCOFF.h` normalizes symbol-less MinGW
-  `.pdata$NAME`/`.xdata$NAME` COMDATs to associative COMDATs of `.text$NAME`
-  in private object-buffer copies before graph construction, including lazy
-  runtime archive members. It also makes MinGW's weak `__cxa_pure_virtual`
-  reference with an absolute-zero fallback an ordinary external, resolved to
-  the host ABI function. The fallback is made local, and runtime archive
-  interfaces are computed from the normalized object. The runner binds the host's
-  initialized stack guard, stack-check failure handler and `write` alias (`_write`) on MinGW.
-  It also binds the host's `_lock_file`/`_unlock_file` compatibility functions,
-  keeping MinGW stdio locks compatible with the host's `FILE` objects.
-  Microsoft msvcrt.dll lacks these exports, so process-wide lookup can select
-  another CRT's incompatible functions. Wine's msvcrt.dll exports them and can
-  mask this defect; Wine success does not replace real Windows verification.
-  Per-graph `__ImageBase` is shared by relocations
-  and SEH registration, with default backend liveness for `.pdata` and
-  associative code edges retaining the suffixed unwind sections. JITLink uses
-  pointer-jump stubs for external direct CALL/JMP PCRel32 references in user
-  objects and `.xdata`/`.xdata$NAME` personality references (shared per target;
-  data references are preserved), and
-  `RtlAddFunctionTable`/`RtlDeleteFunctionTable` via JITLink allocation actions
-  for one sorted, allocation-owned table combining `.pdata` and `.pdata$NAME`
-  per graph to avoid overlapping unwinder lookup ranges, covering teardown and
-  link-failure cleanup, with table validation in the registration callback;
-  registration failure blocks entry.
-  The JIT builds its `ObjectLinkingLayer` through one file-local factory (COFF
-  flags stay format-conditional, SEH plugin installed before LLJIT ownership)
-  so Windows COFF does not fall back
-  to RuntimeDyld. Initialization runs through the platform support before lookup
-  of `main`; deinitialization runs while code is still mapped so unwind
-  deregistration precedes memory release. Execution failures return 1 without
-  `compilation terminated.`. The host target comes from
-  `JITTargetMachineBuilder::detectHost()`.
+- In EMBEDDED mode, `-r` uses LLJIT with JITLink in-process
+  (`tools/driver/EmbeddedRunner.cc`). It clones CodeGen's module into an independent
+  `ThreadSafeContext`, sets the JIT target triple/DataLayout, and uses the Large
+  code model with PIC. CodeGen retains its original module and context.
+  Static exception ABI symbols resolve to the host runtime through ORC
+  `absoluteSymbols`; ordinary C symbols use process lookup. Linux uses generic
+  EH-frame registration; macOS uses LLVM's compact-unwind or EH-frame support.
+  Windows x86_64 compatibility lives in `tools/driver/MinGWJIT.cc`, exposed through
+  two internal entry points for object-layer creation and archive symbol interfaces.
+  Symbol-less MinGW `.pdata$NAME`/`.xdata$NAME` COMDATs become associative COMDATs
+  of `.text$NAME` in private object copies. Weak absolute-zero `__cxa_pure_virtual`
+  references resolve to the host ABI, with their fallback kept local. Archive
+  interfaces and object emission use the same normalization.
+  LLVM's `.pdata` liveness and associative unwind sections are retained. A graph-local
+  `__ImageBase` is shared by relocations and SEH registration; nearby pointer-jump
+  stubs handle external direct CALL/JMP and unwind personality references, preserving
+  data references. Each graph combines `.pdata` and `.pdata$NAME` into one sorted,
+  allocation-owned table, validated before `RtlAddFunctionTable`. Allocation actions
+  call `RtlDeleteFunctionTable` on cleanup before memory release.
+  MinGW runtime bindings remain in EmbeddedRunner: formatting aliases, no-op `__main`,
+  host stack guard/failure handler, `_write`, `__acrt_iob_func`, stdio locks and the
+  x86_64 `___chkstk_ms` probe. Prefer `msvcrt.dll` before process-wide C lookup so
+  JIT code uses compatible `FILE` objects. MinGW supplies `_lock_file`/`_unlock_file`
+  because Microsoft's msvcrt.dll does not export them; Wine can mask this difference.
+  See [Microsoft's x64 unwind requirements](https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64),
+  [LLVM 23's COFF graph builder](https://github.com/llvm/llvm-project/blob/release/23.x/llvm/lib/ExecutionEngine/JITLink/COFFLinkGraphBuilder.cpp)
+  and [MinGW's stdio lock implementation](https://github.com/mingw-w64/mingw-w64/blob/master/mingw-w64-crt/stdio/mingw_lock.c).
+  Initialize the JIT before looking up `main` and deinitialize while its code is
+  still mapped. Execution failures return 1 without `compilation terminated.`.
   No external runner or PATH lookup is used; `-r` alone runs in memory.
-  Linux embedded execution is verified; Windows/macOS await CI verification.
+  Platform-specific changes require native CI verification.
 - In NONE mode, `-r` returns 1 before compiling or writing output; native and IR
   compilation remain available. Only EMBEDDED uses the in-process execution engine.
 - Both execution modes return the program's exit status and inherit standard
@@ -345,7 +330,7 @@ do not modify the real release for local verification.
 | `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen (including exception emission) |
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
 | `tools/driver/NativeCompiler.cc`, `cmake/NativeCompiler.cmake` | Host object generation, embedded Clang/LLD linking and compressed link resources |
-| `tools/driver/EmbeddedRunner.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only LLJIT/JITLink runner; static support-library selection for all modes |
+| `tools/driver/EmbeddedRunner.cc`, `tools/driver/MinGWJIT.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only LLJIT/JITLink runner and MinGW COFF/SEH support; static support-library selection for all modes |
 | `cmake/LocalDependencies.cmake`, `cmake/*Packages.cmake` | Local package extraction and platform relocation |
 | `cmake/DependencyPaths.cmake`, `cmake/FindDependency.cmake` | Shared local paths and local-first/system-fallback lookup |
 | `cmake/BuildTools.cmake`, `cmake/LLVMDependencies.cmake` | Compiler/build tool selection and LLVM dependency discovery |

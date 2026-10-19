@@ -97,7 +97,9 @@ include(cmake/EmbeddedLLVM.cmake)
 add_executable(cpsc tools/driver/main.cc)
 target_compile_definitions(cpsc PRIVATE CPSC_RUN_${CPSC_RUN_MODE})
 if(CPSC_RUN_MODE STREQUAL "EMBEDDED")
-    target_sources(cpsc PRIVATE tools/driver/EmbeddedRunner.cc)
+    target_sources(cpsc PRIVATE
+        tools/driver/EmbeddedRunner.cc
+        tools/driver/MinGWJIT.cc)
 endif()
 if(MINGW)
     target_link_options(cpsc PRIVATE -static)
