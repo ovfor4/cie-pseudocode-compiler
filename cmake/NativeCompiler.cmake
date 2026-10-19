@@ -2,7 +2,8 @@
 find_package(Clang REQUIRED CONFIG HINTS "${LLVM_INSTALL_PREFIX}/lib/cmake/clang")
 cpsc_find_dependency(PATH LLD_DIR NAMES LLDConfig.cmake PATH_SUFFIXES lib/cmake/lld cmake)
 find_package(LLD REQUIRED CONFIG HINTS "${LLVM_INSTALL_PREFIX}/lib/cmake/lld")
-find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
+cpsc_find_dependency(PROGRAM PERL_EXECUTABLE NAMES perl REQUIRED)
+find_package(Perl REQUIRED)
 if(NOT LLVM_ENABLE_ZLIB)
     message(FATAL_ERROR "Native link resources require LLVM built with zlib support")
 endif()
@@ -56,9 +57,9 @@ if(APPLE)
         list(APPEND cpsc_native_flags "--flag=-mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
     endif()
 endif()
-set(cpsc_runtime_generator "${CMAKE_SOURCE_DIR}/tools/driver/prepare-native-runtime.py")
+set(cpsc_runtime_generator "${CMAKE_SOURCE_DIR}/tools/driver/prepare-native-runtime.pl")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${cpsc_runtime_generator}")
-execute_process(COMMAND "${Python3_EXECUTABLE}" "${cpsc_runtime_generator}"
+execute_process(COMMAND "${PERL_EXECUTABLE}" "${cpsc_runtime_generator}"
     "--compiler=${CMAKE_CXX_COMPILER}"
     "--output=${CMAKE_BINARY_DIR}/native-runtime/NativeRuntime.inc"
     "--platform=${cpsc_native_platform}" ${cpsc_native_flags}
