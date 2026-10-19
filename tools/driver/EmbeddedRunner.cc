@@ -23,10 +23,7 @@
 #endif
 #include <algorithm>
 #include <cstring>
-#include <cwchar>
 #include <limits>
-#include <mutex>
-#include "llvm/ADT/ScopeExit.h"
 #include "llvm/ExecutionEngine/JITLink/JITLink.h"
 #include "llvm/ExecutionEngine/JITLink/x86_64.h"
 #include "llvm/ExecutionEngine/Orc/LinkGraphLinkingLayer.h"
@@ -44,187 +41,6 @@
 namespace {
 
 #if defined(_WIN32) && defined(__x86_64__)
-struct JITBlockAddressRange {
-    uint64_t Begin, End;
-    std::string Section;
-};
-
-struct JITSymbolAddress {
-    uint64_t Address;
-    std::string Name;
-};
-
-struct JITGraphAddresses {
-    std::string Name;
-    std::vector<JITBlockAddressRange> Blocks;
-    std::vector<JITSymbolAddress> Symbols;
-};
-
-static std::mutex JITAddressMutex;
-static std::vector<JITGraphAddresses> JITAddresses;
-static volatile LONG JITCrashReported = 0;
-
-static llvm::Error recordJITAddresses(llvm::jitlink::LinkGraph &G) {
-    JITGraphAddresses Graph;
-    Graph.Name = G.getName();
-    for (auto *B : G.blocks()) {
-        uint64_t Begin = B->getAddress().getValue();
-        Graph.Blocks.push_back({Begin, Begin + B->getSize(),
-                                B->getSection().getName().str()});
-    }
-    for (auto *S : G.defined_symbols()) {
-        if (S->hasName())
-            Graph.Symbols.push_back({S->getAddress().getValue(),
-                                     (*S->getName()).str()});
-    }
-    std::lock_guard<std::mutex> Lock(JITAddressMutex);
-    JITAddresses.push_back(std::move(Graph));
-    return llvm::Error::success();
-}
-
-static void clearJITAddresses() {
-    std::lock_guard<std::mutex> Lock(JITAddressMutex);
-    JITAddresses.clear();
-}
-
-static void printWindowsJITFrame(unsigned Frame, DWORD64 PC, DWORD64 SP,
-                                 bool HasUnwind) {
-    std::fprintf(stderr, "  #%02u pc=0x%016llx sp=0x%016llx [unwind=%s] ",
-                 Frame, static_cast<unsigned long long>(PC),
-                 static_cast<unsigned long long>(SP), HasUnwind ? "yes" : "no");
-    // A fault during lazy linking must not wait on a lock held by that thread.
-    std::unique_lock<std::mutex> Lock(JITAddressMutex, std::try_to_lock);
-    if (Lock.owns_lock()) {
-        for (const auto &Graph : JITAddresses) {
-            for (const auto &Block : Graph.Blocks) {
-                if (PC < Block.Begin || PC >= Block.End)
-                    continue;
-                const JITSymbolAddress *Nearest = nullptr;
-                for (const auto &Symbol : Graph.Symbols) {
-                    // Anonymous stubs must not inherit an unrelated symbol
-                    // from a different block in the same graph.
-                    if (Symbol.Address >= Block.Begin && Symbol.Address <= PC &&
-                        (!Nearest || Symbol.Address > Nearest->Address))
-                        Nearest = &Symbol;
-                }
-                std::fprintf(stderr, "JIT %s!%s+0x%llx\n", Graph.Name.c_str(),
-                             Nearest ? Nearest->Name.c_str() : Block.Section.c_str(),
-                             static_cast<unsigned long long>(
-                                 PC - (Nearest ? Nearest->Address : Block.Begin)));
-                return;
-            }
-        }
-        Lock.unlock();
-    }
-
-    HMODULE Module = nullptr;
-    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                              GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                          reinterpret_cast<LPCWSTR>(static_cast<uintptr_t>(PC)),
-                          &Module)) {
-        wchar_t Path[MAX_PATH];
-        DWORD Length = GetModuleFileNameW(Module, Path, MAX_PATH);
-        if (Length && Length < MAX_PATH) {
-            const wchar_t *Name = std::wcsrchr(Path, L'\\');
-            Name = Name ? Name + 1 : Path;
-            char UTF8Name[3 * MAX_PATH];
-            if (WideCharToMultiByte(CP_UTF8, 0, Name, -1, UTF8Name,
-                                    sizeof(UTF8Name), nullptr, nullptr)) {
-                std::fprintf(stderr, "%s+0x%llx\n", UTF8Name,
-                             static_cast<unsigned long long>(
-                                 PC - reinterpret_cast<uintptr_t>(Module)));
-                return;
-            }
-        }
-    }
-    std::fprintf(stderr, "<unknown>\n");
-}
-
-// Keep the context copy and module-name buffers off the stack-overflow path.
-LLVM_ATTRIBUTE_NOINLINE static void printWindowsJITStack(const CONTEXT &FaultContext) {
-    CONTEXT Context = FaultContext;
-    for (unsigned Frame = 0; Frame < 32 && Context.Rip; ++Frame) {
-        DWORD64 PC = Context.Rip;
-        DWORD64 SP = Context.Rsp;
-        DWORD64 ImageBase = 0;
-        auto *Entry = RtlLookupFunctionEntry(PC, &ImageBase, nullptr);
-        printWindowsJITFrame(Frame, PC, SP, Entry != nullptr);
-        // Preserve each frame even if corrupt unwind metadata faults below.
-        std::fflush(stderr);
-        if (Entry) {
-            PVOID HandlerData = nullptr;
-            DWORD64 EstablisherFrame = 0;
-            RtlVirtualUnwind(UNW_FLAG_NHANDLER, ImageBase, PC, Entry, &Context,
-                             &HandlerData, &EstablisherFrame, nullptr);
-        } else {
-            // Leaf functions have no entry. Read safely in case RSP is corrupt.
-            DWORD64 ReturnPC = 0;
-            SIZE_T Read = 0;
-            if (!ReadProcessMemory(GetCurrentProcess(),
-                                   reinterpret_cast<const void *>(SP),
-                                   &ReturnPC, sizeof(ReturnPC), &Read) ||
-                Read != sizeof(ReturnPC))
-                break;
-            Context.Rip = ReturnPC;
-            Context.Rsp += sizeof(ReturnPC);
-        }
-        if (Context.Rsp <= SP)
-            break;
-    }
-}
-
-static LONG WINAPI reportWindowsJITCrash(EXCEPTION_POINTERS *Info) {
-    const auto &Exception = *Info->ExceptionRecord;
-    switch (Exception.ExceptionCode) {
-    case EXCEPTION_ACCESS_VIOLATION:
-    case EXCEPTION_IN_PAGE_ERROR:
-    case EXCEPTION_ILLEGAL_INSTRUCTION:
-    case EXCEPTION_PRIV_INSTRUCTION:
-    case EXCEPTION_DATATYPE_MISALIGNMENT:
-    case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
-    case EXCEPTION_INT_DIVIDE_BY_ZERO:
-    case EXCEPTION_INT_OVERFLOW:
-    case EXCEPTION_FLT_DENORMAL_OPERAND:
-    case EXCEPTION_FLT_DIVIDE_BY_ZERO:
-    case EXCEPTION_FLT_INEXACT_RESULT:
-    case EXCEPTION_FLT_INVALID_OPERATION:
-    case EXCEPTION_FLT_OVERFLOW:
-    case EXCEPTION_FLT_STACK_CHECK:
-    case EXCEPTION_FLT_UNDERFLOW:
-    case EXCEPTION_NONCONTINUABLE_EXCEPTION:
-    case EXCEPTION_INVALID_DISPOSITION:
-    case EXCEPTION_STACK_OVERFLOW:
-        break;
-    default:
-        // In particular, GCC C++ exceptions (0x20474343) are normal control flow.
-        return EXCEPTION_CONTINUE_SEARCH;
-    }
-    if (InterlockedCompareExchange(&JITCrashReported, 1, 0))
-        return EXCEPTION_CONTINUE_SEARCH;
-
-    std::fprintf(stderr, "cpsc: Windows JIT crash: exception=0x%08lx address=%p\n",
-                 static_cast<unsigned long>(Exception.ExceptionCode),
-                 Exception.ExceptionAddress);
-    std::fflush(stderr);
-    // Preserve buffered program output even if damaged unwind data faults again.
-    std::fflush(stdout);
-    if (Exception.ExceptionCode != EXCEPTION_STACK_OVERFLOW) {
-        if ((Exception.ExceptionCode == EXCEPTION_ACCESS_VIOLATION ||
-             Exception.ExceptionCode == EXCEPTION_IN_PAGE_ERROR) &&
-            Exception.NumberParameters >= 2) {
-            auto Access = Exception.ExceptionInformation[0];
-            std::fprintf(stderr, "  access=%s (%llu) target=0x%016llx\n",
-                         Access == 0 ? "read" : Access == 1 ? "write" :
-                         Access == 8 ? "execute" : "unknown",
-                         static_cast<unsigned long long>(Access),
-                         static_cast<unsigned long long>(Exception.ExceptionInformation[1]));
-            std::fflush(stderr);
-        }
-        printWindowsJITStack(*Info->ContextRecord);
-    }
-    return EXCEPTION_CONTINUE_SEARCH;
-}
-
 // In-process COFF/SEH support for the MinGW x86_64 JIT.
 //
 // The full upstream COFFPlatform starts the VC runtime loading machinery,
@@ -482,7 +298,6 @@ public:
                     {std::move(*RegisterAction), std::move(*DeregisterAction)});
                 return Error::success();
             });
-        Config.PostFixupPasses.push_back(recordJITAddresses);
         (void)MR;
     }
 
@@ -703,10 +518,6 @@ static llvm::Error loadCxxRuntime(llvm::orc::LLJIT &J) {
 }
 
 int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects) {
-#if defined(_WIN32) && defined(__x86_64__)
-    // Destroy the address copies after LLJIT has stopped all linking work.
-    llvm::scope_exit ClearJITAddresses(clearJITAddresses);
-#endif
     if (llvm::InitializeNativeTarget() || llvm::InitializeNativeTargetAsmPrinter()) {
         llvm::errs() << "error: cannot initialize the embedded LLVM target\n";
         return 1;
@@ -811,19 +622,7 @@ int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects)
         return 1;
     }
     auto Main = MainSymOrErr->toPtr<int (*)()>();
-#if defined(_WIN32) && defined(__x86_64__)
-    InterlockedExchange(&JITCrashReported, 0);
-    PVOID CrashHandler = AddVectoredExceptionHandler(1, reportWindowsJITCrash);
-    if (!CrashHandler) {
-        llvm::errs() << "error: cannot install the Windows JIT crash reporter: "
-                     << GetLastError() << "\n";
-        return 1;
-    }
-#endif
     int ExitCode = Main();
-#if defined(_WIN32) && defined(__x86_64__)
-    RemoveVectoredExceptionHandler(CrashHandler);
-#endif
 
     // Run platform deinitializers while JIT code is still mapped; frame
     // deregistration runs when the JIT releases its memory below.
