@@ -30,7 +30,7 @@ version. CMake rebuilds its extraction directory when the package set changes.
 If you use a different CMake build directory, download into its `deps/packages/`
 instead. Removing the build directory also removes its downloaded dependencies.
 
-All three execution modes need LLVM, Clang and LLD 23 development libraries, Python 3.9 or newer, and the native C/C++ development libraries to build, including `NONE`. Users of an `EMBEDDED` executable do not need LLVM or `lli`.
+All three execution modes need LLVM, Clang and LLD 23 development libraries, Perl with its core modules (including Compress::Zlib and JSON::PP), and the native C/C++ development libraries to build, including `NONE`. Users of an `EMBEDDED` executable do not need LLVM or `lli`.
 
 Compiler tests are optional (`-DBUILD_TESTING=ON`) and need only Perl with core modules (Digest::SHA, JSON::PP). See [the test instructions](../tests/README.md) for running CTest and replaying random inputs. CI enables the complete suite on every compiler platform.
 
@@ -48,7 +48,7 @@ Use a distribution repository that provides LLVM 23. Recommended build tools:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y --no-install-recommends build-essential cmake clang-23 lld-23 python3
+sudo apt-get install -y --no-install-recommends build-essential cmake clang-23 lld-23 perl
 ```
 
 Recommended LLVM and support-package downloads:
@@ -81,9 +81,10 @@ pacman -S --needed \
   mingw-w64-x86_64-cmake \
   mingw-w64-x86_64-make \
   mingw-w64-x86_64-clang \
-  mingw-w64-x86_64-clang-tools-extra \
-  mingw-w64-x86_64-python
+  mingw-w64-x86_64-clang-tools-extra
 ```
+
+Install Strawberry Perl in Windows; the configuration example below uses `C:/Strawberry/perl/bin/perl.exe`. Use this native interpreter so it can read the Windows paths passed by CMake.
 
 Confirm that both installed compilers report major version 23:
 
@@ -142,7 +143,7 @@ provides Clang 23. Install the build tools and LLVM SDK with Homebrew:
 
 ```bash
 brew update
-brew install cmake python llvm@23
+brew install cmake perl llvm@23
 brew upgrade llvm@23
 ```
 
@@ -196,6 +197,7 @@ MSYS2 MINGW64:
 ```bash
 cmake -S . -B build -G "MinGW Makefiles" \
   -DCPSC_RUN_MODE=EMBEDDED -DCMAKE_BUILD_TYPE=Release \
+  -DPERL_EXECUTABLE="C:/Strawberry/perl/bin/perl.exe" \
   -DCMAKE_C_COMPILER="$(cygpath -m /mingw64/bin/clang.exe)" \
   -DCMAKE_CXX_COMPILER="$(cygpath -m /mingw64/bin/clang++.exe)"
 mingw32-make -C build -j4
@@ -232,7 +234,7 @@ required archive is a configure error. Linux also links the C++ runtime statical
 and MinGW uses static linking. The tested Debian/LLVM 23 executable needs only
 the system libc, libm and dynamic loader. Build for the intended OS and CPU.
 
-All execution modes embed the Clang driver, LLD and the startup objects, runtime archives and system-library link inputs needed for native output. Python prepares these compressed resources during configuration; it is not needed by users. Native output requires no installed compiler, linker or development SDK. On Linux, generated programs statically link the C++ runtime and dynamically link glibc and its system libraries, so they require a compatible system glibc. Do not use global `-static` on Linux. macOS embeds SDK library stubs and uses operating-system runtime libraries; Windows embeds MinGW link inputs and statically links non-system runtimes.
+All execution modes embed the Clang driver, LLD and the startup objects, runtime archives and system-library link inputs needed for native output. Perl prepares these compressed resources during configuration; it is not needed by users. Native output requires no installed compiler, linker or development SDK. On Linux, generated programs statically link the C++ runtime and dynamically link glibc and its system libraries, so they require a compatible system glibc. Do not use global `-static` on Linux. macOS embeds SDK library stubs and uses operating-system runtime libraries; Windows embeds MinGW link inputs and statically links non-system runtimes.
 
 For `PATH` mode, add the extracted LLVM 23 `lli` directory to your shell's PATH
 after configuration. Only `-r` checks the selected `lli --version`, with a

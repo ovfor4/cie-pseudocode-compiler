@@ -36,7 +36,8 @@ uses C++ promotions, except that / always returns pseudocode REAL.
 The compiler emits native executables by default and textual `.ll` IR with `-S`.
 Initial configuration must explicitly select `CPSC_RUN_MODE=PATH`, `EMBEDDED` or
 `NONE` (no default). All modes need LLVM/Clang/LLD 23 development libraries,
-Python 3.9+ and native C/C++ development files to build; NONE supports both outputs.
+Perl with core modules (including Compress::Zlib and JSON::PP) and native C/C++
+development files to build; NONE supports both outputs.
 The following commands use Debian/Ubuntu's versioned compiler names:
 
 ```bash
@@ -180,7 +181,7 @@ does not replace an imported target's explicit `.dll.a` path.
 `NativeCompiler` clones the module, sets the host triple/DataLayout and emits a PIC
 object. Clang Driver constructs one platform linker job, which is dispatched to
 embedded LLD without launching a process. `cmake/NativeCompiler.cmake` runs
-`tools/driver/prepare-native-runtime.py` at configure time to capture the build
+`tools/driver/prepare-native-runtime.pl` at configure time to capture the build
 toolchain's link inputs and compress them into generated C++ data. Native compilation
 extracts startup objects, runtime archives and system link interfaces to a temporary
 directory; GNU linker scripts are relocated. macOS embeds SDK library stubs, not
@@ -276,7 +277,7 @@ source downloads remain available.
 The Linux compiler and plugin jobs use Ubuntu 24.04 x86_64; the macOS compiler
 job uses a macOS 15 arm64 runner, and Windows uses Windows Server 2025 x86_64.
 All four check out the push SHA and run independently. All three
-compiler jobs use LLVM/Clang/LLD 23, Python (build-time), Release and EMBEDDED settings, Pandoc, and the
+compiler jobs use LLVM/Clang/LLD 23, Perl (build-time), Release and EMBEDDED settings, Pandoc, and the
 existing `release` target. Linux obtains its toolchain from apt.llvm.org; macOS
 uses Homebrew's LLVM 23 and builds matching static LLD with the helper above. Windows uses `msys2/setup-msys2@v2` with MINGW64,
 MSYS2 LLVM/Clang packages, explicit native compiler and LLVM paths, and the
@@ -290,7 +291,7 @@ Node.js 22, `npm ci --ignore-scripts` and
 `npm run package`, then checks VSIX contents. Each job retains its checked package
 as a separate Actions artifact for one day, failing if the package is missing.
 Compiler jobs enable
-BUILD_TESTING, install Perl for the tests and run all CTest cases with the push SHA as seed before
+BUILD_TESTING and run all CTest cases with the push SHA as seed before
 their package smoke checks and uploads. Failed tests retain inputs and logs as
 Actions artifacts for 14 days; test summaries appear even on failure. See TESTING.md.
 The publish job downloads only the current run's `nightly-*` artifacts and checks

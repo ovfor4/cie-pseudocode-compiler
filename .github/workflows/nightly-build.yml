@@ -41,7 +41,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake clang-23 llvm-23-dev lld-23 \
-            libclang-23-dev liblld-23-dev libpolly-23-dev python3 perl \
+            libclang-23-dev liblld-23-dev libpolly-23-dev perl \
             zlib1g-dev libzstd-dev libncurses-dev libedit-dev pandoc
 
       - name: Build the embedded release package
@@ -123,7 +123,7 @@ jobs:
         run: |
           test "$(uname -m)" = arm64
           brew update
-          brew install llvm@23 pandoc zlib zstd ncurses python perl
+          brew install llvm@23 pandoc zlib zstd ncurses perl
           brew upgrade llvm@23
           llvm_prefix=$(brew --prefix llvm@23)
           test -x "$llvm_prefix/bin/clang++"
@@ -241,7 +241,6 @@ jobs:
             mingw-w64-x86_64-clang-tools-extra
             mingw-w64-x86_64-llvm
             mingw-w64-x86_64-lld
-            mingw-w64-x86_64-python
             mingw-w64-x86_64-libffi
             mingw-w64-x86_64-libxml2
             mingw-w64-x86_64-libiconv
