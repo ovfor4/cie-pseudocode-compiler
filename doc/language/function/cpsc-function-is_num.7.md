@@ -12,6 +12,8 @@ IS_NUM(text : STRING) RETURNS BOOLEAN
 
 # DESCRIPTION
 
+Provided by the standard string library, loaded and linked by default.
+
 Return true for a nonempty string fully consumed by the runtime's numeric conversion. Leading whitespace is accepted; trailing whitespace or other trailing text is rejected.
 
 # EXAMPLE

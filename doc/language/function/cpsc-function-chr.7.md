@@ -12,7 +12,9 @@ CHR(code : INTEGER) RETURNS STRING
 
 # DESCRIPTION
 
-Convert the low eight bits of code to a one-byte string. The result is STRING, not CHAR. Use ASCII codes 1 to 127 for ordinary text; code 0 produces an empty string.
+Provided by the standard string library, loaded and linked by default.
+
+Convert the low eight bits of code to a one-byte string. The result is STRING, not CHAR. Use ASCII codes 1 to 127 for ordinary text; code 0 produces one NUL byte, so LENGTH(CHR(0)) is 1.
 
 # EXAMPLE
 

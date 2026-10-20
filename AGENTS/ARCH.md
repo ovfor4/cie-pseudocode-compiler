@@ -12,10 +12,8 @@ files ──> Lexer ──> Parser ──> vector<unique_ptr<StmtAST>> ──> C
 ```
 
 Fixed value representation (ABI — much code infers types backwards from these):
-INTEGER = `i64`, REAL = `double`, BOOLEAN = `i1`, CHAR = `i8`, STRING = opaque `ptr`
-to a NUL-terminated buffer. User-defined types (§4): enum = `i64` (0-based ordinal),
-pointer = opaque `ptr`, record = named struct `%record.NAME`. Enum/pointer are
-LLVM-identical to INTEGER/STRING **by design** — their identity lives in the type
+INTEGER = `i64`, REAL = `double`, BOOLEAN = `i1`, CHAR = `i8`. STRING is the standard-library class `%record.STRING`, owning a std::string handle; C_STRING is a raw NUL-terminated pointer. User-defined types (§4): enum = `i64` (0-based ordinal),
+pointer = opaque `ptr`, record = named struct `%record.NAME`. Enums and pointers are LLVM-identical to INTEGER/C_STRING **by design** — their identity lives in the type
 *name*, enforced upstream (see CONVENTIONS.md). Allocation byte sizes are never computed
 host-side: the module has no DataLayout string, so every allocation size is a null-GEP
 `sizeof` constant (`TypeSystem::getSizeOfConstant`) folded by the backend.
@@ -86,7 +84,7 @@ successful checks on the native runner.
 
 Driver behavior (`tools/driver/main.cc`):
 
-- One or more source files, with optional `-S`, `-o path` and `-r`; options may appear among inputs.
+- One or more source files, with optional `-S`, `-o path`, `-r` and `-no-std`; options may appear among inputs.
   Each stream is parsed independently. INCLUDE paths are relative to the including file,
   matched against command-line inputs with fs::equivalent. The driver rejects repeated
   inputs and computes transitive symbol visibility; cycles do not copy statements.
@@ -320,7 +318,7 @@ do not modify the real release for local verification.
 | `lib/CodeGen/ExpressionGen.cc`, `StatementGen.cc`, `ControlFlowGen.cc` | Expression/statement dispatch and control-flow emission |
 | `lib/CodeGen/OperatorGen.cc`, `include/cps/Operator.h` | Exact global/member operator selection, calls and temporary receivers; shared operator spellings |
 | `lib/CodeGen/ConstructorGen.cc` | Construction, copying, assignment, destruction and deferred object cleanup |
-| `lib/CodeGen/GlobalGen.cc` | Primitive GLOBAL declaration and constant-initializer passes |
+| `lib/CodeGen/GlobalGen.cc` | GLOBAL declarations and scalar/owning STRING initializers |
 | `lib/CodeGen/ConstantGen.cc` | Literal constants, declaration conflicts and lexical binding restoration |
 | `lib/CodeGen/ValueTypeGen.cc`, `OutputGen.cc`, `Builtins.h` | Expression typing, coercion/declarations, scalar output and the shared builtin table |
 | `lib/CodeGen/Designator.cc`, `TypeCheckGen.cc` | TYPE pre-pass, member lookup/calls and lvalue access; type admission and user-kind binary operators |
@@ -360,3 +358,5 @@ source layout, naming, prose formatting and the small checks needed for changes.
 **Library units.** Line-leading `#LIB` marks SourceUnit::IsLibrary. RuntimeCheck uses the externally visible i32 `__cps_user_line`; FunctionGen’s shared call hook updates it only on non-library to library calls. Runtime helper line arguments use RuntimeCheck::lineValue too. Compiler diagnostics retain the owning file location.
 
 The embedded JIT lazily loads the captured C++ standard-library and compiler-support archives using StaticLibraryDefinitionGenerator. Members defining exception ABI or unwind symbols are filtered so all exception frames use the host runtime; additional host ABI functions are exposed explicitly. Archive buffers own their extracted bytes for the JIT lifetime.
+
+**Standard library.** Build-time embedding includes pseudocode-lib/std.cps, its imported string.cps and the matching string.o. StandardLibrary extracts these for parsing and linking; user units import std.cps by default. -no-std disables automatic loading/linking. STRING is an ordinary class; StringValueGen bridges literals, C_STRING conversions and I/O. String functions, concatenation and comparisons use normal function/operator resolution. Installed/released cpsc needs no separate library directory; manually linking saved IR still requires the matching string.o and C++ runtime.

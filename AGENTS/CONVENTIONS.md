@@ -54,7 +54,7 @@ builtins, so values of these kinds must NEVER reach `ArithmeticHandler` or
 (assignments, BYVAL args, RETURN, IF/WHILE/REPEAT/FOR operands, file operands,
 builtin args) and the typed `CodeGen::emitBinaryOp` dispatcher in `ExpressionGen.cc`
 guard these paths. The dispatcher resolves overloads and handles C/user kinds
-before the builtin STRING/arithmetic paths. `coerceValueToType` hard-errors
+before builtin arithmetic. `coerceValueToType` hard-errors
 ("Internal: ...") if a user-kind target reaches it.
 
 **Enum value names are a flat, globally reserved namespace** owned by `TypeSystem`
@@ -72,37 +72,19 @@ builds `DesignatorExprAST`/`DesignatorAssignStmtAST` for chains involving `.`,
 `^` or multiple accessors — existing programs keep byte-identical ASTs.
 `CodeGen::emitLValue` resolves any of these to `{address, type name}`, emitting
 index and null-deref checks on the way; `loadFromLValue` owns the rvalue read
-and the STRING null→`""` guard.
+of the resolved value.
 
-**Fixed IR representation per type.** INTEGER = `i64`, REAL = `double`, BOOLEAN = `i1`,
-CHAR = `i8`, STRING = opaque `ptr` to a NUL-terminated buffer. Some code still infers
-pseudocode types *backwards* from LLVM types (`getExprTypeInfo`'s fallback,
-`ArithmeticHandler`'s `isIntegerTy(64)` tests), so these widths are ABI.
+**Fixed IR representation per builtin type.** INTEGER = `i64`, REAL = `double`, BOOLEAN = `i1`, CHAR = `i8`. STRING is the ordinary standard-library class `%record.STRING`, not a builtin pointer type. C_STRING remains a raw NUL-terminated C pointer. Some arithmetic code still infers types backwards from LLVM widths; preserve the builtin scalar ABI.
 
-**Reference storage does not imply address comparison.** Compare values by content;
-only explicitly declared pointer types compare addresses. STRING's six comparison
-operators use `strcmp` in `StringHandler`, dispatched by pseudocode type in CodeGen
-before ArithmeticHandler. Ordering is case-sensitive byte lexicographic order;
-mixed STRING/non-STRING comparisons are errors. Whole-array comparisons remain unsupported; records/classes require an explicit
-operator overload for comparisons.
+**STRING values use the class machinery.** `string.cps` owns a std::string through an internal handle. Ordinary literals construct STRING through NEW(C_STRING); suffixed `"text"C` literals produce C_STRING directly. Ordinary literals retain legacy NUL truncation. `StringValueGen.cc` bridges construction, C_STR access and file operands; INPUT calls READ_INPUT. String functions and all concatenation/comparison operators are ordinary library definitions, with exact overload selection. Comparisons use case-sensitive byte ordering. A missing STRING class or required bridge method is a compile error.
 
-**Built-in strings are malloc'd and never freed — by design.** Every string-producing operation
-(`&`, MID/LEFT/RIGHT/LCASE/UCASE, NUM_TO_STR, CHR, READFILE, CHAR/number→STRING
-coercion) mallocs a fresh buffer; string literals and BOOLEAN→STRING coercion instead
-return pointers to shared module globals, so a STRING value may alias a global. `MemoryHandler` declares `free` for explicit user memory only; it must never free internal STRING buffers. Don't "fix" leaks piecemeal; it's a global design decision.
-Heap-string operations live in `StringHandler` (including `&` concatenation,
-`emitConcat`), `StringConversionHandler` (NUM_TO_STR/STR_TO_NUM buffers) and
-`FileHandler` (READFILE line buffers — its `__cps_file_read` helper grows line buffers with `realloc`); `CodeGen` also keeps its own `MallocFunc` for the char→STRING coercion
-and INPUT STRING buffers — declared in `SetupExternalFunctions`, never fetched with a
-bare `getFunction("malloc")`.
+**Ownership follows value copies.** STRING constructors/assignment prevent shared handles. Records and BYVAL arrays containing STRING recursively copy their string-bearing fields/elements; RETURN and temporary cleanup preserve ownership. C_STRING casts borrow a STRING buffer or construct an owning STRING copy in the other direction. FileHandler owns copied open-file names and frees them on close; READFILE buffers are copied into STRING and released. Explicit MemoryHandler allocations remain separate from these internal objects.
 
 **One symbol namespace, one table.** `Symbols` (name → `SymbolInfo{Storage,
-TypeName, IsArray, ConstantValue, ScopeID, IsReference, IsGlobal}`) in CodeGen is the only symbol table.
+TypeName, IsArray, ConstantValue, ScopeID, IsReference, IsGlobal, ReadOnly}`) in CodeGen is the only symbol table.
 Use `symbolAddress` for an object address: class variables and BYVAL class parameters
 store their current object address in a reference slot (`IsReference`).
-A non-null ConstantValue denotes a read-only CONSTANT with no Storage. Read it
-through `emitExpr`; all writable/address-taking paths must reject it through
-`requireWritable`. Register variables through `registerSymbol()` (parameters are
+Use SymbolInfo::isConstant() for constant checks: scalar literals use ConstantValue; owning STRING constants use ReadOnly plus Storage. Read values through emitExpr. Writable/address-taking paths reject constants through requireWritable; internal STRING copy/assignment source bindings may read their storage. Register variables through `registerSymbol()` (parameters are
 also bound directly by FunctionGen). `prepareSymbolDeclaration` diagnoses
 same-scope conflicts involving constants before declaration emission. Unique
 scope IDs distinguish sibling blocks; `emitScopedBlock` restores only bindings
@@ -142,8 +124,7 @@ call-marshalling path for both call-expr and call-stmt — requires BYREF argume
 bare variables of *exactly* the declared type (their `symbolAddress` is passed), admits BYVAL
 arguments through `emitOwnedValue`, and dispatches whole-array arguments to
 `ArrayHandler::emitArrayArgument`. RETURN also uses `emitOwnedValue` against the
-declared return type. Class lvalues invoke a same-class BYREF OVERLOAD NEW when
-defined, otherwise they copy bits; class rvalues transfer ownership. Other values
+declared return type. Class lvalues invoke a same-class BYREF OVERLOAD NEW when defined; STRING-bearing aggregates clone their owned fields. Other classes without a copy constructor copy bits; class rvalues transfer ownership. Other values
 use `emitCoercedExpr`. Top-level prototypes are pre-registered (after the TYPE
 pre-pass) before statement emission, so call-before-definition is fine; a call with
 no registered signature is a compile error. OVERLOAD signatures append canonical
@@ -178,11 +159,10 @@ time when the caller's bounds are constants, else at run time by throwing an exc
 The LLVM ABI flattens each rank-R array parameter into a data `ptr` plus
 `kBoundArgsPerDim` (=2) i64 bounds per dimension; the callee rebuilds its
 `ArrayMetadata` from those (`ArrayHandler::bindArrayParameter` via the binder
-callback CodeGen injects into FunctionGen). BYVAL arrays are whole
-malloc+memcpy copies at callee entry; BYREF binds the caller's buffer.
+callback CodeGen injects into FunctionGen). BYVAL arrays copy their buffer at callee entry and clone STRING-bearing elements; BYREF binds the caller's buffer.
 
 **Builtins are plain identifiers backed by one table.** Builtins
-(LENGTH/MID/RIGHT/LEFT/LCASE/UCASE/ASC/CHR/IS_NUM/NUM_TO_STR/STR_TO_NUM/EOF/MALLOC/FREE/REALLOC) parse as
+(EOF/MALLOC/FREE/REALLOC) parse as
 ordinary calls — no lexer/parser support, and the names are not reserved words. The
 inline constexpr `Builtins` table in the internal `lib/CodeGen/Builtins.h` ({Name, Arity, ReturnTypeName}) is
 the single source of truth: `emitCall` checks arity against it
@@ -218,3 +198,5 @@ Identifiers may begin with an underscore. The case-insensitive `__cps_` prefix i
 **Library units.** Line-leading `#LIB` marks SourceUnit::IsLibrary. RuntimeCheck uses the externally visible i32 `__cps_user_line`; FunctionGen’s shared call hook updates it only on non-library to library calls. Runtime helper line arguments use RuntimeCheck::lineValue too. Compiler diagnostics retain the owning file location.
 
 Assignment operators are member-only `OVERLOAD PROCEDURE OPERATOR<-` with one explicit parameter. emitAssignment resolves the exact RHS static type before fallback storage copying. Internal assignment/constructor BYREF bindings may use designators or materialized temporaries; ordinary BYREF calls still require bare variables.
+
+**Default standard library.** The driver extracts embedded std.cps, its imported units and matching objects to a temporary directory that survives linking/execution. User units implicitly import std.cps; normal transitive visibility applies. -no-std suppresses all default library inputs and objects. Explicit libraries retain the ordinary INCLUDE/command-line rules. Source files and objects are embedded by a build-time Perl generator. Saved -S output remains IR only.

@@ -39,7 +39,7 @@ Member operators on variables, fields, array elements and pointer dereferences m
 
 Explicit calls use `OPERATOR+(A, B)` for global definitions and `A.OPERATOR+(B)` for members. They also work as statements, optionally prefixed with CALL, to discard results. Class-valued call results support explicit member operator calls, such as `Make().OPERATOR+(B)`. Indexing, function-call, address-of and dereference operators cannot be overloaded.
 
-A class may define `OVERLOAD PROCEDURE OPERATOR<-(BYREF Other : ClassName)` or an overload taking another exact static type. Assignment to a class lvalue selects this member before falling back to same-class bitwise assignment. The procedure takes exactly one explicit parameter; BYREF may bind a designator or materialized temporary. Keyword NEW assignment retains its allocation behavior. Self-assignment handling belongs to the operator body.
+A class may define `OVERLOAD PROCEDURE OPERATOR<-(BYREF Other : ClassName)` or an overload taking another exact static type. Assignment to a class lvalue selects this member before falling back to same-class assignment; STRING-bearing aggregates copy their owned string fields, while other fields retain their existing copy behavior. The procedure takes exactly one explicit parameter; BYREF may bind a designator or materialized temporary. Keyword NEW assignment retains its allocation behavior. Self-assignment handling belongs to the operator body.
 
 # EXAMPLE
 

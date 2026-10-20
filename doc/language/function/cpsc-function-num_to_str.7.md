@@ -12,6 +12,8 @@ NUM_TO_STR(number : INTEGER or REAL) RETURNS STRING
 
 # DESCRIPTION
 
+Provided by the standard string library, loaded and linked by default.
+
 Format INTEGER as signed decimal text and REAL with six digits after the decimal point.
 
 # EXAMPLE

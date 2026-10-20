@@ -11,7 +11,7 @@ perl tests/summarize.pl build/test-results
 
 Use `ctest --test-dir build -L '^ii$' --output-on-failure` for one suite, or `-R '^i/arrays$'` for one case. CTest returns failure if any case fails; it continues through the other cases. There are no expected-failure exemptions. Rejection of valid CIE syntax must not be treated as a successful negative test.
 
-The suites are **i**: independently traced fixed outputs, **ii**: C++ differential tests with Perl inputs, and **iii**: rejected programs with required causes and source lines. Fixed expectations are **pending human review**; each case's notes explain the trace and distinguish CIE rules from project extensions. REAL calculations are observed through BOOLEAN/INTEGER output; The experimental string-library fixture additionally checks its specified C++17 numeric text formatting.
+The suites are **i**: independently traced fixed outputs, **ii**: C++ differential tests with Perl inputs, and **iii**: rejected programs with required causes and source lines. Fixed expectations are **pending human review**; each case's notes explain the trace and distinguish CIE rules from project extensions. REAL calculations are observed through BOOLEAN/INTEGER output; The string-library fixture additionally checks its specified C++17 numeric text formatting.
 
 The default is 10,000 random records per differential group, plus fixed boundary records. Both generated native programs and the configured `-r` path are checked; NONE builds only run native programs. Each source is compiled once per execution path and processes its records in one batch. Tests normalize only CRLF to LF; spaces, blank lines, case and final newlines remain significant. Generated text files use the same comparison rule.
 
@@ -31,6 +31,8 @@ In Actions, each compiler platform runs all three suites and summarizes results 
 For adding cases and runner interfaces, see [AGENTS/TESTING.md](../AGENTS/TESTING.md).
 
 A case with `objects` in `case.json` builds `.c` and `.cc` files into `.o` files for `INCLUDE_OBJ` (see `i/extern-c-object` and `i/extern-cc-object`). CMake passes the project C and C++ compilers.
+
+A manifest may set `compiler_args`, such as `["-no-std"]`, for all compiler invocations. Default tests use the embedded standard library.
 
 Multi-file fixtures use a `sources` array in `case.json`, listing all compiler inputs relative to the case directory in command-line order. The default remains `["program.cps"]`. Included libraries live beside the fixture source or in subdirectories; INCLUDE paths stay relative to their including source. Sources are passed separately to both native compilation and the configured runner. Negative cases may add `file` to an error expectation; the reason, line and exact resolved source path must occur on the same diagnostic.
 

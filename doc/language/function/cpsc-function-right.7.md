@@ -12,6 +12,8 @@ RIGHT(text : STRING, count : INTEGER) RETURNS STRING
 
 # DESCRIPTION
 
+Provided by the standard string library, loaded and linked by default.
+
 Return up to count bytes from the end. Use a nonnegative count. Counts larger than the string length return the whole string.
 
 # EXAMPLE

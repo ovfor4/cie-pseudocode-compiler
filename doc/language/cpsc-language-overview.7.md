@@ -8,7 +8,7 @@ cpsc-language-overview - supported cpsc pseudocode syntax
 
 Keywords are uppercase and case-sensitive. Identifiers, including built-in function names, are case insensitive. Indentation is for readability; blocks use explicit closing keywords. Identifiers begin with a letter or underscore and continue with letters, digits, or underscores.
 
-Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`, `<`, `>`, `<=`, and `>=`. Built-in STRING comparisons compare contents, case-sensitively. Use `+`, `-`, `*`, and `/` for arithmetic; built-in `/` always returns REAL. Use `&` to join strings.
+Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`, `<`, `>`, `<=`, and `>=`. Standard-library STRING comparisons compare contents, case-sensitively. Use `+`, `-`, `*`, and `/` for arithmetic; built-in `/` always returns REAL. Use `&` to join strings.
 
 User-defined types can overload operators with OVERLOAD FUNCTION OPERATOR; expressions then use the declared result type. See [cpsc-keyword-operator(7)](keyword/cpsc-keyword-operator.7.md). STRING cannot be implicitly converted to BOOLEAN.
 
@@ -16,7 +16,7 @@ Precedence, from highest to lowest: unary operators, `* / DIV MOD`, `+ - &`, com
 
 Parenthesized type casts, such as (C_INT)Number, have unary precedence. C_INT, C_CHAR, C_STRING and C_DOUBLE are native C aliases; TYPE name = C_TYPE("...") imports other supported C base types and pointers. Conversions between C and pseudocode types must be explicit. These are compiler extensions; see [cpsc-keyword-c_type(7)](keyword/cpsc-keyword-c_type.7.md). EXTERN "C" declares C functions from objects named with INCLUDE_OBJ; see [cpsc-keyword-extern(7)](keyword/cpsc-keyword-extern.7.md).
 
-Literals include integers, decimal real numbers, TRUE/FALSE, strings in double quotes, and single-byte characters in single quotes. Negative numbers use unary minus. String and character literals support C++17 simple escapes (`\' \" \? \\ \a \b \f \n \r \t \v`), one to three octal digits, and `\x` followed by hexadecimal digits (byte values only). Unicode escapes `\uXXXX` and `\UXXXXXXXX` encode valid Unicode scalar values as UTF-8 in strings; in CHAR they must be ASCII. Unknown escapes are errors. Built-in STRING is NUL-terminated, so `"a\0b"` is observed as `"a"`. Comments begin with `//` and continue to the end of the line.
+Literals include integers, decimal real numbers, TRUE/FALSE, strings in double quotes, and single-byte characters in single quotes. Negative numbers use unary minus. String and character literals support C++17 simple escapes (`\' \" \? \\ \a \b \f \n \r \t \v`), one to three octal digits, and `\x` followed by hexadecimal digits (byte values only). Unicode escapes `\uXXXX` and `\UXXXXXXXX` encode valid Unicode scalar values as UTF-8 in strings; in CHAR they must be ASCII. Unknown escapes are errors. Ordinary STRING literals retain NUL truncation, so `"a\0b"` is observed as `"a"`. An adjacent uppercase C suffix, as in `"text"C`, produces C_STRING directly. Comments begin with `//` and continue to the end of the line.
 
 Declare variables before use. See DECLARE for built-in types and arrays, TYPE for records/enumerations/pointers, and CLASS for public/private fields and methods.
 
@@ -63,7 +63,9 @@ Multi-file builds use the compiler extensions INCLUDE and GLOBAL. Pass every sou
 
 Closing and auxiliary keywords are documented with their main constructs: THEN/ELSE/ENDIF with IF; OF/OTHERWISE/ENDCASE with CASE; CATCH/ENDTRY/THROW with TRY; ENDWHILE with WHILE; UNTIL with REPEAT; TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE; ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE; ENDGLOBAL with GLOBAL; ENDTYPE with TYPE; EXTERN_FUNCTION/EXTERN_PROCEDURE with EXTERN; PUBLIC/PRIVATE/ENDCLASS with CLASS. TRUE/FALSE are BOOLEAN literals.
 
-# BUILT-IN FUNCTIONS
+# STRING LIBRARY FUNCTIONS
+
+These ordinary functions and the STRING class come from the embedded standard library, loaded and linked automatically unless **-no-std** is given. Ordinary string literals require a visible STRING class.
 
 - [cpsc-function-length(7)](function/cpsc-function-length.7.md): find a string's length.
 - [cpsc-function-mid(7)](function/cpsc-function-mid.7.md): extract part of a string.
@@ -76,6 +78,9 @@ Closing and auxiliary keywords are documented with their main constructs: THEN/E
 - [cpsc-function-is_num(7)](function/cpsc-function-is_num.7.md): test whether text represents a number.
 - [cpsc-function-num_to_str(7)](function/cpsc-function-num_to_str.7.md): convert a number to text.
 - [cpsc-function-str_to_num(7)](function/cpsc-function-str_to_num.7.md): convert text to a real number.
+
+# BUILT-IN FUNCTIONS
+
 - [cpsc-function-eof(7)](function/cpsc-function-eof.7.md): test for the end of a text file.
 - [cpsc-function-malloc(7)](function/cpsc-function-malloc.7.md): allocate raw memory.
 - [cpsc-function-realloc(7)](function/cpsc-function-realloc.7.md): resize an explicit allocation.

@@ -12,7 +12,9 @@ LENGTH(text : STRING) RETURNS INTEGER
 
 # DESCRIPTION
 
-Return the number of bytes before the string terminator. String operations are byte-based, so this is not a Unicode character count.
+Provided by the standard string library, loaded and linked by default.
+
+Return the number of bytes in the owning string, including embedded NUL bytes. String operations are byte-based, so this is not a Unicode character count.
 
 # EXAMPLE
 

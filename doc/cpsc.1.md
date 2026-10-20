@@ -6,7 +6,7 @@ cpsc - compile and run CIE pseudocode
 
 # SYNOPSIS
 
-**cpsc** [**-r**] [**-S**] [**-o** *output*] *source* [*source* ...]
+**cpsc** [**-r**] [**-S**] [**-no-std**] [**-o** *output*] *source* [*source* ...]
 
 **cpsc** **-h**
 
@@ -20,6 +20,8 @@ Each input is a compilation unit. Use top-level `INCLUDE "lib.cps"` to import an
 
 Exactly one file may contain top-level executable statements (including top-level DECLARE). Alternatively, define a parameterless `FUNCTION MAIN RETURNS INTEGER` in one file and have no top-level executable statements anywhere. Builds containing only definitions and no MAIN fail with `error: no main program`. GLOBAL blocks declare shared primitive variables. INCLUDE, GLOBAL and MAIN entry points are compiler extensions beyond the Cambridge guide.
 
+The embedded standard library is loaded and linked automatically. Its std.cps imports string.cps, which defines the STRING class and ordinary string functions. No extra files are needed for default compilation. With **-no-std**, supply any required library inputs explicitly; ordinary string literals require a visible STRING class. A literal with an adjacent uppercase C suffix, such as `"hello"C`, has type C_STRING and does not require that class.
+
 # OPTIONS
 
 **-h**
@@ -29,10 +31,13 @@ Exactly one file may contain top-level executable statements (including top-leve
 :   Save to the specified path. Without **-S**, save a native executable; with **-S**, save LLVM IR. Use the path exactly as given; its extension does not select the output format. May be specified only once. With **-r**, keep this file even if execution fails.
 
 **-S**
-:   Save textual LLVM IR instead of a native executable. Without **-o**, use the entry source filename with a `.ll` extension beside the source file. May be combined with **-r** to save IR and run the program.
+:   Save textual LLVM IR instead of a native executable. Without **-o**, use the entry source filename with a `.ll` extension beside the source file. May be combined with **-r** to save IR and run the program. Manually linking saved IR that uses the standard library requires the matching string.o and C++ runtime; native output and **-r** supply them automatically.
 
 **-r**
 :   Run the compiled program with the runner selected at build time (see EXECUTION MODES). Save output first when **-S** or **-o** is also present; otherwise do not save a file. The program inherits stdin, stdout and stderr; `INPUT` can read terminal or piped input.
+
+**-no-std**
+:   Disable automatic standard-library loading and linking. Explicit INCLUDE and INCLUDE_OBJ inputs still work.
 
 # NATIVE COMPILATION
 
@@ -120,4 +125,4 @@ Generated IR uses the C++ exception ABI. Native binaries need the C++ runtime; E
 
 # SEE ALSO
 
-[cpsc-language-overview(7)](language/cpsc-language-overview.7.md) describes supported syntax and links to the keyword and built-in function manuals.
+[cpsc-language-overview(7)](language/cpsc-language-overview.7.md) describes supported syntax and links to the keyword, builtin and standard-library function manuals.

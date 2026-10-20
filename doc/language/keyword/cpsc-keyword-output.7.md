@@ -12,7 +12,7 @@ OUTPUT expression, ...
 
 # DESCRIPTION
 
-Print expressions from left to right without automatic separators, then add a newline. Strings print their contents; BOOLEAN prints TRUE or FALSE. Whole arrays and partially indexed arrays print their elements one per line; a final array adds no extra newline. Records, classes, and pointers cannot be printed directly.
+Print expressions from left to right without automatic separators, then add a newline. Strings print their contents; BOOLEAN prints TRUE or FALSE. Whole arrays and partially indexed arrays print their elements one per line; a final array adds no extra newline. Other records, classes, and pointers cannot be printed directly.
 
 C scalars print with their native type's format and C argument promotions. Plain char prints a character, other C integers print numbers, and _Bool prints TRUE or FALSE. C_STRING is a pointer: cast it to STRING to print its contents. See [cpsc-keyword-c_type(7)](cpsc-keyword-c_type.7.md).
 

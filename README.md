@@ -16,7 +16,7 @@ Details can be found here: [Pseudocode Guide for Teachers](https://www.cambridge
 - **Runtime checks**: Throw exceptions for array bounds errors, division by zero, file misuse, enum range errors and null pointer dereferences.
 - **Exception handling**: Catch exceptions with stack unwinding using the compiler extensions [TRY/CATCH/ENDTRY and THROW](doc/language/keyword/cpsc-keyword-try.7.md).
 - **Arrays**: Support multiple dimensions and custom lower and upper bounds.
-- **Strings**: Support dynamic strings and built-in string functions.
+- **Strings**: Provide the owning STRING class and string functions through an embedded standard library, loaded and linked by default; use `-no-std` to opt out.
 - **Functions and procedures**: Pass values, arrays and records by value; procedures also support `BYREF` parameters.
 - **Text files**: Support `OPENFILE`, `READFILE`, `WRITEFILE`, `CLOSEFILE` and `EOF`.
 - **User-defined types**: Support enumerated types, pointers and nested records.

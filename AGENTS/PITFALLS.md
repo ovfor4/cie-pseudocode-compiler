@@ -39,9 +39,8 @@ test programs.
   arguments against an accidentally-BYREF parameter now fail with "BYREF argument
   must be a variable"; annotate `BYVAL` explicitly.
 - **`/` always yields REAL** (double FDiv), even for two INTEGERs; integer division is
-  DIV/MOD only. CHR returns a STRING (2-byte heap buffer), not CHAR. STR_TO_NUM always
-  returns REAL. NUM_TO_STR formats INTEGER with bounded snprintf `"%lld"` (the full signed
-  i64 range) and REAL with `"%f"`. REAL buffers cover the full fixed-point double range.
+  DIV/MOD only. CHR returns an owning one-byte STRING, not CHAR; CHR(0) retains one NUL byte. STR_TO_NUM always
+  returns REAL. NUM_TO_STR uses std::to_string, preserving the full signed i64 range and six fractional digits for REAL. STR_TO_NUM uses std::stod with full-consumption checks.
 - **`getExprTypeInfo` returns nullptr** for expressions it can't classify (null-check it
   at any new call site) and internally defaults to INTEGER for unclassified arithmetic expressions; unknown or unmatched calls now diagnose and return nullptr.
   OUTPUT reports an error for a nullptr result.
@@ -77,8 +76,7 @@ test programs.
   enum on the left; out-of-range results throw at run time. There is no NULL
   literal: pointers zero-init to null, dereferencing one throws, and unset-ness
   is deliberately untestable. `RETURN ^localVar` dangles — documented, unchecked.
-  Record STRING fields stay null until read (normalized to `""` per-load, not at copy
-  time). Enum value names are globally reserved (they block DECLARE/parameter/function
+  Record STRING fields default-construct empty strings and copy independently. Enum value names are globally reserved (they block DECLARE/parameter/function
   names). TYPE must be top-level; array fields inside records and bounded array
   parameters with non-literal bounds are dedicated compile errors. A digit run
   followed by `.` is swallowed into a REAL literal, so `1.foo` mislexes (only
@@ -146,12 +144,12 @@ test programs.
   generic termination message and return 1. Bare THROW prints no diagnostic itself.
   Native binaries must link the C++ runtime with LLVM 23's `clang++`
   (`clang++-23` on Debian/Ubuntu).
-  Unwinding does not free heap strings/arrays or close files. Embedded ORC
+  Owned STRING values follow class cleanup during unwinding; raw array buffers are not freed and files are not automatically closed. Embedded ORC
   execution with LLVM 23 is exercised by nightly CI on Linux, Windows and macOS;
   check the native job results when changing platform-specific code.
 
 - **C type extensions.** C_STRING is a raw char pointer, not a STRING: explicitly
-  cast to STRING for printing or builtins. C aliases share canonical CIdentity;
+  cast to STRING for printing or string-library calls. C aliases share canonical CIdentity;
   do not use LLVM widths to recover signedness or nominal type identity. Plain
   char's signedness is native, unlike pseudocode CHAR. C/pseudocode conversions
   require casts even for literals. C scalar arithmetic uses native promotions,
@@ -181,6 +179,8 @@ plugin tests. The initial standard conflicts and missing diagnostic locations ar
 Linux.
 WHILE accepts both the standard header without DO and the older WHILE DO form.
 
-- **Literal escapes.** C++17 escapes are decoded by the lexer. Unicode escapes encode UTF-8 in strings; CHAR Unicode escapes must be ASCII. Built-in STRING remains NUL-terminated: `"a\0b"` is observed as `"a"`.
+- **Literal escapes.** C++17 escapes are decoded by the lexer. Unicode escapes encode UTF-8 in strings; CHAR Unicode escapes must be ASCII. Ordinary STRING literals retain legacy NUL truncation: `"a\0b"` is observed as `"a"`. STRING can retain NUL bytes built through CHR or the count/character constructor; raw C text I/O truncates at NUL. The suffix `"text"C` yields C_STRING without a STRING class.
 
-- **Copy limits.** Classes may define a same-class BYREF copy constructor. Classes without one, whole TYPE records containing class fields, and BYVAL arrays still copy bits; owning handles inside these aggregate copies need explicit care. Class rvalues transfer ownership when consumed; discarded results and temporary receivers are destroyed at statement end.
+- **Copy limits.** Classes may define a same-class BYREF copy constructor. Classes without one, whole TYPE records containing non-STRING owning class fields, and BYVAL arrays of such classes still copy bits; STRING-bearing aggregates recursively clone their string-bearing fields, while other owning fields still need explicit care. Class rvalues transfer ownership when consumed; discarded results and temporary receivers are destroyed at statement end.
+
+- **Default standard library.** std.cps and its imported STRING library are embedded and automatically linked. Use -no-std before explicitly supplying a replacement STRING class/library; otherwise duplicate definitions fail. Ordinary literals require a visible STRING class with NEW(C_STRING). C_TYPE/INCLUDE/EXTERN syntax strings are parser metadata and do not construct STRING. -S emits IR only; manual linking needs string.o and the C++ runtime.

@@ -13,7 +13,9 @@ ASC(text : STRING) RETURNS INTEGER
 
 # DESCRIPTION
 
-Return the unsigned byte code of the character, or of the first byte of a string. Use a nonempty string; for ASCII characters this is the ASCII code.
+Provided by the standard string library, loaded and linked by default.
+
+Return the unsigned byte code of the character, or of the first byte of a string. An empty string returns zero; for ASCII characters this is the ASCII code.
 
 # EXAMPLE
 

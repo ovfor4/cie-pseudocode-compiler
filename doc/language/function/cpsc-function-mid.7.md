@@ -12,6 +12,8 @@ MID(text : STRING, start : INTEGER, count : INTEGER) RETURNS STRING
 
 # DESCRIPTION
 
+Provided by the standard string library, loaded and linked by default.
+
 Return up to count bytes starting at the one-based position start. Positions below 1 clamp to 1; positions beyond the end return an empty string. The count clamps to the available bytes; negative counts return an empty string.
 
 # EXAMPLE

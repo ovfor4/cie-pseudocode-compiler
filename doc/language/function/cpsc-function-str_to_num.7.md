@@ -12,7 +12,9 @@ STR_TO_NUM(text : STRING) RETURNS REAL
 
 # DESCRIPTION
 
-Return REAL, including for integer-looking text. Conversion can stop at trailing text; invalid text returns zero. Use IS_NUM first when the whole string must be a valid number.
+Provided by the standard string library, loaded and linked by default.
+
+Return REAL, including for integer-looking text. The whole string must be consumed. Invalid text, trailing junk and values outside the REAL range throw a catchable exception. Use IS_NUM first to check numeric text without throwing for invalid input.
 
 # EXAMPLE
 

@@ -12,7 +12,7 @@ CONSTANT identifier = literal
 
 # DESCRIPTION
 
-Declare a read-only value whose type is inferred from its literal: INTEGER, REAL, BOOLEAN, CHAR, or STRING. A negative integer or real literal is allowed. As required by the Cambridge guide, variables, other constants, expressions, casts, and function calls cannot initialize a CONSTANT.
+Declare a read-only value whose type is inferred from its literal: INTEGER, REAL, BOOLEAN, CHAR, STRING, or C_STRING for a literal with the C suffix. A negative integer or real literal is allowed. As required by the Cambridge guide, variables, other constants, expressions, casts, and function calls cannot initialize a CONSTANT.
 
 A constant is visible from its declaration to the end of its enclosing block. A top-level constant is also available in functions and procedures defined after its declaration. Functions do not inherit constants from another function or from an enclosing statement block.
 

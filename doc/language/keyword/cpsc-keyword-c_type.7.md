@@ -23,7 +23,7 @@ A cast has unary precedence and converts its following operand. Declare a type a
 
 C/pseudocode assignment, argument passing and mixed arithmetic require an explicit cast, including ordinary literals: use n <- (C_INT)1 and n + (C_INT)1. Different C scalar types use C++ numeric conversions, integer promotions and usual arithmetic conversions. BYREF requires the same type and performs no conversion. Comparisons and logical operations return BOOLEAN. The / operator always performs real division and returns REAL, including with two C integer operands; DIV and MOD accept C integers after promotion. C values used directly as IF/WHILE conditions need a cast to BOOLEAN.
 
-C scalar values support INPUT and OUTPUT. Plain char prints and reads a character; signed char and unsigned char use numeric input/output. _Bool uses the existing TRUE/FALSE output and numeric input. C pointers start null and support prefix ^ for address-of, suffix ^ for dereference, and = or <> between the same C pointer type. Dereferencing null throws; void pointers cannot be dereferenced. Pointer arithmetic and direct pointer INPUT/OUTPUT are unsupported. To print a C string, cast it to STRING. STRING/char* casts share the original buffer without allocation; a null char* becomes an empty STRING. Pointer validity and writable storage remain the caller's responsibility.
+C scalar values support INPUT and OUTPUT. Plain char prints and reads a character; signed char and unsigned char use numeric input/output. _Bool uses the existing TRUE/FALSE output and numeric input. C pointers start null and support prefix ^ for address-of, suffix ^ for dereference, and = or <> between the same C pointer type. Dereferencing null throws; void pointers cannot be dereferenced. Pointer arithmetic and direct pointer INPUT/OUTPUT are unsupported. To print a C string, cast it to STRING. Casting char* to STRING constructs an owning copy; a null char* becomes empty. Casting STRING to char* borrows its buffer until the string changes or is destroyed. A literal such as `"text"C` has type C_STRING without constructing STRING. Pointer validity and writable storage remain the caller's responsibility.
 
 # EXAMPLE
 
@@ -36,7 +36,7 @@ DECLARE Text : C_STRING
 Number <- (C_INT)42
 Pointer <- ^Number
 Pointer^ <- Number + (C_INT)1
-Text <- (C_STRING)"Result"
+Text <- "Result"C
 OUTPUT (STRING)Text, ": ", Number
 OUTPUT Number / (C_INT)2
 ```

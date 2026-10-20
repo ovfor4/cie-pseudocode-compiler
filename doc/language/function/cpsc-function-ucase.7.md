@@ -7,12 +7,15 @@ cpsc-function-ucase - convert text to upper case
 # SYNOPSIS
 
 ```text
+UCASE(character : CHAR) RETURNS CHAR
 UCASE(text : STRING) RETURNS STRING
 ```
 
 # DESCRIPTION
 
-Return a copy with letters converted to upper case. Unlike guide section 5.5's CHAR-to-CHAR signature, cpsc accepts text and returns STRING. Use ASCII text for predictable character conversion.
+Provided by the standard string library, loaded and linked by default.
+
+Return a copy with letters converted to upper case. The CHAR overload follows guide section 5.5; the STRING overload is a compatibility extension. Use ASCII text for predictable character conversion.
 
 # EXAMPLE
 

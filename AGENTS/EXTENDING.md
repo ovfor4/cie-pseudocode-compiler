@@ -21,7 +21,7 @@ already terminated the block.
 `Builtins` table in the internal `lib/CodeGen/Builtins.h` (single source of truth — arity checking in
 `emitCall`, the return type in `getExprTypeInfo`, and the reject-user-redefinition check
 all read it), then implement IR emission as a method on the fitting handler
-(String/StringConversion) or inline, and add the name intercept in `CodeGen::emitCall` — null-check every emitted argument before use, like the existing
+(for example MemoryHandler) or inline, and add the name intercept in `CodeGen::emitCall` — null-check every emitted argument before use, like the existing
 branches do. `emitCall` lives in `ExpressionGen.cc`. Builtins are plain identifiers — nothing is needed in lexer/parser.
 
 **New binary operator:** token (if multi-char) → one line in `BinopPrecedence`
@@ -29,9 +29,7 @@ branches do. `emitCall` lives in `ExpressionGen.cc`. Builtins are plain identifi
 precedence must be > 0) → branch in the shared `CodeGen::emitBinaryOp` value dispatcher
 in `ExpressionGen.cc` or its `ArithmeticHandler::emitBinaryOp` leaf, which dispatches
 on raw LLVM operand types. Preserve overload selection and C/user-kind checks
-before reaching that leaf. Exceptions in `CodeGen::emitBinaryOp`: `&` coerces operands
-to STRING then calls `StringHandler::emitConcat`; STRING comparisons require two
-STRING operands by pseudocode type then call `StringHandler::emitCompare`.
+before reaching that leaf. STRING concatenation and comparisons are ordinary library operator overloads; implement string operations in pseudocode-lib rather than adding compiler builtin branches.
 
 **New builtin type:** register in `TypeSystem::registerBuiltins` in `NativeTypeSystem.cc` (sizes are derived —
 never hand-written) + `TypeKind` case in the **exhaustive, default-less switches**:
@@ -79,3 +77,5 @@ also be registered in EmbeddedRunner for static-runtime JIT symbol lookup.
 **New libc dependency:** declare via `getOrInsertFunction` in the owning component's
 `setupExternalFunctions()` (re-declaring the same symbol in two handlers is fine — it
 dedupes by name).
+
+**Standard-library functions:** define ordinary functions/operators in pseudocode-lib/string.cps with C ABI helpers in string.cc as needed. std.cps imports all public library units. CMake rebuilds and embeds source/object changes; do not add string functions to Builtins.h. Ordinary string literals need STRING.NEW(C_STRING); the compiler bridges OUTPUT/casts/files through C_STR(), INPUT through READ_INPUT(), and READFILE through assignment from C_STRING.

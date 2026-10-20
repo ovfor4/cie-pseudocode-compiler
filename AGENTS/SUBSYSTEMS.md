@@ -12,11 +12,10 @@ CodeGen's `FunctionDefAST` branch, mirroring the Symbols discipline). Element si
 `sizeof` constants (`ElementSizeC`), never host-side numbers. Every access goes through
 `emitCheckedIndices` (validates the index count for the caller's semantics, then
 per-dimension coerce + `emitIndexCheck`) → `computeFlatIndex` → `loadElement` (load +
-the STRING null-guard); the public `emitElementAddress` exposes the same checked
+the typed value load); the public `emitElementAddress` exposes the same checked
 pipeline as an address for the lvalue layer (`Form[i].YearGroup`, `^arr[i]`) — never
 hand-roll indexing or element loads. Array parameters: `bindArrayParameter` rebuilds
-callee-side metadata from the flattened `ptr + 2R bounds` ABI (BYVAL = malloc+memcpy
-whole copy), `emitArrayArgument` validates and pushes the caller side.
+callee-side metadata from the flattened `ptr + 2R bounds` ABI (BYVAL = allocated buffer copy with independent STRING-bearing elements), `emitArrayArgument` validates and pushes the caller side.
 `OUTPUT arr` (and partially-indexed accesses) is intercepted by
 `ArrayHandler::tryEmitArrayOutput` — the first branch for each expression in an OUTPUT
 list, emitting nested print loops (element kinds that are not outputtable, i.e. records/pointers,
@@ -82,8 +81,7 @@ constants live in a TypeSystem-owned table, resolved in `emitExpr`'s
 `VariableExprAST` branch after `Symbols` misses. The lvalue layer
 (`emitLValue`/`loadFromLValue`) resolves designator chains to `{address, type name}`;
 `emitCoercedExpr` is the single name-level admission gate; `emitUserKindBinaryOp`
-intercepts built-in binary operators ahead of ArithmeticHandler (which, like StringHandler and
-FileHandler, is deliberately ignorant of user kinds). The enum range check after
+intercepts built-in binary operators ahead of ArithmeticHandler (which, like FileHandler, is deliberately ignorant of user kinds). The enum range check after
 `E ± INTEGER` is the only site that can produce an invalid ordinal — every other
 producer (constants, same-name copies, zero-init, memset-0 arrays) is valid by
 construction, which is why 0-based ordinals are load-bearing.
@@ -174,11 +172,11 @@ its statically linked ABI symbols with ORC `absoluteSymbols`, while LLJIT with
 JITLink manages unwind frames (generic EH-frame on Linux, compact-unwind or
 EH-frame on macOS, COFF SEH registration on Windows x86_64). Nightly CI exercises
 embedded exception execution on all three platforms.
-This does not change heap-string/array lifetimes or automatically close files.
+Owned STRING values follow class cleanup. Raw array buffers are not freed and files are not automatically closed.
 
 **Files** (`FileHandler`): text-file runtime for §9.1.
 `FileHandler.cc` owns setup, lookup/open and emission entry points;
-`FileRuntimeIO.cc` builds the read/write/close/EOF helpers. StringHandler-shaped leaf —
+`FileRuntimeIO.cc` builds the read/write/close/EOF helpers. Leaf helper —
 holds Context/Builder/Module/RuntimeCheck/ExceptionHandler refs only, never sees
 CodeGen, AST nodes or the symbol table; `CodeGen::emitStmtImpl`'s four file branches (and the EOF builtin
 intercept) evaluate/coerce operands and hand over `llvm::Value*`s plus the statement
@@ -187,8 +185,7 @@ line. Calls into throwing helpers go through ExceptionHandler. On first file use
 file module-level helpers: internal-linkage `__cps_file_find/
 open/read/write/close/eof` plus a 16-slot open-file table (`__cps_file_names/handles/
 modes` parallel globals; mode byte 0 = free). Files are keyed by filename *content*
-(strcmp scan), consistent with STRING comparison; the name pointer is stored as-is
-(strings are immutable and never freed). EOF is an fgetc/ungetc peek; READFILE grows a
+(strcmp scan), consistent with STRING comparison; the table owns a copied filename until CLOSEFILE, independently of temporary STRING lifetimes. EOF is an fgetc/ungetc peek; READFILE grows a
 malloc/realloc buffer per line and strips one trailing `\r`; fopen modes are text
 `"r"/"w"/"a"` (Windows CRT translates CRLF). File-free programs get byte-identical IR —
 nothing is declared or emitted eagerly. Helper bodies are built with the *shared*
@@ -196,6 +193,6 @@ Builder (RuntimeCheck emits through the same one), saving/restoring the insert b
 
 **Explicit memory** (`MemoryHandler`): lazily emits internal allocation/find/release/resize helpers and a linked list of live allocation start addresses. Explicit MALLOC/REALLOC and keyword NEW allocations enter the list; STRING/ARRAY internals retain their existing ownership. `emitValidate` always calls the find helper, including for null, so keyword DELETE validates before running destructors. FREE validates non-null addresses, unlinks and frees the tracking node, releases the block and returns the original address. Zero-byte allocation returns null. REALLOC validates non-null addresses before its zero-size release path; null behaves as MALLOC. Positive-size resizing updates the node only after success, leaving the old block and record intact on failure. Node allocation precedes the user allocation; if the latter fails, its node is freed before the diagnostic and anonymous throw. Helpers use RuntimeCheck and ExceptionHandler, including source-line arguments and per-function unwind preparation. Sizes accept INTEGER and C integers and convert to native size_t. Address reuse can make stale aliases indistinguishable from current allocations; dereferences are not checked against this list.
 
-**Class copies and temporaries.** Callers construct BYVAL class lvalue arguments with a same-class BYREF OVERLOAD NEW when defined, otherwise they copy bits; the callee's RegisterCopy hook takes ownership. emitOwnedValue constructs lvalue copies and keeps pending arguments Alive until marshalling succeeds. RETURN copies lvalues and transfers rvalues. Whole records and BYVAL arrays retain shallow copies of class fields/elements. StackObject::Temporary uses statement cleanup and deferred temporary-only cleanup before local handlers, while ordinary objects remain function-scoped. Function-result method receivers are materialized by the same path as operator receivers. Assignment first selects an exact member OPERATOR<-; without one, it stores the same-class value directly rather than calling a copy constructor.
+**Class copies and temporaries.** Callers construct BYVAL class lvalue arguments with a same-class BYREF OVERLOAD NEW when defined, otherwise they copy bits; the callee's RegisterCopy hook takes ownership. emitOwnedValue constructs lvalue copies and keeps pending arguments Alive until marshalling succeeds. RETURN copies lvalues and transfers rvalues. Records and BYVAL arrays recursively clone STRING-bearing fields/elements. Other owning class fields retain the existing shallow-copy limits. StackObject::Temporary uses statement cleanup and deferred temporary-only cleanup before local handlers, while ordinary objects remain function-scoped. Function-result method receivers are materialized by the same path as operator receivers. Assignment first selects an exact member OPERATOR<-; without one, STRING-bearing aggregate assignment clones string fields from lvalues or transfers them from rvalues, releasing the target's old string fields without invoking the enclosing class destructor; other classes retain their existing bitwise assignment behavior.
 
-**Experimental library** (`pseudocode-lib/`): the default build compiles each .cc with the host compiler into build/pseudocode-lib/*.o and copies .cps units beside them. `_EXP_STRING` is a #LIB class with a single public internal void* handle owning std::string. The `_exp_string_impl_*` C ABI uses checked operations that print __cps_user_line and throw 0 on std::exception. Class copy/assignment methods prevent handle sharing; functions accept BYVAL copies. OUTPUT uses C stdout buffers. Install/release do not yet ship these artifacts.
+**Standard library** (`pseudocode-lib/`): the default build compiles each .cc with the host compiler into build/pseudocode-lib/*.o, copies .cps units beside them, and embeds all these outputs in cpsc. StandardLibrary extracts the resources through linking/execution; the driver implicitly imports std.cps unless -no-std is set. std.cps imports string.cps. STRING is a #LIB class with a public internal void* handle owning std::string. The _string_impl_* C ABI reports __cps_user_line and throws 0 on std::exception. Functions/operators use ordinary resolution; StringValueGen bridges literals, C_STR, C conversions and file operands. C_STRING literals have an adjacent uppercase C suffix. INPUT delegates to READ_INPUT, OUTPUT uses C stdout buffers, and READFILE invokes assignment from C_STRING then frees its temporary buffer. Source/object resources are embedded in installed/released cpsc; saved IR requires the object when manually linked.

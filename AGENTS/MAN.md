@@ -7,7 +7,7 @@ Read this file before editing the manual sources or their build, packaging and i
 - `doc/cpsc.1.md`: command-line manual, section 1.
 - `doc/language/cpsc-language-overview.7.md`: syntax overview and index, section 7.
 - `doc/language/keyword/cpsc-keyword-NAME.7.md`: keyword manuals.
-- `doc/language/function/cpsc-function-NAME.7.md`: built-in function manuals.
+- `doc/language/function/cpsc-function-NAME.7.md`: builtin and standard-library function manuals.
 
 Use lowercase filenames and preserve underscores: `NUM_TO_STR` becomes `cpsc-function-num_to_str.7.md`. Keep closing and auxiliary keywords with the main construct; for example, IF includes THEN, ELSE and ENDIF.
 

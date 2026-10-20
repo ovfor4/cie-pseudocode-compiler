@@ -16,7 +16,7 @@ Read into an INTEGER, REAL, BOOLEAN, CHAR, or STRING location: a previously decl
 
 Native C scalar targets are also supported, using their actual widths and signedness. Plain C char reads a character; signed/unsigned char read numbers. C _Bool reads a number and stores whether it is nonzero. C pointers, including C_STRING, cannot be INPUT targets. See [cpsc-keyword-c_type(7)](cpsc-keyword-c_type.7.md).
 
-The target address is evaluated once per INPUT execution, before reading the value. Array bounds, unset pointers and private fields are checked as for assignment. Constants, whole arrays, whole records/classes, enums and pointer values cannot be INPUT targets. A dereferenced pointer may select a supported target type.
+The target address is evaluated once per INPUT execution, before reading the value. Array bounds, unset pointers and private fields are checked as for assignment. Constants, whole arrays, other whole records/classes, enums and pointer values cannot be INPUT targets. A dereferenced pointer may select a supported target type.
 
 # EXAMPLE
 
