@@ -5,3 +5,7 @@ Review status: pending human review.
 Copies of hello are independent; assigning world to the copy gives helloworld when concatenated. Empty length is zero, and three NUL bytes retain length three. One hundred appended five-byte words grow 20000 bytes to 20500, preserved by BYVAL and RETURN. C++17 formatting gives 42 and 1.250000. Parsing 12.5 compares equal to 12.5. Trailing junk and negative counts emit the explicit library reasons at user lines 27 and 32, then are caught. Discarded numeric and Echo results must release their owned strings at statement end. The explicitly deleted heap object prints heap. This fixture covers compiler/library extensions, including numeric text formatting.
 
 LEFT keeps ABC, returns zero bytes for an empty source or nonpositive count, and clamps 20 to all eight letters. Taking four bytes from three NULs followed by hello retains all four bytes.
+
+RIGHT keeps FGH, returns zero bytes for an empty source or nonpositive count, and clamps 20 to all eight letters. Taking four bytes from hello followed by three NULs retains the final o and all three NULs.
+
+The added checks use separate procedures to keep generated temporary-object cleanup small enough for the ordinary runner timeout.
