@@ -97,7 +97,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
     if (auto *Call = dynamic_cast<MemberCallStmtAST*>(Stmt)) {
         Value *Result = emitMemberCall(Call->getCall());
         const TypeInfo *Type = getExprTypeInfo(Call->getCall());
-        if (Result && Type && Type->IsClass) materializeOperatorReceiver(Result, Type);
+        if (Result && Type && (Type->IsClass || containsString(Type))) materializeOperatorReceiver(Result, Type);
         return;
     }
 
@@ -106,7 +106,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
         const FuncSig *Sig = FuncGen->hasFunction(Call->getCallee())
             ? resolveCall(Call->getCallee(), Call->getArgs()) : nullptr;
         const TypeInfo *Type = Sig ? resolveType(Sig->ReturnTypeName) : nullptr;
-        if (Result && Type && Type->IsClass) materializeOperatorReceiver(Result, Type);
+        if (Result && Type && (Type->IsClass || containsString(Type))) materializeOperatorReceiver(Result, Type);
         return;
     }
 
@@ -195,11 +195,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
             Value *BoolVal = Builder->CreateICmpNE(Val, ConstantInt::get(*TheContext, APInt(64, 0)), "bool_cast");
             Builder->CreateStore(BoolVal, Target.Addr);
         } else if (TypeInfo->isString()) {
-            Value *Mem = Builder->CreateCall(MallocFunc, ConstantInt::get(*TheContext, APInt(64, 1024)), "input_str");
-            Args.push_back(ScanfStringFormatStr);
-            Args.push_back(Mem);
-            Builder->CreateCall(ScanfFunc, Args);
-            Builder->CreateStore(Mem, Target.Addr);
+            emitMethodCall(TypeInfo->Name, Target.Addr, "READ_INPUT", {}, Stmt->getLine());
         } else if (TypeInfo->isChar()) {
             Value *CharFmt = Builder->CreateGlobalString(" %c", "fmt_in_char", 0, TheModule.get());
             Args.push_back(CharFmt);
@@ -233,6 +229,8 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
                 reportError("Cannot OUTPUT the result of a PROCEDURE call");
                 continue;
             }
+            if (TypeInfo->IsClass && !isObjectLValue(Expr))
+                materializeOperatorReceiver(Val, TypeInfo);
             emitOutputValue(Val, TypeInfo, I + 1 == Exprs.size());
         }
         return;
@@ -243,7 +241,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
             reportError("Cannot use a whole array as the OPENFILE filename");
             return;
         }
-        Value *Name = emitCoercedExpr(Open->getFileName(), resolveType("STRING"));
+        Value *Name = emitCStringExpr(Open->getFileName());
         if (!Name) return;
         Files->emitOpen(Name, Open->getMode(), Open->getLine());
         return;
@@ -260,7 +258,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
             reportError("READFILE into entire array %s is not supported", Read->getVarName().c_str());
             return;
         }
-        if (Info->TypeName != "STRING") {
+        if (!sameIdentifier(Info->TypeName, "STRING")) {
             reportError("READFILE variable %s must be of type STRING (got %s)",
                         Read->getVarName().c_str(), Info->TypeName.c_str());
             return;
@@ -269,11 +267,23 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
             reportError("Cannot use a whole array as the READFILE filename");
             return;
         }
-        Value *Name = emitCoercedExpr(Read->getFileName(), resolveType("STRING"));
+        Value *Name = emitCStringExpr(Read->getFileName());
         if (!Name) return;
         Value *LineStr = Files->emitRead(Name, Read->getLine());
         if (!LineStr) return;
-        Builder->CreateStore(LineStr, Info->Storage);
+        const auto *Type = resolveType(Info->TypeName);
+        for (const FuncSig *Sig : FuncGen->getOverloads(Type->Name + ".OPERATOR <-")) {
+            if (Sig->Params.size() == 1 && !Sig->Params[0].IsByRef &&
+                resolveType("C_STRING")->sameType(resolveType(Sig->Params[0].TypeName)) &&
+                checkOperatorAccess(*Sig)) {
+                FuncGen->emitCall(*Sig, {symbolAddress(*Info), LineStr});
+                auto Free = TheModule->getOrInsertFunction("free", FunctionType::get(
+                    Type::getVoidTy(*TheContext), {PointerType::getUnqual(*TheContext)}, false));
+                Builder->CreateCall(Free, {LineStr});
+                return;
+            }
+        }
+        reportError("READFILE requires STRING.OPERATOR<-(Text : C_STRING)");
         return;
     }
 
@@ -282,8 +292,8 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
             reportError("Cannot use a whole array in WRITEFILE");
             return;
         }
-        Value *Name = emitCoercedExpr(Write->getFileName(), resolveType("STRING"));
-        Value *Data = emitCoercedExpr(Write->getData(), resolveType("STRING"));
+        Value *Name = emitCStringExpr(Write->getFileName());
+        Value *Data = emitCStringExpr(Write->getData());
         if (!Name || !Data) return;
         Files->emitWrite(Name, Data, Write->getLine());
         return;
@@ -294,7 +304,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
             reportError("Cannot use a whole array as the CLOSEFILE filename");
             return;
         }
-        Value *Name = emitCoercedExpr(Close->getFileName(), resolveType("STRING"));
+        Value *Name = emitCStringExpr(Close->getFileName());
         if (!Name) return;
         Files->emitClose(Name, Close->getLine());
         return;

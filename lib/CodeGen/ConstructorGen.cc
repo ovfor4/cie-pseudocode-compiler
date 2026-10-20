@@ -20,13 +20,17 @@ void CodeGen::transferObjects(const std::vector<size_t> &Objects) {
 
 Value *CodeGen::emitOwnedValue(ExprAST *Expr, const TypeInfo *Type,
                                std::vector<size_t> &Transfers) {
-    if (!Type || !Type->IsClass) return emitCoercedExpr(Expr, Type);
+    if (!Type || (!Type->IsClass && !containsString(Type))) return emitCoercedExpr(Expr, Type);
     const TypeInfo *Source = getExprTypeInfo(Expr);
     if (!Source || !Source->sameType(Type)) return emitCoercedExpr(Expr, Type);
     Value *Value = nullptr;
     if (isObjectLValue(Expr)) {
         LValueInfo LV;
-        if (!emitLValue(Expr, LV)) return nullptr;
+        const auto *Var = dynamic_cast<VariableExprAST *>(Expr);
+        const auto *Symbol = Var ? getSymbolInfo(Var->getName()) : nullptr;
+        if (Symbol && Symbol->isConstant() && Symbol->Storage) {
+            LV = {symbolAddress(*Symbol), Symbol->TypeName};
+        } else if (!emitLValue(Expr, LV)) return nullptr;
         return copyClassValue(Type, LV.Addr, Transfers);
     }
     Value = emitCoercedExpr(Expr, Type);
@@ -44,7 +48,25 @@ Value *CodeGen::copyClassValue(const TypeInfo *Type, Value *Address,
         if (Sig->IsOverload && Sig->Params.size() == 1 && Sig->Params[0].IsByRef &&
             !Sig->Params[0].IsArray && Type->sameType(resolveType(Sig->Params[0].TypeName)))
             Copy = Sig;
-    if (!Copy) return Builder->CreateLoad(Type->LLVMType, Address);
+    if (!Copy) {
+        if (!containsString(Type) || Type->isString())
+            return Builder->CreateLoad(Type->LLVMType, Address);
+        Value *Result = UndefValue::get(Type->LLVMType);
+        std::vector<size_t> Fields;
+        for (const auto &[Name, Field] : Type->Record.Fields) {
+            const auto *FieldType = resolveType(Field.TypeName);
+            Value *Source = Builder->CreateStructGEP(Type->LLVMType, Address, Field.Index);
+            Value *Value = containsString(FieldType)
+                ? copyClassValue(FieldType, Source, Fields)
+                : Builder->CreateLoad(FieldType->LLVMType, Source);
+            if (!Value) return nullptr;
+            Result = Builder->CreateInsertValue(Result, Value, {Field.Index});
+        }
+        auto *Storage = materializeOperatorReceiver(Result, Type);
+        transferObjects(Fields);
+        if (typeNeedsDestruction(Type->Name)) Transfers.push_back(StackObjects.size() - 1);
+        return Builder->CreateLoad(Type->LLVMType, Storage);
+    }
     if (!checkOperatorAccess(*Copy)) return nullptr;
     auto *Storage = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
                                            Type->LLVMType, "copy_object");
@@ -155,6 +177,15 @@ void CodeGen::emitAssignment(const LValueInfo &Target, ExprAST *Expr, const Symb
                 FuncGen->emitCall(*Sig, Args);
             return;
         }
+    }
+    if (Info && containsString(Info)) {
+        std::vector<size_t> Transfers;
+        Value *Val = emitOwnedValue(Expr, Info, Transfers);
+        if (!Val) return;
+        if (!emitDestroy(Info->Name, Target.Addr, DiagnosticLine)) return;
+        Builder->CreateStore(Val, Target.Addr);
+        transferObjects(Transfers);
+        return;
     }
     Value *Val = emitCoercedExpr(Expr, Info);
     if (Val) Builder->CreateStore(Val, Target.Addr);

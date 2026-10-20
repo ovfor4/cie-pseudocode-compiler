@@ -26,7 +26,6 @@ enum class TypeKind {
     Integer,
     Real,
     Boolean,
-    String,
     Char,
     Void,
     Enum,
@@ -109,10 +108,12 @@ struct SymbolInfo {
     llvm::Value *Storage = nullptr;
     std::string TypeName;
     bool IsArray = false;
-    llvm::Constant *ConstantValue = nullptr; // Non-null for CONSTANT; no storage.
+    llvm::Constant *ConstantValue = nullptr; // Compile-time scalar CONSTANT value, if available.
     unsigned ScopeID = 0;
     bool IsReference = false; // Storage is a slot containing the current object address.
     bool IsGlobal = false;
+    bool ReadOnly = false; // Owned STRING constants use storage instead of ConstantValue.
+    bool isConstant() const { return ConstantValue || ReadOnly; }
 };
 
 class TypeSystem {

@@ -39,7 +39,7 @@ bool CodeGen::prepareSymbolDeclaration(const std::string &Name, bool IsConstant)
             reportError("Declaration of %s conflicts with an existing declaration in this scope", Name.c_str());
             return false;
         }
-        if (IsConstant || It->second.ConstantValue || It->second.IsGlobal) Scope.Saved.emplace(Name, It->second);
+        if (IsConstant || It->second.isConstant() || It->second.IsGlobal) Scope.Saved.emplace(Name, It->second);
     } else if (IsConstant) {
         Scope.Saved.emplace(Name, std::nullopt);
     }
@@ -48,7 +48,7 @@ bool CodeGen::prepareSymbolDeclaration(const std::string &Name, bool IsConstant)
 }
 
 bool CodeGen::requireWritable(const SymbolInfo &Info, const std::string &Name) {
-    if (!Info.ConstantValue) return true;
+    if (!Info.isConstant()) return true;
     reportError("Constant %s is not a writable location", Name.c_str());
     return false;
 }
@@ -65,8 +65,31 @@ void CodeGen::emitConstantStmt(ConstantStmtAST *Stmt) {
         return;
     }
     if (!prepareSymbolDeclaration(Name, true)) return;
+    auto Existing = StringConstants.find(Stmt);
+    if (Existing != StringConstants.end()) {
+        Symbols[Name] = Existing->second;
+        return;
+    }
     const TypeInfo *Type = getExprTypeInfo(Stmt->getValue());
     Value *Val = emitExpr(Stmt->getValue());
+    if (Type && Type->isString() && Val) {
+        Value *Storage;
+        bool TopLevel = ConstantScopes.back().ID == 0;
+        if (TopLevel) {
+            Storage = new GlobalVariable(*TheModule, Type->LLVMType, false,
+                GlobalValue::InternalLinkage, Types->getZeroValue(Type->Name), "__cps_constant." + Name);
+        } else {
+            Storage = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(), Type->LLVMType, Name);
+        }
+        size_t Lifetime = registerStackObject(Storage, Type->Name, DiagnosticLine);
+        Builder->CreateStore(Val, Storage);
+        activateStackObject(Lifetime);
+        SymbolInfo Info{Storage, Type->Name, false, nullptr, ConstantScopes.back().ID};
+        Info.ReadOnly = true;
+        Symbols[Name] = Info;
+        if (TopLevel) StringConstants.emplace(Stmt, Info);
+        return;
+    }
     auto *Literal = dyn_cast_or_null<Constant>(Val);
     if (!Type || !Literal) {
         reportError("CONSTANT initializer must be a literal");

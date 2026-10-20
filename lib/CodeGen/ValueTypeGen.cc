@@ -16,7 +16,7 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
     if (dynamic_cast<BooleanExprAST*>(Expr)) return resolveType("BOOLEAN");
     if (dynamic_cast<CharExprAST*>(Expr)) return resolveType("CHAR");
     if (auto *String = dynamic_cast<StringExprAST*>(Expr))
-        return resolveType(String->isCString() ? "C_STRING" : "STRING");
+        return String->isCString() ? resolveType("C_STRING") : requireStringType();
     if (auto *Cast = dynamic_cast<CastExprAST*>(Expr))
         return resolveType(Cast->getTypeName());
 
@@ -200,31 +200,6 @@ Value *CodeGen::coerceValueToType(Value *Val, const TypeInfo *TargetInfo) {
                 return Builder->CreateTruncOrBitCast(Val, Type::getInt8Ty(*TheContext), "int_to_char");
             break;
 
-        case TypeKind::String:
-            if (Val->getType()->isPointerTy()) return Val;
-            if (Val->getType()->isIntegerTy(1)) {
-                return Builder->CreateSelect(Val, TrueStr, FalseStr, "bool_to_str");
-            }
-            if (Val->getType()->isDoubleTy()) {
-                return StrConvHandler->emitNumToStr(Val, true);
-            }
-            if (Val->getType()->isIntegerTy(8)) {
-                Value *Mem = Builder->CreateCall(MallocFunc,
-                                                 ConstantInt::get(*TheContext, APInt(64, 2)),
-                                                 "char_str");
-                Builder->CreateStore(Val, Mem);
-                Value *NullPtr = Builder->CreateInBoundsGEP(Type::getInt8Ty(*TheContext),
-                                                            Mem,
-                                                            ConstantInt::get(*TheContext, APInt(64, 1)));
-                Builder->CreateStore(ConstantInt::get(Type::getInt8Ty(*TheContext), 0), NullPtr);
-                return Mem;
-            }
-            if (Val->getType()->isIntegerTy()) {
-                Value *AsInt = coerceValueToType(Val, resolveType("INTEGER"));
-                return AsInt ? StrConvHandler->emitNumToStr(AsInt, false) : nullptr;
-            }
-            break;
-
         case TypeKind::Void:
             return nullptr;
 
@@ -269,12 +244,7 @@ void CodeGen::emitDeclareStmt(DeclareStmtAST *Stmt) {
     AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Info->LLVMType, Stmt->getName());
 
     size_t Lifetime = registerStackObject(Alloca, Info->Name, Stmt->getLine());
-    Value *InitVal = nullptr;
-    if (Info->isString()) {
-        InitVal = EmptyStringStr;
-    } else {
-        InitVal = Types->getZeroValue(Info->Name);
-    }
+    Value *InitVal = Types->getZeroValue(Info->Name);
 
     if (InitVal) {
         Builder->CreateStore(InitVal, Alloca);

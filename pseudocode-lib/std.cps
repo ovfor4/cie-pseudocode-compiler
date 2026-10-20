@@ -1,2 +1,2 @@
 #LIB
-INCLUDE "_exp_string.cps"
+INCLUDE "string.cps"

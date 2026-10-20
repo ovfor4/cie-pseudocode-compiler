@@ -189,7 +189,9 @@ void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
         return;
     }
     const TypeInfo *SelectorType = getExprTypeInfo(&Selector);
-    Value *Selected = emitExpr(&Selector);
+    std::vector<size_t> Captured;
+    Value *Selected = containsString(SelectorType)
+        ? emitOwnedValue(&Selector, SelectorType, Captured) : emitExpr(&Selector);
     if (!Selected || !SelectorType) return;
 
     auto *F = Builder->GetInsertBlock()->getParent();
@@ -210,7 +212,10 @@ void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
                 reportError("Cannot determine CASE label type");
                 return nullptr;
             }
+            size_t Temporaries = StackObjects.size();
             Value *LabelValue = emitExpr(Label);
+            if (containsString(LabelType) && !isObjectLValue(Label))
+                materializeOperatorReceiver(LabelValue, LabelType);
             auto Overload = resolveOperator(Op, SelectorType, LabelType);
             if (Overload.Signature && !Overload.Ambiguous) {
                 const TypeInfo *Result = resolveType(Overload.Signature->ReturnTypeName);
@@ -219,7 +224,9 @@ void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
                     return nullptr;
                 }
             }
-            return emitBinaryOp(Op, Selected, SelectorType, LabelValue, LabelType, Branch.Line);
+            Value *Result = emitBinaryOp(Op, Selected, SelectorType, LabelValue, LabelType, Branch.Line);
+            cleanupTemporaries(Temporaries);
+            return Result;
         };
         if (!Branch.Lower) {
             Builder->CreateBr(Body);

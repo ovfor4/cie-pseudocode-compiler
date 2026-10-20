@@ -13,6 +13,13 @@ Value *CodeGen::emitStringNullGuard(Value *StrVal) {
 
 void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewline) {
     if (!Val || !Info) return;
+    if (Info->isString()) {
+        Value *Text = emitStringCString(Val);
+        if (Text) Builder->CreateCall(PrintfFunc, {
+            AppendNewline ? PrintfStringFormatStr
+                : Builder->CreateGlobalString("%s", "fmt_str_inline", 0, TheModule.get()), Text});
+        return;
+    }
 
     std::vector<Value*> Args;
     Value *Fmt = nullptr;
@@ -35,16 +42,6 @@ void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewli
             : Builder->CreateGlobalString("%s", "fmt_str_inline", 0, TheModule.get());
         Args.push_back(Fmt);
         Args.push_back(Builder->CreateSelect(BoolVal, TrueStr, FalseStr));
-        break;
-    }
-
-    case TypeKind::String: {
-        Value *StrVal = emitStringNullGuard(Val);
-        Fmt = AppendNewline
-            ? PrintfStringFormatStr
-            : Builder->CreateGlobalString("%s", "fmt_str_inline", 0, TheModule.get());
-        Args.push_back(Fmt);
-        Args.push_back(StrVal);
         break;
     }
 

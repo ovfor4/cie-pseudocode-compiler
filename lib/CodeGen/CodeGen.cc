@@ -59,8 +59,6 @@ CodeGen::CodeGen() {
 
     ArithHandler = std::make_unique<ArithmeticHandler>(*TheContext, *Builder, HadError,
                                                      *RuntimeChecker);
-    StrHandler = std::make_unique<StringHandler>(*TheContext, *Builder, *TheModule);
-    StrConvHandler = std::make_unique<StringConversionHandler>(*TheContext, *Builder, *TheModule);
     Files = std::make_unique<FileHandler>(*TheContext, *Builder, *TheModule, *RuntimeChecker,
                                          *Exceptions);
 
@@ -92,11 +90,6 @@ void CodeGen::SetupExternalFunctions() {
     FunctionType *ScanfType = FunctionType::get(Type::getInt32Ty(*TheContext), PrintfArgs, true);
     ScanfFunc = TheModule->getOrInsertFunction("scanf", ScanfType);
 
-    FunctionType *MallocType = FunctionType::get(PointerType::getUnqual(*TheContext),
-                                                 {Type::getInt64Ty(*TheContext)},
-                                                 false);
-    MallocFunc = TheModule->getOrInsertFunction("malloc", MallocType);
-
     PrintfFormatStr = Builder->CreateGlobalString("%lld\n", "fmt_nl", 0, TheModule.get());
     PrintfFloatFormatStr = Builder->CreateGlobalString("%f\n", "fmt_flt", 0, TheModule.get());
     PrintfStringFormatStr = Builder->CreateGlobalString("%s\n", "fmt_str", 0, TheModule.get());
@@ -104,7 +97,6 @@ void CodeGen::SetupExternalFunctions() {
 
     ScanfFormatStr = Builder->CreateGlobalString("%lld", "fmt_in", 0, TheModule.get());
     ScanfFloatFormatStr = Builder->CreateGlobalString("%lf", "fmt_in_flt", 0, TheModule.get());
-    ScanfStringFormatStr = Builder->CreateGlobalString("%s", "fmt_in_str", 0, TheModule.get());
 
     TrueStr = Builder->CreateGlobalString("TRUE", "str_true", 0, TheModule.get());
     FalseStr = Builder->CreateGlobalString("FALSE", "str_false", 0, TheModule.get());
@@ -192,19 +184,25 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
     });
     FuncGen->setVisibility([this](size_t Owner) { return isVisible(Owner); });
 
-    struct Definition { size_t Unit; bool IsFunction; bool IsOverload; bool IsExtern; };
+    struct Definition { size_t Unit; bool IsFunction; bool IsOverload; bool IsExtern; int Line; };
     IdentifierMap<Definition> Definitions;
     std::optional<size_t> CodeUnit;
     FunctionDefAST *Entry = nullptr;
     size_t EntryUnit = 0;
     auto Reserve = [&](const std::string &Name, bool IsFunction = false, bool IsOverload = false,
                        bool IsExtern = false) {
-        auto [It, Added] = Definitions.emplace(Name, Definition{CurrentUnit, IsFunction, IsOverload, IsExtern});
+        auto [It, Added] = Definitions.emplace(Name, Definition{CurrentUnit, IsFunction, IsOverload, IsExtern, DiagnosticLine});
         bool Compatible = (IsFunction && IsOverload && It->second.IsFunction && It->second.IsOverload) ||
                           (IsExtern && It->second.IsExtern);
-        if (!Added && It->second.Unit != CurrentUnit && !Compatible)
+        if (!Added && It->second.Unit != CurrentUnit && !Compatible) {
+            // Default library units follow user inputs; point at the user's conflicting definition.
+            bool UserConflict = Sources[CurrentUnit].IsLibrary && !Sources[It->second.Unit].IsLibrary;
+            SaveAndRestore<int> Location(DiagnosticLine, UserConflict ? It->second.Line : DiagnosticLine);
+            SaveAndRestore<std::string> Source(DiagnosticSource,
+                UserConflict ? Sources[It->second.Unit].Path : DiagnosticSource);
             reportError("Duplicate definition %s in %s and %s", Name.c_str(),
                         Sources[It->second.Unit].Path.c_str(), Sources[CurrentUnit].Path.c_str());
+        }
     };
     for (size_t I = 0; I < Sources.size(); ++I) {
         selectUnit(I);
@@ -453,7 +451,9 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
                 reportError("Unknown variable %s in BYREF call", Var->getName().c_str());
                 return false;
             }
-            if (!requireWritable(*Info, Var->getName())) return false;
+            const TypeInfo *ParameterType = resolveType(TypeName);
+            if (!(InternalBinding && ParameterType && ParameterType->isString()) &&
+                !requireWritable(*Info, Var->getName())) return false;
             // BYREF aliases the storage, so the types must match exactly.
             if (!Types->sameType(Info->TypeName, TypeName)) {
                 reportError("BYREF argument %s to %s must be of type %s (got %s)",

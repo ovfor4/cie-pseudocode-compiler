@@ -62,6 +62,16 @@ Value *CodeGen::emitCast(CastExprAST *Cast) {
         return nullptr;
     }
     const TypeInfo *Source = getExprTypeInfo(Operand);
+    if (Source && Source->isString() && Target->CIdentity == "char*")
+        return emitCStringExpr(Operand);
+    if (Source && Source->CIdentity == "char*" && Target->isString())
+        return emitStringFromCString(emitStringNullGuard(emitExpr(Operand)));
+    if (Source && Source->isString() && Target->isString()) {
+        std::vector<size_t> Transfers;
+        Value *Result = emitOwnedValue(Operand, Source, Transfers);
+        transferObjects(Transfers);
+        return Result;
+    }
     if (Source && ((Source->Kind == TypeKind::Pointer && Target->CIdentity == "void*") ||
                    (Source->CIdentity == "void*" && Target->Kind == TypeKind::Pointer)))
         return emitExpr(Operand);
@@ -73,10 +83,6 @@ Value *CodeGen::emitCast(CastExprAST *Cast) {
         return convertNumericValue(emitExpr(Operand), Source, Target);
     if (Source->Kind == TypeKind::CPointer && Target->Kind == TypeKind::CPointer)
         return emitExpr(Operand);
-    if (Source->isString() && Target->CIdentity == "char*") return emitExpr(Operand);
-    if (Source->CIdentity == "char*" && Target->isString())
-        return emitStringNullGuard(emitExpr(Operand));
-    if (Source->isString() && Target->isString()) return emitExpr(Operand);
     reportError("Cannot cast %s to %s", Source->Name.c_str(), Target->Name.c_str());
     return nullptr;
 }

@@ -1,7 +1,7 @@
 {
   "errors": [
     {
-      "reason": "STRING\\ comparison\\ requires\\ two\\ STRING\\ operands",
+      "reason": "Operator = cannot be applied to a record value \\(type STRING\\)",
       "line": 2
     }
   ]

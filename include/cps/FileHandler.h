@@ -29,7 +29,7 @@ class FileHandler {
     // libc — declared lazily on first file use
     llvm::FunctionCallee FopenFunc, FcloseFunc, FgetcFunc, UngetcFunc,
                          FputsFunc, FputcFunc, MallocFunc, ReallocFunc,
-                         StrcmpFunc;
+                         StrcmpFunc, StrlenFunc, MemcpyFunc, FreeFunc;
 
     // open-file table
     llvm::GlobalVariable *FileNames = nullptr;   // [TableSize x ptr] STRING passed to OPENFILE

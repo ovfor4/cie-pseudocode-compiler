@@ -88,12 +88,14 @@ Value *CodeGen::emitOperatorValues(const FuncSig &Signature, Value *Left,
     };
     if (Member) Args.push_back(Capture(Left, LeftType));
     else {
-        if (LeftType->IsClass) Left = copyClassValue(LeftType, Capture(Left, LeftType), Transfers);
+        if (LeftType->IsClass || containsString(LeftType))
+            Left = copyClassValue(LeftType, Capture(Left, LeftType), Transfers);
         if (!Left) return nullptr;
         Args.push_back(Left);
     }
     const TypeInfo *RightType = resolveType(Signature.Params[Member ? 0 : 1].TypeName);
-    if (RightType->IsClass) Right = copyClassValue(RightType, Capture(Right, RightType), Transfers);
+    if (RightType->IsClass || containsString(RightType))
+        Right = copyClassValue(RightType, Capture(Right, RightType), Transfers);
     if (!Right) return nullptr;
     Args.push_back(Right);
     transferObjects(Transfers);

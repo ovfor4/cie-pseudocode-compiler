@@ -41,7 +41,7 @@ bool TypeInfo::isBoolean() const {
 }
 
 bool TypeInfo::isString() const {
-    return Kind == TypeKind::String;
+    return IsClass && sameIdentifier(Name, "STRING");
 }
 
 bool TypeInfo::isChar() const {
@@ -73,17 +73,17 @@ bool TypeInfo::isOutputtable() const {
     case TypeKind::Integer:
     case TypeKind::Real:
     case TypeKind::Boolean:
-    case TypeKind::String:
     case TypeKind::Char:
     case TypeKind::Enum: // prints its ordinal
         return true;
     case TypeKind::CScalar:
         return !isVoid();
     case TypeKind::Void:
-    case TypeKind::Record:
     case TypeKind::Pointer:
     case TypeKind::CPointer:
         return false;
+    case TypeKind::Record:
+        return isString();
     }
     return false;
 }
@@ -299,8 +299,6 @@ Constant *TypeSystem::getZeroValue(const std::string &TypeName) const {
             return ConstantInt::get(Context, APInt(1, 0));
         case TypeKind::Char:
             return ConstantInt::get(Context, APInt(8, 0));
-        case TypeKind::String:
-            return ConstantPointerNull::get(cast<PointerType>(Info->LLVMType));
         case TypeKind::Void:
             return nullptr;
         case TypeKind::Enum:

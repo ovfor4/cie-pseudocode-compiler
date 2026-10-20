@@ -1,0 +1,8 @@
+constant:independent:global:local
+changed:two
+one
+two
+TRUE:TRUE:TRUE:TRUE:TRUE
+1:1
+matched
+B

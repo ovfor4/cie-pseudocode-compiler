@@ -172,7 +172,8 @@ int main(int argc, char **argv) {
         Units.back().Visible[I] = true;
         if (!NoStd && I < UserInputCount)
             for (size_t J = UserInputCount; J < InputPaths.size(); ++J)
-                Units.back().Visible[J] = true;
+                if (llvm::sys::path::filename(InputPaths[J]) == "std.cps")
+                    Units.back().Visible[J] = true;
     }
     for (size_t I = 0; I < Units.size(); ++I) {
         cps::DiagnosticSource = Units.size() > 1 ? Units[I].Path : "";

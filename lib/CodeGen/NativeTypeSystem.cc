@@ -39,7 +39,6 @@ void TypeSystem::registerBuiltins() {
     registerType("INTEGER", Type::getInt64Ty(Context), TypeKind::Integer);
     registerType("REAL", Type::getDoubleTy(Context), TypeKind::Real);
     registerType("BOOLEAN", Type::getInt1Ty(Context), TypeKind::Boolean);
-    registerType("STRING", PointerType::getUnqual(Context), TypeKind::String);
     registerType("CHAR", Type::getInt8Ty(Context), TypeKind::Char);
     registerType("VOID", Type::getVoidTy(Context), TypeKind::Void);
 

@@ -22,12 +22,12 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
     int Line = Lex.getLine();
     getNextToken(); // eat TYPE or CLASS
 
-    if (CurTok != tok_identifier) {
+    if (CurTok != tok_identifier && !(IsClass && CurTok == tok_string_kw)) {
         cps::sourceDiagnostic(Lex.getLine(), "error: Expected type name after %s at line %d\n", Keyword, Lex.getLine());
         if (IsClass) ParseRecordBody("<unnamed>", Line, tok_endclass);
         return nullptr;
     }
-    std::string Name = Lex.IdentifierStr;
+    std::string Name = CurTok == tok_string_kw ? "STRING" : Lex.IdentifierStr;
     getNextToken();
 
     std::unique_ptr<StmtAST> Decl;

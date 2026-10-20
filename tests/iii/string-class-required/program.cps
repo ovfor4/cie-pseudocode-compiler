@@ -1,0 +1,1 @@
+OUTPUT "missing class"

@@ -36,7 +36,8 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
     }
 
     if (auto *Str = dynamic_cast<StringExprAST*>(Expr)) {
-        return StrHandler->createLiteral(Str->getVal());
+        Value *Text = Builder->CreateGlobalString(Str->getVal());
+        return Str->isCString() ? Text : emitStringFromCString(Text);
     }
 
     if (auto *Var = dynamic_cast<VariableExprAST*>(Expr)) {
@@ -50,7 +51,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             reportError("Unknown variable name %s", Var->getName().c_str());
             return nullptr;
         }
-        if (Info->ConstantValue) return Info->ConstantValue;
+        if (Info->ConstantValue && !Info->Storage) return Info->ConstantValue;
         if (Info->IsArray) {
             return symbolAddress(*Info);
         }
@@ -62,9 +63,6 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         }
 
         Value *Loaded = Builder->CreateLoad(TypeInfo->LLVMType, symbolAddress(*Info), Var->getName().c_str());
-        if (TypeInfo->isString()) {
-            Loaded = emitStringNullGuard(Loaded);
-        }
         return Loaded;
     }
 
@@ -190,23 +188,6 @@ Value *CodeGen::emitBinaryOp(int Op, Value *L, const TypeInfo *LT,
         return emitCBinaryOp(Op, L, LT, R, RT, Line);
     if ((LT && LT->isUserKind()) || (RT && RT->isUserKind()))
         return emitUserKindBinaryOp(Op, L, LT, R, RT, Line);
-    if (Op == '&') {
-        L = coerceValueToType(L, resolveType("STRING"));
-        R = coerceValueToType(R, resolveType("STRING"));
-        return L && R ? StrHandler->emitConcat(L, R) : nullptr;
-    }
-    switch (Op) {
-    case tok_eq: case tok_ne: case '<': case '>': case tok_le: case tok_ge:
-        if ((LT && LT->isString()) || (RT && RT->isString())) {
-            if (!(LT && LT->isString() && RT && RT->isString())) {
-                reportError("STRING comparison requires two STRING operands");
-                return nullptr;
-            }
-            return StrHandler->emitCompare(Op, L, R);
-        }
-        break;
-    default: break;
-    }
     return ArithHandler->emitBinaryOp(Op, L, R, Line);
 }
 
@@ -238,93 +219,12 @@ Value *CodeGen::emitCall(const std::string &Callee,
         if (!Address) return nullptr;
         return Memory->emitRelease(Address, Line);
     }
-    if (Name == "LENGTH") {
-        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
-        if (!Str) return nullptr;
-        return StrHandler->emitLength(Str);
-    }
-    if (Name == "MID") {
-        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
-        Value *Start = emitCoercedExpr(ArgExprs[1].get(), resolveType("INTEGER"));
-        Value *Len = emitCoercedExpr(ArgExprs[2].get(), resolveType("INTEGER"));
-        if (!Str || !Start || !Len) return nullptr;
-        return StrHandler->emitMid(Str, Start, Len);
-    }
-    if (Name == "RIGHT") {
-        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
-        Value *Len = emitCoercedExpr(ArgExprs[1].get(), resolveType("INTEGER"));
-        if (!Str || !Len) return nullptr;
-        return StrHandler->emitRight(Str, Len);
-    }
-    if (Name == "LEFT") {
-        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
-        Value *Len = emitCoercedExpr(ArgExprs[1].get(), resolveType("INTEGER"));
-        if (!Str || !Len) return nullptr;
-        return StrHandler->emitLeft(Str, Len);
-    }
-    if (Name == "LCASE") {
-        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
-        if (!Str) return nullptr;
-        return StrHandler->emitLCase(Str);
-    }
-    if (Name == "UCASE") {
-        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
-        if (!Str) return nullptr;
-        return StrHandler->emitUCase(Str);
-    }
-    if (Name == "ASC") {
-        const TypeInfo *ArgType = getExprTypeInfo(ArgExprs[0].get());
-        if (ArgType && (ArgType->isUserKind() || ArgType->isC())) {
-            reportError("ASC expects a CHAR or STRING (got %s)", ArgType->Name.c_str());
-            return nullptr;
-        }
-        Value *ArgVal = emitExpr(ArgExprs[0].get());
-        if (!ArgVal) return nullptr;
-        Value *CharVal = nullptr;
-        if (ArgType && ArgType->isChar()) {
-            CharVal = coerceValueToType(ArgVal, resolveType("CHAR"));
-        } else {
-            CharVal = Builder->CreateLoad(Type::getInt8Ty(*TheContext), ArgVal, "char_load");
-        }
-        Value *AscVal = Builder->CreateZExt(CharVal, Type::getInt32Ty(*TheContext), "asc_val");
-        return coerceValueToType(AscVal, resolveType("INTEGER"));
-    }
-    if (Name == "CHR") {
-        Value *IntVal = emitCoercedExpr(ArgExprs[0].get(), resolveType("INTEGER"));
-        if (!IntVal) return nullptr;
-        Value *CharVal = Builder->CreateTrunc(IntVal, Type::getInt8Ty(*TheContext), "chr_val");
-        return coerceValueToType(CharVal, resolveType("STRING"));
-    }
-    if (Name == "IS_NUM") {
-        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
-        if (!Str) return nullptr;
-        return StrConvHandler->emitIsNum(Str);
-    }
-    if (Name == "NUM_TO_STR") {
-        const TypeInfo *ArgType = getExprTypeInfo(ArgExprs[0].get());
-        if (ArgType && (ArgType->isUserKind() || ArgType->isC())) {
-            reportError("NUM_TO_STR expects a number (got %s)", ArgType->Name.c_str());
-            return nullptr;
-        }
-        Value *NumV = emitExpr(ArgExprs[0].get());
-        if (!NumV) return nullptr;
-        bool IsReal = NumV->getType()->isDoubleTy();
-        if (NumV->getType()->isIntegerTy(8)) {
-            NumV = coerceValueToType(NumV, resolveType("INTEGER"));
-        }
-        return StrConvHandler->emitNumToStr(NumV, IsReal);
-    }
-    if (Name == "STR_TO_NUM") {
-        Value *Str = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
-        if (!Str) return nullptr;
-        return StrConvHandler->emitStrToNum(Str, true);
-    }
     if (Name == "EOF") {
         if (isWholeArrayVar(ArgExprs[0].get())) {
             reportError("Cannot use a whole array as the EOF filename");
             return nullptr;
         }
-        Value *FileName = emitCoercedExpr(ArgExprs[0].get(), resolveType("STRING"));
+        Value *FileName = emitCStringExpr(ArgExprs[0].get());
         if (!FileName) return nullptr;
         return Files->emitEof(FileName, Line);
     }

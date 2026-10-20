@@ -11,8 +11,6 @@
 #include "cps/TypeSystem.h"
 
 #include "cps/ArithmeticHandler.h"
-#include "cps/StringHandler.h"
-#include "cps/StringConversionHandler.h"
 
 #include <map>
 #include <memory>
@@ -93,6 +91,12 @@ class CodeGen {
     bool prepareSymbolDeclaration(const std::string &Name, bool IsConstant = false);
     bool requireWritable(const SymbolInfo &Info, const std::string &Name);
     void emitConstantStmt(ConstantStmtAST *Stmt);
+    std::map<const ConstantStmtAST *, SymbolInfo> StringConstants;
+    const TypeInfo *requireStringType();
+    llvm::Value *emitStringFromCString(llvm::Value *Text);
+    llvm::Value *emitStringCString(llvm::Value *Value);
+    llvm::Value *emitCStringExpr(ExprAST *Expr);
+    bool containsString(const TypeInfo *Type) const;
     std::unique_ptr<TypeSystem> Types;
 
     std::unique_ptr<ArrayHandler> Arrays;
@@ -101,14 +105,11 @@ class CodeGen {
     std::unique_ptr<FunctionGen> FuncGen;
 
     std::unique_ptr<ArithmeticHandler> ArithHandler;
-    std::unique_ptr<StringHandler> StrHandler;
-    std::unique_ptr<StringConversionHandler> StrConvHandler;
     std::unique_ptr<FileHandler> Files;
     std::unique_ptr<MemoryHandler> Memory;
 
     llvm::FunctionCallee PrintfFunc;
     llvm::FunctionCallee ScanfFunc;
-    llvm::FunctionCallee MallocFunc;
     
     llvm::Value *PrintfFormatStr;       // %lld\n
     llvm::Value *PrintfFloatFormatStr;  // %f\n
@@ -117,7 +118,6 @@ class CodeGen {
     
     llvm::Value *ScanfFormatStr;        // %lld
     llvm::Value *ScanfFloatFormatStr;   // %lf
-    llvm::Value *ScanfStringFormatStr;  // %s
     
     llvm::Value *TrueStr;               // "TRUE"
     llvm::Value *FalseStr;              // "FALSE"
@@ -157,7 +157,7 @@ class CodeGen {
     // Resolves a variable / array element / field chain / deref to an address
     // (emitting index and null-pointer checks along the way).
     bool emitLValue(ExprAST *E, LValueInfo &Out);
-    // The rvalue read: load + the STRING null->"" guard.
+    // Read a value from resolved storage.
     llvm::Value *loadFromLValue(const LValueInfo &LV);
     llvm::Value *emitAllocationSize(ExprAST *Expr);
     llvm::Value *emitCall(const std::string &Callee,
@@ -209,7 +209,7 @@ public:
     llvm::Value *emitExpr(ExprAST *Expr);
     void emitStmt(StmtAST *Stmt);
 
-    // STRING slots zero-init to null; normalize null to "" at load/print sites.
+    // Normalize a raw C string pointer to "" when explicitly casting it to STRING.
     llvm::Value *emitStringNullGuard(llvm::Value *StrVal);
 
     // Name-level admission gate for Enum/Record/Pointer plus the existing

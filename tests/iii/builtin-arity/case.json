@@ -1,7 +1,7 @@
 {
   "errors": [
     {
-      "reason": "LENGTH\\ expects\\ 1\\ arg",
+      "reason": "Incorrect # arguments passed to LENGTH",
       "line": 2
     }
   ]

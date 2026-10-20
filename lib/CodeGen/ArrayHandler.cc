@@ -222,9 +222,6 @@ Value *ArrayHandler::loadElement(const std::string &Name, Value *Offset, CodeGen
     if (!ElemPtr) return nullptr;
 
     Value *Val = Builder->CreateLoad(Meta->ElementType, ElemPtr, Name + "_elem");
-    if (Meta->ElementTypeName == "STRING") {
-        Val = CG.emitStringNullGuard(Val);
-    }
     return Val;
 }
 

@@ -73,8 +73,7 @@ add_library(CPSCodeGen STATIC
     lib/CodeGen/ExceptionHandler.cc
     lib/CodeGen/FunctionGen.cc
     lib/CodeGen/ArithmeticHandler.cc
-    lib/CodeGen/StringHandler.cc
-    lib/CodeGen/StringConversionHandler.cc
+    lib/CodeGen/StringValueGen.cc
     lib/CodeGen/TypeSystem.cc
     lib/CodeGen/NativeTypeSystem.cc
     lib/CodeGen/MemoryHandler.cc

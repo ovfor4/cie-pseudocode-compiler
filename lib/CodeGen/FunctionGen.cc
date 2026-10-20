@@ -405,7 +405,7 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
     IdentifierMap<SymbolInfo> OldSymbols = Symbols;
     Symbols.clear();
     for (const auto &[Name, Info] : OldSymbols) {
-        if (Info.IsGlobal || (Info.ConstantValue && Info.ScopeID == 0)) Symbols.emplace(Name, Info);
+        if (Info.IsGlobal || (Info.isConstant() && Info.ScopeID == 0)) Symbols.emplace(Name, Info);
     }
 
     bool IsMethod = !Proto->getOwnerClass().empty();

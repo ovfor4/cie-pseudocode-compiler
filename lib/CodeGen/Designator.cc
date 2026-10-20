@@ -262,8 +262,5 @@ Value *CodeGen::loadFromLValue(const LValueInfo &LV) {
         return nullptr;
     }
     Value *Val = Builder->CreateLoad(Info->LLVMType, LV.Addr);
-    if (Info->isString()) {
-        Val = emitStringNullGuard(Val);
-    }
     return Val;
 }

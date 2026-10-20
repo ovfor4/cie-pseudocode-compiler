@@ -39,6 +39,9 @@ void FileHandler::setupExternalFunctions() {
         "realloc", FunctionType::get(PtrTy, {PtrTy, I64}, false));
     StrcmpFunc = Module.getOrInsertFunction(
         "strcmp", FunctionType::get(I32, {PtrTy, PtrTy}, false));
+    StrlenFunc = Module.getOrInsertFunction("strlen", FunctionType::get(I64, {PtrTy}, false));
+    MemcpyFunc = Module.getOrInsertFunction("memcpy", FunctionType::get(PtrTy, {PtrTy, PtrTy, I64}, false));
+    FreeFunc = Module.getOrInsertFunction("free", FunctionType::get(Type::getVoidTy(Context), {PtrTy}, false));
 }
 
 void FileHandler::setupGlobals() {
@@ -231,11 +234,22 @@ void FileHandler::buildOpenFn() {
     Value *IsRead = Builder.CreateICmpEQ(Mode, ConstantInt::get(I8, uint8_t(FileMode::Read)));
     Value *ModeStr = Builder.CreateSelect(IsRead, ModeReadStr, WriteOrAppend, "mode_str");
 
+    Value *Size = Builder.CreateAdd(Builder.CreateCall(StrlenFunc, {Name}), Builder.getInt64(1));
+    Value *NameCopy = Builder.CreateCall(MallocFunc, {Size}, "owned_filename");
+    Value *AllocationError = Builder.CreateGlobalString("[Fatal] line %d: File name allocation failed\n");
+    Checker.emitCheck(Builder.CreateICmpEQ(NameCopy, ConstantPointerNull::get(PtrTy)), AllocationError, {Line});
+    Builder.CreateCall(MemcpyFunc, {NameCopy, Name, Size});
     Value *Handle = Builder.CreateCall(FopenFunc, {Name, ModeStr}, "handle");
     Value *OpenFailed = Builder.CreateICmpEQ(Handle, ConstantPointerNull::get(PtrTy), "open_failed");
+    auto *Failed = BasicBlock::Create(Context, "open_failed", OpenFn);
+    auto *Opened = BasicBlock::Create(Context, "opened", OpenFn);
+    Builder.CreateCondBr(OpenFailed, Failed, Opened);
+    Builder.SetInsertPoint(Failed);
+    Builder.CreateCall(FreeFunc, {NameCopy});
     Checker.emitCheck(OpenFailed, ErrOpenFail, {Line, Name});
-
-    Builder.CreateStore(Name, emitSlotGEP(FileNames, PtrTy, Slot));
+    Builder.CreateBr(Opened);
+    Builder.SetInsertPoint(Opened);
+    Builder.CreateStore(NameCopy, emitSlotGEP(FileNames, PtrTy, Slot));
     Builder.CreateStore(Handle, emitSlotGEP(FileHandles, PtrTy, Slot));
     Builder.CreateStore(Mode, emitSlotGEP(FileModes, I8, Slot));
     Builder.CreateRetVoid();

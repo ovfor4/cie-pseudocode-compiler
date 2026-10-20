@@ -39,10 +39,19 @@ void CodeGen::runGlobalPrePass(const SourceUnit &Unit, int Phase) {
                     reportError("Global %s conflicts with an existing definition", Name.c_str());
                     continue;
                 }
+                const TypeInfo *Type = resolveType(TypeName);
+                if (!Type) {
+                    reportError("Unknown type %s", TypeName.c_str());
+                    continue;
+                }
                 auto *Storage = new GlobalVariable(*TheModule, Types->getLLVMType(TypeName), false,
                     GlobalValue::InternalLinkage, Types->getZeroValue(TypeName), "__cps_global." + Name);
                 SymbolInfo Info{Storage, TypeName, false, nullptr, 0, false, true};
                 Exports[CurrentUnit].emplace(Name, Info);
+                if (Type->isString()) {
+                    size_t Lifetime = registerStackObject(Storage, Type->Name, DiagnosticLine);
+                    if (emitDefaultConstruct(Type->Name, Storage, DiagnosticLine)) activateStackObject(Lifetime);
+                }
             } else if (auto *Assign = dynamic_cast<AssignStmtAST*>(S.get())) {
                 if (Phase != 1) continue;
                 const SymbolInfo *Info = getSymbolInfo(Assign->getName());
@@ -53,6 +62,11 @@ void CodeGen::runGlobalPrePass(const SourceUnit &Unit, int Phase) {
                 }
                 if (!isGlobalLiteral(Assign->getExpr())) {
                     reportError("GLOBAL initializer must be a literal");
+                    continue;
+                }
+                if (const auto *Type = resolveType(Info->TypeName); Type && Type->isString()) {
+                    emitAssignment({Info->Storage, Info->TypeName}, Assign->getExpr(), Info);
+                    cleanupTemporaries();
                     continue;
                 }
                 auto *Value = dyn_cast_or_null<Constant>(

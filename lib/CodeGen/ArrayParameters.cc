@@ -51,6 +51,28 @@ void ArrayHandler::bindArrayParameter(const std::string &Name,
             false);
         FunctionCallee MemcpyFunc = TheModule->getOrInsertFunction("memcpy", MemcpyType);
         Builder->CreateCall(MemcpyFunc, {Copy, DataPtr, TotalBytes});
+        if (CG.containsString(ElemInfo)) {
+            auto *F = Builder->GetInsertBlock()->getParent();
+            auto *Index = CG.CreateEntryBlockAlloca(F, Type::getInt64Ty(*TheContext), "copy_index");
+            auto *Check = BasicBlock::Create(*TheContext, "copy_check", F);
+            auto *Body = BasicBlock::Create(*TheContext, "copy_element", F);
+            auto *Done = BasicBlock::Create(*TheContext, "copy_done", F);
+            Builder->CreateStore(Builder->getInt64(0), Index);
+            Builder->CreateBr(Check);
+            Builder->SetInsertPoint(Check);
+            Value *I = Builder->CreateLoad(Builder->getInt64Ty(), Index);
+            Builder->CreateCondBr(Builder->CreateICmpULT(I, TotalElements), Body, Done);
+            Builder->SetInsertPoint(Body);
+            std::vector<size_t> Transfers;
+            Value *Source = Builder->CreateGEP(ElemInfo->LLVMType, DataPtr, I);
+            Value *Value = CG.copyClassValue(ElemInfo, Source, Transfers);
+            if (!Value) return;
+            Builder->CreateStore(Value, Builder->CreateGEP(ElemInfo->LLVMType, Copy, I));
+            CG.transferObjects(Transfers);
+            Builder->CreateStore(Builder->CreateAdd(I, Builder->getInt64(1)), Index);
+            Builder->CreateBr(Check);
+            Builder->SetInsertPoint(Done);
+        }
         Ptr = Copy;
     }
 

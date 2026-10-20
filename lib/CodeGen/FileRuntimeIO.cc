@@ -155,6 +155,7 @@ void FileHandler::buildCloseFn() {
     Value *Idx = emitLookupOrFail(Name, Line);
     Value *Handle = Builder.CreateLoad(PtrTy, emitSlotGEP(FileHandles, PtrTy, Idx), "handle");
     Builder.CreateCall(FcloseFunc, {Handle});
+    Builder.CreateCall(FreeFunc, {Builder.CreateLoad(PtrTy, emitSlotGEP(FileNames, PtrTy, Idx))});
     Builder.CreateStore(ConstantInt::get(I8, 0), emitSlotGEP(FileModes, I8, Idx));
     Builder.CreateStore(ConstantPointerNull::get(PtrTy), emitSlotGEP(FileNames, PtrTy, Idx));
     Builder.CreateStore(ConstantPointerNull::get(PtrTy), emitSlotGEP(FileHandles, PtrTy, Idx));
