@@ -9,3 +9,5 @@ LEFT keeps ABC, returns zero bytes for an empty source or nonpositive count, and
 RIGHT keeps FGH, returns zero bytes for an empty source or nonpositive count, and clamps 20 to all eight letters. Taking four bytes from hello followed by three NULs retains the final o and all three NULs.
 
 The added checks use separate procedures to keep generated temporary-object cleanup small enough for the ordinary runner timeout.
+
+MID positions 2..4 give BCD. The minimum INTEGER start clamps to 1 and gives AB; a maximum count from position 7 gives GH. Empty input, a maximum start, and nonpositive counts give length zero. Four bytes starting at the second of three NULs retain two NULs and AB.

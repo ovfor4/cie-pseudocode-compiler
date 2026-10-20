@@ -16,3 +16,9 @@ FGH
 0:0:0
 ABCDEFGH
 4
+BCD
+AB
+GH
+0:0
+0:0
+4

@@ -80,6 +80,14 @@ void _exp_string_impl_right(void *Target, void *Handle, long long Count) {
         text(Target) = Source.substr(Source.size() - Length, Length);
     });
 }
+void _exp_string_impl_mid(void *Target, void *Handle, long long Start, long long Count) {
+    checked([&] {
+        const auto &Source = text(Handle);
+        auto Position = Start <= 1 ? 0 : std::min(static_cast<std::size_t>(Start - 1), Source.size());
+        auto Length = Count <= 0 ? 0 : std::min(static_cast<std::size_t>(Count), Source.size() - Position);
+        text(Target) = Source.substr(Position, Length);
+    });
+}
 void _exp_string_impl_output(void *Handle) {
     checked([&] {
         const auto &Text = text(Handle);
