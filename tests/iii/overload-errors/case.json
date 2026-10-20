@@ -21,7 +21,7 @@
       "line": 23
     },
     {
-      "reason": "built-in function and cannot be redefined",
+      "reason": "'EOF' is a built-in function and cannot be redefined",
       "line": 25
     },
     {

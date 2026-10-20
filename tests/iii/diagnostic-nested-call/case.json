@@ -1,7 +1,7 @@
 {
   "errors": [
     {
-      "reason": "MID\\ expects\\ 3\\ args",
+      "reason": "Incorrect # arguments passed to MID",
       "line": 2
     }
   ]
