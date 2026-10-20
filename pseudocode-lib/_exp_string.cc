@@ -122,6 +122,11 @@ long long _exp_string_impl_asc(void *Handle) {
 long long _exp_string_impl_asc_char(char Ch) {
     return checked([&]() -> long long { return static_cast<unsigned char>(Ch); });
 }
+void _exp_string_impl_chr(void *Target, long long Code) {
+    checked([&] {
+        text(Target).assign(1, static_cast<char>(static_cast<unsigned char>(Code)));
+    });
+}
 void _exp_string_impl_output(void *Handle) {
     checked([&] {
         const auto &Text = text(Handle);

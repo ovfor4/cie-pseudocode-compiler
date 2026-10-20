@@ -17,3 +17,5 @@ LCASE converts AbC@19 to abc@19 without modifying the source. Its CHAR overload 
 UCASE converts AbC@19 to ABC@19 without modifying the source. Its CHAR overload returns CHAR H for h or H and preserves @, as in guide section 5.5. Empty length stays zero; two leading NULs survive conversion and letters after them still become ABC.
 
 ASC returns 65 for CHAR A and the first byte of ABCDEFGH, zero for empty strings or NUL, and 255 for a byte with all eight bits set. These byte-code functions are compiler/library extensions.
+
+CHR codes 65 and 90 concatenate to AZ; converting A to a code and back preserves 65. Code zero produces one retained NUL byte. Taking the low eight bits gives 65 for 321 and 255 for -1.
