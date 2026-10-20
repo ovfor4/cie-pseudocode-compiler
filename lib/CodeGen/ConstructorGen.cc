@@ -179,10 +179,46 @@ void CodeGen::emitAssignment(const LValueInfo &Target, ExprAST *Expr, const Symb
         }
     }
     if (Info && containsString(Info)) {
-        std::vector<size_t> Transfers;
-        Value *Val = emitOwnedValue(Expr, Info, Transfers);
+        Value *Val = emitCoercedExpr(Expr, Info);
         if (!Val) return;
-        if (!emitDestroy(Info->Name, Target.Addr, DiagnosticLine)) return;
+        std::vector<size_t> Transfers;
+        bool CopySource = isObjectLValue(Expr);
+        if (!CopySource) {
+            materializeOperatorReceiver(Val, Info);
+            if (typeNeedsDestruction(Info->Name)) Transfers.push_back(StackObjects.size() - 1);
+        }
+        // Default aggregate assignment replaces fields without reconstructing
+        // the enclosing class or calling its DELETE method.
+        std::function<Value *(const TypeInfo *, Value *)> Clone =
+            [&](const TypeInfo *Type, Value *Value) -> llvm::Value * {
+                if (Type->isString()) {
+                    auto *Source = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
+                                                          Type->LLVMType, "assignment_source");
+                    Builder->CreateStore(Value, Source);
+                    return copyClassValue(Type, Source, Transfers);
+                }
+                for (const auto &[Name, Field] : Type->Record.Fields) {
+                    const auto *FieldType = resolveType(Field.TypeName);
+                    if (!containsString(FieldType)) continue;
+                    auto *Copy = Clone(FieldType, Builder->CreateExtractValue(Value, {Field.Index}));
+                    if (!Copy) return nullptr;
+                    Value = Builder->CreateInsertValue(Value, Copy, {Field.Index});
+                }
+                return Value;
+            };
+        if (CopySource) Val = Clone(Info, Val);
+        if (!Val) return;
+        std::function<bool(const TypeInfo *, Value *)> Release =
+            [&](const TypeInfo *Type, Value *Address) {
+                if (Type->isString()) return emitDestroy(Type->Name, Address, DiagnosticLine);
+                for (const auto &[Name, Field] : Type->Record.Fields) {
+                    const auto *FieldType = resolveType(Field.TypeName);
+                    if (containsString(FieldType) && !Release(FieldType,
+                        Builder->CreateStructGEP(Type->LLVMType, Address, Field.Index))) return false;
+                }
+                return true;
+            };
+        if (!Release(Info, Target.Addr)) return;
         Builder->CreateStore(Val, Target.Addr);
         transferObjects(Transfers);
         return;
