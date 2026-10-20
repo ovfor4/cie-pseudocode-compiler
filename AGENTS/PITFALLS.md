@@ -93,14 +93,17 @@ test programs.
   inputs. MAIN and builtins cannot be overloaded. NEW supports overloads; DECLARE,
   fields and arrays needing default construction require a matching no-argument NEW.
   Private access is checked after selection, never used to select a public fallback.
-- **OPERATOR extension.** Requires OVERLOAD FUNCTION, with supported unary/binary
+- **OPERATOR extension.** Unary/binary operators require OVERLOAD FUNCTION, with supported
   arity and at least one record/class/enum operand. Pointer aliases alone do not
   qualify. Exact matching considers visible globals and left-class members
   together; ties are errors, including private/public ties. Comparison and logic
   result types are declared, not assumed BOOLEAN; implicit STRING to BOOLEAN is
   rejected. CASE comparisons must return BOOLEAN. AND/OR overloads evaluate both
-  operands. Temporary member receivers have function-scoped cleanup, not C++
-  full-expression lifetimes. Explicit calls use OPERATOR+(a,b) or a.OPERATOR+(b).
+  operands. Temporary member receivers are destroyed at statement end, including
+  exception exits; ordinary DECLARE objects remain function-scoped. Explicit calls
+  use OPERATOR+(a,b) or a.OPERATOR+(b). Assignment uses member-only
+  OVERLOAD PROCEDURE OPERATOR<- with one explicit parameter; it is selected before
+  fallback same-class copying. Keyword NEW retains its allocation/rebinding path.
 - **CLASS subset (§10).** `CLASS`/`ENDCLASS`/`PUBLIC`/`PRIVATE` are reserved.
   CLASS is a top-level record-derived value type with optional per-member access
   keywords (no DECLARE). Omitting access defaults to public, per the guide.
@@ -144,7 +147,8 @@ test programs.
   Native binaries must link the C++ runtime with LLVM 23's `clang++`
   (`clang++-23` on Debian/Ubuntu).
   Unwinding does not free heap strings/arrays or close files. Embedded ORC
-  execution with LLVM 23 is verified on Linux, Windows and macOS.
+  execution with LLVM 23 is exercised by nightly CI on Linux, Windows and macOS;
+  check the native job results when changing platform-specific code.
 
 - **C type extensions.** C_STRING is a raw char pointer, not a STRING: explicitly
   cast to STRING for printing or builtins. C aliases share canonical CIdentity;

@@ -67,7 +67,8 @@ resolves INCLUDE_OBJ paths, reads defined global symbols with `llvm::object`
 libc/libm inputs, copied to aligned buffers), rejects missing symbols, and passes objects
 to `compileNative`, `runEmbedded` (`addObjectFile`) or lli (`-extra-object=`).
 On Windows, `runEmbedded` adds a msvcrt.dll search generator ahead of process symbols.
-Linux EMBEDDED and PATH (lli) runs are verified locally; Windows and macOS pass CI (extern-libc).
+Nightly CI runs extern-libc and the object-file fixtures in EMBEDDED mode on
+Linux, Windows and macOS; PATH execution depends on the external lli runtime.
 
 **User types** (`TypeSystem` + `Designator.cc` + `TypeCheckGen.cc`):
 `Designator.cc` owns the type pre-pass and lvalue access; `TypeCheckGen.cc` owns
@@ -171,15 +172,15 @@ Generated main owns the final catch target, prints the generic uncaught message,
 and returns 1. Native binaries require the C++ runtime; EmbeddedRunner defines
 its statically linked ABI symbols with ORC `absoluteSymbols`, while LLJIT with
 JITLink manages unwind frames (generic EH-frame on Linux, compact-unwind or
-EH-frame on macOS, COFF SEH registration on Windows x86_64). Linux embedded
-execution is verified; Windows/macOS await CI verification.
+EH-frame on macOS, COFF SEH registration on Windows x86_64). Nightly CI exercises
+embedded exception execution on all three platforms.
 This does not change heap-string/array lifetimes or automatically close files.
 
 **Files** (`FileHandler`): text-file runtime for §9.1.
 `FileHandler.cc` owns setup, lookup/open and emission entry points;
 `FileRuntimeIO.cc` builds the read/write/close/EOF helpers. StringHandler-shaped leaf —
 holds Context/Builder/Module/RuntimeCheck/ExceptionHandler refs only, never sees
-CodeGen, AST nodes or the symbol table; `CodeGen::emitStmt`'s four file branches (and the EOF builtin
+CodeGen, AST nodes or the symbol table; `CodeGen::emitStmtImpl`'s four file branches (and the EOF builtin
 intercept) evaluate/coerce operands and hand over `llvm::Value*`s plus the statement
 line. Calls into throwing helpers go through ExceptionHandler. On first file use,
 `ensureRuntime()` synthesizes the whole runtime once — the
@@ -195,6 +196,6 @@ Builder (RuntimeCheck emits through the same one), saving/restoring the insert b
 
 **Explicit memory** (`MemoryHandler`): lazily emits internal allocation/find/release/resize helpers and a linked list of live allocation start addresses. Explicit MALLOC/REALLOC and keyword NEW allocations enter the list; STRING/ARRAY internals retain their existing ownership. `emitValidate` always calls the find helper, including for null, so keyword DELETE validates before running destructors. FREE validates non-null addresses, unlinks and frees the tracking node, releases the block and returns the original address. Zero-byte allocation returns null. REALLOC validates non-null addresses before its zero-size release path; null behaves as MALLOC. Positive-size resizing updates the node only after success, leaving the old block and record intact on failure. Node allocation precedes the user allocation; if the latter fails, its node is freed before the diagnostic and anonymous throw. Helpers use RuntimeCheck and ExceptionHandler, including source-line arguments and per-function unwind preparation. Sizes accept INTEGER and C integers and convert to native size_t. Address reuse can make stale aliases indistinguishable from current allocations; dereferences are not checked against this list.
 
-**Class copies and temporaries.** Callers construct BYVAL class arguments with a same-class BYREF OVERLOAD NEW; the callee's RegisterCopy hook takes ownership. emitOwnedValue constructs lvalue copies and keeps pending arguments Alive until marshalling succeeds. RETURN copies lvalues and transfers rvalues. StackObject::Temporary uses statement cleanup and deferred temporary-only cleanup before local handlers, while ordinary objects remain function-scoped. Function-result method receivers are materialized by the same path as operator receivers.
+**Class copies and temporaries.** Callers construct BYVAL class lvalue arguments with a same-class BYREF OVERLOAD NEW when defined, otherwise they copy bits; the callee's RegisterCopy hook takes ownership. emitOwnedValue constructs lvalue copies and keeps pending arguments Alive until marshalling succeeds. RETURN copies lvalues and transfers rvalues. Whole records and BYVAL arrays retain shallow copies of class fields/elements. StackObject::Temporary uses statement cleanup and deferred temporary-only cleanup before local handlers, while ordinary objects remain function-scoped. Function-result method receivers are materialized by the same path as operator receivers. Assignment first selects an exact member OPERATOR<-; without one, it stores the same-class value directly rather than calling a copy constructor.
 
 **Experimental library** (`pseudocode-lib/`): the default build compiles each .cc with the host compiler into build/pseudocode-lib/*.o and copies .cps units beside them. `_EXP_STRING` is a #LIB class with a single public internal void* handle owning std::string. The `_exp_string_impl_*` C ABI uses checked operations that print __cps_user_line and throw 0 on std::exception. Class copy/assignment methods prevent handle sharing; functions accept BYVAL copies. OUTPUT uses C stdout buffers. Install/release do not yet ship these artifacts.

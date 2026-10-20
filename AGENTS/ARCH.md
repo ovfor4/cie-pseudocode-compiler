@@ -71,7 +71,7 @@ Homebrew bottles also receive local Cellar/opt links and Mach-O relocation/signi
 Package hashes skip unchanged extractions; a changed package set rebuilds the
 managed root. Downloads belong to the explicit dependency commands and static LLD
 helper in `doc/build.md`, not to CMake. The Windows Pandoc ZIP is downloaded directly from its official
-release because MSYS2 has no Pandoc package. Only the Linux build is verified.
+release because MSYS2 has no Pandoc package.
 
 Generated IR uses the C++ exception ABI; native compilation links its runtime
 automatically. Manually linking emitted `.ll` files still requires a C++ driver
@@ -80,8 +80,9 @@ TRY/CATCH/ENDTRY and bare THROW are compiler extensions.
 Runtime checks print the source line and error reason to stderr before throwing
 anonymous exceptions; the final handler in generated main
 prints `Unhandled exception. Program terminated.` to stderr and returns 1.
-Exception execution with the embedded ORC JIT is verified on Linux with LLVM 23;
-Windows/macOS await CI verification.
+Nightly CI runs compiler tests, including embedded exception execution, on
+Linux, Windows and macOS with LLVM 23. Platform-specific changes require
+successful checks on the native runner.
 
 Driver behavior (`tools/driver/main.cc`):
 
@@ -172,7 +173,6 @@ LLVM 23 executable has only libc, libm and the system loader as dynamic dependen
 macOS links with `-dead_strip_dylibs` to omit unused dylibs inherited
 from LLVM's support interface, including Homebrew's Z3. Keep the nightly package's
 non-system dependency check; required dylibs are not removed by this option.
-Windows and macOS embedded execution await CI verification; Linux EMBEDDED is verified.
 On MinGW, `LLVMWindowsManifest` explicitly uses static libxml2, iconv and zlib
 plus the system bcrypt library. XML definitions are loaded with `--whole-archive`
 to satisfy dllimport references in the prebuilt LLVM archive. `-static` alone
@@ -319,6 +319,7 @@ do not modify the real release for local verification.
 | `lib/CodeGen/CodeGen.cc` | Initialization, symbols, call arguments and main() compilation |
 | `lib/CodeGen/ExpressionGen.cc`, `StatementGen.cc`, `ControlFlowGen.cc` | Expression/statement dispatch and control-flow emission |
 | `lib/CodeGen/OperatorGen.cc`, `include/cps/Operator.h` | Exact global/member operator selection, calls and temporary receivers; shared operator spellings |
+| `lib/CodeGen/ConstructorGen.cc` | Construction, copying, assignment, destruction and deferred object cleanup |
 | `lib/CodeGen/GlobalGen.cc` | Primitive GLOBAL declaration and constant-initializer passes |
 | `lib/CodeGen/ConstantGen.cc` | Literal constants, declaration conflicts and lexical binding restoration |
 | `lib/CodeGen/ValueTypeGen.cc`, `OutputGen.cc`, `Builtins.h` | Expression typing, coercion/declarations, scalar output and the shared builtin table |

@@ -28,8 +28,8 @@ applies the sign and i64 range check, including the minimum value. String/char l
 the stream must outlive the lexer. Lookahead, line number and error state belong to
 each instance. The driver opens the source file; stdin is not used for compilation.
 
-**Types travel as uppercase `std::string`** (`"INTEGER"`, `"REAL"`, ..., plus
-user-defined names) — never an enum. `TypeSystem` resolves the string to
+**Type names travel as `std::string`** (uppercase builtins such as `"INTEGER"`
+and `"REAL"`; user-defined names retain their spelling) — never an enum. `TypeSystem` resolves the string to
 `TypeInfo{LLVMType, Kind, per-kind payload}`. The parser's `ParseTypeName` accepts *any*
 identifier as a type name except `VOID` (rejected outside a RETURNS clause via its
 `AllowVoid` flag); other unknown types only fail (softly) in CodeGen.
@@ -52,8 +52,9 @@ same-layout records too). Their LLVM representations are indistinguishable from
 builtins, so values of these kinds must NEVER reach `ArithmeticHandler` or
 `coerceValueToType` without a prior name-level check — `CodeGen::emitCoercedExpr`
 (assignments, BYVAL args, RETURN, IF/WHILE/REPEAT/FOR operands, file operands,
-builtin args) and the binary-op interception at the top of `emitExpr`'s
-`BinaryExprAST` branch are the only doors. `coerceValueToType` hard-errors
+builtin args) and the typed `CodeGen::emitBinaryOp` dispatcher in `ExpressionGen.cc`
+guard these paths. The dispatcher resolves overloads and handles C/user kinds
+before the builtin STRING/arithmetic paths. `coerceValueToType` hard-errors
 ("Internal: ...") if a user-kind target reaches it.
 
 **Enum value names are a flat, globally reserved namespace** owned by `TypeSystem`
@@ -111,9 +112,11 @@ previously visible top-level constants (ScopeID 0). Locals may shadow globals. C
 scope bookkeeping and array metadata around each function body. Arrays also
 restore metadata at control-flow block exits.
 
-**Dispatch is by `dynamic_cast` chain, not virtual methods.** `CodeGen::emitStmt` and
-`emitExpr` walk a linear if-chain of casts. **A statement type missing from the chain is
-silently ignored** — no error. Adding an AST node always means touching these chains.
+**Dispatch is by `dynamic_cast` chain, not virtual methods.** `CodeGen::emitStmtImpl`
+in `StatementGen.cc` and `emitExpr` in `ExpressionGen.cc` walk linear if-chains of
+casts. **A statement type missing from the chain is silently ignored** — no error.
+Adding an AST node always means touching these chains. Emit statements through
+`emitStmt`, whose wrapper cleans up statement temporaries after dispatch.
 
 **Compiler error style: print an `error:` line, set the component's error flag, and
 keep compiling.** No exceptions, no exit mid-compile. `Lexer`/`Parser`/`CodeGen` each
@@ -136,10 +139,12 @@ continues; the failure is always diagnosed and reflected in the exit code.
 function's pseudocode signature (`FuncSig`: return type name + per-param `ParamSig`
 {type name, mode, array rank/bounds}); `CodeGen::marshalCallArgs` — the single
 call-marshalling path for both call-expr and call-stmt — requires BYREF arguments to be
-bare variables of *exactly* the declared type (their alloca is passed), admits BYVAL
-arguments through `emitCoercedExpr`, and dispatches whole-array arguments to
-`ArrayHandler::emitArrayArgument`. RETURN values go through `emitCoercedExpr` against
-the declared return type. Top-level prototypes are pre-registered (after the TYPE
+bare variables of *exactly* the declared type (their `symbolAddress` is passed), admits BYVAL
+arguments through `emitOwnedValue`, and dispatches whole-array arguments to
+`ArrayHandler::emitArrayArgument`. RETURN also uses `emitOwnedValue` against the
+declared return type. Class lvalues invoke a same-class BYREF OVERLOAD NEW when
+defined, otherwise they copy bits; class rvalues transfer ownership. Other values
+use `emitCoercedExpr`. Top-level prototypes are pre-registered (after the TYPE
 pre-pass) before statement emission, so call-before-definition is fine; a call with
 no registered signature is a compile error. OVERLOAD signatures append canonical
 parameter types to the link name; ordinary names except MAIN get no mangling.

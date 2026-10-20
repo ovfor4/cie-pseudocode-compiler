@@ -73,25 +73,34 @@ interrupt an interactive program with Ctrl+C before running another file.
 
 ## Language rules and defaults
 
-Follow the current compiler, rather than implementing every PDF feature:
+Use the current compiler as the language reference. Existing editor rules cover
+only a subset of its syntax:
 
 - Uppercase, case-sensitive keywords; ASCII `<-` assignment; `//` comments.
 - Native C aliases C_INT/C_CHAR/C_STRING/C_DOUBLE and the C_TYPE import keyword
   use type scopes. C_TYPE's quoted expression remains a string, and casts use
   ordinary parentheses. `TYPE Name = C_TYPE("...")` is a single-line alias
   declaration, so it does not open an indentation block.
-- Double-quoted strings and single-quoted characters have no escapes or multiline
-  continuation. The compiler accepts `'''` as a quote character literal.
+- The compiler decodes C++17 byte escapes and Unicode escapes in literals; strings
+  encode Unicode as UTF-8 and CHAR Unicode escapes must be ASCII. The plugin's
+  grammar and quote masking still ignore escapes and retain legacy `'''` handling;
+  the compiler now requires an escaped quote character (`'\''`). Neither supports
+  multiline literal continuation.
 - Blocks: IF/THEN/ELSE/ENDIF, WHILE/DO/ENDWHILE, REPEAT/UNTIL, FOR/NEXT,
   FUNCTION/ENDFUNCTION, PROCEDURE/ENDPROCEDURE, record TYPE/ENDTYPE and
   TRY/CATCH/ENDTRY. CATCH aligns with TRY and starts another indented body;
   ENDTRY closes the block. Bare THROW does not change indentation depth.
 - Separate THEN and DO lines activate the pending block once. Enum and pointer
-  `TYPE Name = ...` declarations do not open a record block.
-- Builtins: LENGTH, MID, RIGHT, LEFT, LCASE, UCASE, ASC, CHR, IS_NUM, NUM_TO_STR,
-  STR_TO_NUM and EOF. See the table in `lib/CodeGen/CodeGen.cc`.
-- CASE, classes, SET, DATE and random-file operations are outside the current
-  plugin scope. Do not add them without an explicit scope change.
+  `TYPE Name = ...` declarations do not open a record block. The compiler accepts
+  standard WHILE headers without DO, but the indentation engine still needs DO
+  to activate their body.
+- Highlighted builtins: LENGTH, MID, RIGHT, LEFT, LCASE, UCASE, ASC, CHR, IS_NUM,
+  NUM_TO_STR, STR_TO_NUM and EOF. The compiler's complete table is in
+  `lib/CodeGen/Builtins.h` and also includes MALLOC, FREE and REALLOC.
+- CASE, CLASS, CONSTANT, OVERLOAD/OPERATOR and #LIB are supported by the compiler
+  but lack corresponding plugin language rules. SET, DATE and random-file
+  operations remain unsupported by the compiler too. Extending editor support
+  requires an explicit scope change.
 
 Language defaults use real Tabs, display width 4, disabled indentation detection,
 full automatic indentation, on-type formatting and native bracket pair colors.

@@ -9,7 +9,9 @@ unique_ptr children, move ctor, raw-ptr getters) → `ParseXxx` in
 the matching `Parser*.cc` file + branch in `ParseStatementImpl` (block statements parse their body with
 `ParseBlock({terminator tokens})`; control-flow parsers live in `ParserControlFlow.cc`; comma-separated expression lists use
 `ParseExprList(close, allowEmpty)`; add the new statement's leading keyword to
-`syncToStatementStart`) → `dynamic_cast` branch in `CodeGen::emitStmt`. Emit statement bodies through `emitScopedBlock`
+`syncToStatementStart`) → `dynamic_cast` branch in `CodeGen::emitStmtImpl` in
+`StatementGen.cc`. Keep calls through the `emitStmt` wrapper so statement
+temporaries are cleaned up. Emit statement bodies through `emitScopedBlock`
 so constants cannot escape their lexical block. Guard every
 fall-through branch in control-flow codegen with
 `if (!Builder->GetInsertBlock()->hasTerminator())` — a RETURN in the body may have
@@ -20,12 +22,14 @@ already terminated the block.
 `emitCall`, the return type in `getExprTypeInfo`, and the reject-user-redefinition check
 all read it), then implement IR emission as a method on the fitting handler
 (String/StringConversion) or inline, and add the name intercept in `CodeGen::emitCall` — null-check every emitted argument before use, like the existing
-branches do. Builtins are plain identifiers — nothing is needed in lexer/parser.
+branches do. `emitCall` lives in `ExpressionGen.cc`. Builtins are plain identifiers — nothing is needed in lexer/parser.
 
 **New binary operator:** token (if multi-char) → one line in `BinopPrecedence`
 (Parser ctor; levels: OR=3, AND=5, comparisons=10, `+ - &`=20, `* / DIV MOD`=40;
-precedence must be > 0) → branch in the shared `CodeGen::emitBinaryOp` value dispatcher or its `ArithmeticHandler::emitBinaryOp` leaf, which dispatches
-on raw LLVM operand types. Exceptions in `CodeGen::emitBinaryOp`: `&` coerces operands
+precedence must be > 0) → branch in the shared `CodeGen::emitBinaryOp` value dispatcher
+in `ExpressionGen.cc` or its `ArithmeticHandler::emitBinaryOp` leaf, which dispatches
+on raw LLVM operand types. Preserve overload selection and C/user-kind checks
+before reaching that leaf. Exceptions in `CodeGen::emitBinaryOp`: `&` coerces operands
 to STRING then calls `StringHandler::emitConcat`; STRING comparisons require two
 STRING operands by pseudocode type then call `StringHandler::emitCompare`.
 
