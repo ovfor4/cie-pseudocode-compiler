@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdio>
 #include <exception>
 #include <stdexcept>
@@ -64,6 +65,13 @@ double _exp_string_impl_to_real(void *Handle) {
 }
 long long _exp_string_impl_length(void *Handle) {
     return checked([&] { return static_cast<long long>(text(Handle).size()); });
+}
+void _exp_string_impl_left(void *Target, void *Handle, long long Count) {
+    checked([&] {
+        const auto &Source = text(Handle);
+        auto Length = Count <= 0 ? 0 : std::min(static_cast<std::size_t>(Count), Source.size());
+        text(Target) = Source.substr(0, Length);
+    });
 }
 void _exp_string_impl_output(void *Handle) {
     checked([&] {
