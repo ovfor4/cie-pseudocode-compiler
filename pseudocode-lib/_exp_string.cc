@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <cstdlib>
 #include <exception>
 #include <stdexcept>
 #include <string>
@@ -125,6 +126,14 @@ long long _exp_string_impl_asc_char(char Ch) {
 void _exp_string_impl_chr(void *Target, long long Code) {
     checked([&] {
         text(Target).assign(1, static_cast<char>(static_cast<unsigned char>(Code)));
+    });
+}
+int _exp_string_impl_is_num(void *Handle) {
+    return checked([&]() -> int {
+        const auto &Source = text(Handle);
+        char *End = nullptr;
+        std::strtod(Source.c_str(), &End);
+        return !Source.empty() && End == Source.c_str() + Source.size();
     });
 }
 void _exp_string_impl_output(void *Handle) {
