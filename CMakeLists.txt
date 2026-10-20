@@ -144,6 +144,16 @@ foreach(source IN LISTS cpsc_library_sources)
 endforeach()
 add_custom_target(pseudocode-lib ALL DEPENDS ${cpsc_library_outputs})
 
+set(cpsc_embedded_library "${CMAKE_BINARY_DIR}/standard-library/StandardLibrary.inc")
+add_custom_command(OUTPUT "${cpsc_embedded_library}"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/standard-library"
+    COMMAND "${PERL_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/driver/embed-standard-library.pl"
+        "${cpsc_embedded_library}" ${cpsc_library_outputs}
+    DEPENDS ${cpsc_library_outputs} tools/driver/embed-standard-library.pl
+    VERBATIM)
+target_sources(cpsc PRIVATE tools/driver/StandardLibrary.cc "${cpsc_embedded_library}")
+target_include_directories(cpsc PRIVATE "${CMAKE_BINARY_DIR}/standard-library")
+
 option(BUILD_TESTING "Enable compiler conformance tests" OFF)
 if(BUILD_TESTING)
     enable_testing()

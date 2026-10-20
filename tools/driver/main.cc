@@ -3,6 +3,7 @@
 #include "cps/Parser.h"
 #include "cps/CodeGen.h"
 #include "NativeCompiler.h"
+#include "StandardLibrary.h"
 #ifdef CPSC_RUN_EMBEDDED
 #include "EmbeddedRunner.h"
 #endif
@@ -91,12 +92,15 @@ int main(int argc, char **argv) {
     std::string OutputPath;
     bool Run = false;
     bool EmitIR = false;
+    bool NoStd = false;
     for (int I = 1; I < argc; ++I) {
         std::string Arg = argv[I];
         if (Arg == "-r") {
             Run = true;
         } else if (Arg == "-S") {
             EmitIR = true;
+        } else if (Arg == "-no-std") {
+            NoStd = true;
         } else if (Arg == "-o") {
             if (!OutputPath.empty()) {
                 llvm::errs() << "cpsc: error: -o may only be specified once\n";
@@ -137,6 +141,9 @@ int main(int argc, char **argv) {
 #endif
     }
     const bool Save = !Run || EmitIR || !OutputPath.empty();
+    const size_t UserInputCount = InputPaths.size();
+    StandardLibrary StdLibrary;
+    if (!NoStd && !StdLibrary.load(InputPaths)) return compilationTerminated();
     std::vector<std::vector<std::unique_ptr<cps::StmtAST>>> Programs(InputPaths.size());
     std::vector<cps::SourceUnit> Units;
     for (size_t I = 0; I < InputPaths.size(); ++I) {
@@ -163,6 +170,9 @@ int main(int argc, char **argv) {
         if (Lex.hadError() || Parser.hadError()) return compilationTerminated();
         Units.push_back({InputPath, Programs[I], std::vector<bool>(InputPaths.size(), false), Lex.isLibrary()});
         Units.back().Visible[I] = true;
+        if (!NoStd && I < UserInputCount)
+            for (size_t J = UserInputCount; J < InputPaths.size(); ++J)
+                Units.back().Visible[J] = true;
     }
     for (size_t I = 0; I < Units.size(); ++I) {
         cps::DiagnosticSource = Units.size() > 1 ? Units[I].Path : "";

@@ -443,7 +443,7 @@ sub main {
                     write_file($target, $sentinel);
                 }
                 my $result = run_command($commands,
-                    [$cpsc_abs, @sources, @flags, '-o', $target], $work, '', 120);
+                    [$cpsc_abs, @sources, @{$config->{compiler_args} // []}, @flags, '-o', $target], $work, '', 120);
                 my $preservation_error;
                 if ($existing && (!-f $target || read_file($target) ne $sentinel)) {
                     $preservation_error = 'compilation failure overwrote existing output';
@@ -541,12 +541,12 @@ sub main {
                     my $target = File::Spec->catfile($work,
                         $IS_WINDOWS ? 'program.exe' : 'program.bin');
                     my $compiled = run_command($commands,
-                        [$cpsc_abs, @sources, '-o', $target], $work, '', 120);
+                        [$cpsc_abs, @sources, @{$config->{compiler_args} // []}, '-o', $target], $work, '', 120);
                     check_result($compiled, '');
                     $command = [$target];
                 }
                 else {
-                    $command = [$cpsc_abs, @sources, '-r'];
+                    $command = [$cpsc_abs, @sources, @{$config->{compiler_args} // []}, '-r'];
                 }
                 my $exec_timeout = exists($config->{timeout}) ? $config->{timeout} + 0 : 30;
                 my $result = run_command($commands, $command, $work, $data, $exec_timeout);

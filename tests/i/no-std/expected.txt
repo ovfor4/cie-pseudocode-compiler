@@ -1,0 +1,2 @@
+C literal without the standard library
+42
