@@ -36,6 +36,8 @@ A completed construction or BYVAL copy marks the object alive. Destruction clear
 
 Exception unwinding destroys live objects in each function frame being left before the caller's CATCH runs. A CATCH inside the same function retains its objects until function exit. An uncaught exception reaching main's final handler skips destruction of main-level objects. If a destructor throws during unwinding, its exception propagates and interrupts the remaining cleanup instead of terminating as C++ would.
 
+Discarded class results and temporary method or operator receivers are destroyed at statement end, including exception exits. For copy constructors and ownership transfer of class results, see [cpsc-keyword-class(7)](cpsc-keyword-class.7.md).
+
 Ordinary method access rules apply to explicit, keyword and automatic destruction. A private DELETE makes destruction outside the owning class a compile error.
 
 # EXAMPLE
@@ -55,5 +57,3 @@ DELETE Object
 # SEE ALSO
 
 [cpsc-keyword-class(7)](cpsc-keyword-class.7.md), [cpsc-keyword-declare(7)](cpsc-keyword-declare.7.md), [cpsc-keyword-try(7)](cpsc-keyword-try.7.md), [cpsc-function-free(7)](../function/cpsc-function-free.7.md).
-
-An `OVERLOAD PROCEDURE NEW(BYREF Other : ClassName)` defines a copy constructor. BYVAL class arguments and RETURN of class lvalues invoke it; a same-class BYVAL constructor is rejected. Classes without one retain bitwise copying. Class results transfer ownership directly into BYVAL arguments, RETURN and ordinary assignment without an assignment overload. Discarded results and temporary receivers live until the statement ends, including exception exits. Ordinary user BYREF calls still require bare variables; constructor calls can bind temporaries.

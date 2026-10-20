@@ -16,7 +16,7 @@ Compile one or more pseudocode source files to a native executable, or to textua
 
 Without **-o**, save beside the entry source file, replacing its extension with `.exe` on Windows or `.out` elsewhere for an executable, or `.ll` for IR. With **-r** alone, run without saving a file.
 
-Each input is a compilation unit. Use top-level `INCLUDE "lib.cps"` to import another input's exported definitions, including its transitive imports. Paths are relative to the including source; every included file must also appear on the command line. Repeated includes and include cycles are harmless. Giving the same input twice, including symbolic or hard links, is an error. Duplicate definitions across files are errors even if the files do not include each other.
+Each input is a compilation unit. Use top-level `INCLUDE "lib.cps"` to import another input's exported definitions, including its transitive imports. Paths are relative to the including source; every included file must also appear on the command line. Repeated includes and include cycles are harmless. Giving the same input twice, including symbolic or hard links, is an error. Duplicate definitions across files are errors even if the files do not include each other; distinct parameter signatures may share a name when every definition specifies OVERLOAD.
 
 Exactly one file may contain top-level executable statements (including top-level DECLARE). Alternatively, define a parameterless `FUNCTION MAIN RETURNS INTEGER` in one file and have no top-level executable statements anywhere. Builds containing only definitions and no MAIN fail with `error: no main program`. GLOBAL blocks declare shared primitive variables. INCLUDE, GLOBAL and MAIN entry points are compiler extensions beyond the Cambridge guide.
 
@@ -116,7 +116,7 @@ Compiler diagnostics go to stderr. With multiple input files, lexer, parser and 
 
 Missing input, including invoking `cpsc` without arguments, reports `cpsc: fatal error: no input files`. Ordinary lexical, syntax and semantic errors use `error:`; failures that prevent compilation, such as file I/O errors, use `fatal error:`. Compilation and argument failures end with one `compilation terminated.` line. Execution-stage failures do not print that line.
 
-Generated IR uses the C++ exception ABI. Native binaries need the C++ runtime; EMBEDDED includes it, while PATH uses the runtime available to `lli`. Exception execution is verified on Linux with LLVM 23; Windows and macOS remain unverified.
+Generated IR uses the C++ exception ABI. Native binaries need the C++ runtime; EMBEDDED includes it, while PATH uses the runtime available to `lli`. Nightly CI runs embedded exception tests on Linux, Windows and macOS with LLVM 23.
 
 # SEE ALSO
 

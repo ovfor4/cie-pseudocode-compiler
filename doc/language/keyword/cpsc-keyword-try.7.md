@@ -26,7 +26,9 @@ THROW takes no argument and always raises a new anonymous exception. An exceptio
 
 Runtime checks throw the same anonymous exceptions for division by zero, array index errors, null pointer dereferences, invalid enumeration values, array-parameter bounds mismatches, and file misuse. Before throwing, a runtime check prints the source line and error reason to standard error, even when CATCH handles the exception. Explicit THROW prints no diagnostic itself. Compiler errors cannot be caught. If no handler catches an exception, the program prints `Unhandled exception. Program terminated.` to standard error and returns status 1.
 
-Arrays declared inside either body remain local to that block. Stack unwinding does not automatically free heap strings or arrays, close files, or run user-defined destructors. Exception execution is verified on Linux with LLVM 23; Windows and macOS remain unverified.
+Arrays declared inside either body remain local to that block. Stack unwinding destroys live objects in function frames being left; objects declared in a function containing the selected CATCH remain alive until that function exits. Temporary class values are cleaned up before entering the handler. Main-level objects are destroyed only on normal program end. See [cpsc-keyword-delete(7)](cpsc-keyword-delete.7.md) for destructor and lifetime rules.
+
+Unwinding does not automatically release internal STRING or ARRAY buffers, release keyword NEW allocations, or close files. Nightly CI runs embedded exception tests on Linux, Windows and macOS with LLVM 23.
 
 # EXAMPLE
 

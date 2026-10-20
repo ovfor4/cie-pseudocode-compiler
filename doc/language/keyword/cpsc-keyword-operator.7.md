@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-operator - overload unary and binary operators
+cpsc-keyword-operator - overload unary, binary and assignment operators
 
 # SYNOPSIS
 
@@ -17,12 +17,15 @@ CLASS T
     OVERLOAD FUNCTION OPERATOR-() RETURNS R
         statements
     ENDFUNCTION
+    OVERLOAD PROCEDURE OPERATOR<-(BYREF right : T)
+        statements
+    ENDPROCEDURE
 ENDCLASS
 ```
 
 # DESCRIPTION
 
-OPERATOR is a compiler extension, absent from the CIE guide. Declare operators with OVERLOAD FUNCTION, at top level or inside CLASS. OPERATOR is reserved; whitespace before the operator is optional. Parentheses are required. Parameters and return values follow FUNCTION rules: parameters default to BYVAL, BYREF is forbidden, and omitting RETURNS defaults to INTEGER. Whole-array operands and array results are unsupported.
+OPERATOR is a compiler extension, absent from the CIE guide. Declare unary and binary operators with OVERLOAD FUNCTION, at top level or inside CLASS. Assignment uses a member OVERLOAD PROCEDURE as described below. OPERATOR is reserved; whitespace before the operator is optional. Parentheses are required. Operator functions follow FUNCTION rules: parameters default to BYVAL, BYREF is forbidden, and omitting RETURNS defaults to INTEGER. Whole-array operands and array results are unsupported.
 
 Binary operators are `+ - * / DIV MOD & = <> < <= > >= AND OR`. Unary operators are `- NOT`. A global binary definition takes two parameters and a unary definition takes one; at least one parameter must be a record, class or enum. A pointer alias alone does not qualify. A member binary definition takes one explicit parameter and a unary definition takes none; this supplies the left or sole operand. PUBLIC and PRIVATE precede OVERLOAD as for other methods.
 
@@ -32,9 +35,11 @@ The expression has the selected function's declared return type. Comparisons and
 
 Operators keep their existing precedence, operand count and associativity. Operands are evaluated once, from left to right; overloaded AND and OR evaluate both operands. Operators are independent: defining = does not define <>, and operands are never swapped to find a match. A matching overload takes precedence over the built-in operation; otherwise the existing built-in rules apply.
 
-Member operators on variables, fields, array elements and pointer dereferences modify the original receiver. Class-valued expressions can also receive operator calls, supporting chains such as `(A + B) + C`. A temporary receiver follows the compiler's existing function-scoped object cleanup rules, rather than C++ full-expression lifetimes. Copies and return values retain the ordinary class value semantics.
+Member operators on variables, fields, array elements and pointer dereferences modify the original receiver. Class-valued expressions can also receive operator calls, supporting chains such as `(A + B) + C`. Temporary receivers are destroyed at statement end, including exception exits; ordinary DECLARE objects remain function-scoped. Copies and return values retain the ordinary class value semantics.
 
-Explicit calls use `OPERATOR+(A, B)` for global definitions and `A.OPERATOR+(B)` for members. They also work as statements, optionally prefixed with CALL, to discard results. As with ordinary method calls, explicit member access on a function result is unsupported. Assignment, indexing, function-call, address-of and dereference operators cannot be overloaded.
+Explicit calls use `OPERATOR+(A, B)` for global definitions and `A.OPERATOR+(B)` for members. They also work as statements, optionally prefixed with CALL, to discard results. Class-valued call results support explicit member operator calls, such as `Make().OPERATOR+(B)`. Indexing, function-call, address-of and dereference operators cannot be overloaded.
+
+A class may define `OVERLOAD PROCEDURE OPERATOR<-(BYREF Other : ClassName)` or an overload taking another exact static type. Assignment to a class lvalue selects this member before falling back to same-class bitwise assignment. The procedure takes exactly one explicit parameter; BYREF may bind a designator or materialized temporary. Keyword NEW assignment retains its allocation behavior. Self-assignment handling belongs to the operator body.
 
 # EXAMPLE
 
@@ -57,5 +62,3 @@ OUTPUT Sum.Value
 # SEE ALSO
 
 [cpsc-keyword-overload(7)](cpsc-keyword-overload.7.md), [cpsc-keyword-function(7)](cpsc-keyword-function.7.md), [cpsc-keyword-class(7)](cpsc-keyword-class.7.md), [cpsc-keyword-include(7)](cpsc-keyword-include.7.md).
-
-A class may define `OVERLOAD PROCEDURE OPERATOR<-(BYREF Other : ClassName)` or an overload taking another exact static type. Assignment to a class lvalue selects this member before falling back to same-class bitwise assignment. The procedure takes exactly one explicit parameter; BYREF may bind a materialized temporary. Keyword NEW assignment retains its allocation behavior. Self-assignment handling belongs to the operator body.

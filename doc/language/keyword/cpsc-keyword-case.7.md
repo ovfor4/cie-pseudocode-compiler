@@ -22,7 +22,7 @@ Each label header must start on a new line and end with a colon on that line. It
 
 Labels and range endpoints may be expressions, including function calls. A single value uses ordinary equality; a TO range includes both endpoints and uses ordinary ordering. Evaluate the lower endpoint first and evaluate the upper endpoint only if the lower comparison succeeds. Do not evaluate later labels after a match. Unlike CONSTANT initializers, CASE labels are not restricted to literals.
 
-STRING comparisons use contents. Enumerations and explicit pointer types follow their ordinary comparison rules; pointers support equality only. Records and whole arrays cannot be compared. The compiler emits conditional branches and disables jump tables for functions containing CASE.
+STRING comparisons use contents. Enumerations and explicit pointer types follow their ordinary comparison rules; pointers support equality only. Records and classes require matching comparison overloads that return BOOLEAN; whole arrays cannot be compared. See [cpsc-keyword-operator(7)](cpsc-keyword-operator.7.md). The compiler emits conditional branches and disables jump tables for functions containing CASE.
 
 # EXAMPLE
 

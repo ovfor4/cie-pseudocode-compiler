@@ -14,7 +14,7 @@ ENDWHILE
 
 # DESCRIPTION
 
-Test before each iteration; the body may run zero times. ENDWHILE closes the loop. The WHILE header has no DO keyword.
+Test before each iteration; the body may run zero times. ENDWHILE closes the loop. The standard WHILE header has no DO keyword; the compiler also accepts `WHILE condition DO` for compatibility.
 
 # EXAMPLE
 
