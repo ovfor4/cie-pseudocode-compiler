@@ -28,3 +28,5 @@ The library provides `&`, `_EXP_STRING_NUM_TO_STR` (INTEGER/REAL), `_EXP_STRING_
 `_EXP_STRING_LCASE(S : _EXP_STRING)` returns a new `_EXP_STRING` with letters converted to lower case. Its `(Ch : CHAR)` overload returns CHAR, following guide section 5.5. Nonletters and embedded NUL bytes are preserved; the source is unchanged. Use ASCII for predictable case conversion.
 
 `_EXP_STRING_UCASE(S : _EXP_STRING)` returns a new `_EXP_STRING` with letters converted to upper case. Its `(Ch : CHAR)` overload returns CHAR, following guide section 5.5. Nonletters and embedded NUL bytes are preserved; the source is unchanged. Use ASCII for predictable case conversion.
+
+`_EXP_STRING_ASC(S : _EXP_STRING)` returns the unsigned code of the first byte as INTEGER, or 0 for an empty string. Its `(Ch : CHAR)` overload returns the unsigned byte code of Ch. For ASCII characters this is the ASCII code.

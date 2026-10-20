@@ -113,6 +113,15 @@ char _exp_string_impl_ucase_char(char Ch) {
         return static_cast<char>(std::toupper(static_cast<unsigned char>(Ch)));
     });
 }
+long long _exp_string_impl_asc(void *Handle) {
+    return checked([&]() -> long long {
+        const auto &Source = text(Handle);
+        return Source.empty() ? 0 : static_cast<unsigned char>(Source.front());
+    });
+}
+long long _exp_string_impl_asc_char(char Ch) {
+    return checked([&]() -> long long { return static_cast<unsigned char>(Ch); });
+}
 void _exp_string_impl_output(void *Handle) {
     checked([&] {
         const auto &Text = text(Handle);

@@ -15,3 +15,5 @@ MID positions 2..4 give BCD. The minimum INTEGER start clamps to 1 and gives AB;
 LCASE converts AbC@19 to abc@19 without modifying the source. Its CHAR overload returns CHAR w for W or w and preserves @, as in guide section 5.5. Empty length stays zero; two leading NULs survive conversion and letters after them still become abc.
 
 UCASE converts AbC@19 to ABC@19 without modifying the source. Its CHAR overload returns CHAR H for h or H and preserves @, as in guide section 5.5. Empty length stays zero; two leading NULs survive conversion and letters after them still become ABC.
+
+ASC returns 65 for CHAR A and the first byte of ABCDEFGH, zero for empty strings or NUL, and 255 for a byte with all eight bits set. These byte-code functions are compiler/library extensions.
