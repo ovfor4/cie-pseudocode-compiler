@@ -26,7 +26,7 @@ Use the actual SHA from a failed report in place of `FULL_COMMIT_SHA`. Clear `CP
 
 `build/test-results/<suite>/<case>/` contains `result.json`, numbered command metadata, stdin/stdout/stderr, expected output and isolated work directories. Random mismatches also save the first differing record. A case may include `expected-stderr.txt` for the runtime diagnostics written to stderr; without it stderr must be empty. Re-running a case replaces only that case's directory; summaries include any other retained results, so remove `build/test-results` before collecting a fresh full-suite report. Commands have finite timeouts (30 seconds normally, 120 for compilation, 180 for file-intensive executions); timeout and launch/crash failures fail the case.
 
-In Actions, each compiler platform runs all three suites and summarizes results before its existing package smoke checks and upload. Failures retain inputs and logs as an Actions artifact for 14 days. Each platform publishes only after its own tests pass. The initial Linux failures have been fixed; any failing compiler test still blocks publication for that platform. The independent plugin job can publish separately.
+In Actions, each compiler platform runs all three suites and summarizes results before its package smoke checks and artifact upload. Failures retain inputs and logs as an Actions artifact for 14 days. A final publish job updates the nightly release attachments only after all three compiler jobs and the plugin job succeed. Any build or check failure leaves the previous attachments untouched.
 
 For adding cases and runner interfaces, see [AGENTS/TESTING.md](../AGENTS/TESTING.md).
 

@@ -20,13 +20,15 @@ Details can be found here: [Pseudocode Guide for Teachers](https://www.cambridge
 - **Functions and procedures**: Pass values, arrays and records by value; procedures also support `BYREF` parameters.
 - **Text files**: Support `OPENFILE`, `READFILE`, `WRITEFILE`, `CLOSEFILE` and `EOF`.
 - **User-defined types**: Support enumerated types, pointers and nested records.
+- **Classes**: Support public/private fields and methods, constructors, destructors, copying and operator overloads.
+- **Selection and constants**: Support `CASE OF` branches and named literal `CONSTANT` values.
 
 ## TODO
 
 - **Source TODOs**: Resolve remaining `TODO` comments.
 - **Random files**: Add `OPENFILE FOR RANDOM`, `SEEK`, `GETRECORD` and `PUTRECORD`.
 - **Set types**: Implement `SET` and `DEFINE`.
-- **Other syntax**: Add `CASE OF`, `CONSTANT` and `DATE`.
+- **Other syntax**: Add `DATE`.
 
 ## Note
 
