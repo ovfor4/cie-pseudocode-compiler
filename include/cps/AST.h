@@ -51,9 +51,11 @@ public:
 
 class StringExprAST : public ExprAST {
     std::string Val;
+    bool CString;
 public:
-    StringExprAST(const std::string &Val) : Val(Val) {}
+    StringExprAST(const std::string &Val, bool CString = false) : Val(Val), CString(CString) {}
     const std::string &getVal() const { return Val; }
+    bool isCString() const { return CString; }
 };
 
 class VariableExprAST : public ExprAST {

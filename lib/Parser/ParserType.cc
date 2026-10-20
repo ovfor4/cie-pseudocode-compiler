@@ -346,7 +346,7 @@ std::unique_ptr<StmtAST> Parser::ParseConstant() {
     if (Negative) getNextToken();
     bool Numeric = CurTok == tok_number_int || CurTok == tok_number_real;
     bool Literal = Numeric || CurTok == tok_true || CurTok == tok_false ||
-                   CurTok == tok_string_literal || CurTok == tok_char_literal;
+                   CurTok == tok_string_literal || CurTok == tok_c_string_literal || CurTok == tok_char_literal;
     if (!Literal || (Negative && !Numeric)) {
         cps::sourceDiagnostic(Lex.getLine(), "error: CONSTANT initializer must be a literal at line %d\n", Line);
         return nullptr;

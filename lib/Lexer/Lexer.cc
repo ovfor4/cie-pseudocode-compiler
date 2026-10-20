@@ -137,6 +137,10 @@ int Lexer::readToken() {
             }
             CharVal = StringVal.size() == 1 ? StringVal[0] : '?';
         }
+        if (!IsChar && LastChar == 'C') {
+            LastChar = Input.get();
+            return tok_c_string_literal;
+        }
         return IsChar ? tok_char_literal : tok_string_literal;
     }
 

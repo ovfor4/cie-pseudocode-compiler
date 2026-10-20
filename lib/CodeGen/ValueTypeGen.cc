@@ -15,7 +15,8 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
     if (dynamic_cast<RealExprAST*>(Expr)) return resolveType("REAL");
     if (dynamic_cast<BooleanExprAST*>(Expr)) return resolveType("BOOLEAN");
     if (dynamic_cast<CharExprAST*>(Expr)) return resolveType("CHAR");
-    if (dynamic_cast<StringExprAST*>(Expr)) return resolveType("STRING");
+    if (auto *String = dynamic_cast<StringExprAST*>(Expr))
+        return resolveType(String->isCString() ? "C_STRING" : "STRING");
     if (auto *Cast = dynamic_cast<CastExprAST*>(Expr))
         return resolveType(Cast->getTypeName());
 

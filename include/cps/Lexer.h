@@ -49,6 +49,7 @@ enum Token {
 
     tok_string_kw = -30,
     tok_string_literal = -36,
+    tok_c_string_literal = -37,
     tok_char_kw = -38,
     tok_char_literal = -39,
 

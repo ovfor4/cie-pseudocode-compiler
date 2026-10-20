@@ -157,7 +157,7 @@ bool Parser::isCaseLabel() {
         case '(': case '[': ++Depth; break;
         case ')': case ']': if (--Depth < 0) return false; break;
         case tok_identifier: case tok_number_int: case tok_number_real:
-        case tok_string_literal: case tok_char_literal: case tok_true: case tok_false:
+        case tok_string_literal: case tok_c_string_literal: case tok_char_literal: case tok_true: case tok_false:
         case tok_integer_kw: case tok_real_kw: case tok_boolean_kw:
         case tok_string_kw: case tok_char_kw: case tok_c_int: case tok_c_char:
         case tok_c_string: case tok_c_double:

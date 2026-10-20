@@ -216,8 +216,8 @@ std::unique_ptr<ExprAST> Parser::ParsePrimaryImpl() {
     case tok_identifier: case tok_operator: return ParseIdentifierExpr();
     case tok_number_int: return ParseNumberExpr();
     case tok_number_real: return ParseNumberExpr();
-    case tok_string_literal: {
-        auto Res = std::make_unique<StringExprAST>(Lex.StringVal);
+    case tok_string_literal: case tok_c_string_literal: {
+        auto Res = std::make_unique<StringExprAST>(Lex.StringVal, CurTok == tok_c_string_literal);
         getNextToken();
         return Res;
     }
