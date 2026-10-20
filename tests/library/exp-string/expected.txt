@@ -27,3 +27,8 @@ AbC@19
 w:w:@
 0:8
 abc
+ABC@19
+AbC@19
+H:H:@
+0:8
+ABC

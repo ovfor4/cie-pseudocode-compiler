@@ -13,3 +13,5 @@ The added checks use separate procedures to keep generated temporary-object clea
 MID positions 2..4 give BCD. The minimum INTEGER start clamps to 1 and gives AB; a maximum count from position 7 gives GH. Empty input, a maximum start, and nonpositive counts give length zero. Four bytes starting at the second of three NULs retain two NULs and AB.
 
 LCASE converts AbC@19 to abc@19 without modifying the source. Its CHAR overload returns CHAR w for W or w and preserves @, as in guide section 5.5. Empty length stays zero; two leading NULs survive conversion and letters after them still become abc.
+
+UCASE converts AbC@19 to ABC@19 without modifying the source. Its CHAR overload returns CHAR H for h or H and preserves @, as in guide section 5.5. Empty length stays zero; two leading NULs survive conversion and letters after them still become ABC.

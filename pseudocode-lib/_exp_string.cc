@@ -101,6 +101,18 @@ char _exp_string_impl_lcase_char(char Ch) {
         return static_cast<char>(std::tolower(static_cast<unsigned char>(Ch)));
     });
 }
+void _exp_string_impl_ucase(void *Target, void *Handle) {
+    checked([&] {
+        text(Target) = text(Handle);
+        for (char &Ch : text(Target))
+            Ch = static_cast<char>(std::toupper(static_cast<unsigned char>(Ch)));
+    });
+}
+char _exp_string_impl_ucase_char(char Ch) {
+    return checked([&] {
+        return static_cast<char>(std::toupper(static_cast<unsigned char>(Ch)));
+    });
+}
 void _exp_string_impl_output(void *Handle) {
     checked([&] {
         const auto &Text = text(Handle);
