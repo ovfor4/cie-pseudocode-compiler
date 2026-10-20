@@ -37,7 +37,7 @@
       "line": 30
     },
     {
-      "reason": "Cannot coerce value of LLVM type to target type INTEGER",
+      "reason": "Cannot use a value of type STRING where INTEGER is expected",
       "line": 31
     }
   ]
