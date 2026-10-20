@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <exception>
 #include <stdexcept>
@@ -86,6 +87,18 @@ void _exp_string_impl_mid(void *Target, void *Handle, long long Start, long long
         auto Position = Start <= 1 ? 0 : std::min(static_cast<std::size_t>(Start - 1), Source.size());
         auto Length = Count <= 0 ? 0 : std::min(static_cast<std::size_t>(Count), Source.size() - Position);
         text(Target) = Source.substr(Position, Length);
+    });
+}
+void _exp_string_impl_lcase(void *Target, void *Handle) {
+    checked([&] {
+        text(Target) = text(Handle);
+        for (char &Ch : text(Target))
+            Ch = static_cast<char>(std::tolower(static_cast<unsigned char>(Ch)));
+    });
+}
+char _exp_string_impl_lcase_char(char Ch) {
+    return checked([&] {
+        return static_cast<char>(std::tolower(static_cast<unsigned char>(Ch)));
     });
 }
 void _exp_string_impl_output(void *Handle) {

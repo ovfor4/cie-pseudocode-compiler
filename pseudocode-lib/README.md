@@ -24,3 +24,5 @@ The library provides `&`, `_EXP_STRING_NUM_TO_STR` (INTEGER/REAL), `_EXP_STRING_
 `_EXP_STRING_RIGHT(S : _EXP_STRING, Count : INTEGER)` returns a new `_EXP_STRING` containing up to Count bytes from the end. Nonpositive counts return an empty string; counts exceeding the length return the whole string. Embedded NUL bytes are preserved.
 
 `_EXP_STRING_MID(S : _EXP_STRING, Start : INTEGER, Count : INTEGER)` returns a new `_EXP_STRING` containing up to Count bytes from the one-based Start position. Starts below 1 clamp to 1; starts beyond the end and nonpositive counts return an empty string. Counts clamp to the remaining bytes. Embedded NUL bytes are preserved.
+
+`_EXP_STRING_LCASE(S : _EXP_STRING)` returns a new `_EXP_STRING` with letters converted to lower case. Its `(Ch : CHAR)` overload returns CHAR, following guide section 5.5. Nonletters and embedded NUL bytes are preserved; the source is unchanged. Use ASCII for predictable case conversion.
