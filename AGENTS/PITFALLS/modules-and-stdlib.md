@@ -8,7 +8,7 @@ Part of the [pitfalls index](../PITFALLS.md).
     signatures whose definitions all specify OVERLOAD.
   - Only one file may contain top-level code; top-level DECLARE is a main local, not
     an export.
-  - Definitions-only builds now fail without FUNCTION MAIN returning INTEGER. MAIN
+  - Definitions-only builds fail without FUNCTION MAIN returning INTEGER. MAIN
     cannot coexist with top-level code.
   - GLOBAL accepts only the five primitive scalar types and literal initializers;
     arrays, user types and computed initializers are rejected.

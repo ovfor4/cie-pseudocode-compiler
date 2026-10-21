@@ -4,8 +4,8 @@ Part of the [pitfalls index](../PITFALLS.md).
 
 ## File handling (§9.1)
 
-- `READ`/`WRITE`/`APPEND`/`RANDOM` are reserved keywords now — `DECLARE READ : INTEGER`
-  no longer compiles.
+- `READ`/`WRITE`/`APPEND`/`RANDOM` are reserved keywords, so `DECLARE READ : INTEGER`
+  does not compile.
 - `WRITEFILE f, a, b` takes exactly two operands (the stray `, b` is a parse error).
 - READFILE's target must be a plain STRING variable — no CHAR, no `arr[i]`.
 - The CIE guide's empty-line test `IF LineOfText = ""` compares contents.
@@ -19,7 +19,7 @@ Part of the [pitfalls index](../PITFALLS.md).
 
 ## TYPE system (§4)
 
-- `TYPE`/`ENDTYPE`/`SET`/`DEFINE` are reserved keywords now.
+- `TYPE`/`ENDTYPE`/`SET`/`DEFINE` are reserved keywords.
 - Typing is *nominal*: two pointer types with the same pointee, or two records with
   the same layout, are incompatible. Strict pointee matching rejects the official
   guide's own worked example (`^INTEGER` pointed at a `Season` variable) —

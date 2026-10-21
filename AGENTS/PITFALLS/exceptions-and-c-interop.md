@@ -10,12 +10,12 @@ Part of the [pitfalls index](../PITFALLS.md).
 - Runtime checks are catchable; compiler errors are not. Runtime checks print the
   source line and error reason to stderr before throwing, even when caught.
 - Uncaught exceptions also print the generic termination message and return 1.
-- Native binaries must link the C++ runtime with LLVM 23's `clang++` (`clang++-23` on
-  Debian/Ubuntu).
+- Native compilation links the C++ runtime automatically; manually linking emitted
+  `.ll` files must use LLVM 23's `clang++` (`clang++-23` on Debian/Ubuntu).
 - Owned STRING values follow class cleanup during unwinding; raw array buffers are
   not freed and files are not automatically closed.
-- Embedded ORC execution with LLVM 23 is exercised by nightly CI on Linux, Windows
-  and macOS; check the native job results when changing platform-specific code.
+- Check the native nightly job results when changing platform-specific code
+  (CI coverage: [ARCH/BUILD.md](../ARCH/BUILD.md)).
 
 ## C type extensions
 

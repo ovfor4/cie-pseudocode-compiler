@@ -11,23 +11,22 @@ source, most also by compiling and running test programs.
   pointer dereferences, using the shared lvalue checks. Whole arrays and whole
   records/classes remain unsupported INPUT targets.
 - **Arrays cross function boundaries only as parameters.** `ArrayTable` is scoped per
-  function now, so referencing another function's array fails cleanly as
+  function, so referencing another function's array fails cleanly as
   "Undeclared array". Whole arrays pass as `ARRAY OF T` / `ARRAY[l:u,...] OF T`
   parameters (BYVAL copies the entire buffer and never frees it); a whole-array
   argument against a scalar parameter is still a compile error. FUNCTIONs cannot
   RETURN arrays. A whole-array variable is also rejected as an operand or as a
-  value of its element type (it used to leak its raw data pointer).
+  value of its element type.
 - **Arrays are additionally block-scoped.** An array DECLAREd inside an
   IF/WHILE/REPEAT/FOR/TRY/CATCH body is not visible after the block ("Undeclared
   array") — its buffer setup and bound SSA values live inside the branch, so letting
-  it escape meant wild-pointer writes or invalid IR. Scalars remain function-scoped
+  it escape would mean wild-pointer writes or invalid IR. Scalars remain function-scoped
   (their alloca is hoisted to the entry block); declare at the top of the function
   like the exam board intends and neither matters.
 - **Parameter modes are sticky and BYREF is FUNCTION-forbidden (§8.3).**
-  `(BYREF a : T, b : T)` makes `b` BYREF too — programs that relied on the old
-  per-parameter reset (where `b` was silently BYVAL) change meaning. Literal
-  arguments against an accidentally-BYREF parameter now fail with "BYREF argument
-  must be a variable"; annotate `BYVAL` explicitly.
+  `(BYREF a : T, b : T)` makes `b` BYREF too. Literal arguments against an
+  accidentally-BYREF parameter fail with "BYREF argument must be a variable";
+  annotate `BYVAL` explicitly.
 - **`/` always yields REAL** (double FDiv), even for two INTEGERs; integer division is
   DIV/MOD only.
   - CHR returns an owning one-byte STRING, not CHAR; CHR(0) retains one NUL byte.
@@ -36,7 +35,7 @@ source, most also by compiling and running test programs.
     fractional digits for REAL.
 - **`getExprTypeInfo` returns nullptr** for expressions it can't classify (null-check
   it at any new call site) and internally defaults to INTEGER for unclassified
-  arithmetic expressions; unknown or unmatched calls now diagnose and return nullptr.
+  arithmetic expressions; unknown or unmatched calls diagnose and return nullptr.
   OUTPUT reports an error for a nullptr result.
 - **CONSTANT** accepts only literals (including negative numeric literals), never
   expressions or other names. Constants have lexical block scope and may shadow outer
