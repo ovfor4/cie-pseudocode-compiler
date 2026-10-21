@@ -58,6 +58,42 @@ test('both assignment characters share the C++ assignment scope', () => {
 	assert.ok(!scopesAt('X - 1', '-').includes('keyword.operator.assignment.cpp'));
 });
 
+test('supported keywords reuse C++ scopes without matching identifiers or quoted text', () => {
+	for (const [words, scope] of [
+		[['CASE', 'ENDCASE'], 'keyword.control.switch.cpp'],
+		[['OTHERWISE'], 'keyword.control.default.cpp'],
+		[['CONSTANT'], 'storage.modifier.const.cpp'],
+		[['CLASS', 'ENDCLASS'], 'storage.type.class.cpp'],
+		[['PUBLIC'], 'storage.type.modifier.access.control.public.cpp'],
+		[['PRIVATE'], 'storage.type.modifier.access.control.private.cpp'],
+		[['TEMPLATE'], 'storage.type.template.cpp'],
+		[['OPERATOR'], 'keyword.other.operator.overload.cpp'],
+		[['OVERLOAD', 'EXTERN_FUNCTION', 'EXTERN_PROCEDURE'], 'storage.modifier.cpp'],
+		[['EXTERN'], 'storage.modifier.specifier.extern.cpp'],
+		[['INCLUDE_OBJ'], 'keyword.control.directive.include.cpp']
+	]) for (const word of words) {
+		assert.ok(scopesAt(word, word).includes(scope), word);
+		for (const text of [word.toLowerCase(), `${word}Value`, `_${word}`, `${word}_1`]) {
+			assert.ok(!scopesAt(text, text).includes(scope), text);
+		}
+		assert.ok(scopesAt(`// ${word}`, word).some(s => s.startsWith('comment.')));
+		assert.ok(scopesAt(`OUTPUT "${word}"`, word).some(s => s.startsWith('string.')));
+	}
+});
+
+test('library directives require their own line and ellipses use the C++ variadic scope', () => {
+	assert.ok(scopesAt('\t#LIB  ', '#').includes('punctuation.definition.directive.cpp'));
+	assert.ok(scopesAt('\t#LIB  ', 'LIB').includes('keyword.control.directive.pragma.cpp'));
+	for (const text of ['#lib', '#LIBRARY', '#LIB // comment', 'X #LIB', '// #LIB', 'OUTPUT "#LIB"']) {
+		assert.ok(!scopesAt(text, '#')
+			.includes('punctuation.definition.directive.cpp'), text);
+	}
+	for (const text of ['TEMPLATE <Types...>', 'EXTERN "C" EXTERN_PROCEDURE print(C_INT, ...)', 'CALL print(Values...)']) {
+		assert.ok(scopesAt(text, '...').includes('punctuation.vararg-ellipses.cpp'), text);
+	}
+	assert.ok(!scopesAt('Value.Field', '.').includes('punctuation.vararg-ellipses.cpp'));
+});
+
 test('exception keywords reuse C++ scopes and ignore non-keyword occurrences', () => {
 	for (const [word, scope] of [
 		['TRY', 'keyword.control.try.cpp'],
@@ -82,7 +118,7 @@ test('comments, strings, lowercase and keyword prefixes cannot become keywords',
 	for (const text of ['c_int', 'C_INTValue', 'MyC_INT', 'C_TYPE_1']) {
 		assert.ok(!scopesAt(text, text).some(s => s.startsWith('storage.')), text);
 	}
-	for (const text of ['if X then', 'IFValue <- 1', 'CASE OF X', 'CLASS Example']) {
+	for (const text of ['if X then', 'IFValue <- 1', 'SET OF X', 'DEFINE X', 'RANDOM']) {
 		assert.ok(!scopesAt(text, text.split(' ')[0]).some(
 			s => /^(keyword|storage)\./.test(s)), text);
 	}

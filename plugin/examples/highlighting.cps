@@ -6,6 +6,8 @@ TYPE Student
 	DECLARE Initial : CHAR
 ENDTYPE
 
+CONSTANT Limit = 3
+
 DECLARE Values : ARRAY[1:3] OF INTEGER
 DECLARE Index : INTEGER
 DECLARE Total : REAL
@@ -45,3 +47,9 @@ TRY
 CATCH
 	OUTPUT "Caught an exception"
 ENDTRY
+
+CASE OF Index
+	1 : OUTPUT "First"
+	2 TO Limit : OUTPUT "In range"
+	OTHERWISE : OUTPUT "Other"
+ENDCASE

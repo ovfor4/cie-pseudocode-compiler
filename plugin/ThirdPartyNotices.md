@@ -3,7 +3,10 @@
 Language configuration and comment/string grammar structures are adapted from
 Microsoft VS Code’s built-in C++ extension. Exception keywords reuse its
 `keyword.control.try.cpp`, `keyword.control.catch.cpp` and
-`keyword.control.throw.cpp` scopes; ENDTRY uses the TRY scope.
+`keyword.control.throw.cpp` scopes; ENDTRY uses the TRY scope. Selection, class,
+access, constant, template, operator and external-declaration highlighting also
+reuse C++ scopes. OVERLOAD borrows a declaration modifier, #LIB borrows #pragma
+and INCLUDE_OBJ borrows #include; ellipses use the C++ variadic scope.
 
 https://github.com/microsoft/vscode/tree/main/extensions/cpp
 

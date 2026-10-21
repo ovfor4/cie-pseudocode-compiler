@@ -97,10 +97,12 @@ only a subset of its syntax:
 - Highlighted builtins: LENGTH, MID, RIGHT, LEFT, LCASE, UCASE, ASC, CHR, IS_NUM,
   NUM_TO_STR, STR_TO_NUM and EOF. The compiler's complete table is in
   `lib/CodeGen/Builtins.h` and also includes MALLOC, FREE and REALLOC.
-- CASE, CLASS, CONSTANT, OVERLOAD/OPERATOR and #LIB are supported by the compiler
-  but lack corresponding plugin language rules. SET, DATE and random-file
-  operations remain unsupported by the compiler too. Extending editor support
-  requires an explicit scope change.
+- Highlighting covers CASE/ENDCASE/OTHERWISE, CLASS/ENDCLASS/PUBLIC/PRIVATE,
+  CONSTANT, TEMPLATE, OVERLOAD/OPERATOR, EXTERN declarations, INCLUDE_OBJ, #LIB
+  and ellipses using C++ scopes. OVERLOAD borrows a declaration modifier, #LIB
+  borrows #pragma and INCLUDE_OBJ borrows #include. #LIB must occupy its own line.
+  These rules do not add indentation support for the corresponding constructs.
+  SET, DATE and random-file operations remain unsupported by the compiler.
 
 Language defaults use real Tabs, display width 4, disabled indentation detection,
 full automatic indentation, on-type formatting and native bracket pair colors.

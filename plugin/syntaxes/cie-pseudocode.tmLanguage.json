@@ -9,6 +9,69 @@
       "include": "#strings"
     },
     {
+      "match": "^\\s*(#)(LIB)\\s*$",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.directive.cpp"
+        },
+        "2": {
+          "name": "keyword.control.directive.pragma.cpp"
+        }
+      }
+    },
+    {
+      "match": "(?<!\\w)(?:CASE|ENDCASE)(?!\\w)",
+      "name": "keyword.control.switch.cpp"
+    },
+    {
+      "match": "(?<!\\w)(?:OTHERWISE)(?!\\w)",
+      "name": "keyword.control.default.cpp"
+    },
+    {
+      "match": "(?<!\\w)(?:CONSTANT)(?!\\w)",
+      "name": "storage.modifier.const.cpp"
+    },
+    {
+      "match": "(?<!\\w)(?:CLASS|ENDCLASS)(?!\\w)",
+      "name": "storage.type.class.cpp"
+    },
+    {
+      "match": "(?<!\\w)(?:PUBLIC)(?!\\w)",
+      "name": "storage.type.modifier.access.control.public.cpp"
+    },
+    {
+      "match": "(?<!\\w)(?:PRIVATE)(?!\\w)",
+      "name": "storage.type.modifier.access.control.private.cpp"
+    },
+    {
+      "match": "(?<!\\w)(?:TEMPLATE)(?!\\w)",
+      "name": "storage.type.template.cpp"
+    },
+    {
+      "match": "(?<!\\w)(?:OPERATOR)(?!\\w)",
+      "name": "keyword.other.operator.overload.cpp"
+    },
+    {
+      "match": "(?<!\\w)(?:OVERLOAD)(?!\\w)",
+      "name": "storage.modifier.cpp"
+    },
+    {
+      "match": "(?<!\\w)(?:EXTERN)(?!\\w)",
+      "name": "storage.modifier.specifier.extern.cpp"
+    },
+    {
+      "match": "(?<!\\w)(?:EXTERN_FUNCTION|EXTERN_PROCEDURE)(?!\\w)",
+      "name": "storage.modifier.cpp"
+    },
+    {
+      "match": "(?<!\\w)(?:INCLUDE_OBJ)(?!\\w)",
+      "name": "keyword.control.directive.include.cpp"
+    },
+    {
+      "match": "\\.\\.\\.",
+      "name": "punctuation.vararg-ellipses.cpp"
+    },
+    {
       "match": "(?<!\\w)(?:TRY|ENDTRY)(?!\\w)",
       "name": "keyword.control.try.cpp"
     },
