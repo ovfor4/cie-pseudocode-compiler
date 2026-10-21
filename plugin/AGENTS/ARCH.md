@@ -13,7 +13,7 @@ there is no compiler library or cpptools integration.
   comments, brackets, quote pairs and identifiers.
 - `syntaxes/cie-pseudocode.tmLanguage.json` adapts small C++ comment, quote and
   comma rules and uses the same general token scope categories. CIE keyword,
-  builtin, number and operator patterns are locally defined. Exception keywords
+  function, type, number and operator patterns are locally defined. Exception keywords
   reuse C++ try/catch/throw scopes, with ENDTRY sharing the TRY scope.
 - cpptools was consulted for provider registration. Its formatter and language
   server are not called, imported or bundled. This extension is not a cpptools
@@ -95,9 +95,20 @@ only a subset of its syntax:
   `TYPE Name = ...` declarations do not open a record block. The compiler accepts
   standard WHILE headers without DO, but the indentation engine still needs DO
   to activate their body.
-- Highlighted builtins: LENGTH, MID, RIGHT, LEFT, LCASE, UCASE, ASC, CHR, IS_NUM,
-  NUM_TO_STR, STR_TO_NUM and EOF. The compiler's complete table is in
-  `lib/CodeGen/Builtins.h` and also includes MALLOC, FREE and REALLOC.
+- Function highlighting accepts leading underscores and explicit, nested template
+  arguments. The generic call rule covers the compiler builtins EOF, MALLOC, FREE
+  and REALLOC as well as ordinary standard-library functions. Builtin definitions
+  live in `lib/CodeGen/Builtins.h`; string functions live in pseudocode-lib.
+- Custom type names use C++ type scopes in TYPE/CLASS declarations, variable and
+  field declarations, parameter and return types, ARRAY OF, pointer aliases, NEW,
+  templates and EXTERN parameter lists. Array-bound contexts shield their colons
+  from type annotation rules; CASE OF does not introduce a type. Balanced template
+  call lookahead follows Parser::isTemplateCall, requiring a following parenthesis.
+  No symbol tracking is performed: custom cast names and ordinary value names
+  stay unclassified. Builtin casts retain their existing type scopes.
+- A CLASS method context enables the C++ this scope case-insensitively via a
+  TextMate injection, including nested declaration expressions. Comments, strings,
+  fields outside methods and top-level code do not receive this scope.
 - Highlighting covers CASE/ENDCASE/OTHERWISE, CLASS/ENDCLASS/PUBLIC/PRIVATE,
   CONSTANT, TEMPLATE, OVERLOAD/OPERATOR, EXTERN declarations, INCLUDE_OBJ, #LIB
   and ellipses using C++ scopes. OVERLOAD borrows a declaration modifier, #LIB

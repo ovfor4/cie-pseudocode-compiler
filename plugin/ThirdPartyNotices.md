@@ -8,7 +8,9 @@ access, constant, template, operator and external-declaration highlighting also
 reuse C++ scopes. OVERLOAD borrows a declaration modifier, #LIB borrows #pragma
 and INCLUDE_OBJ borrows #include; ellipses use the C++ variadic scope. Literal
 escapes reuse `constant.character.escape`; the adjacent C string suffix borrows
-`keyword.other.suffix.literal.user-defined.string.cpp`.
+`keyword.other.suffix.literal.user-defined.string.cpp`. Custom types, template
+parameters and angle delimiters use the corresponding C++ type and template
+scopes; class-method receivers reuse `variable.language.this.cpp`.
 
 https://github.com/microsoft/vscode/tree/main/extensions/cpp
 

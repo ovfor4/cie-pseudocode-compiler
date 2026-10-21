@@ -56,3 +56,22 @@ CASE OF Index
 	2 TO Limit : OUTPUT "In range"
 	OTHERWISE : OUTPUT "Other"
 ENDCASE
+
+TEMPLATE <T>
+FUNCTION _echo(Value : T) RETURNS T
+	RETURN Value
+ENDFUNCTION
+OUTPUT _echo<INTEGER>(Limit)
+
+CLASS Counter
+	PRIVATE Value : INTEGER
+	PUBLIC PROCEDURE Add(Amount : INTEGER)
+		this.Value <- this.Value + Amount
+	ENDPROCEDURE
+	PUBLIC FUNCTION Get() RETURNS INTEGER
+		RETURN this.Value
+	ENDFUNCTION
+ENDCLASS
+DECLARE Count : Counter
+CALL Count.Add(Limit)
+OUTPUT Count.Get()

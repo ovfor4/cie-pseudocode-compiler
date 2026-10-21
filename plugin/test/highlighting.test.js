@@ -22,9 +22,9 @@ before(async () => {
 	grammar = await registry.loadGrammar('source.cie-pseudocode');
 });
 
-function scopesAt(text, word) {
+function scopesAt(text, word, state) {
 	const offset = text.indexOf(word);
-	return grammar.tokenizeLine(text).tokens.find(
+	return grammar.tokenizeLine(text, state).tokens.find(
 		token => token.startIndex <= offset && token.endIndex > offset).scopes;
 }
 
@@ -46,9 +46,83 @@ test('C++ style scopes distinguish keywords, types, literals, operators and buil
 		["X <- 'A'", 'A', 'string.quoted.single']
 	]) assert.ok(scopesAt(text, word).some(s => s.startsWith(scope)), text);
 	for (const name of ['LENGTH', 'MID', 'RIGHT', 'LEFT', 'LCASE', 'UCASE',
-		'ASC', 'CHR', 'IS_NUM', 'NUM_TO_STR', 'STR_TO_NUM', 'EOF']) {
+		'ASC', 'CHR', 'IS_NUM', 'NUM_TO_STR', 'STR_TO_NUM', 'EOF', 'MALLOC', 'FREE', 'REALLOC']) {
 		assert.ok(scopesAt(`${name}(X)`, name).includes('entity.name.function.cie-pseudocode'));
 	}
+});
+
+test('function names include underscores and explicit nested template arguments', () => {
+	for (const text of ['CALL _print(1)', 'FUNCTION _value() RETURNS INTEGER', 'FUNCTION _value RETURNS INTEGER',
+		'OUTPUT _value<Box<Pair<INTEGER, REAL>>>(X)', 'OUTPUT _value <Box<Types...>> (X)']) {
+		const name = text.includes('_print') ? '_print' : '_value';
+		assert.ok(scopesAt(text, name).includes('entity.name.function.cie-pseudocode'), text);
+	}
+	const text = 'OUTPUT _value<Box<Pair<INTEGER, REAL>>>(X)';
+	for (const name of ['Box', 'Pair']) assert.ok(scopesAt(text, name).includes('entity.name.type.cpp'));
+	for (const name of ['INTEGER', 'REAL']) assert.ok(scopesAt(text, name).includes('storage.type.cie-pseudocode'));
+	assert.ok(scopesAt(text, '<').includes('punctuation.section.angle-brackets.begin.template.call.cpp'));
+	assert.ok(scopesAt(text, '>').includes('punctuation.section.angle-brackets.end.template.call.cpp'));
+	for (const expression of ['A < B AND C > D', 'A < B + C > (D)', 'A <= B', 'A <> B']) {
+		assert.ok(scopesAt(expression, '<').includes('keyword.operator.cie-pseudocode'), expression);
+		assert.ok(!scopesAt(expression, 'B').includes('entity.name.type.cpp'), expression);
+	}
+	const configuration = JSON.parse(fs.readFileSync(path.join(__dirname, '../language-configuration.json')));
+	assert.equal('_value'.match(new RegExp(configuration.wordPattern))[0], '_value');
+});
+
+test('types are recognized in declarations, signatures, arrays, aliases, constructors and templates', () => {
+	for (const [text, names] of [
+		['TYPE Student', ['Student']],
+		['CLASS Student', ['Student']],
+		['TYPE Native = C_TYPE("unsigned int")', ['Native']],
+		['TYPE NodePointer = ^Node', ['NodePointer', 'Node']],
+		['DECLARE Value : Widget', ['Widget']],
+		['DECLARE Values : ARRAY[Low:High, 1:Limit] OF Box<Widget>', ['Box', 'Widget']],
+		['PROCEDURE Work(BYREF Value : Widget, Rest : ARRAY OF Node)', ['Widget', 'Node']],
+		['FUNCTION Work(Value : Widget) RETURNS Result', ['Widget', 'Result']],
+		['FUNCTION Work() RETURNS void', ['void']],
+		['EXTERN "C" EXTERN_FUNCTION print(Native, RawPointer, ...) RETURNS NativeResult', ['Native', 'RawPointer', 'NativeResult']],
+		['Value <- NEW Box<Widget>()', ['Box', 'Widget']],
+		['TEMPLATE <T, Rest...>', ['T', 'Rest']]
+	]) for (const name of names) {
+		assert.ok(scopesAt(text, name).some(s => /^(entity\.name\.type|storage\.type)\./.test(s)), `${text}: ${name}`);
+	}
+	for (const [text, word] of [
+		['CASE OF Selector', 'Selector'], ['Label : OUTPUT Value', 'OUTPUT'],
+		['DECLARE Values : ARRAY[Low:High, Indices[Start]:Limit] OF Widget', 'High'],
+		['DECLARE Values : ARRAY[Low:High, Indices[Start]:Limit] OF Widget', 'Limit'],
+		['OUTPUT (Widget)Value', 'Widget'], ['OUTPUT Value.Field', 'Field'],
+		['// DECLARE Value : Widget', 'Widget'], ['OUTPUT "DECLARE Value : Widget"', 'Widget']
+	]) assert.ok(!scopesAt(text, word).includes('entity.name.type.cpp'), `${text}: ${word}`);
+	let state = grammar.tokenizeLine('PROCEDURE Work(').ruleStack;
+	assert.ok(scopesAt('Value : Widget,', 'Widget', state).includes('entity.name.type.cpp'));
+	state = grammar.tokenizeLine('Value : Widget,', state).ruleStack;
+	state = grammar.tokenizeLine('Other : ARRAY[Low:High] OF Node)', state).ruleStack;
+	assert.ok(!scopesAt('Label : OUTPUT Value', 'OUTPUT', state).includes('entity.name.type.cpp'));
+});
+
+test('class fields have type scopes and this is confined to method code', () => {
+	let state = grammar.tokenizeLine('CLASS Counter').ruleStack;
+	for (const text of ['PRIVATE Value : Widget', 'PUBLIC Other : Widget', 'Field : Widget']) {
+		assert.ok(scopesAt(text, 'Widget', state).includes('entity.name.type.cpp'));
+		state = grammar.tokenizeLine(text, state).ruleStack;
+	}
+	assert.ok(!scopesAt('Field : this', 'this', state).includes('variable.language.this.cpp'));
+	state = grammar.tokenizeLine('PUBLIC PROCEDURE Update(Other : Widget)', state).ruleStack;
+	for (const word of ['this', 'This', 'THIS']) {
+		assert.ok(scopesAt(`${word}.Value <- Other`, word, state).includes('variable.language.this.cpp'));
+	}
+	for (const text of ['thisValue', '_this', 'this_1', '// this', 'OUTPUT "this"']) {
+		assert.ok(!scopesAt(text, 'this', state).includes('variable.language.this.cpp'), text);
+	}
+	assert.ok(!scopesAt('Label : OUTPUT Value', 'OUTPUT', state).includes('entity.name.type.cpp'));
+	assert.ok(scopesAt('DECLARE Copy : Widget(this.Value)', 'this', state).includes('variable.language.this.cpp'));
+	state = grammar.tokenizeLine('ENDPROCEDURE', state).ruleStack;
+	assert.ok(!scopesAt('Field : this', 'this', state).includes('variable.language.this.cpp'));
+	state = grammar.tokenizeLine('ENDCLASS', state).ruleStack;
+	assert.ok(!scopesAt('this <- 1', 'this', state).includes('variable.language.this.cpp'));
+	state = grammar.tokenizeLine('FUNCTION Outside() RETURNS INTEGER', state).ruleStack;
+	assert.ok(!scopesAt('this <- 1', 'this', state).includes('variable.language.this.cpp'));
 });
 
 test('both assignment characters share the C++ assignment scope', () => {

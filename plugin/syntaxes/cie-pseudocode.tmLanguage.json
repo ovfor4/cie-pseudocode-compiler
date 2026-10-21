@@ -3,145 +3,7 @@
   "scopeName": "source.cie-pseudocode",
   "patterns": [
     {
-      "include": "#line_comment"
-    },
-    {
-      "include": "#strings"
-    },
-    {
-      "match": "^\\s*(#)(LIB)\\s*$",
-      "captures": {
-        "1": {
-          "name": "punctuation.definition.directive.cpp"
-        },
-        "2": {
-          "name": "keyword.control.directive.pragma.cpp"
-        }
-      }
-    },
-    {
-      "match": "(?<!\\w)(?:CASE|ENDCASE)(?!\\w)",
-      "name": "keyword.control.switch.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:OTHERWISE)(?!\\w)",
-      "name": "keyword.control.default.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:CONSTANT)(?!\\w)",
-      "name": "storage.modifier.const.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:CLASS|ENDCLASS)(?!\\w)",
-      "name": "storage.type.class.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:PUBLIC)(?!\\w)",
-      "name": "storage.type.modifier.access.control.public.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:PRIVATE)(?!\\w)",
-      "name": "storage.type.modifier.access.control.private.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:TEMPLATE)(?!\\w)",
-      "name": "storage.type.template.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:OPERATOR)(?!\\w)",
-      "name": "keyword.other.operator.overload.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:OVERLOAD)(?!\\w)",
-      "name": "storage.modifier.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:EXTERN)(?!\\w)",
-      "name": "storage.modifier.specifier.extern.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:EXTERN_FUNCTION|EXTERN_PROCEDURE)(?!\\w)",
-      "name": "storage.modifier.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:INCLUDE_OBJ)(?!\\w)",
-      "name": "keyword.control.directive.include.cpp"
-    },
-    {
-      "match": "\\.\\.\\.",
-      "name": "punctuation.vararg-ellipses.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:TRY|ENDTRY)(?!\\w)",
-      "name": "keyword.control.try.cpp"
-    },
-    {
-      "match": "(?<!\\w)CATCH(?!\\w)",
-      "name": "keyword.control.catch.cpp"
-    },
-    {
-      "match": "(?<!\\w)THROW(?!\\w)",
-      "name": "keyword.control.throw.cpp"
-    },
-    {
-      "match": "(?<!\\w)(?:IF|THEN|ELSE|ENDIF|WHILE|DO|ENDWHILE|REPEAT|UNTIL|FOR|TO|STEP|NEXT|RETURN|CALL|NEW|DELETE)(?!\\w)",
-      "name": "keyword.control.cie-pseudocode"
-    },
-    {
-      "match": "(?<!\\w)(?:INCLUDE|GLOBAL|ENDGLOBAL|DECLARE|TYPE|ENDTYPE|FUNCTION|ENDFUNCTION|PROCEDURE|ENDPROCEDURE|RETURNS|BYREF|BYVAL|OF)(?!\\w)",
-      "name": "storage.modifier.cie-pseudocode"
-    },
-    {
-      "match": "(?<!\\w)(?:INTEGER|REAL|BOOLEAN|STRING|CHAR|ARRAY|C_INT|C_CHAR|C_STRING|C_DOUBLE|C_TYPE)(?!\\w)",
-      "name": "storage.type.cie-pseudocode"
-    },
-    {
-      "match": "(?<!\\w)(?:TRUE|FALSE)(?!\\w)",
-      "name": "constant.language.cie-pseudocode"
-    },
-    {
-      "match": "(?<!\\w)(?:INPUT|OUTPUT|OPENFILE|READFILE|WRITEFILE|CLOSEFILE|READ|WRITE|APPEND)(?!\\w)",
-      "name": "keyword.other.cie-pseudocode"
-    },
-    {
-      "match": "(?<!\\w)(?:LENGTH|MID|RIGHT|LEFT|LCASE|UCASE|ASC|CHR|IS_NUM|NUM_TO_STR|STR_TO_NUM|EOF)(?!\\w)(?=\\s*\\()",
-      "name": "entity.name.function.cie-pseudocode"
-    },
-    {
-      "match": "(?<!\\w)(?:DIV|MOD|AND|OR|NOT)(?!\\w)",
-      "name": "keyword.operator.word.cie-pseudocode"
-    },
-    {
-      "match": "<-",
-      "name": "keyword.operator.assignment.cpp"
-    },
-    {
-      "match": "<>|<=|>=|[+*/=&^<>-]",
-      "name": "keyword.operator.cie-pseudocode"
-    },
-    {
-      "match": "(?<!\\w)\\d+(?:\\.\\d*)?(?!\\w)",
-      "name": "constant.numeric.cie-pseudocode"
-    },
-    {
-      "match": "\\b[A-Za-z][A-Za-z0-9_]*(?=\\s*\\()",
-      "name": "entity.name.function.cie-pseudocode"
-    },
-    {
-      "match": "[()]",
-      "name": "punctuation.section.parens.cie-pseudocode"
-    },
-    {
-      "match": "[\\[\\]]",
-      "name": "punctuation.section.brackets.cie-pseudocode"
-    },
-    {
-      "match": ",",
-      "name": "punctuation.separator.delimiter.comma.cie-pseudocode"
-    },
-    {
-      "match": "[:.]",
-      "name": "punctuation.separator.cie-pseudocode"
+      "include": "#code"
     }
   ],
   "repository": {
@@ -212,6 +74,539 @@
         },
         {
           "match": "\\\\[^\\r\\n]"
+        }
+      ]
+    },
+    "type_tokens": {
+      "patterns": [
+        {
+          "include": "#line_comment"
+        },
+        {
+          "match": "(?<!\\w)(?:INTEGER|REAL|BOOLEAN|STRING|CHAR|ARRAY|C_INT|C_CHAR|C_STRING|C_DOUBLE|C_TYPE|(?i:VOID))(?!\\w)",
+          "name": "storage.type.cie-pseudocode"
+        },
+        {
+          "match": "[A-Za-z_][A-Za-z0-9_]*",
+          "name": "entity.name.type.cpp"
+        },
+        {
+          "match": "<",
+          "name": "punctuation.section.angle-brackets.begin.template.call.cpp"
+        },
+        {
+          "match": ">",
+          "name": "punctuation.section.angle-brackets.end.template.call.cpp"
+        },
+        {
+          "match": "\\.\\.\\.",
+          "name": "punctuation.vararg-ellipses.cpp"
+        },
+        {
+          "match": ",",
+          "name": "punctuation.separator.delimiter.comma.cie-pseudocode"
+        }
+      ]
+    },
+    "type_annotation": {
+      "match": "(:)\\s*((?<type>[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*\\g<type>(?:\\s*,\\s*\\g<type>)*\\s*>)?(?:\\s*\\.\\.\\.)?))",
+      "captures": {
+        "1": {
+          "name": "punctuation.separator.cie-pseudocode"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#type_tokens"
+            }
+          ]
+        }
+      }
+    },
+    "element_type": {
+      "match": "(?<!\\w)(OF)\\s+((?<type>[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*\\g<type>(?:\\s*,\\s*\\g<type>)*\\s*>)?(?:\\s*\\.\\.\\.)?))",
+      "captures": {
+        "1": {
+          "name": "storage.modifier.cie-pseudocode"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#type_tokens"
+            }
+          ]
+        }
+      }
+    },
+    "return_type": {
+      "match": "(?<!\\w)(RETURNS)\\s+((?<type>[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*\\g<type>(?:\\s*,\\s*\\g<type>)*\\s*>)?(?:\\s*\\.\\.\\.)?))",
+      "captures": {
+        "1": {
+          "name": "storage.modifier.cie-pseudocode"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#type_tokens"
+            }
+          ]
+        }
+      }
+    },
+    "array_bounds": {
+      "begin": "\\[",
+      "end": "\\]",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.brackets.cie-pseudocode"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.brackets.cie-pseudocode"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#array_bounds"
+        },
+        {
+          "include": "#code"
+        }
+      ],
+      "comment": "Keep array bound expressions outside declaration type annotations, including nested indexing."
+    },
+    "declaration": {
+      "begin": "(?<!\\w)DECLARE(?!\\w)",
+      "end": "$",
+      "beginCaptures": {
+        "0": {
+          "name": "storage.modifier.cie-pseudocode"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#array_bounds"
+        },
+        {
+          "include": "#type_annotation"
+        },
+        {
+          "include": "#element_type"
+        },
+        {
+          "include": "#code"
+        }
+      ]
+    },
+    "type_declaration": {
+      "begin": "(?<!\\w)(TYPE)\\s+([A-Za-z_][A-Za-z0-9_]*)(?!\\w)",
+      "end": "$",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.modifier.cie-pseudocode"
+        },
+        "2": {
+          "name": "entity.name.type.cpp"
+        }
+      },
+      "patterns": [
+        {
+          "match": "(=)\\s*(\\^)\\s*((?<type>[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*\\g<type>(?:\\s*,\\s*\\g<type>)*\\s*>)?(?:\\s*\\.\\.\\.)?))",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.cie-pseudocode"
+            },
+            "2": {
+              "name": "keyword.operator.cie-pseudocode"
+            },
+            "3": {
+              "patterns": [
+                {
+                  "include": "#type_tokens"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "include": "#code"
+        }
+      ]
+    },
+    "template_declaration": {
+      "match": "(?<!\\w)(TEMPLATE)\\s*(<\\s*(?<type>[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*\\g<type>(?:\\s*,\\s*\\g<type>)*\\s*>)?(?:\\s*\\.\\.\\.)?)(?:\\s*,\\s*\\g<type>)*\\s*>)",
+      "captures": {
+        "1": {
+          "name": "storage.type.template.cpp"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#template_parameters"
+            }
+          ]
+        }
+      }
+    },
+    "template_call": {
+      "match": "(?<!\\w)([A-Za-z_][A-Za-z0-9_]*)(\\s*<\\s*(?<type>[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*\\g<type>(?:\\s*,\\s*\\g<type>)*\\s*>)?(?:\\s*\\.\\.\\.)?)(?:\\s*,\\s*\\g<type>)*\\s*>)(?=\\s*\\()",
+      "captures": {
+        "1": {
+          "name": "entity.name.function.cie-pseudocode"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#type_tokens"
+            }
+          ]
+        }
+      },
+      "comment": "Balanced type lookahead follows Parser::isTemplateCall; a following parenthesis distinguishes calls from comparisons."
+    },
+    "new_type": {
+      "match": "(?<![\\w.])(NEW)\\s+((?<type>[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*\\g<type>(?:\\s*,\\s*\\g<type>)*\\s*>)?(?:\\s*\\.\\.\\.)?))",
+      "captures": {
+        "1": {
+          "name": "keyword.operator.new.cpp"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#type_tokens"
+            }
+          ]
+        }
+      }
+    },
+    "parameters": {
+      "begin": "\\(",
+      "end": "\\)",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.parens.cie-pseudocode"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.parens.cie-pseudocode"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#array_bounds"
+        },
+        {
+          "include": "#type_annotation"
+        },
+        {
+          "include": "#element_type"
+        },
+        {
+          "include": "#code"
+        }
+      ]
+    },
+    "function_header": {
+      "begin": "(?<!\\w)(FUNCTION|PROCEDURE)(?!\\w)(?:\\s+((?!OPERATOR\\b)[A-Za-z_][A-Za-z0-9_]*))?",
+      "end": "(?=(?<!\\w)(?:ENDFUNCTION|ENDPROCEDURE)(?!\\w))|$",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.modifier.cie-pseudocode"
+        },
+        "2": {
+          "name": "entity.name.function.cie-pseudocode"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#parameters"
+        },
+        {
+          "include": "#code"
+        }
+      ]
+    },
+    "extern_parameters": {
+      "begin": "(?<!\\w)(EXTERN_FUNCTION|EXTERN_PROCEDURE)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(\\()",
+      "end": "\\)",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.modifier.cpp"
+        },
+        "2": {
+          "name": "entity.name.function.cie-pseudocode"
+        },
+        "3": {
+          "name": "punctuation.section.parens.cie-pseudocode"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.parens.cie-pseudocode"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#type_tokens"
+        }
+      ]
+    },
+    "method": {
+      "begin": "(?<!\\w)(?=(?:FUNCTION|PROCEDURE)(?!\\w))",
+      "end": "(?<!\\w)(?:ENDFUNCTION|ENDPROCEDURE)(?!\\w)",
+      "endCaptures": {
+        "0": {
+          "name": "storage.modifier.cie-pseudocode"
+        }
+      },
+      "name": "meta.method.cie-pseudocode",
+      "patterns": [
+        {
+          "include": "#code"
+        }
+      ],
+      "comment": "Only CLASS includes this method context; the injection also reaches nested declaration and signature contexts."
+    },
+    "class": {
+      "begin": "(?<!\\w)(CLASS)\\s+([A-Za-z_][A-Za-z0-9_]*)(?!\\w)",
+      "end": "(?<!\\w)ENDCLASS(?!\\w)",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.class.cpp"
+        },
+        "2": {
+          "name": "entity.name.type.class.cpp"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "storage.type.class.cpp"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#method"
+        },
+        {
+          "match": "(?<!\\w)([A-Za-z_][A-Za-z0-9_]*)\\s*(:)\\s*((?<type>[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*\\g<type>(?:\\s*,\\s*\\g<type>)*\\s*>)?(?:\\s*\\.\\.\\.)?))",
+          "captures": {
+            "2": {
+              "name": "punctuation.separator.cie-pseudocode"
+            },
+            "3": {
+              "patterns": [
+                {
+                  "include": "#type_tokens"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "include": "#code"
+        }
+      ]
+    },
+    "code": {
+      "patterns": [
+        {
+          "include": "#line_comment"
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "include": "#class"
+        },
+        {
+          "include": "#type_declaration"
+        },
+        {
+          "include": "#declaration"
+        },
+        {
+          "include": "#template_declaration"
+        },
+        {
+          "include": "#function_header"
+        },
+        {
+          "include": "#extern_parameters"
+        },
+        {
+          "include": "#new_type"
+        },
+        {
+          "include": "#return_type"
+        },
+        {
+          "match": "^\\s*(#)(LIB)\\s*$",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.directive.cpp"
+            },
+            "2": {
+              "name": "keyword.control.directive.pragma.cpp"
+            }
+          }
+        },
+        {
+          "match": "(?<!\\w)(?:CASE|ENDCASE)(?!\\w)",
+          "name": "keyword.control.switch.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:OTHERWISE)(?!\\w)",
+          "name": "keyword.control.default.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:CONSTANT)(?!\\w)",
+          "name": "storage.modifier.const.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:CLASS|ENDCLASS)(?!\\w)",
+          "name": "storage.type.class.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:PUBLIC)(?!\\w)",
+          "name": "storage.type.modifier.access.control.public.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:PRIVATE)(?!\\w)",
+          "name": "storage.type.modifier.access.control.private.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:TEMPLATE)(?!\\w)",
+          "name": "storage.type.template.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:OPERATOR)(?!\\w)",
+          "name": "keyword.other.operator.overload.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:OVERLOAD)(?!\\w)",
+          "name": "storage.modifier.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:EXTERN)(?!\\w)",
+          "name": "storage.modifier.specifier.extern.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:EXTERN_FUNCTION|EXTERN_PROCEDURE)(?!\\w)",
+          "name": "storage.modifier.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:INCLUDE_OBJ)(?!\\w)",
+          "name": "keyword.control.directive.include.cpp"
+        },
+        {
+          "match": "\\.\\.\\.",
+          "name": "punctuation.vararg-ellipses.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:TRY|ENDTRY)(?!\\w)",
+          "name": "keyword.control.try.cpp"
+        },
+        {
+          "match": "(?<!\\w)CATCH(?!\\w)",
+          "name": "keyword.control.catch.cpp"
+        },
+        {
+          "match": "(?<!\\w)THROW(?!\\w)",
+          "name": "keyword.control.throw.cpp"
+        },
+        {
+          "match": "(?<!\\w)(?:IF|THEN|ELSE|ENDIF|WHILE|DO|ENDWHILE|REPEAT|UNTIL|FOR|TO|STEP|NEXT|RETURN|CALL|NEW|DELETE)(?!\\w)",
+          "name": "keyword.control.cie-pseudocode"
+        },
+        {
+          "match": "(?<!\\w)(?:INCLUDE|GLOBAL|ENDGLOBAL|DECLARE|TYPE|ENDTYPE|FUNCTION|ENDFUNCTION|PROCEDURE|ENDPROCEDURE|RETURNS|BYREF|BYVAL|OF)(?!\\w)",
+          "name": "storage.modifier.cie-pseudocode"
+        },
+        {
+          "match": "(?<!\\w)(?:INTEGER|REAL|BOOLEAN|STRING|CHAR|ARRAY|C_INT|C_CHAR|C_STRING|C_DOUBLE|C_TYPE)(?!\\w)",
+          "name": "storage.type.cie-pseudocode"
+        },
+        {
+          "match": "(?<!\\w)(?:TRUE|FALSE)(?!\\w)",
+          "name": "constant.language.cie-pseudocode"
+        },
+        {
+          "match": "(?<!\\w)(?:INPUT|OUTPUT|OPENFILE|READFILE|WRITEFILE|CLOSEFILE|READ|WRITE|APPEND)(?!\\w)",
+          "name": "keyword.other.cie-pseudocode"
+        },
+        {
+          "match": "(?<!\\w)(?:LENGTH|MID|RIGHT|LEFT|LCASE|UCASE|ASC|CHR|IS_NUM|NUM_TO_STR|STR_TO_NUM|EOF)(?!\\w)(?=\\s*\\()",
+          "name": "entity.name.function.cie-pseudocode"
+        },
+        {
+          "match": "(?<!\\w)(?:DIV|MOD|AND|OR|NOT)(?!\\w)",
+          "name": "keyword.operator.word.cie-pseudocode"
+        },
+        {
+          "match": "<-",
+          "name": "keyword.operator.assignment.cpp"
+        },
+        {
+          "match": "<>|<=|>=|[+*/=&^<>-]",
+          "name": "keyword.operator.cie-pseudocode"
+        },
+        {
+          "match": "(?<!\\w)\\d+(?:\\.\\d*)?(?!\\w)",
+          "name": "constant.numeric.cie-pseudocode"
+        },
+        {
+          "include": "#template_call"
+        },
+        {
+          "match": "(?<!\\w)[A-Za-z_][A-Za-z0-9_]*(?=\\s*\\()",
+          "name": "entity.name.function.cie-pseudocode"
+        },
+        {
+          "match": "[()]",
+          "name": "punctuation.section.parens.cie-pseudocode"
+        },
+        {
+          "match": "[\\[\\]]",
+          "name": "punctuation.section.brackets.cie-pseudocode"
+        },
+        {
+          "match": ",",
+          "name": "punctuation.separator.delimiter.comma.cie-pseudocode"
+        },
+        {
+          "match": "[:.]",
+          "name": "punctuation.separator.cie-pseudocode"
+        }
+      ]
+    },
+    "template_parameters": {
+      "patterns": [
+        {
+          "match": "[A-Za-z_][A-Za-z0-9_]*",
+          "name": "entity.name.type.template.cpp"
+        },
+        {
+          "match": "<",
+          "name": "punctuation.section.angle-brackets.begin.template.definition.cpp"
+        },
+        {
+          "match": ">",
+          "name": "punctuation.section.angle-brackets.end.template.definition.cpp"
+        },
+        {
+          "include": "#type_tokens"
+        }
+      ]
+    }
+  },
+  "injections": {
+    "L:meta.method.cie-pseudocode -comment -string": {
+      "patterns": [
+        {
+          "match": "(?<!\\w)(?i:this)(?!\\w)",
+          "name": "variable.language.this.cpp"
         }
       ]
     }
