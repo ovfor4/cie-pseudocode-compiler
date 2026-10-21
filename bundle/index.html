@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>CPSC Bundle</title>
+</head>
+<body>
+	<header>
+		<button id="new">New</button>
+		<button id="open">Open</button>
+		<button id="save">Save</button>
+		<button id="run" disabled>Run</button>
+		<span id="filename">Untitled.cps</span>
+	</header>
+	<main>
+		<div id="editor" aria-label="Source code"></div>
+		<div id="panels">
+			<section><label for="input">Input</label><textarea id="input" spellcheck="false"></textarea></section>
+			<section><label for="output">Output</label><pre id="output" tabindex="0" aria-label="Program output"></pre></section>
+		</div>
+	</main>
+	<footer id="status" role="status">Ready</footer>
+	<script type="module" src="/src/main.js"></script>
+</body>
+</html>

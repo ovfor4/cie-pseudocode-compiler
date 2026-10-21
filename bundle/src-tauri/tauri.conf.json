@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CPSC Bundle",
+  "version": "0.1.0",
+  "identifier": "com.ovfor4.cpsc-bundle",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{ "title": "CPSC Bundle", "width": 1000, "height": 760, "minWidth": 640, "minHeight": 440, "backgroundColor": "#1e1e1e" }],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; img-src 'self' data:; font-src 'self' data:; connect-src ipc: http://ipc.localhost 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "targets": ["nsis", "dmg"],
+    "externalBin": ["binaries/cpsc"],
+    "macOS": { "minimumSystemVersion": "15.0" }
+  }
+}

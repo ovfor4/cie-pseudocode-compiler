@@ -1,0 +1,18 @@
+[package]
+name = "cpsc-bundle"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
