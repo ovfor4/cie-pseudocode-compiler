@@ -1,8 +1,7 @@
 'use strict';
 
 const vscode = require('vscode');
-const { indentationEdits } = require('./indentation');
-const { codeOnly } = require('./lexical');
+const { indentationEdits, onTypeCharacters, shouldFormatOnType, selectionEndLine } = require('./indentation');
 const { unmatchedBrackets } = require('./brackets');
 const { registerRunner } = require('./runner');
 const languageId = 'cie-pseudocode';
@@ -42,18 +41,16 @@ function activate(context) {
 		vscode.window.onDidChangeVisibleTextEditors(() => refreshBrackets()),
 		vscode.languages.registerDocumentRangeFormattingEditProvider(languageId, {
 			provideDocumentRangeFormattingEdits(document, range) {
-				const endLine = range.end.character === 0 && range.end.line > range.start.line
-					? range.end.line - 1 : range.end.line;
+				const endLine = selectionEndLine(range.start.line, range.end.line, range.end.character);
 				return formatLines(document, range.start.line, endLine);
 			}
 		}),
 		vscode.languages.registerOnTypeFormattingEditProvider(languageId, {
 			provideOnTypeFormattingEdits(document, position, char) {
-				if (char !== '\n' && !/^\s*(?:ELSE|ENDIF|ENDWHILE|UNTIL|NEXT|ENDFUNCTION|ENDPROCEDURE|ENDTYPE|CATCH|ENDTRY)\b/.test(
-					codeOnly(document.lineAt(position.line).text))) return [];
+				if (!shouldFormatOnType(document.lineAt(position.line).text, char)) return [];
 				return formatLines(document, position.line, position.line, char === '\n');
 			}
-		}, '\n', 'E', 'F', 'L', 'T', 'N', 'H', 'Y')
+		}, ...onTypeCharacters)
 	);
 	refreshBrackets();
 }

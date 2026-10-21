@@ -1,6 +1,15 @@
 'use strict';
 
 const { codeOnly } = require('./lexical');
+const onTypeCharacters = ['\n', 'E', 'F', 'L', 'T', 'N', 'H', 'Y'];
+
+function shouldFormatOnType(line, character) {
+	return character === '\n' || /^\s*(?:ELSE|ENDIF|ENDWHILE|UNTIL|NEXT|ENDFUNCTION|ENDPROCEDURE|ENDTYPE|CATCH|ENDTRY)\b/.test(codeOnly(line));
+}
+
+function selectionEndLine(startLine, endLine, endColumn) {
+	return endColumn === 0 && endLine > startLine ? endLine - 1 : endLine;
+}
 const closers = {
 	ENDIF: 'IF', ENDWHILE: 'WHILE', UNTIL: 'REPEAT', NEXT: 'FOR',
 	ENDFUNCTION: 'FUNCTION', ENDPROCEDURE: 'PROCEDURE', ENDTYPE: 'TYPE', ENDTRY: 'TRY'
@@ -56,4 +65,4 @@ function indentationEdits(lines, startLine, endLine, keepBlankIndent = false) {
 	return edits;
 }
 
-module.exports = { lineDepths, indentationEdits };
+module.exports = { lineDepths, indentationEdits, onTypeCharacters, shouldFormatOnType, selectionEndLine };

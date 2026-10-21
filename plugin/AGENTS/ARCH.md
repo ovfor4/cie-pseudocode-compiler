@@ -43,6 +43,9 @@ Source attribution is retained in `ThirdPartyNotices.md`.
 - `src/indentation.js` computes block depth from earlier lines and returns edits
   to leading whitespace only. A selection ending at column zero excludes that
   final line. Formatting is idempotent and preserves line endings and other text.
+  It also exports selection boundaries and on-type triggers for both editor adapters.
+  The Bundle imports this module, `lexical.js`, `brackets.js`, the grammar and
+  language configuration directly; keep these modules free of editor APIs.
 - `src/lexical.js` masks quotes and comments while preserving UTF-16 offsets.
 - `src/brackets.js` uses a stack to report unmatched opening and closing brackets
   and crossed types. Only invalid brackets receive the red decoration; native
