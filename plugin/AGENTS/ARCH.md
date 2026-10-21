@@ -82,10 +82,11 @@ only a subset of its syntax:
   ordinary parentheses. `TYPE Name = C_TYPE("...")` is a single-line alias
   declaration, so it does not open an indentation block.
 - The compiler decodes C++17 byte escapes and Unicode escapes in literals; strings
-  encode Unicode as UTF-8 and CHAR Unicode escapes must be ASCII. The plugin's
-  grammar and quote masking still ignore escapes and retain legacy `'''` handling;
-  the compiler now requires an escaped quote character (`'\''`). Neither supports
-  multiline literal continuation.
+  encode Unicode as UTF-8 and CHAR Unicode escapes must be ASCII. Highlighting
+  uses the C++ escape scope and string-suffix scope for adjacent uppercase C.
+  Grammar and shared quote masking honor escaped quotes and backslashes; quote
+  characters use `'\''`, with no legacy three-quote special case. Neither
+  supports multiline literal continuation.
 - Blocks: IF/THEN/ELSE/ENDIF, WHILE/DO/ENDWHILE, REPEAT/UNTIL, FOR/NEXT,
   FUNCTION/ENDFUNCTION, PROCEDURE/ENDPROCEDURE, record TYPE/ENDTYPE and
   TRY/CATCH/ENDTRY. CATCH aligns with TRY and starts another indented body;

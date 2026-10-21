@@ -17,7 +17,10 @@ DECLARE Letter : CHAR
 Ready <- TRUE AND NOT FALSE
 Total <- -3.5 + 2 * 4 / 2
 Text <- "CIE // [()]" & " pseudocode"
-Letter <- 'A'
+Letter <- '\''
+Text <- "Quote: \"; slash: \\; byte: \x41; Unicode: \u0042"
+DECLARE RawText : C_STRING
+RawText <- "Native text"C
 
 FOR Index <- 1 TO 3 STEP 1
 	Values[Index] <- Index MOD 2

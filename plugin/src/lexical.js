@@ -1,7 +1,7 @@
 'use strict';
 
 // Preserve UTF-16 offsets and newlines, masking CIE quotes and // comments.
-// Unlike C++, CIE has no escapes or multiline literals.
+// Backslash escapes protect the next character; literals end at each newline.
 function codeOnly(text) {
 	let quote = null;
 	let comment = false;
@@ -15,12 +15,11 @@ function codeOnly(text) {
 		} else if (comment) {
 			result.push(' ');
 		} else if (quote) {
-			if (char === quote) quote = null;
 			result.push(' ');
-		} else if (text.slice(i, i + 3) === "'''") {
-			// The compiler accepts a quote character as a three-quote CHAR literal.
-			result.push(' ', ' ', ' ');
-			i += 2;
+			if (char === '\\' && i + 1 < text.length && !/[\r\n]/.test(text[i + 1])) {
+				result.push(' ');
+				i++;
+			} else if (char === quote) quote = null;
 		} else if (char === '"' || char === "'") {
 			quote = char;
 			result.push(' ');

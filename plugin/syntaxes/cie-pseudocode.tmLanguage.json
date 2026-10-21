@@ -160,40 +160,58 @@
     "strings": {
       "patterns": [
         {
-          "match": "'''",
-          "name": "string.quoted.single.cie-pseudocode"
-        },
-        {
           "begin": "\"",
-          "end": "\"|$",
+          "end": "(\")(C)?|$",
           "beginCaptures": {
             "0": {
               "name": "punctuation.definition.string.begin.cie-pseudocode"
             }
           },
           "endCaptures": {
-            "0": {
+            "1": {
               "name": "punctuation.definition.string.end.cie-pseudocode"
+            },
+            "2": {
+              "name": "keyword.other.suffix.literal.user-defined.string.cpp"
             }
           },
           "name": "string.quoted.double.cie-pseudocode",
-          "patterns": []
+          "patterns": [
+            {
+              "include": "#escapes"
+            }
+          ]
         },
         {
           "begin": "'",
-          "end": "'|$",
+          "end": "(')|$",
           "beginCaptures": {
             "0": {
               "name": "punctuation.definition.string.begin.cie-pseudocode"
             }
           },
           "endCaptures": {
-            "0": {
+            "1": {
               "name": "punctuation.definition.string.end.cie-pseudocode"
             }
           },
           "name": "string.quoted.single.cie-pseudocode",
-          "patterns": []
+          "patterns": [
+            {
+              "include": "#escapes"
+            }
+          ]
+        }
+      ]
+    },
+    "escapes": {
+      "patterns": [
+        {
+          "match": "\\\\(?:['\"?\\\\abfnrtv]|[0-7]{1,3}|x[0-9A-Fa-f]+|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})",
+          "name": "constant.character.escape"
+        },
+        {
+          "match": "\\\\[^\\r\\n]"
         }
       ]
     }

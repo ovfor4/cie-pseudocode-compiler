@@ -24,8 +24,11 @@ test('comments and quotes are ignored with correct UTF-16 offsets after Unicode 
 	assert.deepEqual(unmatchedBrackets(unfinished), [unfinished.length - 1]);
 	const unicode = 'OUTPUT "Hello😀"\r\nA[';
 	assert.deepEqual(unmatchedBrackets(unicode), [unicode.length - 1]);
-	// Backslashes do not escape CIE quotes.
-	assert.deepEqual(unmatchedBrackets('"x\\"['), [4]);
-	const quoteChar = "OUTPUT ''' [";
+	assert.deepEqual(unmatchedBrackets(String.raw`OUTPUT "x\"[(//"`), []);
+	const backslash = String.raw`OUTPUT "x\\" [`;
+	assert.deepEqual(unmatchedBrackets(backslash), [backslash.length - 1]);
+	const quoteChar = String.raw`OUTPUT '\'' [`;
 	assert.deepEqual(unmatchedBrackets(quoteChar), [quoteChar.length - 1]);
+	const escaped = 'OUTPUT "😀\\"["\r\nA[';
+	assert.deepEqual(unmatchedBrackets(escaped), [escaped.length - 1]);
 });

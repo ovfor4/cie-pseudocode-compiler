@@ -122,10 +122,29 @@ test('comments, strings, lowercase and keyword prefixes cannot become keywords',
 		assert.ok(!scopesAt(text, text.split(' ')[0]).some(
 			s => /^(keyword|storage)\./.test(s)), text);
 	}
-	// CIE has neither backslash escapes nor multiline string literals.
+	// An unfinished literal must not carry its string scope onto the next line.
 	let state = grammar.tokenizeLine('OUTPUT "unfinished').ruleStack;
 	assert.ok(grammar.tokenizeLine('IF X THEN', state).tokens[0].scopes.includes(
 		'keyword.control.cie-pseudocode'));
-	assert.ok(scopesAt('OUTPUT "x\\" + 1', '+').includes('keyword.operator.cie-pseudocode'));
-	assert.ok(scopesAt("OUTPUT ''' + 1", '+').includes('keyword.operator.cie-pseudocode'));
+});
+
+test('literal escapes protect quotes and reuse C++ escape and suffix scopes', () => {
+	for (const escape of [String.raw`\'`, String.raw`\"`, String.raw`\\`, String.raw`\?`,
+		...['a', 'b', 'f', 'n', 'r', 't', 'v', '0', '101', 'x4142', 'u0041', 'U0001F600']
+			.map(value => `\\${value}`)]) {
+		const text = `OUTPUT "${escape} IF // [" + 1`;
+		assert.ok(scopesAt(text, escape).includes('constant.character.escape'), escape);
+		assert.ok(scopesAt(text, 'IF').includes('string.quoted.double.cie-pseudocode'), escape);
+		assert.ok(scopesAt(text, '+').includes('keyword.operator.cie-pseudocode'), escape);
+	}
+	assert.ok(scopesAt(String.raw`OUTPUT '\'' + 1`, '+').includes('keyword.operator.cie-pseudocode'));
+	assert.ok(scopesAt(String.raw`OUTPUT '\x41'`, String.raw`\x41`).includes('constant.character.escape'));
+	assert.ok(scopesAt('"text"C', 'C').includes('keyword.other.suffix.literal.user-defined.string.cpp'));
+	for (const text of ['"text" C', '"text"c', "'x'C"]) {
+		assert.ok(!scopesAt(text, text.at(-1)).includes('keyword.other.suffix.literal.user-defined.string.cpp'));
+	}
+	for (const text of ['OUTPUT "unfinished', 'OUTPUT "unfinished\\', "OUTPUT '''"]) {
+		const state = grammar.tokenizeLine(text).ruleStack;
+		assert.ok(grammar.tokenizeLine('IF Ready THEN', state).tokens[0].scopes.includes('keyword.control.cie-pseudocode'));
+	}
 });

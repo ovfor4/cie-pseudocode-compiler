@@ -75,3 +75,10 @@ test('blank lines are empty when formatted and indented at the caret after Enter
 		assert.deepEqual(indentationEdits(lines, line, line, true), [{ line, length: 3, text: '\t' }]);
 	}
 });
+
+test('escaped quotes keep block keywords inside literals masked', () => {
+	assert.deepEqual(lineDepths([
+		String.raw`IF Text = "quoted \" THEN"`,
+		'THEN', String.raw`OUTPUT "escaped \" ENDIF //"`, 'ENDIF'
+	]), [0, 0, 1, 0]);
+});
