@@ -147,7 +147,7 @@ const TypeInfo *CodeGen::resolveType(const std::string &TypeName) const {
 }
 
 bool CodeGen::isVisible(size_t Owner) const {
-    return !Units || (*Units)[CurrentUnit].Visible[Owner];
+    return !Units || (*Units)[VisibilityUnit.value_or(CurrentUnit)].Visible[Owner];
 }
 
 void CodeGen::selectUnit(size_t Unit) {
@@ -185,17 +185,18 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
     });
     FuncGen->setVisibility([this](size_t Owner) { return isVisible(Owner); });
 
-    struct Definition { size_t Unit; bool IsFunction; bool IsOverload; bool IsExtern; int Line; };
+    struct Definition { size_t Unit; bool IsFunction; bool IsOverload; bool IsExtern; bool IsTemplate; int Line; };
     IdentifierMap<Definition> Definitions;
     std::optional<size_t> CodeUnit;
     FunctionDefAST *Entry = nullptr;
     size_t EntryUnit = 0;
     auto Reserve = [&](const std::string &Name, bool IsFunction = false, bool IsOverload = false,
-                       bool IsExtern = false) {
-        auto [It, Added] = Definitions.emplace(Name, Definition{CurrentUnit, IsFunction, IsOverload, IsExtern, DiagnosticLine});
+                       bool IsExtern = false, bool IsTemplate = false) {
+        auto [It, Added] = Definitions.emplace(Name, Definition{CurrentUnit, IsFunction, IsOverload, IsExtern, IsTemplate, DiagnosticLine});
         bool Compatible = (IsFunction && IsOverload && It->second.IsFunction && It->second.IsOverload) ||
                           (IsExtern && It->second.IsExtern);
-        if (!Added && It->second.Unit != CurrentUnit && !Compatible) {
+        if (!Added && !Compatible && (It->second.Unit != CurrentUnit ||
+            ((IsTemplate || It->second.IsTemplate) && !(IsFunction && It->second.IsFunction)))) {
             // Default library units follow user inputs; point at the user's conflicting definition.
             bool UserConflict = Sources[CurrentUnit].IsLibrary && !Sources[It->second.Unit].IsLibrary;
             SaveAndRestore<int> Location(DiagnosticLine, UserConflict ? It->second.Line : DiagnosticLine);
@@ -212,7 +213,7 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
             std::string TypeName;
             if (auto *T = dynamic_cast<TemplateDeclAST*>(S.get())) {
                 auto *Function = T->getFunction();
-                Reserve(T->getName(), Function != nullptr, Function && Function->getProto()->isOverload());
+                Reserve(T->getName(), Function != nullptr, Function && Function->getProto()->isOverload(), false, true);
                 Templates[T->getName()].push_back({T, I});
             } else if (auto *F = dynamic_cast<FunctionDefAST*>(S.get())) {
                 Reserve(F->getProto()->getName(), true, F->getProto()->isOverload());
@@ -310,6 +311,8 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
         }
     }
 
+    validateTemplates();
+
     // Constants are literal exports. Own constants are still installed only
     // when their declaration is encountered during body emission.
     for (size_t I = 0; I < Sources.size(); ++I) {
@@ -330,11 +333,13 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
             runGlobalPrePass(Sources[I], Phase);
         }
     }
+    captureTemplateSymbols();
     for (size_t I = 0; I < Sources.size(); ++I) {
         selectUnit(I);
         importSymbols();
         for (const auto &Stmt : Sources[I].Statements) emitStmt(Stmt.get());
     }
+    drainTemplateBodies();
     selectUnit(MainUnit);
     if (!CodeUnit && !Entry && !HadError) {
         SaveAndRestore<int> Location(DiagnosticLine, Sources.size() > 1 ? 1 : 0);
@@ -498,13 +503,14 @@ Value *CodeGen::emitVariadicArgument(ExprAST *Expr, const std::string &Callee, s
 const FuncSig *CodeGen::resolveCall(const std::string &Name,
                                   const std::vector<std::unique_ptr<ExprAST>> &Args) {
     auto Overloads = FuncGen->getOverloads(Name);
-    if (Overloads.empty()) {
+    bool HasTemplates = hasFunctionTemplate(Name);
+    if (Overloads.empty() && !HasTemplates) {
         reportError("Call to undefined function %s", Name.c_str());
         return nullptr;
     }
-    if (Overloads.size() == 1 && !Overloads.front()->IsOverload) return Overloads.front();
+    if (!HasTemplates && Overloads.size() == 1 && !Overloads.front()->IsOverload) return Overloads.front();
     // Visible EXTERN redeclarations are identical by construction.
-    if (Overloads.front()->IsExternal) return Overloads.front();
+    if (!HasTemplates && Overloads.front()->IsExternal) return Overloads.front();
     struct ArgumentType { const TypeInfo *Type; int Rank; };
     std::vector<ArgumentType> Actual;
     std::string Key;
@@ -521,6 +527,7 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
         if (Rank) Key += "ARRAY" + std::to_string(Rank) + " OF ";
         Key += Type ? Type->Name : "?";
     }
+    const FuncSig *Ordinary = nullptr;
     for (const FuncSig *Sig : Overloads) {
         if (Sig->Params.size() != Actual.size()) continue;
         bool Match = true;
@@ -532,8 +539,48 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
                 break;
             }
         }
-        if (Match) return Sig;
+        if (Match) {
+            if (Ordinary && HasTemplates) {
+                reportError("Ambiguous call to %s(%s)", Name.c_str(), Key.c_str());
+                return nullptr;
+            }
+            Ordinary = Sig;
+            if (!HasTemplates) return Sig;
+        }
     }
+    if (Ordinary) return Ordinary;
+    const TemplateDefinition *Selected = nullptr;
+    IdentifierMap<std::vector<std::string>> SelectedBindings;
+    if (HasTemplates) {
+        for (const auto &Definition : Templates.at(Name)) {
+            auto *Function = Definition.Decl->getFunction();
+            if (!Function || Definition.Decl->isVariadic() || !isVisible(Definition.OwnerUnit)) continue;
+            const auto &Params = Function->getProto()->getParams();
+            if (Params.size() != Actual.size()) continue;
+            IdentifierMap<std::vector<std::string>> Bindings;
+            for (const auto &Param : Definition.Decl->getParams()) Bindings.emplace(Param.Name, std::vector<std::string>{});
+            bool Match = true;
+            for (size_t I = 0; I < Actual.size(); ++I) {
+                const auto &P = Params[I];
+                const TypeInfo *Type = Actual[I].Type;
+                if (!Type || Type->isVoid() || Actual[I].Rank != (P.IsArray ? P.Rank : 0)) { Match = false; break; }
+                auto Binding = Bindings.find(P.TypeName);
+                if (Binding != Bindings.end()) {
+                    if (Binding->second.empty()) Binding->second.push_back(Type->Name);
+                    else if (!Type->sameType(resolveType(Binding->second.front()))) { Match = false; break; }
+                } else if (!Type->sameType(resolveType(P.TypeName))) { Match = false; break; }
+            }
+            for (const auto &[Param, Types] : Bindings) if (Types.empty()) Match = false;
+            if (!Match) continue;
+            if (Selected) {
+                reportError("Ambiguous call to %s(%s)", Name.c_str(), Key.c_str());
+                return nullptr;
+            }
+            Selected = &Definition;
+            SelectedBindings = std::move(Bindings);
+        }
+    }
+    if (Selected) return instantiateFunction(*Selected, SelectedBindings);
     reportError("No matching overload for %s(%s)", Name.c_str(), Key.c_str());
     return nullptr;
 }

@@ -35,9 +35,30 @@ class CodeGen {
     const std::vector<SourceUnit> *Units = nullptr;
     size_t CurrentUnit = 0;
     size_t MainUnit = 0;
+    std::optional<size_t> VisibilityUnit;
     IdentifierMap<size_t> TypeOwners;
     struct TemplateDefinition { TemplateDeclAST *Decl; size_t OwnerUnit; };
     IdentifierMap<std::vector<TemplateDefinition>> Templates;
+    struct TemplateInstance {
+        TemplateDeclAST *Decl;
+        std::string Arguments;
+        std::unique_ptr<FunctionDefAST> Function;
+        const FuncSig *Signature;
+        size_t OwnerUnit;
+        size_t RequesterUnit;
+        unsigned Depth;
+    };
+    std::vector<TemplateInstance> TemplateInstances;
+    std::map<const TemplateDeclAST *, IdentifierMap<SymbolInfo>> TemplateSymbols;
+    size_t NextTemplateBody = 0;
+    unsigned TemplateDepth = 0;
+    bool hasCallable(const std::string &Name) const;
+    bool hasFunctionTemplate(const std::string &Name) const;
+    void validateTemplates();
+    void captureTemplateSymbols();
+    const FuncSig *instantiateFunction(const TemplateDefinition &Definition,
+        const IdentifierMap<std::vector<std::string>> &Bindings);
+    void drainTemplateBodies();
     std::vector<IdentifierMap<SymbolInfo>> Exports;
     bool isVisible(size_t Owner) const;
     void selectUnit(size_t Unit);

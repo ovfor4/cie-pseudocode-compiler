@@ -34,7 +34,7 @@ void CodeGen::runGlobalPrePass(const SourceUnit &Unit, int Phase) {
                     continue;
                 }
                 if (Exports[CurrentUnit].count(Name) || Types->resolve(Name) ||
-                    Types->lookupEnumConstant(Name) || FuncGen->hasFunction(Name) ||
+                    Types->lookupEnumConstant(Name) || hasCallable(Name) ||
                     isBuiltinName(Name)) {
                     reportError("Global %s conflicts with an existing definition", Name.c_str());
                     continue;

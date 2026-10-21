@@ -11,7 +11,7 @@ using namespace cps;
 
 // Symbols the compiler itself declares (libc + runtime); a user
 // FUNCTION/PROCEDURE with one of these names would hijack the runtime.
-static bool isReservedRuntimeName(const std::string &Name) {
+bool FunctionGen::isReservedRuntimeName(const std::string &Name) {
     static const char *Reserved[] = {
         "__cps_main", "__cps_user_line", "printf", "scanf", "malloc", "free", "strlen", "memcpy",
         "strcpy", "strcat", "toupper", "tolower", "sprintf", "snprintf", "strtol", "strtoll",
@@ -105,12 +105,12 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
     }
 }
 
-std::vector<const FuncSig *> FunctionGen::getOverloads(const std::string &Name) const {
+std::vector<const FuncSig *> FunctionGen::getOverloads(const std::string &Name, bool AllUnits) const {
     std::vector<const FuncSig *> Result;
     auto It = Signatures.find(sameIdentifier(Name, "MAIN") ? "__cps_main" : Name);
     if (It != Signatures.end())
         for (const FuncSig &Sig : It->second)
-            if (!Visible || Visible(Sig.OwnerUnit)) Result.push_back(&Sig);
+            if (AllUnits || !Visible || Visible(Sig.OwnerUnit)) Result.push_back(&Sig);
     return Result;
 }
 

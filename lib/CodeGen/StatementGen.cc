@@ -105,7 +105,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
 
     if (auto *Call = dynamic_cast<CallStmtAST*>(Stmt)) {
         Value *Result = emitCall(Call->getCallee(), Call->getArgs(), Call->getLine());
-        const FuncSig *Sig = FuncGen->hasFunction(Call->getCallee())
+        const FuncSig *Sig = hasCallable(Call->getCallee())
             ? resolveCall(Call->getCallee(), Call->getArgs()) : nullptr;
         const TypeInfo *Type = Sig ? resolveType(Sig->ReturnTypeName) : nullptr;
         if (Result && Type && (Type->IsClass || containsString(Type))) materializeOperatorReceiver(Result, Type);

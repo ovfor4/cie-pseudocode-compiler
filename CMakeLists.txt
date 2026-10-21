@@ -53,6 +53,8 @@ add_library(CPSParser STATIC
 )
 
 add_library(CPSCodeGen STATIC
+    lib/CodeGen/TemplateClone.cc
+    lib/CodeGen/TemplateGen.cc
     lib/CodeGen/CodeGen.cc
     lib/CodeGen/ExpressionGen.cc
     lib/CodeGen/OperatorGen.cc

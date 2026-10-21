@@ -5,6 +5,7 @@
 #include "cps/FunctionAST.h"
 #include "cps/TypeSystem.h"
 #include <cstdint>
+#include <deque>
 #include <map>
 #include <utility>
 #include <vector>
@@ -73,7 +74,7 @@ private:
     int &DiagnosticLine;
     void reportError(const char *Fmt, ...);
 
-    IdentifierMap<std::vector<FuncSig>> Signatures;
+    IdentifierMap<std::deque<FuncSig>> Signatures;
     IdentifierMap<std::pair<std::string, size_t>> LinkIndex;
     std::map<const PrototypeAST *, std::string> PrototypeLinks;
     std::map<size_t, std::string> UnitPaths;
@@ -106,7 +107,8 @@ public:
     void setCurrentUnit(size_t Unit, const std::string &Path) { CurrentUnit = Unit; UnitPaths[Unit] = Path; }
     void setCallHook(std::function<void(const FuncSig &)> Hook) { BeforeCall = std::move(Hook); }
     void setVisibility(std::function<bool(size_t)> Predicate) { Visible = std::move(Predicate); }
-    std::vector<const FuncSig *> getOverloads(const std::string &Name) const;
+    std::vector<const FuncSig *> getOverloads(const std::string &Name, bool AllUnits = false) const;
+    static bool isReservedRuntimeName(const std::string &Name);
     bool hasFunction(const std::string &Name) const { return !getOverloads(Name).empty(); }
     const FuncSig *getSignatureByLink(const std::string &Name) const;
 

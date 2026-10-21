@@ -1,0 +1,46 @@
+TEMPLATE <T>
+FUNCTION Max(A : T, B : T) RETURNS T
+    IF A > B THEN
+        RETURN A
+    ENDIF
+    RETURN B
+ENDFUNCTION
+
+TEMPLATE <T>
+FUNCTION First(Values : ARRAY OF T) RETURNS T
+    RETURN Values[1]
+ENDFUNCTION
+
+TEMPLATE <T>
+PROCEDURE Swap(BYREF Left : T, Right : T)
+    DECLARE Temp : T
+    Temp <- Left
+    Left <- Right
+    Right <- Temp
+ENDPROCEDURE
+
+TEMPLATE <T>
+OVERLOAD FUNCTION Pick(Value : T) RETURNS INTEGER
+    RETURN 100
+ENDFUNCTION
+OVERLOAD FUNCTION Pick(Value : INTEGER) RETURNS INTEGER
+    RETURN 200
+ENDFUNCTION
+
+OUTPUT Max(3, 7)
+OUTPUT Max(1.5, 2.5)
+OUTPUT Max("apple", "pear")
+OUTPUT Max(Max(1, 2), 3)
+DECLARE Values : ARRAY[1:2] OF INTEGER
+Values[1] <- 42
+Values[2] <- 99
+OUTPUT First(Values)
+DECLARE Left : INTEGER
+DECLARE Right : INTEGER
+Left <- 4
+Right <- 9
+CALL Swap(Left, Right)
+OUTPUT Left
+OUTPUT Right
+OUTPUT Pick(1)
+OUTPUT Pick(1.5)
