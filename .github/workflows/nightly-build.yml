@@ -42,7 +42,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake clang-23 llvm-23-dev lld-23 \
             libclang-23-dev liblld-23-dev libpolly-23-dev perl \
-            zlib1g-dev libzstd-dev libncurses-dev libedit-dev pandoc
+            zlib1g-dev libzstd-dev libncurses-dev libedit-dev pandoc \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            libxdo-dev librsvg2-dev patchelf
 
       - name: Build the embedded release package
         run: |
@@ -101,6 +103,21 @@ jobs:
               esac
             done < <(readelf -d "$binary" | sed -n 's/.*Shared library: \[\(.*\)\].*/\1/p')
           done
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Compile and check the Linux desktop app without publishing it
+        working-directory: bundle
+        run: |
+          npm ci --ignore-scripts
+          npm run prepare:compiler
+          npm run tauri -- build --no-bundle
+          cargo test --release --locked --manifest-path src-tauri/Cargo.toml
+          python3 scripts/smoke-package.py src-tauri/target/release
 
       - name: Upload the compiler package
         uses: actions/upload-artifact@v7.0.2
@@ -208,6 +225,39 @@ jobs:
               *) echo "Unexpected program dependency: $library" >&2; exit 1 ;;
             esac
           done < <(otool -L "$RUNNER_TEMP/nightly-smoke.out" | tail -n +2 | awk '{print $1}')
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build and test the macOS desktop package
+        working-directory: bundle
+        run: |
+          npm ci --ignore-scripts
+          npm run prepare:compiler
+          npm run package
+          cargo test --release --locked --manifest-path src-tauri/Cargo.toml
+
+      - name: Smoke test the macOS desktop archive
+        run: |
+          packages=(bundle/artifacts/cpsc-bundle-*-Darwin-arm64.tar.xz)
+          test "${#packages[@]}" -eq 1
+          smoke_dir="$RUNNER_TEMP/cpsc-bundle-smoke"
+          mkdir -p "$smoke_dir"
+          tar -xJf "${packages[0]}" -C "$smoke_dir"
+          python3 bundle/scripts/smoke-package.py "$smoke_dir/CPSC Bundle.app"
+          test "$(lipo -archs "$smoke_dir/CPSC Bundle.app/Contents/MacOS/cpsc-bundle")" = arm64
+          test "$(lipo -archs "$smoke_dir/CPSC Bundle.app/Contents/MacOS/cpsc")" = arm64
+
+      - name: Upload the macOS desktop package
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: nightly-bundle-macos
+          path: bundle/artifacts/cpsc-bundle-*-Darwin-arm64.tar.xz
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Upload the macOS package
         uses: actions/upload-artifact@v7.0.2
@@ -347,6 +397,36 @@ jobs:
             $env:PATH = $savedPath
           }
 
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build and test the Windows desktop package
+        working-directory: bundle
+        run: |
+          npm ci --ignore-scripts
+          npm run prepare:compiler
+          npm run package
+          cargo test --release --locked --manifest-path src-tauri/Cargo.toml
+
+      - name: Smoke test the portable Windows application
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem -Path bundle/artifacts/cpsc-bundle-*-Windows-x86_64.exe -File)
+          if ($packages.Count -ne 1) { throw 'Expected one portable Windows executable' }
+          python bundle/scripts/smoke-package.py $packages[0].FullName
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop package smoke test failed' }
+
+      - name: Upload the Windows desktop package
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: nightly-bundle-windows
+          path: bundle/artifacts/cpsc-bundle-*-Windows-x86_64.exe
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Upload the Windows package
         uses: actions/upload-artifact@v7.0.2
         with:
@@ -430,13 +510,15 @@ jobs:
           macos=(release-packages/nightly-macos/cpsc-*-Darwin-arm64.tar.xz)
           windows=(release-packages/nightly-windows/cpsc-*-Windows-*.zip)
           plugin=(release-packages/nightly-plugin/*.vsix)
-          for count in "${#linux[@]}" "${#macos[@]}" "${#windows[@]}" "${#plugin[@]}"; do
+          bundle_macos=(release-packages/nightly-bundle-macos/cpsc-bundle-*-Darwin-arm64.tar.xz)
+          bundle_windows=(release-packages/nightly-bundle-windows/cpsc-bundle-*-Windows-x86_64.exe)
+          for count in "${#linux[@]}" "${#macos[@]}" "${#windows[@]}" "${#plugin[@]}" "${#bundle_macos[@]}" "${#bundle_windows[@]}"; do
             if [[ "$count" -ne 1 ]]; then
-              echo "Expected exactly one package for each of the four builds; leaving the release untouched." >&2
+              echo "Expected exactly one of each of the six packages; leaving the release untouched." >&2
               exit 1
             fi
           done
-          packages=("${linux[@]}" "${macos[@]}" "${windows[@]}" "${plugin[@]}")
+          packages=("${linux[@]}" "${macos[@]}" "${windows[@]}" "${plugin[@]}" "${bundle_macos[@]}" "${bundle_windows[@]}")
           for package in "${packages[@]}"; do
             test -s "$package"
           done

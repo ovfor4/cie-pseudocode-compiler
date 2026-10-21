@@ -11,6 +11,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "tauri": "tauri",
+    "package": "node scripts/package.js",
     "prepare:compiler": "node scripts/prepare-compiler.js"
   },
   "dependencies": {

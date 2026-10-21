@@ -392,6 +392,7 @@ dependencies = [
 name = "cpsc-bundle"
 version = "0.1.0"
 dependencies = [
+ "flate2",
  "serde",
  "tauri",
  "tauri-build",

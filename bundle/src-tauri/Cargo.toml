@@ -13,6 +13,9 @@ tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["process", "io-util", "sync", "macros", "rt-multi-thread", "time"] }
 
+[target.'cfg(windows)'.dependencies]
+flate2 = "1"
+
 [profile.release]
 strip = true
 lto = true

@@ -18,8 +18,20 @@
   "bundle": {
     "active": true,
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
-    "targets": ["nsis", "dmg"],
+    "targets": ["app"],
     "externalBin": ["binaries/cpsc"],
+    "resources": {
+      "../../LICENSE": "LICENSE",
+      "../ThirdPartyNotices.md": "ThirdPartyNotices.md",
+      "../../plugin/ThirdPartyNotices.md": "licenses/plugin.md",
+      "../vendor/vscode/LICENSE.txt": "licenses/vscode.txt",
+      "../node_modules/monaco-editor/LICENSE": "licenses/monaco-editor.txt",
+      "../node_modules/vscode-textmate/LICENSE.md": "licenses/vscode-textmate.txt",
+      "../node_modules/vscode-oniguruma/LICENSE.txt": "licenses/vscode-oniguruma.txt",
+      "../node_modules/jsonc-parser/LICENSE.md": "licenses/jsonc-parser.txt",
+      "../node_modules/@tauri-apps/api/LICENSE-MIT": "licenses/tauri-mit.txt",
+      "../node_modules/@tauri-apps/api/LICENSE-APACHE-2.0": "licenses/tauri-apache.txt"
+    },
     "macOS": { "minimumSystemVersion": "15.0" }
   }
 }

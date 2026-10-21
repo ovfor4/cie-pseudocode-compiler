@@ -270,9 +270,20 @@ filters. A shared concurrency group cancels superseded runs. A final publish job
 requires all four build jobs to succeed before updating the existing `nightly-build`
 release. Any build or check failure leaves all previous attachments untouched.
 The publish job deletes all old uploaded assets, including paginated results,
-then uploads the four new packages. It never creates or deletes the release
+then uploads the six new packages. It never creates or deletes the release
 and preserves its tag, title and notes. GitHub's generated
 source downloads remain available.
+
+The native compiler jobs also build CPSC Bundle, reusing their EMBEDDED executable.
+Linux compiles and tests the app without publishing an installer. Windows x64
+adds a standalone .exe and macOS arm64 adds a .tar.xz containing the .app,
+both with HEAD-based filenames. Windows embeds its compiler and extracts it into
+the current working directory on startup; macOS keeps the compiler inside the app.
+Native runner tests check prefilled input, EOF, diagnostics, output before exit,
+stopping and restart. Portable packages are checked for the desktop executable,
+compiler and notices, then run with toolchain directories removed from PATH.
+The publish job requires both Bundle packages alongside the original four packages.
+See `bundle/AGENTS/DEVELOPMENT.md` for the shared editor and build details.
 
 The Linux compiler and plugin jobs use Ubuntu 24.04 x86_64; the macOS compiler
 job uses a macOS 15 arm64 runner, and Windows uses Windows Server 2025 x86_64.

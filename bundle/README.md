@@ -2,6 +2,6 @@
 
 Open a `.cps` file, enter its input in **Input**, and click **Run**. The file is saved before running. Program output and errors appear in **Output**. Click **Stop** to end a running program.
 
-Nightly packages support Windows x64 and macOS Apple Silicon. The compiler is included.
+Nightly provides a standalone Windows x64 `.exe` and a macOS Apple Silicon `.tar.xz` containing the `.app`. Windows extracts the included `cpsc.exe` into the current working directory on startup; macOS keeps it inside the `.app`. Windows uses the system WebView2 runtime.
 
 For development and build instructions, see [AGENTS/DEVELOPMENT.md](AGENTS/DEVELOPMENT.md).

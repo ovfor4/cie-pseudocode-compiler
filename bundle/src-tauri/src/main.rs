@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod compiler;
 mod runner;
+use compiler::Compiler;
 use runner::{OutputEvent, Runner};
 use tauri::{ipc::Channel, Manager, State};
 
@@ -20,10 +22,9 @@ async fn run_file(
     input: String,
     output: Channel<OutputEvent>,
     runner: State<'_, Runner>,
+    compiler: State<'_, Compiler>,
 ) -> Result<(), String> {
-    let executable = std::env::current_exe()
-        .map_err(|error| error.to_string())?
-        .with_file_name(if cfg!(windows) { "cpsc.exe" } else { "cpsc" });
+    let executable = compiler.inner().0.clone()?;
     let result = runner
         .run(executable, path.into(), input, |stream, bytes| {
             let _ = output.send(OutputEvent::Data {
@@ -47,9 +48,11 @@ async fn stop_run(runner: State<'_, Runner>) -> Result<(), String> {
 }
 
 fn main() {
+    let compiler = Compiler::load();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(Runner::default())
+        .manage(compiler)
         .invoke_handler(tauri::generate_handler![
             read_file, write_file, run_file, stop_run
         ])
