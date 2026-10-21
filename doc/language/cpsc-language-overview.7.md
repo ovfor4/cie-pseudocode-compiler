@@ -44,6 +44,7 @@ Multi-file builds use the compiler extensions INCLUDE and GLOBAL. Pass every sou
 - [cpsc-keyword-procedure(7)](keyword/cpsc-keyword-procedure.7.md): define a procedure and parameter modes.
 - [cpsc-keyword-operator(7)](keyword/cpsc-keyword-operator.7.md): overload unary and binary operators.
 - [cpsc-keyword-overload(7)](keyword/cpsc-keyword-overload.7.md): explicitly overload functions, procedures and constructors.
+- [cpsc-keyword-template(7)](keyword/cpsc-keyword-template.7.md): define function, procedure and class templates with type packs.
 - [cpsc-keyword-call(7)](keyword/cpsc-keyword-call.7.md): invoke a procedure.
 - [cpsc-keyword-openfile(7)](keyword/cpsc-keyword-openfile.7.md): open a text file.
 - [cpsc-keyword-readfile(7)](keyword/cpsc-keyword-readfile.7.md): read a line from a text file.

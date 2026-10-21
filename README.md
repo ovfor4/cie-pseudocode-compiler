@@ -21,6 +21,7 @@ Details can be found here: [Pseudocode Guide for Teachers](https://www.cambridge
 - **Text files**: Support `OPENFILE`, `READFILE`, `WRITEFILE`, `CLOSEFILE` and `EOF`.
 - **User-defined types**: Support enumerated types, pointers and nested records.
 - **Classes**: Support public/private fields and methods, constructors, destructors, copying and operator overloads.
+- **Templates**: Instantiate function, procedure and class [templates](doc/language/keyword/cpsc-keyword-template.7.md) with type deduction, explicit type arguments and variadic packs.
 - **Selection and constants**: Support `CASE OF` branches and named literal `CONSTANT` values.
 
 ## TODO

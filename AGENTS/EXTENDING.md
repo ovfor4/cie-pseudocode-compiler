@@ -17,6 +17,8 @@ fall-through branch in control-flow codegen with
 `if (!Builder->GetInsertBlock()->hasTerminator())` — a RETURN in the body may have
 already terminated the block.
 
+**New AST nodes must be cloned in `lib/CodeGen/TemplateClone.cc`.** Its dynamic_cast chains deep-clone every expression and statement permitted in a template body, preserving source lines. Add structural type substitution for each new type-bearing field and expand packs only through the argument-list helper. Unsupported nodes must diagnose rather than disappear; nested function definitions remain forbidden in template bodies.
+
 **New builtin function:** add a `{Name, Arity, ReturnTypeName}` row to the shared
 `Builtins` table in the internal `lib/CodeGen/Builtins.h` (single source of truth — arity checking in
 `emitCall`, the return type in `getExprTypeInfo`, and the reject-user-redefinition check

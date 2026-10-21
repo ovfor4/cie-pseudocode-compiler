@@ -137,6 +137,10 @@ declaration spelling for LLVM lookup, independently of call-site casing. Methods
 `Class.Method` names and a hidden leading receiver address; their FuncSig parameters
 contain only explicit source parameters. Method prototypes are pre-registered too.
 
+**Templates substitute ASTs before ordinary emission.** Keep explicit `TemplateArgs` separate from call callee names; canonical type ids have no spaces (`Box<Pair<INTEGER,REAL>>`). `TemplateClone.cc` owns deep cloning and structural substitution; every new body AST node needs coverage there. A type parameter binds one canonical type and a pack binds a list; expanded parameter names use unlexable `#` suffixes. FunctionGen stores overload signatures in `IdentifierMap<std::deque<FuncSig>>` so instantiating another template cannot invalidate a held `FuncSig *` during marshalling. CodeGen owns cloned ASTs for the entire compile and caches each instance by declaration plus canonical arguments.
+
+**Template selection and context are shared by typing and emission.** When multiple definitions share a function/procedure name, every ordinary and template definition must specify OVERLOAD. `resolveCall` computes static argument types/ranks once, then tries exact ordinary, non-variadic template and variadic template tiers; same-tier ties are errors. Candidate checking must stay silent and must not instantiate speculative class types. Explicit arguments pre-bind types without allowing conversions. Instances keep the template owner for diagnostics/library behavior and the first requester in `VisibilityUnit` for lookup (`value_or(CurrentUnit)`). Deferred bodies use the symbol snapshot at the template declaration to preserve positional own constants; save and restore all caller context. Class resolution hooks must honor visibility and reserve/cache the record before resolving fields.
+
 **Operator overloads share static selection.** OPERATOR is a reserved keyword;
 `OVERLOAD FUNCTION OPERATOR+(...)` records the token on PrototypeAST. Canonical
 names contain a space (`OPERATOR +`, `Class.OPERATOR AND`) to avoid collisions with
