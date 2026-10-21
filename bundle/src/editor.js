@@ -16,14 +16,21 @@ import grammar from '../../plugin/syntaxes/cie-pseudocode.tmLanguage.json';
 import configuration from '../../plugin/language-configuration.json';
 import indentation from '../../plugin/src/indentation.js';
 import brackets from '../../plugin/src/brackets.js';
-import darkPlusSource from '../vendor/vscode/dark_plus.json?raw';
-import darkSource from '../vendor/vscode/dark_vs.json?raw';
+const sources = import.meta.glob('../vendor/vscode/*.json', { query: '?raw', import: 'default', eager: true });
 
 const languageId = 'cie-pseudocode';
 const { indentationEdits, onTypeCharacters, shouldFormatOnType, selectionEndLine } = indentation;
-const dark = parse(darkSource);
-const plus = parse(darkPlusSource);
-export const theme = { ...dark, ...plus, tokenColors: [...dark.tokenColors, ...plus.tokenColors] };
+function loadTheme(name) {
+	const child = parse(sources[`../vendor/vscode/${name}.json`]);
+	if (!child.include) return child;
+	const parent = loadTheme(child.include.replace(/^\.\//, '').replace(/\.json$/, ''));
+	return { ...parent, ...child, colors: { ...parent.colors, ...child.colors }, tokenColors: [...(parent.tokenColors ?? []), ...(child.tokenColors ?? [])] };
+}
+const dark = loadTheme('2026-dark');
+export const theme = {
+	...dark,
+	tokenColors: [{ settings: { foreground: dark.colors['editor.foreground'], background: dark.colors['editor.background'] } }, ...dark.tokenColors]
+};
 
 class TokenState {
 	constructor(stack) { this.stack = stack; }
@@ -44,8 +51,8 @@ export async function createEditor(element) {
 	monaco.languages.register({ id: languageId, extensions: ['.cps'] });
 	monaco.languages.setLanguageConfiguration(languageId, { ...configuration, wordPattern: new RegExp(configuration.wordPattern) });
 	const tmGrammar = await registry.loadGrammarWithConfiguration(grammar.scopeName, monaco.languages.getEncodedLanguageId(languageId), { balancedBracketSelectors: ['*'] });
-	monaco.editor.defineTheme('cpsc-dark-plus', { base: 'vs-dark', inherit: false, rules: [], colors: dark.colors });
-	monaco.editor.setTheme('cpsc-dark-plus');
+	monaco.editor.defineTheme('cpsc-dark-2026', { base: 'vs-dark', inherit: false, rules: [], colors: dark.colors });
+	monaco.editor.setTheme('cpsc-dark-2026');
 	monaco.languages.setColorMap(registry.getColorMap());
 	monaco.languages.setTokensProvider(languageId, {
 		getInitialState: () => new TokenState(INITIAL),
@@ -72,7 +79,7 @@ export async function createEditor(element) {
 		}
 	});
 	const editor = monaco.editor.create(element, {
-		language: languageId, theme: 'cpsc-dark-plus', automaticLayout: true,
+		language: languageId, theme: 'cpsc-dark-2026', automaticLayout: true,
 		insertSpaces: false, tabSize: 4, detectIndentation: false, autoIndent: 'full', formatOnType: true,
 		bracketPairColorization: { enabled: true, independentColorPoolPerBracketType: false },
 		minimap: { enabled: false }, smoothScrolling: false, cursorSmoothCaretAnimation: 'off',

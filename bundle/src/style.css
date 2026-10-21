@@ -1,20 +1,20 @@
-:root { color-scheme: dark; font: 13px system-ui, sans-serif; color: #d4d4d4; background: #1e1e1e; }
+:root { color-scheme: dark; font: 13px system-ui, sans-serif; color: #bbbebf; background: #121314; }
 * { box-sizing: border-box; }
 body { margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-header { display: flex; align-items: center; gap: 8px; padding: 8px; border-bottom: 1px solid #454545; }
-button { font: inherit; color: inherit; background: #333; border: 1px solid #555; padding: 5px 16px; border-radius: 2px; cursor: pointer; }
-button:hover { background: #404040; }
+header { display: flex; align-items: center; gap: 8px; padding: 8px; border-bottom: 1px solid #2a2b2c; }
+button { font: inherit; color: inherit; background: #191a1b; border: 1px solid #2a2b2c; padding: 5px 16px; border-radius: 2px; cursor: pointer; }
+button:hover { background: #242526; }
 button:disabled { opacity: .5; cursor: default; }
-button:focus-visible, textarea:focus-visible, pre:focus-visible { outline: 1px solid #007acc; outline-offset: -1px; }
+button:focus-visible, textarea:focus-visible, pre:focus-visible { outline: 1px solid #3994bcb3; outline-offset: -1px; }
 #filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: 8px; }
 main { min-height: 0; flex: 1; display: grid; grid-template-rows: minmax(160px, 2fr) minmax(100px, 1fr); }
 #editor { min-height: 0; overflow: hidden; }
-#panels { min-height: 0; display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #454545; }
+#panels { min-height: 0; display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #2a2b2c; }
 section { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-section + section { border-left: 1px solid #454545; }
-label { padding: 5px 10px; background: #252526; }
-textarea, pre { margin: 0; padding: 8px 10px; border: 0; color: inherit; background: #1e1e1e; font: 14px Consolas, Menlo, monospace; tab-size: 4; }
+section + section { border-left: 1px solid #2a2b2c; }
+label { padding: 5px 10px; background: #191a1b; }
+textarea, pre { margin: 0; padding: 8px 10px; border: 0; color: inherit; background: #121314; font: 14px Consolas, Menlo, monospace; tab-size: 4; }
 textarea { flex: 1; min-height: 0; width: 100%; resize: none; border-radius: 0; }
 pre { flex: 1; min-height: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-footer { min-height: 24px; padding: 3px 10px; border-top: 1px solid #454545; }
+footer { min-height: 24px; padding: 3px 10px; border-top: 1px solid #2a2b2c; }
 .invalid-bracket { color: #f44747 !important; }
