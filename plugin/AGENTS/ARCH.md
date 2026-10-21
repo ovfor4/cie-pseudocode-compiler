@@ -70,7 +70,8 @@ profile does not change an existing terminal. Windows bash profiles and non-POSI
 Unix shells are outside the supported terminal set.
 
 Save cancellation starts nothing. Save or terminal setup failures show an English
-error message; compiler and program diagnostics go directly to the terminal.
+error message; compiler and program diagnostics go directly to the terminal,
+where cpsc colors its own diagnostics like gcc.
 Terminal execution follows Code Runner's reuse behavior: users must finish or
 interrupt an interactive program with Ctrl+C before running another file.
 

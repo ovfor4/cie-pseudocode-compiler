@@ -20,6 +20,22 @@
 #include "llvm/Support/raw_ostream.h"
 #include <fstream>
 #include <string>
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#endif
+#else
+#include <cstdlib>
+#include <cstring>
+#include <unistd.h>
+#endif
 
 namespace {
 
@@ -28,11 +44,30 @@ int compilationTerminated() {
     return 1;
 }
 
+bool isColorOption(const std::string &Arg) {
+    return Arg == "-fdiagnostics-color" || Arg == "-fno-diagnostics-color" ||
+           Arg.rfind("-fdiagnostics-color=", 0) == 0;
+}
+
+// gcc's "auto": color only a terminal stderr. On Windows the console must
+// also accept ANSI escape sequences.
+bool colorTerminal() {
+#ifdef _WIN32
+    HANDLE Error = GetStdHandle(STD_ERROR_HANDLE);
+    DWORD Mode;
+    return GetConsoleMode(Error, &Mode) &&
+           SetConsoleMode(Error, Mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+#else
+    const char *Term = std::getenv("TERM");
+    return Term && std::strcmp(Term, "dumb") != 0 && isatty(STDERR_FILENO);
+#endif
+}
+
 #ifdef CPSC_RUN_PATH
 bool checkLliVersion(llvm::StringRef LliPath) {
     llvm::SmallString<256> VersionPath;
     if (auto EC = llvm::sys::fs::createTemporaryFile("cpsc-lli-version", "txt", VersionPath)) {
-        llvm::errs() << "cpsc: fatal error: cannot check lli version: " << EC.message() << "\n";
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot check lli version: " << EC.message() << "\n";
         return false;
     }
     llvm::FileRemover TemporaryVersion(VersionPath);
@@ -41,7 +76,7 @@ bool checkLliVersion(llvm::StringRef LliPath) {
         std::nullopt, {llvm::StringRef(""), llvm::StringRef(VersionPath), llvm::StringRef("")},
         5, 0, &ExecutionError);
     if (Result != 0) {
-        llvm::errs() << "cpsc: fatal error: cannot check lli version at '" << LliPath
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot check lli version at '" << LliPath
                      << "' (status " << Result << ")";
         if (!ExecutionError.empty()) llvm::errs() << ": " << ExecutionError;
         llvm::errs() << "\n";
@@ -49,18 +84,18 @@ bool checkLliVersion(llvm::StringRef LliPath) {
     }
     auto Version = llvm::MemoryBuffer::getFile(VersionPath);
     if (!Version) {
-        llvm::errs() << "cpsc: fatal error: cannot read lli version: "
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot read lli version: "
                      << Version.getError().message() << "\n";
         return false;
     }
     llvm::SmallVector<llvm::StringRef, 2> Matches;
     if (!llvm::Regex("LLVM version ([0-9]+)\\.").match((*Version)->getBuffer(), &Matches)) {
-        llvm::errs() << "cpsc: fatal error: cannot identify LLVM version of lli at '"
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot identify LLVM version of lli at '"
                      << LliPath << "'; LLVM 23 is required\n";
         return false;
     }
     if (Matches[1] != "23") {
-        llvm::errs() << "cpsc: fatal error: -r requires lli from LLVM 23; found LLVM "
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "-r requires lli from LLVM 23; found LLVM "
                      << Matches[1] << " at '" << LliPath << "'\n";
         return false;
     }
@@ -88,6 +123,32 @@ int main(int argc, char **argv) {
         }
     }
 
+    // Like gcc, the last valid -fdiagnostics-color option wins, and it is
+    // applied before any other diagnostic.
+    enum { ColorAuto, ColorAlways, ColorNever } ColorMode = ColorAuto;
+    std::string BadColor;
+    for (int I = 1; I < argc; ++I) {
+        std::string Arg = argv[I];
+        if (Arg == "-fdiagnostics-color" || Arg == "-fdiagnostics-color=always")
+            ColorMode = ColorAlways;
+        else if (Arg == "-fdiagnostics-color=auto")
+            ColorMode = ColorAuto;
+        else if (Arg == "-fdiagnostics-color=never" || Arg == "-fno-diagnostics-color")
+            ColorMode = ColorNever;
+        else if (isColorOption(Arg) && BadColor.empty())
+            BadColor = Arg;
+    }
+    // colorTerminal() also enables escape sequences on a Windows console.
+    const bool Terminal = ColorMode != ColorNever && colorTerminal();
+    cps::DiagnosticColors = ColorMode == ColorAlways || Terminal;
+    if (!BadColor.empty()) {
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error)
+                     << "unrecognized argument in option '" << BadColor << "'\n"
+                     << cps::diagnosticPrefix(cps::Severity::Note)
+                     << "valid arguments to '-fdiagnostics-color=' are: always auto never\n";
+        return compilationTerminated();
+    }
+
     std::vector<std::string> InputPaths;
     std::string OutputPath;
     bool Run = false;
@@ -103,16 +164,18 @@ int main(int argc, char **argv) {
             NoStd = true;
         } else if (Arg == "-o") {
             if (!OutputPath.empty()) {
-                llvm::errs() << "cpsc: error: -o may only be specified once\n";
+                llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "-o may only be specified once\n";
                 return compilationTerminated();
             }
             if (I + 1 == argc || argv[I + 1][0] == '-' || argv[I + 1][0] == '\0') {
-                llvm::errs() << "cpsc: error: -o requires an output path\n";
+                llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "-o requires an output path\n";
                 return compilationTerminated();
             }
             OutputPath = argv[++I];
+        } else if (isColorOption(Arg)) {
+            continue;
         } else if (Arg.empty() || Arg[0] == '-') {
-            llvm::errs() << "cpsc: error: unknown argument '" << Arg << "'\n";
+            llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "unknown argument '" << Arg << "'\n";
             return compilationTerminated();
         } else {
             InputPaths.push_back(Arg);
@@ -120,7 +183,7 @@ int main(int argc, char **argv) {
     }
 
     if (InputPaths.empty()) {
-        llvm::errs() << "cpsc: fatal error: no input files\n";
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "no input files\n";
         return compilationTerminated();
     }
 #ifdef CPSC_RUN_PATH
@@ -130,13 +193,13 @@ int main(int argc, char **argv) {
 #ifdef CPSC_RUN_PATH
         auto Lli = llvm::sys::findProgramByName("lli");
         if (!Lli) {
-            llvm::errs() << "cpsc: fatal error: -r requires lli from LLVM 23 in PATH: " << Lli.getError().message() << "\n";
+            llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "-r requires lli from LLVM 23 in PATH: " << Lli.getError().message() << "\n";
             return compilationTerminated();
         }
         LliPath = *Lli;
         if (!checkLliVersion(LliPath)) return compilationTerminated();
 #elif defined(CPSC_RUN_NONE)
-        llvm::errs() << "cpsc: fatal error: -r is disabled in this build (CPSC_RUN_MODE=NONE)\n";
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "-r is disabled in this build (CPSC_RUN_MODE=NONE)\n";
         return compilationTerminated();
 #endif
     }
@@ -150,13 +213,13 @@ int main(int argc, char **argv) {
         const auto &InputPath = InputPaths[I];
         for (size_t J = 0; J < I; ++J) {
             if (llvm::sys::fs::equivalent(InputPath, InputPaths[J])) {
-                llvm::errs() << "cpsc: error: duplicate input file '" << InputPath << "'\n";
+                llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "duplicate input file '" << InputPath << "'\n";
                 return compilationTerminated();
             }
         }
         std::ifstream Input(InputPath, std::ios::binary);
         if (!Input) {
-            llvm::errs() << "cpsc: fatal error: cannot open source file '" << InputPath << "'\n";
+            llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot open source file '" << InputPath << "'\n";
             return compilationTerminated();
         }
         cps::DiagnosticSource = InputPath;
@@ -164,7 +227,7 @@ int main(int argc, char **argv) {
         cps::Parser Parser(Lex);
         Programs[I] = Parser.Parse();
         if (Input.bad()) {
-            llvm::errs() << "cpsc: fatal error: cannot read source file '" << InputPath << "'\n";
+            llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot read source file '" << InputPath << "'\n";
             return compilationTerminated();
         }
         if (Lex.hadError() || Parser.hadError()) return compilationTerminated();
@@ -274,7 +337,7 @@ int main(int argc, char **argv) {
     }
     for (const auto &InputPath : InputPaths) {
         if (Save && llvm::sys::fs::equivalent(InputPath, OutputPath)) {
-            llvm::errs() << "cpsc: error: output file must not be the source file\n";
+            llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "output file must not be the source file\n";
             return compilationTerminated();
         }
     }
@@ -301,7 +364,7 @@ int main(int argc, char **argv) {
         EC = llvm::sys::fs::openFileForWrite(IRPath, OutputFD);
     }
     if (EC) {
-        llvm::errs() << "cpsc: fatal error: cannot open output file '" << IRPath
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot open output file '" << IRPath
                      << "': " << EC.message() << "\n";
         return compilationTerminated();
     }
@@ -309,7 +372,7 @@ int main(int argc, char **argv) {
     CG.print(Output);
     Output.close();
     if (Output.has_error()) {
-        llvm::errs() << "cpsc: fatal error: cannot write output file '" << IRPath
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot write output file '" << IRPath
                      << "': " << Output.error().message() << "\n";
         Output.clear_error();
         return compilationTerminated();
@@ -319,7 +382,7 @@ int main(int argc, char **argv) {
 #ifdef CPSC_RUN_PATH
     llvm::SmallString<256> RunPath(IRPath);
     if (auto PathError = llvm::sys::fs::make_absolute(RunPath)) {
-        llvm::errs() << "cpsc: error: cannot resolve IR path: " << PathError.message() << "\n";
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "cannot resolve IR path: " << PathError.message() << "\n";
         return 1;
     }
     std::string ExecutionError;
@@ -330,7 +393,7 @@ int main(int argc, char **argv) {
     int Result = llvm::sys::ExecuteAndWait(LliPath, LliArgv,
                                          std::nullopt, {}, 0, 0, &ExecutionError);
     if (Result < 0) {
-        llvm::errs() << "cpsc: error: lli execution failed (status " << Result << "): "
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "lli execution failed (status " << Result << "): "
                      << ExecutionError << "\n";
         return 1;
     }

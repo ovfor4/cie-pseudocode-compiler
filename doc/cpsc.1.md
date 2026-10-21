@@ -6,7 +6,7 @@ cpsc - compile and run CIE pseudocode
 
 # SYNOPSIS
 
-**cpsc** [**-r**] [**-S**] [**-no-std**] [**-o** *output*] *source* [*source* ...]
+**cpsc** [**-r**] [**-S**] [**-no-std**] [**-fdiagnostics-color**[=*when*]] [**-o** *output*] *source* [*source* ...]
 
 **cpsc** **-h**
 
@@ -38,6 +38,9 @@ The embedded standard library is loaded and linked automatically. Its std.cps im
 
 **-no-std**
 :   Disable automatic standard-library loading and linking. Explicit INCLUDE and INCLUDE_OBJ inputs still work.
+
+**-fdiagnostics-color**[=*when*], **-fno-diagnostics-color**
+:   Color compiler diagnostics like gcc: the `file:line:` or `cpsc:` prefix in bold, `error:` and `fatal error:` in bold red, `warning:` in bold magenta and `note:` in bold cyan. *when* is `auto` (the default), `always` or `never`; **-fdiagnostics-color** alone means `always` and **-fno-diagnostics-color** means `never`. The last such option wins. `auto` colors only when stderr is a terminal: on Unix/macOS `TERM` must also be set and not `dumb`; on Windows the console must accept ANSI escape sequences. Runtime diagnostics of the compiled program are never colored.
 
 # NATIVE COMPILATION
 

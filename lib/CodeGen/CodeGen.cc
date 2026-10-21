@@ -366,7 +366,7 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
     Builder->CreateRet(ConstantInt::get(Type::getInt32Ty(*TheContext), 1));
 
     if (verifyModule(*TheModule, &errs())) {
-        errs() << "fatal error: LLVM module verification failed\n";
+        errs() << cps::diagnosticPrefix(cps::Severity::Fatal, "") << "LLVM module verification failed\n";
         HadError = true;
     }
 }

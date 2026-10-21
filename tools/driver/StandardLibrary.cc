@@ -1,4 +1,5 @@
 #include "StandardLibrary.h"
+#include "cps/Diagnostics.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
@@ -19,7 +20,8 @@ StandardLibrary::~StandardLibrary() {
 bool StandardLibrary::load(std::vector<std::string> &Inputs) {
     auto Error = llvm::sys::fs::createUniqueDirectory("cpsc-std", Directory);
     if (Error) {
-        llvm::errs() << "cpsc: fatal error: cannot extract standard library: " << Error.message() << "\n";
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal)
+                     << "cannot extract standard library: " << Error.message() << "\n";
         return false;
     }
     for (const auto &File : LibraryFiles) {
@@ -32,8 +34,9 @@ bool StandardLibrary::load(std::vector<std::string> &Inputs) {
             Error = Output.error();
         }
         if (Error) {
-            llvm::errs() << "cpsc: fatal error: cannot extract standard library file '"
-                         << File.Name << "': " << Error.message() << "\n";
+            llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal)
+                         << "cannot extract standard library file '" << File.Name
+                         << "': " << Error.message() << "\n";
             Output.clear_error();
             return false;
         }

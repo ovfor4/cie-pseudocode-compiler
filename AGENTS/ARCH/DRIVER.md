@@ -4,7 +4,8 @@ Driver behavior (`tools/driver/main.cc`). CodeGen-side unit and entry-point inva
 [CONVENTIONS/EXCEPTIONS_AND_UNITS.md](../CONVENTIONS/EXCEPTIONS_AND_UNITS.md); diagnostic
 style is in [CONVENTIONS/SYMBOLS_AND_ERRORS.md](../CONVENTIONS/SYMBOLS_AND_ERRORS.md).
 
-- One or more source files, with optional `-S`, `-o path`, `-r` and `-no-std`; options may appear among inputs.
+- One or more source files, with optional `-S`, `-o path`, `-r`, `-no-std` and
+  `-fdiagnostics-color[=auto|always|never]` / `-fno-diagnostics-color`; options may appear among inputs.
   Each stream is parsed independently. INCLUDE paths are relative to the including file,
   matched against command-line inputs with fs::equivalent. The driver rejects repeated
   inputs and computes transitive symbol visibility; cycles do not copy statements.
@@ -36,7 +37,12 @@ style is in [CONVENTIONS/SYMBOLS_AND_ERRORS.md](../CONVENTIONS/SYMBOLS_AND_ERROR
   `compilation terminated.` once on compilation failure, including argument errors.
   Lexer/parser/codegen diagnostics use the gcc layout `<path>:<line>: error: <message>`
   (Diagnostics.h), with the path as given on the command line; driver-level errors
-  use `cpsc: error:` / `cpsc: fatal error:`.
+  use `cpsc: error:` / `cpsc: fatal error:`. Every label comes from
+  `cps::diagnosticPrefix`, which emits gcc's default colors when
+  `cps::DiagnosticColors` is set. The driver scans the color options right after
+  `-h`, before any other diagnostic; the last valid one wins, and `auto` requires a
+  terminal stderr (Unix: `TERM` set and not `dumb`; Windows: a console that accepts
+  VT sequences). `compilation terminated.` and lld's own output are not colored.
   Execution-stage failures do not print that line. Check the exit code rather
   than grepping stderr.
 - Successful compilation overwrites the output, but paths aliasing any input source

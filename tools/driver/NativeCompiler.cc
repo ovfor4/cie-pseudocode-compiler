@@ -1,5 +1,6 @@
 #include "NativeCompiler.h"
 #include "cps/CodeGen.h"
+#include "cps/Diagnostics.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Driver/Compilation.h"
@@ -48,7 +49,7 @@ struct TemporaryDirectory {
 };
 
 bool fail(const llvm::Twine &Message) {
-    llvm::errs() << "cpsc: fatal error: " << Message << "\n";
+    llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << Message << "\n";
     return false;
 }
 
@@ -58,8 +59,10 @@ class DriverDiagnostics : public clang::DiagnosticConsumer {
         clang::DiagnosticConsumer::HandleDiagnostic(Level, Info);
         llvm::SmallString<256> Message;
         Info.FormatDiagnostic(Message);
-        llvm::errs() << "cpsc: " << (Level >= clang::DiagnosticsEngine::Error
-                                        ? "error: " : "warning: ") << Message << "\n";
+        llvm::errs() << cps::diagnosticPrefix(Level >= clang::DiagnosticsEngine::Error
+                                                  ? cps::Severity::Error
+                                                  : cps::Severity::Warning)
+                     << Message << "\n";
     }
 };
 
