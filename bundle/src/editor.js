@@ -32,6 +32,8 @@ export const theme = {
 	tokenColors: [{ settings: { foreground: dark.colors['editor.foreground'], background: dark.colors['editor.background'] } }, ...dark.tokenColors]
 };
 
+for (const [key, value] of Object.entries(dark.colors)) document.documentElement.style.setProperty(`--vscode-${key.replaceAll('.', '-')}`, value);
+
 class TokenState {
 	constructor(stack) { this.stack = stack; }
 	clone() { return new TokenState(this.stack); }
