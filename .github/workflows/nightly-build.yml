@@ -232,6 +232,12 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache desktop Rust dependencies
+        uses: Swatinem/rust-cache@v2.9.3
+        with:
+          workspaces: bundle/src-tauri -> target
+          cache-on-failure: true
+
       - name: Build and test the macOS desktop package
         working-directory: bundle
         run: |
@@ -402,6 +408,12 @@ jobs:
           node-version: '22'
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache desktop Rust dependencies
+        uses: Swatinem/rust-cache@v2.9.3
+        with:
+          workspaces: bundle/src-tauri -> target
+          cache-on-failure: true
 
       - name: Build and test the Windows desktop package
         working-directory: bundle
