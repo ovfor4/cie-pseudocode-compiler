@@ -9,7 +9,12 @@ import time
 
 root = Path(sys.argv[1]).resolve()
 environment = os.environ.copy()
-environment["PATH"] = os.pathsep.join((os.path.join(environment["SystemRoot"], "System32"), environment["SystemRoot"])) if sys.platform == "win32" else "/nonexistent"
+if sys.platform == "win32":
+    # Windows environ lookups ignore case; the copied dict has uppercase keys.
+    system_root = os.environ["SystemRoot"]
+    environment["PATH"] = os.pathsep.join((os.path.join(system_root, "System32"), system_root))
+else:
+    environment["PATH"] = "/nonexistent"
 with tempfile.TemporaryDirectory(prefix="cpsc bundle smoke ") as directory:
     work = Path(directory)
     if sys.platform == "win32":
