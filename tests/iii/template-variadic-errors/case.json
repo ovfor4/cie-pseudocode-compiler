@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {"reason": "No matching overload for MissingBase", "line": 3},
+    {"reason": "A parameter pack expansion is only allowed in an argument list", "line": 8},
+    {"reason": "A parameter pack expansion is only allowed in an argument list", "line": 14},
+    {"reason": "A parameter pack expansion is only allowed in an argument list", "line": 19},
+    {"reason": "No matching overload for Exact", "line": 37},
+    {"reason": "No matching overload for Exact", "line": 38},
+    {"reason": "Ambiguous call to Tied", "line": 39}
+  ]
+}

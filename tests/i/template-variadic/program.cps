@@ -1,0 +1,37 @@
+OVERLOAD PROCEDURE PrintAll()
+ENDPROCEDURE
+
+TEMPLATE <T, Rest...>
+OVERLOAD PROCEDURE PrintAll(First : T, Others : Rest...)
+    OUTPUT First
+    CALL PrintAll(Others...)
+ENDPROCEDURE
+
+TEMPLATE <Types...>
+PROCEDURE Forward(Values : Types...)
+    CALL PrintAll<Types...>(Values...)
+ENDPROCEDURE
+
+TEMPLATE <T>
+OVERLOAD FUNCTION Pick(Value : T) RETURNS INTEGER
+    RETURN 10
+ENDFUNCTION
+
+TEMPLATE <T, Rest...>
+OVERLOAD FUNCTION Pick(First : T, Others : Rest...) RETURNS INTEGER
+    RETURN 20
+ENDFUNCTION
+
+OVERLOAD FUNCTION Pick(Value : INTEGER) RETURNS INTEGER
+    RETURN 30
+ENDFUNCTION
+
+CALL PrintAll(1, 2.5, 'c', "str")
+CALL PrintAll()
+CALL PrintAll<INTEGER>(1, 2.5)
+CALL Forward<INTEGER>(7, 3.5)
+CALL Forward()
+OUTPUT Pick(1)
+OUTPUT Pick(1.0)
+OUTPUT Pick(1, 2)
+OUTPUT Pick<INTEGER>(1)
