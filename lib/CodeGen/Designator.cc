@@ -42,35 +42,45 @@ void CodeGen::runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statem
         if (!Ok) reportError("%s", Err.c_str());
     }
 
-    if (Phase == 2) for (const auto &S : Statements) {
-        auto *Class = dynamic_cast<ClassTypeDeclAST*>(S.get());
-        if (!Class) continue;
-        auto &Methods = ClassMethods[Class->getName()];
-        IdentifierSet Names;
-        for (const auto &Field : Class->getFields()) {
-            Names.insert(Field.Name);
-            if (sameIdentifier(Field.Name, "this")) {
-                SaveAndRestore<int> Location(DiagnosticLine, Class->getLine());
-                reportError("A class field cannot be named this");
-            }
+    if (Phase == 2) for (const auto &S : Statements)
+        if (auto *Class = dynamic_cast<ClassTypeDeclAST*>(S.get())) registerClassMethods(Class);
+}
+
+void CodeGen::registerClassMethods(ClassTypeDeclAST *Class) {
+    auto &Methods = ClassMethods[Class->getName()];
+    IdentifierSet Names;
+    for (const auto &Field : Class->getFields()) {
+        Names.insert(Field.Name);
+        if (sameIdentifier(Field.Name, "this")) {
+            SaveAndRestore<int> Location(DiagnosticLine, Class->getLine());
+            reportError("A class field cannot be named this");
         }
-        for (const auto &Method : Class->getMethods()) {
-            SaveAndRestore<int> Location(DiagnosticLine, Method->getLine());
-            const std::string &Name = Method->getProto()->getName();
-            if (sameIdentifier(Name, "this")) {
-                reportError("A method cannot be named this");
-            } else if (Names.count(Name) ||
-                       (!Methods[Name].empty() && (!Method->getProto()->isOverload() ||
-                                                 !Methods[Name].front()->getProto()->isOverload()))) {
-                reportError("Duplicate member %s in class %s", Name.c_str(), Class->getName().c_str());
-            } else {
-                Methods[Name].push_back(Method.get());
-            }
+    }
+    for (const auto &Method : Class->getMethods()) {
+        SaveAndRestore<int> Location(DiagnosticLine, Method->getLine());
+        const std::string &Name = Method->getProto()->getName();
+        if (sameIdentifier(Name, "this")) {
+            reportError("A method cannot be named this");
+        } else if (Names.count(Name) ||
+                   (!Methods[Name].empty() && (!Method->getProto()->isOverload() ||
+                                             !Methods[Name].front()->getProto()->isOverload()))) {
+            reportError("Duplicate member %s in class %s", Name.c_str(), Class->getName().c_str());
+        } else {
+            Methods[Name].push_back(Method.get());
         }
     }
 }
 
+void CodeGen::emitClassPrototypes(ClassTypeDeclAST *Class) {
+    for (const auto &Method : Class->getMethods()) {
+        SaveAndRestore<int> Location(DiagnosticLine, Method->getLine());
+        if (isRegisteredMethod(Class->getName(), Method->getProto()))
+            FuncGen->emitPrototype(Method->getProto());
+    }
+}
+
 const std::vector<FunctionDefAST *> *CodeGen::findMethod(const std::string &Class, const std::string &Name) const {
+    if (Class.find('<') != std::string::npos && !resolveType(Class)) return nullptr;
     auto C = ClassMethods.find(Class);
     if (C == ClassMethods.end()) return nullptr;
     auto M = C->second.find(Name);

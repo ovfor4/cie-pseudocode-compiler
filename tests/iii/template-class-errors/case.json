@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {"reason": "No matching overload for Make", "line": 10},
+    {"reason": "Wrong number of template arguments for Box", "line": 11},
+    {"reason": "Class template Box requires template arguments", "line": 12},
+    {"reason": "Unknown or invalid template argument Nope for Box", "line": 13}
+  ]
+}

@@ -111,9 +111,8 @@ bool TypeSystem::sameType(const std::string &Left, const std::string &Right) con
 
 const TypeInfo *TypeSystem::resolve(const std::string &TypeName) const {
     auto It = Types.find(TypeName);
-    if (It == Types.end() || (Visible && !Visible(TypeName))) {
-        return nullptr;
-    }
+    if (It == Types.end()) return ResolveMiss ? ResolveMiss(TypeName) : nullptr;
+    if (Visible && !Visible(TypeName)) return nullptr;
     return &It->second;
 }
 

@@ -182,9 +182,11 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
     if (Sources.empty()) { reportError("no main program"); return; }
     Exports.resize(Sources.size());
     Types->setVisibility([this](const std::string &Name) {
+        if (FailedTemplateTypes.count(Name)) return false;
         auto It = TypeOwners.find(Name);
         return It == TypeOwners.end() || isVisible(It->second);
     });
+    Types->setResolveMiss([this](const std::string &Name) { return instantiateClass(Name); });
     FuncGen->setVisibility([this](size_t Owner) { return isVisible(Owner); });
 
     struct Definition { size_t Unit; bool IsFunction; bool IsOverload; bool IsExtern; bool IsTemplate; int Line; };
@@ -277,6 +279,7 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
     BasicBlock *UnhandledBB = BasicBlock::Create(*TheContext, "unhandled_exception", F);
     Exceptions->pushHandler(UnhandledBB);
 
+    TypePrePass = true;
     // Reserve names across every unit before resolving any type payload.
     for (size_t I = 0; I < Sources.size(); ++I) {
         selectUnit(I);
@@ -294,6 +297,8 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
         runTypePrePass(Sources[I].Statements, 2);
     };
     for (size_t I = 0; I < Sources.size(); ++I) DefineTypes(I);
+    TypePrePass = false;
+    emitDeferredClassPrototypes();
 
     for (size_t I = 0; I < Sources.size(); ++I) {
         selectUnit(I);
@@ -304,11 +309,7 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
             if (auto *Extern = dynamic_cast<ExternDeclAST*>(Stmt.get()))
                 FuncGen->emitExternPrototype(Extern->getProto());
             if (auto *Class = dynamic_cast<ClassTypeDeclAST*>(Stmt.get())) {
-                for (const auto &Method : Class->getMethods()) {
-                    SaveAndRestore<int> MethodLocation(DiagnosticLine, Method->getLine());
-                    if (isRegisteredMethod(Class->getName(), Method->getProto()))
-                        FuncGen->emitPrototype(Method->getProto());
-                }
+                emitClassPrototypes(Class);
             }
         }
     }
@@ -573,14 +574,15 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
                 if (HasPackParam ? Actual.size() < FixedCount : Actual.size() != FixedCount) continue;
                 detail::TemplateBindings Bindings;
                 for (const auto &Param : TemplateParams) Bindings.emplace(Param.Name, std::vector<std::string>{});
+                SaveAndRestore<bool> Speculation(SpeculativeTemplateResolution, true);
                 bool Match = true;
                 if (HasExplicit) {
                     size_t FixedTypes = TemplateParams.size() - Variadic;
                     if (!Variadic && Explicit->size() > FixedTypes) continue;
                     for (size_t I = 0; I < Explicit->size(); ++I) {
-                        const TypeInfo *Type = resolveType((*Explicit)[I]);
-                        if (!Type || Type->isVoid()) { Match = false; break; }
-                        Bindings.at(TemplateParams[std::min(I, FixedTypes)].Name).push_back(Type->Name);
+                        auto Type = canonicalTemplateArgument((*Explicit)[I]);
+                        if (!Type) { Match = false; break; }
+                        Bindings.at(TemplateParams[std::min(I, FixedTypes)].Name).push_back(*Type);
                     }
                 }
                 if (!Match) continue;

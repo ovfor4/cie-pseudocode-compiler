@@ -1,0 +1,13 @@
+TEMPLATE <T>
+CLASS Box
+    Value : T
+ENDCLASS
+TEMPLATE <T>
+FUNCTION Make() RETURNS T
+    DECLARE Value : T
+    RETURN Value
+ENDFUNCTION
+OUTPUT Make<Box<Nope>>()
+DECLARE TooMany : Box<INTEGER, REAL>
+DECLARE TooFew : Box
+DECLARE Unknown : Box<Nope>

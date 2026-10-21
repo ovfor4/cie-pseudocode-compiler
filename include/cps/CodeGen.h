@@ -26,6 +26,7 @@ class ExceptionHandler;
 class CastExprAST;
 class NewExprAST;
 class TemplateDeclAST;
+class ClassTypeDeclAST;
 
 class CodeGen {
     std::unique_ptr<llvm::LLVMContext> TheContext;
@@ -43,6 +44,7 @@ class CodeGen {
         TemplateDeclAST *Decl;
         std::string Arguments;
         std::unique_ptr<FunctionDefAST> Function;
+        std::unique_ptr<ClassTypeDeclAST> Class;
         const FuncSig *Signature;
         size_t OwnerUnit;
         size_t RequesterUnit;
@@ -52,6 +54,10 @@ class CodeGen {
     std::map<const TemplateDeclAST *, IdentifierMap<SymbolInfo>> TemplateSymbols;
     size_t NextTemplateBody = 0;
     unsigned TemplateDepth = 0;
+    bool TypePrePass = false;
+    bool SpeculativeTemplateResolution = false;
+    IdentifierSet FailedTemplateTypes;
+    std::vector<size_t> DeferredClassPrototypes;
     bool hasCallable(const std::string &Name) const;
     bool hasFunctionTemplate(const std::string &Name) const;
     void validateTemplates();
@@ -59,6 +65,10 @@ class CodeGen {
     const FuncSig *instantiateFunction(const TemplateDefinition &Definition,
         const IdentifierMap<std::vector<std::string>> &Bindings);
     void drainTemplateBodies();
+    const TypeInfo *instantiateClass(const std::string &Name);
+    std::optional<std::string> canonicalTemplateArgument(const std::string &Name);
+    void emitClassPrototypes(ClassTypeDeclAST *Class);
+    void emitDeferredClassPrototypes();
     std::vector<IdentifierMap<SymbolInfo>> Exports;
     bool isVisible(size_t Owner) const;
     void selectUnit(size_t Unit);
@@ -170,6 +180,7 @@ class CodeGen {
 
     // TYPE-system registration (Designator.cc) and operators (TypeCheckGen.cc).
     void runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements, int Phase);
+    void registerClassMethods(ClassTypeDeclAST *Class);
     llvm::Value *emitUserKindBinaryOp(int Op, llvm::Value *L, const TypeInfo *LT,
                                       llvm::Value *R, const TypeInfo *RT, int Line);
 

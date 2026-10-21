@@ -122,6 +122,7 @@ class TypeSystem {
     IdentifierMap<EnumConstant> EnumConstants;
 
     std::function<bool(const std::string &)> Visible;
+    std::function<const TypeInfo *(const std::string &)> ResolveMiss;
     void registerBuiltins();
     const TypeInfo *registerType(const std::string &TypeName,
                                  llvm::Type *LLVMType,
@@ -131,6 +132,7 @@ public:
     explicit TypeSystem(llvm::LLVMContext &Ctx);
 
     void setVisibility(std::function<bool(const std::string &)> Predicate) { Visible = std::move(Predicate); }
+    void setResolveMiss(std::function<const TypeInfo *(const std::string &)> Hook) { ResolveMiss = std::move(Hook); }
     const TypeInfo *resolve(const std::string &TypeName) const;
 
     // Two-pass user-type registration (pass A then pass B, both in source
