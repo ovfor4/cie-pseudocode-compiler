@@ -103,6 +103,7 @@ enum Token {
     tok_c_string = -611,
     tok_c_double = -612,
     tok_new = -613, tok_delete = -614,
+    tok_template = -615,
 
     tok_include = -650, tok_global = -651, tok_endglobal = -652,
     tok_include_obj = -653, tok_extern = -654,

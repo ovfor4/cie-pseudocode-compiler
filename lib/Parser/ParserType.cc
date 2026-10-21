@@ -5,6 +5,136 @@
 
 using namespace cps;
 
+bool Parser::isTemplatePack(const std::string &Name) const {
+    for (const auto &P : CurrentTemplate)
+        if (P.IsPack && sameIdentifier(P.Name, Name)) return true;
+    return false;
+}
+
+// TEMPLATE <T, Rest...> [OVERLOAD] FUNCTION/PROCEDURE or CLASS.
+// Invalid nesting still consumes the entire declaration before diagnosing it.
+std::unique_ptr<StmtAST> Parser::ParseTemplateDecl() {
+    int Line = Lex.getLine();
+    bool AtTopLevel = BlockDepth == 1 && CurrentTemplate.empty();
+    getNextToken();
+    if (CurTok != '<') {
+        sourceDiagnostic(Line, "error: Expected '<' after TEMPLATE at line %d\n", Line);
+        return nullptr;
+    }
+    getNextToken();
+    std::vector<TemplateParam> Params;
+    IdentifierSet Names;
+    bool Invalid = false;
+    bool SeenPack = false;
+    while (true) {
+        if (CurTok != tok_identifier) {
+            sourceDiagnostic(Lex.getLine(), "error: Expected template parameter name at line %d\n", Lex.getLine());
+            return nullptr;
+        }
+        TemplateParam P{Lex.IdentifierStr, false, Lex.getLine()};
+        if (!Names.insert(P.Name).second) {
+            sourceDiagnostic(P.Line, "error: Duplicate template parameter '%s' at line %d\n", P.Name.c_str(), P.Line);
+            Invalid = true;
+        }
+        getNextToken();
+        if (CurTok == tok_ellipsis) {
+            P.IsPack = true;
+            if (SeenPack) {
+                sourceDiagnostic(P.Line, "error: A template may have only one parameter pack at line %d\n", P.Line);
+                Invalid = true;
+            }
+            SeenPack = true;
+            getNextToken();
+        }
+        Params.push_back(std::move(P));
+        if (CurTok == '>') break;
+        if (CurTok != ',') {
+            sourceDiagnostic(Lex.getLine(), "error: Expected ',' or '>' in TEMPLATE at line %d\n", Lex.getLine());
+            return nullptr;
+        }
+        if (Params.back().IsPack) {
+            sourceDiagnostic(Params.back().Line, "error: A template parameter pack must be last at line %d\n", Params.back().Line);
+            Invalid = true;
+        }
+        getNextToken();
+    }
+    getNextToken();
+
+    auto SavedTemplate = std::move(CurrentTemplate);
+    auto SavedTypes = TypeNames;
+    CurrentTemplate = Params;
+    for (const auto &P : Params) TypeNames.insert(P.Name);
+    bool IsOverload = CurTok == tok_overload;
+    if (IsOverload) getNextToken();
+    std::unique_ptr<StmtAST> Decl;
+    if (CurTok == tok_function || CurTok == tok_procedure) {
+        bool Operator = Lex.peekToken() == tok_operator;
+        if (Operator) {
+            sourceDiagnostic(Line, "error: Operator templates are not supported at line %d\n", Line);
+            Invalid = true;
+            int End = CurTok == tok_function ? tok_endfunction : tok_endprocedure;
+            do { getNextToken(); } while (CurTok != End && CurTok != tok_eof);
+            if (CurTok == End) getNextToken();
+        } else {
+            auto Function = CurTok == tok_function ? ParseFunction({}, true, IsOverload)
+                                                  : ParseProcedure({}, true, IsOverload);
+            if (Function) Decl = std::make_unique<TemplateDeclAST>(Params, std::move(Function));
+        }
+    } else if (CurTok == tok_class && !IsOverload) {
+        int ClassLine = Lex.getLine();
+        auto Class = ParseTypeDecl();
+        if (Class) {
+            Class->setLine(ClassLine);
+            Decl = std::make_unique<TemplateDeclAST>(Params,
+                std::unique_ptr<ClassTypeDeclAST>(static_cast<ClassTypeDeclAST *>(Class.release())));
+        }
+    } else if (CurTok == tok_type) {
+        sourceDiagnostic(Line, "error: TEMPLATE cannot prefix TYPE; use CLASS at line %d\n", Line);
+        ParseTypeDecl();
+        Invalid = true;
+    } else {
+        sourceDiagnostic(Line, "error: TEMPLATE must be followed by FUNCTION, PROCEDURE or CLASS at line %d\n", Line);
+        Invalid = true;
+    }
+    CurrentTemplate = std::move(SavedTemplate);
+    TypeNames = std::move(SavedTypes);
+    if (!AtTopLevel) {
+        sourceDiagnostic(Line, "error: TEMPLATE declarations are only allowed at top level at line %d\n", Line);
+        Invalid = true;
+    }
+    if (Invalid || !Decl) return nullptr;
+    if (auto *T = dynamic_cast<TemplateDeclAST *>(Decl.get()); T->getClass()) TypeNames.insert(T->getName());
+    Decl->setLine(Line);
+    return Decl;
+}
+
+std::optional<std::vector<std::string>> Parser::ParseTemplateArgs() {
+    getNextToken(); // '<'
+    std::vector<std::string> Args;
+    while (true) {
+        int Line = Lex.getLine();
+        std::string Type = ParseTypeName(false);
+        if (Type.empty()) return std::nullopt;
+        if (CurTok == tok_ellipsis) {
+            if (!isTemplatePack(Type)) {
+                sourceDiagnostic(Line, "error: Only the current template parameter pack may use '...' in a type argument at line %d\n", Line);
+                return std::nullopt;
+            }
+            Type += "...";
+            getNextToken();
+        }
+        Args.push_back(std::move(Type));
+        if (CurTok == '>') break;
+        if (CurTok != ',') {
+            sourceDiagnostic(Lex.getLine(), "error: Expected ',' or '>' in template arguments at line %d\n", Lex.getLine());
+            return std::nullopt;
+        }
+        getNextToken();
+    }
+    getNextToken();
+    return Args;
+}
+
 // TYPE <id> = (value1, value2, ...)     enumerated type
 // TYPE <id> = ^<type>                   pointer type
 // TYPE <id>                             record type
@@ -29,6 +159,7 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
     }
     std::string Name = CurTok == tok_string_kw ? "STRING" : Lex.IdentifierStr;
     getNextToken();
+    if (IsClass && !CurrentTemplate.empty()) TypeNames.insert(Name);
 
     std::unique_ptr<StmtAST> Decl;
 
@@ -122,6 +253,15 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
     std::vector<RecordFieldDecl> Fields;
     bool HadFieldError = false;
     while (CurTok != EndToken && CurTok != tok_eof) {
+        if (CurTok == tok_template) {
+            // A class body has no ParseBlock of its own.
+            ++BlockDepth;
+            ParseTemplateDecl();
+            --BlockDepth;
+            ++NumErrors;
+            HadFieldError = true;
+            continue;
+        }
         if (AtField()) {
             // Class fields default to public, like record fields.
             bool IsPublic = CurTok != tok_private;
@@ -154,6 +294,12 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
         while (!AtField() && CurTok != EndToken && CurTok != tok_eof) {
             if (CurTok == tok_class || CurTok == tok_type)
                 ParseTypeDecl();
+            else if (CurTok == tok_template) {
+                ++BlockDepth;
+                ParseTemplateDecl();
+                --BlockDepth;
+                ++NumErrors;
+            }
             else
                 getNextToken();
         }
@@ -175,6 +321,7 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
 
 // <field introducer> <field> : <type>. Array fields are deferred.
 bool Parser::ParseRecordField(std::vector<RecordFieldDecl> &Out, bool IsPublic) {
+    int Line = Lex.getLine();
     const char *Introducer = CurTok == tok_declare ? "DECLARE"
                            : CurTok == tok_public ? "PUBLIC" : "PRIVATE";
     if (CurTok != tok_identifier) getNextToken(); // optional class access keyword
@@ -200,6 +347,11 @@ bool Parser::ParseRecordField(std::vector<RecordFieldDecl> &Out, bool IsPublic) 
 
     std::string TypeName = ParseTypeName(false);
     if (TypeName.empty()) return false;
+    if (CurTok == tok_ellipsis || isTemplatePack(TypeName)) {
+        sourceDiagnostic(Line, "error: Pack fields are not supported at line %d\n", Line);
+        if (CurTok == tok_ellipsis) getNextToken();
+        return false;
+    }
 
     Out.push_back({FieldName, TypeName, IsPublic});
     return true;
@@ -240,6 +392,16 @@ std::string Parser::ParseTypeName(bool AllowVoid) {
             return "";
         }
         getNextToken();
+        if (CurTok == '<') {
+            auto Args = ParseTemplateArgs();
+            if (!Args) return {};
+            TypeName += "<";
+            for (size_t I = 0; I < Args->size(); ++I) {
+                if (I) TypeName += ",";
+                TypeName += (*Args)[I];
+            }
+            TypeName += ">";
+        }
         return TypeName;
     }
 

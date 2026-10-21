@@ -6,6 +6,7 @@
 #include "cps/ExceptionHandler.h"
 #include "Builtins.h"
 #include "cps/TypeAST.h"
+#include "cps/TemplateAST.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Verifier.h"
 #include <cstdarg>
@@ -209,7 +210,11 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
         for (const auto &S : Sources[I].Statements) {
             SaveAndRestore<int> Location(DiagnosticLine, S->getLine());
             std::string TypeName;
-            if (auto *F = dynamic_cast<FunctionDefAST*>(S.get())) {
+            if (auto *T = dynamic_cast<TemplateDeclAST*>(S.get())) {
+                auto *Function = T->getFunction();
+                Reserve(T->getName(), Function != nullptr, Function && Function->getProto()->isOverload());
+                Templates[T->getName()].push_back({T, I});
+            } else if (auto *F = dynamic_cast<FunctionDefAST*>(S.get())) {
                 Reserve(F->getProto()->getName(), true, F->getProto()->isOverload());
                 if (sameIdentifier(F->getProto()->getName(), "MAIN")) {
                     if (Entry) reportError("Multiple MAIN definitions in %s and %s",

@@ -1,0 +1,36 @@
+{
+  "errors": [
+    {
+      "reason": "Duplicate template parameter",
+      "line": 1
+    },
+    {
+      "reason": "template parameter pack must be last",
+      "line": 6
+    },
+    {
+      "reason": "only one parameter pack",
+      "line": 10
+    },
+    {
+      "reason": "TEMPLATE cannot prefix TYPE",
+      "line": 14
+    },
+    {
+      "reason": "Operator templates are not supported",
+      "line": 17
+    },
+    {
+      "reason": "TEMPLATE declarations are only allowed at top level",
+      "line": 23
+    },
+    {
+      "reason": "TEMPLATE declarations are only allowed at top level",
+      "line": 30
+    },
+    {
+      "reason": "Expected '<' after TEMPLATE",
+      "line": 35
+    }
+  ]
+}

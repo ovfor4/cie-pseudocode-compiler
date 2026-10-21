@@ -23,6 +23,7 @@ struct ParamDecl {
     int Rank = 0; // 0 = scalar
     std::vector<std::pair<int64_t, int64_t>> DeclaredBounds;
     int Line = 0;
+    bool IsPack = false;
 };
 
 class PrototypeAST {
@@ -87,25 +88,31 @@ public:
 class CallExprAST : public ExprAST {
     std::string Callee;
     std::vector<std::unique_ptr<ExprAST>> Args;
+    std::vector<std::string> TemplateArgs;
 
 public:
-    CallExprAST(const std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args, int Line)
-        : ExprAST(Line), Callee(Callee), Args(std::move(Args)) {}
+    CallExprAST(const std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args, int Line,
+                std::vector<std::string> TemplateArgs = {})
+        : ExprAST(Line), Callee(Callee), Args(std::move(Args)), TemplateArgs(std::move(TemplateArgs)) {}
 
     const std::string &getCallee() const { return Callee; }
     const std::vector<std::unique_ptr<ExprAST>> &getArgs() const { return Args; }
+    const std::vector<std::string> &getTemplateArgs() const { return TemplateArgs; }
 };
 
 class CallStmtAST : public StmtAST {
     std::string Callee;
     std::vector<std::unique_ptr<ExprAST>> Args;
+    std::vector<std::string> TemplateArgs;
 
 public:
-    CallStmtAST(const std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args, int Line)
-        : StmtAST(Line), Callee(Callee), Args(std::move(Args)) {}
+    CallStmtAST(const std::string &Callee, std::vector<std::unique_ptr<ExprAST>> Args, int Line,
+                std::vector<std::string> TemplateArgs = {})
+        : StmtAST(Line), Callee(Callee), Args(std::move(Args)), TemplateArgs(std::move(TemplateArgs)) {}
 
     const std::string &getCallee() const { return Callee; }
     const std::vector<std::unique_ptr<ExprAST>> &getArgs() const { return Args; }
+    const std::vector<std::string> &getTemplateArgs() const { return TemplateArgs; }
 };
 
 

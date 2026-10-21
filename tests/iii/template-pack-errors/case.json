@@ -1,0 +1,32 @@
+{
+  "errors": [
+    {
+      "reason": "A pack parameter must be last",
+      "line": 2
+    },
+    {
+      "reason": "pack parameter must use the current template pack and cannot be ARRAY",
+      "line": 6
+    },
+    {
+      "reason": "pack parameter must use the current template pack and cannot be ARRAY",
+      "line": 10
+    },
+    {
+      "reason": "parameter pack must be expanded",
+      "line": 15
+    },
+    {
+      "reason": "Only a parameter pack may be expanded",
+      "line": 20
+    },
+    {
+      "reason": "Only the current template parameter pack may use",
+      "line": 25
+    },
+    {
+      "reason": "template parameter pack requires",
+      "line": 29
+    }
+  ]
+}

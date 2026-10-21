@@ -106,6 +106,21 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
             cps::sourceDiagnostic(Lex.getLine(), "error: Expected argument type for '%s'\n", P.Name.c_str());
             return std::nullopt;
         }
+        if (CurTok == tok_ellipsis) {
+            if (P.IsArray || !isTemplatePack(P.TypeName)) {
+                sourceDiagnostic(P.Line, "error: A pack parameter must use the current template pack and cannot be ARRAY at line %d\n", P.Line);
+                return std::nullopt;
+            }
+            P.IsPack = true;
+            getNextToken();
+            if (CurTok != ')') {
+                sourceDiagnostic(P.Line, "error: A pack parameter must be last at line %d\n", P.Line);
+                return std::nullopt;
+            }
+        } else if (isTemplatePack(P.TypeName)) {
+            sourceDiagnostic(P.Line, "error: A template parameter pack requires '...' at line %d\n", P.Line);
+            return std::nullopt;
+        }
 
         for (const ParamDecl &Prev : Params) {
             if (sameIdentifier(Prev.Name, P.Name)) {
@@ -198,7 +213,11 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), RetType, false, OwnerClass, IsPublic, IsOverload);
     Proto->setOperator(Operator);
 
+    auto SavedPacks = std::move(PackNames);
+    PackNames.clear();
+    for (const auto &P : Proto->getParams()) if (P.IsPack) PackNames.insert(P.Name);
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endfunction});
+    PackNames = std::move(SavedPacks);
 
     if (CurTok != tok_endfunction) {
         cps::sourceDiagnostic(Lex.getLine(), "error: expected ENDFUNCTION\n");
@@ -250,7 +269,11 @@ std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerC
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID", false, OwnerClass, IsPublic, IsOverload);
     Proto->setOperator(Operator);
 
+    auto SavedPacks = std::move(PackNames);
+    PackNames.clear();
+    for (const auto &P : Proto->getParams()) if (P.IsPack) PackNames.insert(P.Name);
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endprocedure});
+    PackNames = std::move(SavedPacks);
 
     if (CurTok != tok_endprocedure) {
         cps::sourceDiagnostic(Lex.getLine(), "error: expected ENDPROCEDURE\n");
@@ -370,6 +393,17 @@ std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
         getNextToken();
     }
 
+    std::vector<std::string> TemplateArgs;
+    if (CurTok == '<') {
+        auto Parsed = ParseTemplateArgs();
+        if (!Parsed) return nullptr;
+        TemplateArgs = std::move(*Parsed);
+        if (CurTok != '(') {
+            sourceDiagnostic(Line, "error: Expected '(' after explicit template arguments at line %d\n", Line);
+            return nullptr;
+        }
+    }
+
     std::vector<DesignatorAccess> Accesses;
     if (!ParseDesignatorSuffix(Accesses)) return nullptr;
     if (!Accesses.empty()) {
@@ -387,12 +421,12 @@ std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
     }
 
     if (CurTok == '.') {
-        auto Result = ParseResultMethods(std::make_unique<CallExprAST>(Callee, std::move(Args), Line), Line);
+        auto Result = ParseResultMethods(std::make_unique<CallExprAST>(Callee, std::move(Args), Line, std::move(TemplateArgs)), Line);
         if (!Result) return nullptr;
         return std::make_unique<MemberCallStmtAST>(
             std::unique_ptr<MemberCallExprAST>(static_cast<MemberCallExprAST *>(Result.release())));
     }
-    return std::make_unique<CallStmtAST>(Callee, std::move(Args), Line);
+    return std::make_unique<CallStmtAST>(Callee, std::move(Args), Line, std::move(TemplateArgs));
 }
 
 std::unique_ptr<StmtAST> Parser::ParseReturnStmt() {

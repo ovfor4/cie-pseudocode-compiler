@@ -3,6 +3,7 @@
 #include "cps/FunctionAST.h"
 #include <cstdio>
 #include <limits>
+#include <functional>
 
 using namespace cps;
 
@@ -40,6 +41,39 @@ std::unique_ptr<ExprAST> Parser::ParseNumberExpr() {
     return std::make_unique<IntegerExprAST>(Value);
 }
 
+// Grammar lookahead distinguishes a template call from a comparison without
+// consuming tokens. Like C#, A < B, C > (D) selects the template-call grammar.
+bool Parser::isTemplateCall() {
+    if (CurTok != '<') return false;
+    unsigned Offset = 0;
+    auto IsTypeToken = [](int Tok) {
+        return Tok == tok_identifier || Tok == tok_integer_kw || Tok == tok_real_kw ||
+            Tok == tok_boolean_kw || Tok == tok_string_kw || Tok == tok_char_kw ||
+            Tok == tok_c_int || Tok == tok_c_char || Tok == tok_c_string || Tok == tok_c_double;
+    };
+    std::function<bool()> Type = [&] {
+        if (!IsTypeToken(Lex.peekToken(Offset))) return false;
+        ++Offset;
+        if (Lex.peekToken(Offset) == '<') {
+            ++Offset;
+            if (!Type()) return false;
+            while (Lex.peekToken(Offset) == ',') {
+                ++Offset;
+                if (!Type()) return false;
+            }
+            if (Lex.peekToken(Offset++) != '>') return false;
+        }
+        if (Lex.peekToken(Offset) == tok_ellipsis) ++Offset;
+        return true;
+    };
+    if (!Type()) return false;
+    while (Lex.peekToken(Offset) == ',') {
+        ++Offset;
+        if (!Type()) return false;
+    }
+    return Lex.peekToken(Offset) == '>' && Lex.peekToken(Offset + 1) == '(';
+}
+
 std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
     int Line = Lex.getLine();
     std::string IdName;
@@ -52,6 +86,25 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
         getNextToken();
     }
 
+    if (PackNames.count(IdName)) {
+        if (CurTok != tok_ellipsis) {
+            sourceDiagnostic(Line, "error: A parameter pack must be expanded with '...' at line %d\n", Line);
+            return nullptr;
+        }
+        getNextToken();
+        return std::make_unique<PackExpansionExprAST>(IdName, Line);
+    }
+    if (CurTok == tok_ellipsis) {
+        sourceDiagnostic(Line, "error: Only a parameter pack may be expanded at line %d\n", Line);
+        getNextToken();
+        return nullptr;
+    }
+    std::vector<std::string> TemplateArgs;
+    if (isTemplateCall()) {
+        auto Parsed = ParseTemplateArgs();
+        if (!Parsed) return nullptr;
+        TemplateArgs = std::move(*Parsed);
+    }
     if (CurTok == '(' && !atCaseBoundary()) {
         getNextToken();
         auto Args = ParseExprList(')', true);
@@ -61,7 +114,7 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
                     Lex.getLine());
             return nullptr;
         }
-        return ParseResultMethods(std::make_unique<CallExprAST>(IdName, std::move(*Args), Line), Line);
+        return ParseResultMethods(std::make_unique<CallExprAST>(IdName, std::move(*Args), Line, std::move(TemplateArgs)), Line);
     }
 
     std::vector<DesignatorAccess> Accesses;

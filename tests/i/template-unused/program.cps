@@ -1,0 +1,2 @@
+INCLUDE "lib.cps"
+OUTPUT 7

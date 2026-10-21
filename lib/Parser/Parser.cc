@@ -51,7 +51,7 @@ void Parser::syncToStatementStart() {
         case tok_delete: case tok_constant: case tok_declare: case tok_identifier: case tok_operator: case tok_input: case tok_output:
         case tok_case: case tok_endcase: case tok_otherwise:
         case tok_if: case tok_while: case tok_repeat: case tok_for:
-        case tok_overload: case tok_function: case tok_procedure: case tok_call: case tok_return:
+        case tok_template: case tok_overload: case tok_function: case tok_procedure: case tok_call: case tok_return:
         case tok_else: case tok_endif: case tok_endwhile: case tok_until:
         case tok_next: case tok_endfunction: case tok_endprocedure:
         case tok_openfile: case tok_readfile: case tok_writefile: case tok_closefile:
@@ -97,6 +97,7 @@ std::unique_ptr<StmtAST> Parser::ParseStatement() {
 }
 
 std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
+    if (CurTok == tok_template) return ParseTemplateDecl();
     if (CurTok == tok_extern) {
         if (BlockDepth != 1) {
             sourceDiagnostic(Lex.getLine(), "error: EXTERN is only allowed at top level at line %d\n", Lex.getLine());
@@ -295,17 +296,27 @@ std::unique_ptr<StmtAST> Parser::ParseAssignStmt() {
         getNextToken();
     }
 
+    std::vector<std::string> TemplateArgs;
+    if (CurTok == '<') {
+        auto Parsed = ParseTemplateArgs();
+        if (!Parsed) return nullptr;
+        TemplateArgs = std::move(*Parsed);
+        if (CurTok != '(') {
+            sourceDiagnostic(Line, "error: Expected '(' after explicit template arguments at line %d\n", Line);
+            return nullptr;
+        }
+    }
     if (CurTok == '(') {
         getNextToken();
         auto Args = ParseExprList(')', true);
         if (!Args) return nullptr;
         if (CurTok == '.') {
-            auto Result = ParseResultMethods(std::make_unique<CallExprAST>(Name, std::move(*Args), Line), Line);
+            auto Result = ParseResultMethods(std::make_unique<CallExprAST>(Name, std::move(*Args), Line, std::move(TemplateArgs)), Line);
             if (!Result) return nullptr;
             return std::make_unique<MemberCallStmtAST>(
                 std::unique_ptr<MemberCallExprAST>(static_cast<MemberCallExprAST *>(Result.release())));
         }
-        return std::make_unique<CallStmtAST>(Name, std::move(*Args), Line);
+        return std::make_unique<CallStmtAST>(Name, std::move(*Args), Line, std::move(TemplateArgs));
     }
 
     std::vector<DesignatorAccess> Accesses;

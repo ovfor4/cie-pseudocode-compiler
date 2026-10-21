@@ -25,6 +25,7 @@ class MemoryHandler;
 class ExceptionHandler;
 class CastExprAST;
 class NewExprAST;
+class TemplateDeclAST;
 
 class CodeGen {
     std::unique_ptr<llvm::LLVMContext> TheContext;
@@ -35,6 +36,8 @@ class CodeGen {
     size_t CurrentUnit = 0;
     size_t MainUnit = 0;
     IdentifierMap<size_t> TypeOwners;
+    struct TemplateDefinition { TemplateDeclAST *Decl; size_t OwnerUnit; };
+    IdentifierMap<std::vector<TemplateDefinition>> Templates;
     std::vector<IdentifierMap<SymbolInfo>> Exports;
     bool isVisible(size_t Owner) const;
     void selectUnit(size_t Unit);

@@ -4,6 +4,7 @@
 #include "cps/AST.h"
 #include "cps/TypeAST.h"
 #include "cps/FunctionAST.h"
+#include "cps/TemplateAST.h"
 #include <cstdint>
 #include <vector>
 #include <initializer_list>
@@ -23,6 +24,8 @@ class Parser {
     std::vector<unsigned> CaseBodyDepths;
     unsigned NumErrors = 0;
     unsigned BlockDepth = 0; // ParseBlock nesting; 1 = top level
+    std::vector<TemplateParam> CurrentTemplate;
+    IdentifierSet PackNames;
 
     std::map<int, int> BinopPrecedence;
     IdentifierSet TypeNames = {
@@ -49,6 +52,9 @@ class Parser {
     std::unique_ptr<MemberCallExprAST> ParseMemberCall(
         const std::string &Name, std::vector<DesignatorAccess> Accesses, int Line);
     std::string ParseTypeName(bool AllowVoid = false);
+    std::optional<std::vector<std::string>> ParseTemplateArgs();
+    bool isTemplateCall();
+    bool isTemplatePack(const std::string &Name) const;
 
     std::unique_ptr<StmtAST> ParseStatement();
     std::unique_ptr<StmtAST> ParseStatementImpl();
@@ -70,6 +76,7 @@ class Parser {
     bool ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out);
 
     std::unique_ptr<StmtAST> ParseTypeDecl();
+    std::unique_ptr<StmtAST> ParseTemplateDecl();
     std::optional<std::vector<RecordFieldDecl>> ParseRecordBody(
         const std::string &Name, int Line, int EndToken,
         std::vector<std::unique_ptr<FunctionDefAST>> *Methods = nullptr);

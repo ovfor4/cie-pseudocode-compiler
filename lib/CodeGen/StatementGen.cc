@@ -5,6 +5,7 @@
 #include "cps/MemoryHandler.h"
 #include "cps/ExceptionHandler.h"
 #include "cps/TypeAST.h"
+#include "cps/TemplateAST.h"
 
 using namespace llvm;
 using namespace cps;
@@ -18,6 +19,7 @@ void CodeGen::emitStmt(StmtAST *Stmt) {
 void CodeGen::emitStmtImpl(StmtAST *Stmt) {
     SaveAndRestore<int> Location(DiagnosticLine, Stmt && Stmt->getLine() ? Stmt->getLine() : DiagnosticLine);
     if (!Stmt) return;
+    if (dynamic_cast<TemplateDeclAST*>(Stmt)) return;
 
     if (dynamic_cast<IncludeStmtAST*>(Stmt)) return;
     if (dynamic_cast<GlobalBlockAST*>(Stmt)) return;
