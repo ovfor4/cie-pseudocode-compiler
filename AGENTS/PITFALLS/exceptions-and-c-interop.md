@@ -27,7 +27,7 @@ Part of the [pitfalls index](../PITFALLS.md).
   native promotions, but / always returns REAL.
 - Cast aliases must precede their use.
 - long double may have padding; sizeof does not identify its floating-point format.
-- Native C support is verified on Linux LLVM 23; cross-target is unsupported.
+- Native C support is tested by nightly CI on Linux, Windows and macOS with LLVM 23; cross-target is unsupported.
 
 ## EXTERN "C" extension
 

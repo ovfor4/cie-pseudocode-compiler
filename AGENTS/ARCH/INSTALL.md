@@ -30,7 +30,7 @@ The Windows `install.ps1` installs `cpsc.exe`, `doc/cpsc.html` and
 to the user PATH without copying the combined process PATH, and creates a
 per-user Start Menu help shortcut. `-SourceDir` selects the artifact directory;
 `DESTDIR` staging is unsupported on Windows. The script is compatible with
-Windows PowerShell 5.1; its Windows actions have only been reviewed statically.
+Windows PowerShell 5.1.
 The `doc` target uses CMake's `WIN32` target-platform detection: Windows generates
 standalone HTML with inline styles at `build/doc/cpsc.html`; other platforms
 generate `build/doc/cpsc.1`. The section 1 source is `doc/cpsc.1.md`; section 7 sources are
