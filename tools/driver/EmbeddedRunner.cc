@@ -191,6 +191,12 @@ static llvm::Error loadCxxRuntime(llvm::orc::LLJIT &J) {
 }
 
 int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects) {
+    // Pipes are fully buffered by default. Use the host CRT's stdout, also
+    // preferred by the JIT on Windows, so OUTPUT reaches desktop clients now.
+    if (std::setvbuf(stdout, nullptr, _IONBF, 0) != 0) {
+        llvm::errs() << "error: cannot configure embedded stdout\n";
+        return 1;
+    }
     if (llvm::InitializeNativeTarget() || llvm::InitializeNativeTargetAsmPrinter()) {
         llvm::errs() << "error: cannot initialize the embedded LLVM target\n";
         return 1;

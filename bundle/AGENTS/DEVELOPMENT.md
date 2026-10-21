@@ -18,4 +18,8 @@ The editor imports the plugin's grammar, language configuration and pure CommonJ
 
 The language editing core (grammar, configuration, indentation, lexical masking and bracket matching) is shared in full. Platform editor API adapters, file dialogs and process management are separate. Keep the plugin free of Bundle runtime dependencies.
 
+The Rust runner launches the sibling `cpsc` executable directly, using the source directory as cwd. Tokio concurrently writes prefilled stdin and drains both output pipes; stdin is dropped after writing. A watch signal kills and reaps the process on Stop or application exit. The output Channel sends raw byte chunks (one streaming TextDecoder per stream in the frontend), then a finished event after both pipes reach EOF. EMBEDDED execution disables the host CRT stdout buffer before JIT initialization; Windows JIT lookups prefer the same msvcrt runtime. Do not introduce a shell or pseudo-terminal.
+
+After building the compiler, run `cargo test --release --manifest-path src-tauri/Cargo.toml`. The two native tests exercise real compilation, prefilled input, EOF, Unicode, diagnostics, output before process exit, stopping, single-run exclusion and restart, including source paths with spaces. CI runs them on all three native platforms.
+
 Use brief English UI labels and messages. Keep the first version to one document and prefilled stdin. Before feature commits, run affected plugin tests, build the frontend and check native compilation as appropriate. Do not add a separate UI test framework for routine changes.

@@ -163,6 +163,8 @@ Driver behavior (`tools/driver/main.cc`):
 - Both execution modes return the program's exit status and inherit standard
   streams. `-r -o` saves a binary; adding `-S` saves IR instead. Saved output is
   kept on execution failure. Execution still uses the configured runner.
+  EMBEDDED disables stdout buffering before JIT initialization so pipe clients
+  receive output during execution, including on Windows's shared host CRT.
 
 All modes require static LLVM, Clang Driver and LLD archives. `cmake/EmbeddedLLVM.cmake` also selects
 static compression/terminal support archives when LLVM uses them. Linux Clang

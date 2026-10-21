@@ -1,5 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod runner;
+use runner::{OutputEvent, Runner};
+use tauri::{ipc::Channel, Manager, State};
+
 #[tauri::command]
 fn read_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|error| error.to_string())
@@ -10,10 +14,50 @@ fn write_file(path: String, text: String) -> Result<(), String> {
     std::fs::write(path, text).map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+async fn run_file(
+    path: String,
+    input: String,
+    output: Channel<OutputEvent>,
+    runner: State<'_, Runner>,
+) -> Result<(), String> {
+    let executable = std::env::current_exe()
+        .map_err(|error| error.to_string())?
+        .with_file_name(if cfg!(windows) { "cpsc.exe" } else { "cpsc" });
+    let result = runner
+        .run(executable, path.into(), input, |stream, bytes| {
+            let _ = output.send(OutputEvent::Data {
+                stream: stream.into(),
+                bytes,
+            });
+        })
+        .await?;
+    output
+        .send(OutputEvent::Finished {
+            code: result.code,
+            stopped: result.stopped,
+        })
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn stop_run(runner: State<'_, Runner>) -> Result<(), String> {
+    runner.stop().await;
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![read_file, write_file])
-        .run(tauri::generate_context!())
-        .expect("Could not start CPSC Bundle");
+        .manage(Runner::default())
+        .invoke_handler(tauri::generate_handler![
+            read_file, write_file, run_file, stop_run
+        ])
+        .build(tauri::generate_context!())
+        .expect("Could not start CPSC Bundle")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
+                tauri::async_runtime::block_on(app.state::<Runner>().stop());
+            }
+        });
 }
