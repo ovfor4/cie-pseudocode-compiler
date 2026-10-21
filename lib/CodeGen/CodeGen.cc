@@ -5,6 +5,7 @@
 #include "cps/MemoryHandler.h"
 #include "cps/ExceptionHandler.h"
 #include "Builtins.h"
+#include "TemplateClone.h"
 #include "cps/TypeAST.h"
 #include "cps/TemplateAST.h"
 #include "llvm/IR/Instructions.h"
@@ -501,9 +502,15 @@ Value *CodeGen::emitVariadicArgument(ExprAST *Expr, const std::string &Callee, s
 
 // Resolve using static source types only; argument evaluation belongs to marshalling.
 const FuncSig *CodeGen::resolveCall(const std::string &Name,
-                                  const std::vector<std::unique_ptr<ExprAST>> &Args) {
+                                  const std::vector<std::unique_ptr<ExprAST>> &Args,
+                                  const std::vector<std::string> *Explicit) {
     auto Overloads = FuncGen->getOverloads(Name);
     bool HasTemplates = hasFunctionTemplate(Name);
+    bool HasExplicit = Explicit && !Explicit->empty();
+    if (HasExplicit && !HasTemplates) {
+        reportError("Explicit template arguments require a function template: %s", Name.c_str());
+        return nullptr;
+    }
     if (Overloads.empty() && !HasTemplates) {
         reportError("Call to undefined function %s", Name.c_str());
         return nullptr;
@@ -529,6 +536,7 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
     }
     const FuncSig *Ordinary = nullptr;
     for (const FuncSig *Sig : Overloads) {
+        if (HasExplicit) break;
         if (Sig->Params.size() != Actual.size()) continue;
         bool Match = true;
         for (size_t I = 0; I < Actual.size(); ++I) {
@@ -560,6 +568,16 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
             IdentifierMap<std::vector<std::string>> Bindings;
             for (const auto &Param : Definition.Decl->getParams()) Bindings.emplace(Param.Name, std::vector<std::string>{});
             bool Match = true;
+            if (HasExplicit) {
+                const auto &TemplateParams = Definition.Decl->getParams();
+                if (Explicit->size() > TemplateParams.size()) continue;
+                for (size_t I = 0; I < Explicit->size(); ++I) {
+                    const TypeInfo *Type = resolveType((*Explicit)[I]);
+                    if (!Type || Type->isVoid()) { Match = false; break; }
+                    Bindings.at(TemplateParams[I].Name).push_back(Type->Name);
+                }
+            }
+            if (!Match) continue;
             for (size_t I = 0; I < Actual.size(); ++I) {
                 const auto &P = Params[I];
                 const TypeInfo *Type = Actual[I].Type;
@@ -568,9 +586,20 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
                 if (Binding != Bindings.end()) {
                     if (Binding->second.empty()) Binding->second.push_back(Type->Name);
                     else if (!Type->sameType(resolveType(Binding->second.front()))) { Match = false; break; }
-                } else if (!Type->sameType(resolveType(P.TypeName))) { Match = false; break; }
+                }
             }
             for (const auto &[Param, Types] : Bindings) if (Types.empty()) Match = false;
+            if (!Match) continue;
+            // Composite parameter types can use bindings deduced at later positions,
+            // but do not themselves contribute deductions.
+            detail::TemplateClone Substitute(Bindings, [&](int, const std::string &) { Match = false; });
+            for (size_t I = 0; I < Actual.size(); ++I) {
+                const auto &TypeName = Params[I].TypeName;
+                auto Binding = Bindings.find(TypeName);
+                std::string Expected = Binding != Bindings.end() ? Binding->second.front()
+                    : TypeName.find('<') != std::string::npos ? Substitute.type(TypeName) : TypeName;
+                if (!Match || !Actual[I].Type->sameType(resolveType(Expected))) { Match = false; break; }
+            }
             if (!Match) continue;
             if (Selected) {
                 reportError("Ambiguous call to %s(%s)", Name.c_str(), Key.c_str());

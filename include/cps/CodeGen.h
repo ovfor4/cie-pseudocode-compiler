@@ -185,9 +185,11 @@ class CodeGen {
     llvm::Value *loadFromLValue(const LValueInfo &LV);
     llvm::Value *emitAllocationSize(ExprAST *Expr);
     llvm::Value *emitCall(const std::string &Callee,
-                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line);
+                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line,
+                          const std::vector<std::string> *Explicit = nullptr);
     const FuncSig *resolveCall(const std::string &Name,
-                               const std::vector<std::unique_ptr<ExprAST>> &Args);
+                               const std::vector<std::unique_ptr<ExprAST>> &Args,
+                               const std::vector<std::string> *Explicit = nullptr);
     struct OperatorResolution {
         const FuncSig *Signature = nullptr;
         bool Ambiguous = false;

@@ -150,7 +150,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         return emitMemberCall(Call);
 
     if (auto *Call = dynamic_cast<CallExprAST*>(Expr))
-        return emitCall(Call->getCallee(), Call->getArgs(), Call->getLine());
+        return emitCall(Call->getCallee(), Call->getArgs(), Call->getLine(), &Call->getTemplateArgs());
 
     if (auto *D = dynamic_cast<DesignatorExprAST*>(Expr)) {
         LValueInfo LV;
@@ -192,10 +192,15 @@ Value *CodeGen::emitBinaryOp(int Op, Value *L, const TypeInfo *LT,
 }
 
 Value *CodeGen::emitCall(const std::string &Callee,
-                         const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line) {
+                         const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line,
+                         const std::vector<std::string> *Explicit) {
     SaveAndRestore<int> Location(DiagnosticLine, Line ? Line : DiagnosticLine);
     std::string Name = Callee;
     if (const BuiltinInfo *B = findBuiltin(Name)) {
+        if (Explicit && !Explicit->empty()) {
+            reportError("Explicit template arguments are not allowed on builtin %s", B->Name);
+            return nullptr;
+        }
         Name = B->Name;
         if (ArgExprs.size() != B->Arity) {
             reportError("%s expects %u arg%s", B->Name, B->Arity, B->Arity == 1 ? "" : "s");
@@ -230,7 +235,7 @@ Value *CodeGen::emitCall(const std::string &Callee,
     }
 
     std::vector<Value*> Args;
-    const FuncSig *Sig = resolveCall(Name, ArgExprs);
+    const FuncSig *Sig = resolveCall(Name, ArgExprs, Explicit);
     if (!Sig || !marshalCallArgs(*Sig, ArgExprs, Line, Args)) return nullptr;
     return FuncGen->emitCall(*Sig, Args);
 }

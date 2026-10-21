@@ -136,9 +136,13 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
     if (auto *Call = dynamic_cast<CallExprAST*>(Expr)) {
         const std::string &Name = Call->getCallee();
         if (const BuiltinInfo *B = findBuiltin(Name)) {
+            if (!Call->getTemplateArgs().empty()) {
+                reportError("Explicit template arguments are not allowed on builtin %s", B->Name);
+                return nullptr;
+            }
             return resolveType(B->ReturnTypeName);
         }
-        if (const FuncSig *Sig = resolveCall(Name, Call->getArgs())) {
+        if (const FuncSig *Sig = resolveCall(Name, Call->getArgs(), &Call->getTemplateArgs())) {
             return resolveType(Sig->ReturnTypeName);
         }
 
