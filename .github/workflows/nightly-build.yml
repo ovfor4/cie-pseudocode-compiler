@@ -151,6 +151,30 @@ jobs:
             exit 1
           fi
 
+      - name: Identify the static LLD toolchain
+        id: lld-cache-key
+        run: |
+          llvm_prefix=$(brew --prefix llvm@23)
+          llvm_version=$("$llvm_prefix/bin/llvm-config" --version)
+          {
+            printf '%s\n' "${ImageVersion:?}" "$llvm_prefix" "$llvm_version" "$PWD"
+            brew list --versions llvm@23
+            xcrun --show-sdk-path
+            xcrun --show-sdk-version
+            xcrun --show-sdk-build-version
+            shasum -a 256 "$llvm_prefix/bin/clang" "$llvm_prefix/lib/libclangDriver.a" \
+              "$llvm_prefix"/lib/libLLVM*.dylib
+          } > "$RUNNER_TEMP/static-lld-toolchain.txt"
+          fingerprint=$(shasum -a 256 "$RUNNER_TEMP/static-lld-toolchain.txt" | cut -d ' ' -f 1)
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+          echo "path=build/static-lld-$llvm_version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the matching static LLD build
+        uses: actions/cache@v6.1.0
+        with:
+          path: ${{ steps.lld-cache-key.outputs.path }}
+          key: ${{ runner.os }}-${{ runner.arch }}-static-lld-v1-${{ steps.lld-cache-key.outputs.fingerprint }}-${{ hashFiles('tools/build-static-lld.sh') }}
+
       - name: Build matching static LLD libraries
         run: |
           sh tools/build-static-lld.sh "$(brew --prefix llvm@23)" "$PWD/build" 3

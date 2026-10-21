@@ -194,6 +194,15 @@ with the selected LLVM prefix and cpsc build directory before configuring on mac
 It builds matching LLD sources, installs static archives and tools into the build
 prefix, and leaves LLVM itself installed. Source and build caches are versioned;
 the resulting local `lib/cmake/lld` takes precedence over shared system packages.
+The macOS nightly job caches the helper's versioned source/build directory and still
+runs the helper to configure, build incrementally and install after restoring it.
+Exact cache keys include the runner image, SDK identity, LLVM package version and
+compiler/library content, workspace path and helper script hash. No fallback key
+restores a build from a different toolchain. Homebrew updates and the LLVM archive
+symbol check still run before cache lookup. Windows and macOS desktop jobs cache
+compiled Rust dependencies after selecting the toolchain, including on failure;
+project crates rebuild with the current compiler payload. Rust release optimization
+and archive compression settings are unchanged.
 The helper's build-time linker can use the installed LLVM dylib; cpsc still links
 the LLD archives and static LLVM components.
 Both macOS configurations explicitly select the SDK with `CMAKE_OSX_SYSROOT`
