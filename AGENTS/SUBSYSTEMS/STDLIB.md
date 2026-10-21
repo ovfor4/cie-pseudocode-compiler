@@ -1,6 +1,7 @@
 # Standard library
 
-Part of the [subsystem notes](../SUBSYSTEMS.md).
+Part of the [subsystem notes](../SUBSYSTEMS.md). `#LIB` library units and default
+import rules: [CONVENTIONS/EXCEPTIONS_AND_UNITS.md](../CONVENTIONS/EXCEPTIONS_AND_UNITS.md).
 
 **Standard library** (`pseudocode-lib/`)
 
@@ -11,8 +12,9 @@ Part of the [subsystem notes](../SUBSYSTEMS.md).
   in cpsc.
 - StandardLibrary extracts the resources through linking/execution; the driver
   implicitly imports std.cps unless -no-std is set. std.cps imports string.cps.
-- Source/object resources are embedded in installed/released cpsc; saved IR requires the
-  object when manually linked.
+- Source/object resources are embedded in installed/released cpsc, which needs no
+  separate library directory; manually linking saved IR still requires the matching
+  string.o and the C++ runtime.
 
 ## STRING and I/O bridging
 
