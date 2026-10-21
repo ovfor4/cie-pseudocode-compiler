@@ -1,7 +1,8 @@
 # Load-bearing conventions
 
 These invariants span modules. Violating any of them breaks code you didn't touch.
-(Overview and build instructions: `ARCH.md`.) The details are split by topic under
+(Overview and build instructions: [ARCH/OVERVIEW.md](ARCH/OVERVIEW.md),
+[ARCH/BUILD.md](ARCH/BUILD.md).) The details are split by topic under
 `AGENTS/CONVENTIONS/`.
 
 - [LEXING.md](CONVENTIONS/LEXING.md) — English-only project text, raw `int` tokens,

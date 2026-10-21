@@ -1,6 +1,8 @@
 # Driver behavior
 
-Driver behavior (`tools/driver/main.cc`):
+Driver behavior (`tools/driver/main.cc`). CodeGen-side unit and entry-point invariants are in
+[CONVENTIONS/EXCEPTIONS_AND_UNITS.md](../CONVENTIONS/EXCEPTIONS_AND_UNITS.md); diagnostic
+style is in [CONVENTIONS/SYMBOLS_AND_ERRORS.md](../CONVENTIONS/SYMBOLS_AND_ERRORS.md).
 
 - One or more source files, with optional `-S`, `-o path`, `-r` and `-no-std`; options may appear among inputs.
   Each stream is parsed independently. INCLUDE paths are relative to the including file,

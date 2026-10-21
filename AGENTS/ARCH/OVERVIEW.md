@@ -14,7 +14,7 @@ files ──> Lexer ──> Parser ──> vector<unique_ptr<StmtAST>> ──> C
 Fixed value representation (ABI — much code infers types backwards from these):
 INTEGER = `i64`, REAL = `double`, BOOLEAN = `i1`, CHAR = `i8`. STRING is the standard-library class `%record.STRING`, owning a std::string handle; C_STRING is a raw NUL-terminated pointer. User-defined types (§4): enum = `i64` (0-based ordinal),
 pointer = opaque `ptr`, record = named struct `%record.NAME`. Enums and pointers are LLVM-identical to INTEGER/C_STRING **by design** — their identity lives in the type
-*name*, enforced upstream (see CONVENTIONS.md). Allocation byte sizes are never computed
+*name*, enforced upstream (see [CONVENTIONS/TYPES.md](../CONVENTIONS/TYPES.md)). Allocation byte sizes are never computed
 host-side: the module has no DataLayout string, so every allocation size is a null-GEP
 `sizeof` constant (`TypeSystem::getSizeOfConstant`) folded by the backend.
 
@@ -24,7 +24,7 @@ CScalar/CPointer identities are canonical C types, not pseudocode alias names;
 native widths and signedness come from sizeof/type traits, while floating formats
 come from numeric_limits (long double size alone is insufficient). Programs use
 the compiler's build ABI; cross-target emission is not implemented. EXTERN "C"
-declarations call C functions from INCLUDE_OBJ objects (see SUBSYSTEMS.md).
+declarations call C functions from INCLUDE_OBJ objects (see [SUBSYSTEMS/EXTERN.md](../SUBSYSTEMS/EXTERN.md)).
 CTypeGen handles typed numeric conversions, casts, native arithmetic and I/O.
 Crossing C/pseudocode domains requires a cast, including literals. C arithmetic
 uses C++ promotions, except that / always returns pseudocode REAL.

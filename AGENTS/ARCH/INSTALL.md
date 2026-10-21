@@ -36,7 +36,8 @@ generate `build/doc/cpsc.1`. The section 1 source is `doc/cpsc.1.md`; section 7 
 `doc/language/**/*.7.md`. `doc` builds every page, preserving the language
 category subdirectories, as `.7` on Unix or `.html` on Windows. Sources are discovered with
 CONFIGURE_DEPENDS; per-page commands regenerate only changed pages.
-`cmake/ManualLinks.lua` renders cross-references as man names or local HTML links.
+`cmake/ManualLinks.lua` renders cross-references as man names or local HTML links
+(manual source rules: [MAN.md](../MAN.md)).
 Windows `mingw32-make -C build install` builds the HTML manual and invokes
 `install.ps1` through Windows PowerShell with the build directory and
 `CMAKE_INSTALL_PREFIX`. The default Windows prefix is the per-user Programs

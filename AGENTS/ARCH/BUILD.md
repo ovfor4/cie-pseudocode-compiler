@@ -8,7 +8,7 @@ development files to build; NONE supports both outputs.
 The following commands use Debian/Ubuntu's versioned compiler names:
 
 ```bash
-# Prepare dependencies using the recommendations in doc/build.md.
+# Prepare dependencies using the recommendations in doc/build.md (see DEPENDENCIES.md).
 cmake -S . -B build -DCPSC_RUN_MODE=EMBEDDED \
   -DCMAKE_C_COMPILER=clang-23 -DCMAKE_CXX_COMPILER=clang++-23
 cmake --build build
@@ -26,7 +26,8 @@ automatically. Manually linking emitted `.ll` files still requires a C++ driver
 TRY/CATCH/ENDTRY and bare THROW are compiler extensions.
 Runtime checks print the source line and error reason to stderr before throwing
 anonymous exceptions; the final handler in generated main
-prints `Unhandled exception. Program terminated.` to stderr and returns 1.
-Nightly CI runs compiler tests, including embedded exception execution, on
+prints `Unhandled exception. Program terminated.` to stderr and returns 1
+(lowering details: [RUNTIME_CHECKS_EXCEPTIONS.md](../SUBSYSTEMS/RUNTIME_CHECKS_EXCEPTIONS.md)).
+[Nightly CI](NIGHTLY.md) runs compiler tests, including embedded exception execution, on
 Linux, Windows and macOS with LLVM 23. Platform-specific changes require
 successful checks on the native runner.

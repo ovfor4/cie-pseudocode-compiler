@@ -1,6 +1,6 @@
 # Extension recipes
 
-Step-by-step patterns for adding features. Read `CONVENTIONS.md` first — every recipe
+Step-by-step patterns for adding features. Read [CONVENTIONS.md](CONVENTIONS.md) first — every recipe
 below assumes those invariants.
 
 **New statement:** token in `Lexer.h` enum + keyword match in `Lexer.cc`'s if-chain →

@@ -1,7 +1,7 @@
 # Subsystem notes
 
 Deep-dives on the CodeGen helper subsystems, split by topic under `SUBSYSTEMS/`.
-(Invariants: `CONVENTIONS.md`; known bugs: `PITFALLS.md`.)
+(Invariants: [CONVENTIONS.md](CONVENTIONS.md); known bugs: [PITFALLS.md](PITFALLS.md).)
 
 - [Arrays](SUBSYSTEMS/ARRAYS.md): `ArrayHandler` storage, checked indexing, array
   parameters and array OUTPUT.
