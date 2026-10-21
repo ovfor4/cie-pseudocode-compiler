@@ -12,7 +12,7 @@ using namespace cps;
 
 std::string Lexer::readEscape(bool IsChar) {
     auto Error = [&](const char *Reason) {
-        cps::sourceDiagnostic(TokenLine, "error: %s at line %d\n", Reason, TokenLine);
+        cps::sourceError(TokenLine, "%s", Reason);
         HadError = true;
         return std::string("?");
     };
@@ -106,7 +106,7 @@ int Lexer::readToken() {
             Directive.pop_back();
         if (Directive == "#LIB") Library = true;
         else {
-            cps::sourceDiagnostic(TokenLine, "error: Unknown compiler directive at line %d\n", TokenLine);
+            cps::sourceError(TokenLine, "Unknown compiler directive");
             HadError = true;
         }
         return readToken();
@@ -127,12 +127,12 @@ int Lexer::readToken() {
         }
         if (LastChar == Quote) LastChar = Input.get();
         else {
-            cps::sourceDiagnostic(TokenLine, "error: Unterminated %s literal at line %d\n", IsChar ? "char" : "string", TokenLine);
+            cps::sourceError(TokenLine, "Unterminated %s literal", IsChar ? "char" : "string");
             HadError = true;
         }
         if (IsChar) {
             if (StringVal.size() != 1) {
-                cps::sourceDiagnostic(TokenLine, "error: CHAR literal must contain exactly one character at line %d\n", TokenLine);
+                cps::sourceError(TokenLine, "CHAR literal must contain exactly one character");
                 HadError = true;
             }
             CharVal = StringVal.size() == 1 ? StringVal[0] : '?';
@@ -154,7 +154,7 @@ int Lexer::readToken() {
             std::transform(Prefix.begin(), Prefix.end(), Prefix.begin(),
                            [](unsigned char C) { return std::tolower(C); });
             if (Prefix == "__cps_") {
-                cps::sourceDiagnostic(TokenLine, "error: Reserved runtime identifier at line %d\n", TokenLine);
+                cps::sourceError(TokenLine, "Reserved runtime identifier");
                 HadError = true;
             }
         }
@@ -277,7 +277,7 @@ int Lexer::readToken() {
         auto Parsed = std::from_chars(NumStr.data(), NumStr.data() + NumStr.size(), NumVal);
         if (Parsed.ec != std::errc{} ||
             NumVal > uint64_t(std::numeric_limits<int64_t>::max()) + 1) {
-            cps::sourceDiagnostic(CurrentLine, "error: Integer literal is outside the i64 range at line %d\n", TokenLine);
+            cps::sourceError(TokenLine, "Integer literal is outside the i64 range");
             HadError = true;
             NumVal = 0;
         }
@@ -327,7 +327,7 @@ int Lexer::readToken() {
             LastChar = Input.get();
             return tok_ellipsis;
         }
-        cps::sourceDiagnostic(CurrentLine, "error: Expected '...' at line %d\n", CurrentLine);
+        cps::sourceError(CurrentLine, "Expected '...'");
         HadError = true;
         LastChar = Input.get();
         return tok_ellipsis;

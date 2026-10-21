@@ -29,7 +29,7 @@ for my $case ([1, ''], [-11, ''], [0, 'unexpected']) {
 my $good = {
     returncode => 1,
     stdout     => '',
-    stderr     => "error: Expected ':' at line 3\ncompilation terminated.\n",
+    stderr     => "/fixtures/program.cps:3: error: Expected ':'\ncompilation terminated.\n",
 };
 my $accepted = eval {
     check_diagnostics($good, [{reason => "Expected ':'", line => 3}]);
@@ -37,9 +37,10 @@ my $accepted = eval {
 };
 ok($accepted, 'matching reason and location accepted');
 for my $bad (
-    "error: Expected ':' at line 4",
-    "error: Expected ':'",
-    "error: Expected ':' at line 30\nerror: unrelated at line 3",
+    "/fixtures/program.cps:4: error: Expected ':'",
+    "/fixtures/program.cps: error: Expected ':'",
+    "error: Expected ':' at line 3",
+    "/fixtures/program.cps:30: error: Expected ':'\n/fixtures/program.cps:3: error: unrelated",
     )
 {
     my $ok = eval {
@@ -54,11 +55,11 @@ for my $bad (
 
 my $file_expectation = [{reason => "Expected ':'", line => 3, file => '/fixtures/lib.cps'}];
 for my $sample (
-    ["error: Expected ':' at line 3 in /fixtures/lib.cps", 1],
-    ["error: Expected ':' at line 3 in /fixtures/program.cps", 0],
-    ["error: Expected ':' at line 3 in /fixtures/lib.cps.extra", 0],
-    ["error: Expected ':' at line 30 in /fixtures/lib.cps", 0],
-    ["error: Expected ':' at line 3\nerror: unrelated at line 3 in /fixtures/lib.cps", 0],
+    ["/fixtures/lib.cps:3: error: Expected ':'", 1],
+    ["/fixtures/program.cps:3: error: Expected ':'", 0],
+    ["/fixtures/lib.cps.extra:3: error: Expected ':'", 0],
+    ["/fixtures/lib.cps:30: error: Expected ':'", 0],
+    ["/fixtures/program.cps:3: error: Expected ':'\n/fixtures/lib.cps:3: error: unrelated", 0],
 ) {
     my ($diagnostic, $expected) = @{$sample};
     my $ok = eval {
@@ -68,6 +69,14 @@ for my $sample (
     };
     is($ok ? 1 : 0, $expected, 'file-qualified diagnostic: ' . show_bytes($diagnostic));
 }
+
+my $drive_ok = eval {
+    check_diagnostics({returncode => 1, stdout => '',
+        stderr => "D:/fixtures/lib.cps:3: error: Expected ':'\ncompilation terminated.\n"},
+        [{reason => "Expected ':'", line => 3, file => 'D:/fixtures/lib.cps'}]);
+    1;
+};
+ok($drive_ok, 'drive-letter path keeps its colon');
 
 my $dir = tempdir(CLEANUP => 1);
 my $state = commands_new($dir);

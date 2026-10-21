@@ -34,8 +34,9 @@ style is in [CONVENTIONS/SYMBOLS_AND_ERRORS.md](../CONVENTIONS/SYMBOLS_AND_ERROR
   also return 1. Ordinary compiler errors use `error:`; failures that prevent
   compilation, such as file I/O errors, use `fatal error:`. The driver prints
   `compilation terminated.` once on compilation failure, including argument errors.
-  Multi-input lexer/parser/codegen diagnostics append the source path after the line number;
-  single-input diagnostics (Diagnostics.h) do not append it.
+  Lexer/parser/codegen diagnostics use the gcc layout `<path>:<line>: error: <message>`
+  (Diagnostics.h), with the path as given on the command line; driver-level errors
+  use `cpsc: error:` / `cpsc: fatal error:`.
   Execution-stage failures do not print that line. Check the exit code rather
   than grepping stderr.
 - Successful compilation overwrites the output, but paths aliasing any input source

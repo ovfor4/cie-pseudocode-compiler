@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
             llvm::errs() << "cpsc: fatal error: cannot open source file '" << InputPath << "'\n";
             return compilationTerminated();
         }
-        cps::DiagnosticSource = InputPaths.size() > 1 ? InputPath : "";
+        cps::DiagnosticSource = InputPath;
         cps::Lexer Lex(Input);
         cps::Parser Parser(Lex);
         Programs[I] = Parser.Parse();
@@ -176,7 +176,7 @@ int main(int argc, char **argv) {
                     Units.back().Visible[J] = true;
     }
     for (size_t I = 0; I < Units.size(); ++I) {
-        cps::DiagnosticSource = Units.size() > 1 ? Units[I].Path : "";
+        cps::DiagnosticSource = Units[I].Path;
         for (const auto &Stmt : Units[I].Statements) {
             auto *Include = dynamic_cast<cps::IncludeStmtAST*>(Stmt.get());
             if (!Include) continue;
@@ -193,9 +193,9 @@ int main(int argc, char **argv) {
                 }
             }
             if (!Found) {
-                cps::sourceDiagnostic(Stmt->getLine(),
-                    "error: cannot INCLUDE '%s': not given on the command line at line %d\n",
-                    Include->getPath().c_str(), Stmt->getLine());
+                cps::sourceError(Stmt->getLine(),
+                    "cannot INCLUDE '%s': not given on the command line",
+                    Include->getPath().c_str());
                 return compilationTerminated();
             }
         }
@@ -212,7 +212,7 @@ int main(int argc, char **argv) {
     llvm::StringSet<> ExternSymbols;
     bool LibcLoaded = false;
     for (size_t I = 0; I < Units.size(); ++I) {
-        cps::DiagnosticSource = Units.size() > 1 ? Units[I].Path : "";
+        cps::DiagnosticSource = Units[I].Path;
         for (const auto &Stmt : Units[I].Statements) {
             auto *Object = dynamic_cast<cps::IncludeObjStmtAST*>(Stmt.get());
             if (!Object) continue;
@@ -227,9 +227,9 @@ int main(int argc, char **argv) {
                 llvm::sys::path::append(Path, Object->getPath());
             }
             if (llvm::sys::path::extension(Path) != ".o") {
-                cps::sourceDiagnostic(Stmt->getLine(),
-                    "error: INCLUDE_OBJ '%s' must name a .o object file or \"__libc\" at line %d\n",
-                    Object->getPath().c_str(), Stmt->getLine());
+                cps::sourceError(Stmt->getLine(),
+                    "INCLUDE_OBJ '%s' must name a .o object file or \"__libc\"",
+                    Object->getPath().c_str());
                 return compilationTerminated();
             }
             bool Seen = false;
@@ -238,8 +238,8 @@ int main(int argc, char **argv) {
             if (Seen) continue;
             std::string Error;
             if (!collectObjectSymbols(Path, ExternSymbols, Error)) {
-                cps::sourceDiagnostic(Stmt->getLine(), "error: cannot INCLUDE_OBJ '%s': %s at line %d\n",
-                    Object->getPath().c_str(), Error.c_str(), Stmt->getLine());
+                cps::sourceError(Stmt->getLine(), "cannot INCLUDE_OBJ '%s': %s",
+                    Object->getPath().c_str(), Error.c_str());
                 return compilationTerminated();
             }
             Objects.push_back(std::string(Path));
@@ -247,12 +247,12 @@ int main(int argc, char **argv) {
     }
     bool MissingSymbol = false;
     for (size_t I = 0; I < Units.size(); ++I) {
-        cps::DiagnosticSource = Units.size() > 1 ? Units[I].Path : "";
+        cps::DiagnosticSource = Units[I].Path;
         for (const auto &Stmt : Units[I].Statements) {
             auto *Extern = dynamic_cast<cps::ExternDeclAST*>(Stmt.get());
             if (!Extern || ExternSymbols.contains(Extern->getProto()->getName())) continue;
-            cps::sourceDiagnostic(Stmt->getLine(), "error: C symbol '%s' not found in any INCLUDE_OBJ at line %d\n",
-                Extern->getProto()->getName().c_str(), Stmt->getLine());
+            cps::sourceError(Stmt->getLine(), "C symbol '%s' not found in any INCLUDE_OBJ",
+                Extern->getProto()->getName().c_str());
             MissingSymbol = true;
         }
     }

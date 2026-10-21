@@ -28,10 +28,7 @@ bool CodeGen::isBuiltinName(const std::string &Name) {
 void CodeGen::reportError(const char *Fmt, ...) {
     va_list Args;
     va_start(Args, Fmt);
-    fprintf(stderr, "error: ");
-    vfprintf(stderr, Fmt, Args);
-    if (DiagnosticLine) fprintf(stderr, "%s", lineSuffix(DiagnosticLine).c_str());
-    fprintf(stderr, "\n");
+    cps::vsourceDiagnostic(cps::Severity::Error, DiagnosticLine, Fmt, Args);
     va_end(Args);
     HadError = true;
 }
@@ -154,7 +151,7 @@ bool CodeGen::isVisible(size_t Owner) const {
 
 void CodeGen::selectUnit(size_t Unit) {
     CurrentUnit = Unit;
-    DiagnosticSource = Units->size() > 1 ? (*Units)[Unit].Path : "";
+    DiagnosticSource = (*Units)[Unit].Path;
     FuncGen->setCurrentUnit(Unit, (*Units)[Unit].Path);
     RuntimeChecker->setLibraryMode((*Units)[Unit].IsLibrary);
     FuncGen->setCallHook([this](const FuncSig &Sig) {

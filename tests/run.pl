@@ -113,18 +113,21 @@ sub check_diagnostics {
     if (length($result->{stdout})) {
         push @errors, 'unexpected stdout: ' . show_bytes(substr($result->{stdout}, 0, 1000));
     }
-    # ASCII markers (error:, line N) are matched on raw bytes; the compiler
-    # emits UTF-8 and ASCII patterns are unaffected by decoding.
+    # Diagnostics use the gcc layout "<path>:<line>: error: <message>" and are
+    # matched on raw bytes; the compiler emits UTF-8 and ASCII patterns are
+    # unaffected by decoding. The non-greedy path keeps Windows "D:/" intact.
     my @lines = split_records(normalized($result->{stderr}));
     for my $expectation (@{$expectations}) {
         my $reason = $expectation->{reason};
         my $line_no = $expectation->{line};
+        my $file = $expectation->{file};
         my @matching = grep { /error:/ && /$reason/ } @lines;
         my $found = 0;
         for my $line (@matching) {
-            my $file = $expectation->{file};
-            if ($line =~ /\bline $line_no\b/ &&
-                (!defined($file) || $line =~ /\bline $line_no in \Q$file\E(?:\s|$)/)) {
+            next unless $line =~ /^(.+?):(\d+): error: (.*)$/;
+            my ($path, $number, $message) = ($1, $2, $3);
+            if ($number == $line_no && $message =~ /$reason/ &&
+                (!defined($file) || $path eq $file)) {
                 $found = 1;
                 last;
             }

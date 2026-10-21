@@ -29,7 +29,7 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
         if (LVal->getType()->isIntegerTy(64)) LVal = Builder.CreateSIToFP(LVal, Type::getDoubleTy(Context));
         if (RVal->getType()->isIntegerTy(64)) RVal = Builder.CreateSIToFP(RVal, Type::getDoubleTy(Context));
         if (!LVal->getType()->isDoubleTy() || !RVal->getType()->isDoubleTy()) {
-            cps::sourceDiagnostic(Line, "error: '/' requires numeric operands (line %d).\n", Line);
+            cps::sourceError(Line, "'/' requires numeric operands");
             HadError = true;
             return nullptr;
         }
@@ -40,7 +40,7 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
 
     if (Op == tok_div || Op == tok_mod) {
         if (!LIsInt || !RIsInt) {
-            cps::sourceDiagnostic(Line, "error: DIV and MOD operators require INTEGER operands (line %d).\n", Line);
+            cps::sourceError(Line, "DIV and MOD operators require INTEGER operands");
             HadError = true;
             return nullptr;
         }
@@ -97,7 +97,7 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
             R = widenSmallInt(Builder, Context, R);
         }
         if (L->getType() != R->getType()) {
-            cps::sourceDiagnostic(Line, "error: Mismatched operand types for binary operator (line %d).\n", Line);
+            cps::sourceError(Line, "Mismatched operand types for binary operator");
             HadError = true;
             return nullptr;
         }
@@ -115,7 +115,7 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
         }
     }
 
-    cps::sourceDiagnostic(Line, "error: Unsupported operand types for binary operator (line %d).\n", Line);
+    cps::sourceError(Line, "Unsupported operand types for binary operator");
     HadError = true;
     return nullptr;
 }

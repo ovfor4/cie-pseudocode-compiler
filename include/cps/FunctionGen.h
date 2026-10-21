@@ -72,7 +72,7 @@ private:
     IdentifierMap<SymbolInfo> &Symbols;
     bool &HadError;
     int &DiagnosticLine;
-    void reportError(const char *Fmt, ...);
+    __attribute__((format(printf, 2, 3))) void reportError(const char *Fmt, ...);
 
     IdentifierMap<std::deque<FuncSig>> Signatures;
     IdentifierMap<std::pair<std::string, size_t>> LinkIndex;

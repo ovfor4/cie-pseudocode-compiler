@@ -9,13 +9,13 @@ std::unique_ptr<StmtAST> Parser::ParseTryStmt() {
     getNextToken();
     auto Body = ParseBlock({tok_catch, tok_endtry});
     if (CurTok != tok_catch) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected CATCH in TRY at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected CATCH in TRY");
         return nullptr;
     }
     getNextToken();
     auto CatchBody = ParseBlock({tok_endtry, tok_catch});
     if (CurTok != tok_endtry) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected ENDTRY after CATCH at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected ENDTRY after CATCH");
         return nullptr;
     }
     getNextToken();
@@ -28,7 +28,7 @@ std::unique_ptr<StmtAST> Parser::ParseIfStmt() {
     if (!Cond) return nullptr;
 
     if (CurTok != tok_then) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: expected THEN at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "expected THEN");
         return nullptr;
     }
     getNextToken();
@@ -42,7 +42,7 @@ std::unique_ptr<StmtAST> Parser::ParseIfStmt() {
     }
 
     if (CurTok != tok_endif) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: expected ENDIF at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "expected ENDIF");
         return nullptr;
     }
     getNextToken();
@@ -60,7 +60,7 @@ std::unique_ptr<StmtAST> Parser::ParseWhileStmt() {
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endwhile});
 
     if (CurTok != tok_endwhile) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: expected ENDWHILE\n");
+        cps::sourceError(Lex.getLine(), "expected ENDWHILE");
         return nullptr;
     }
     getNextToken();
@@ -74,7 +74,7 @@ std::unique_ptr<StmtAST> Parser::ParseRepeatStmt() {
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_until});
 
     if (CurTok != tok_until) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: expected UNTIL\n");
+        cps::sourceError(Lex.getLine(), "expected UNTIL");
         return nullptr;
     }
     getNextToken();
@@ -88,14 +88,14 @@ std::unique_ptr<StmtAST> Parser::ParseRepeatStmt() {
 std::unique_ptr<StmtAST> Parser::ParseForStmt() {
     getNextToken();
     if (CurTok != tok_identifier) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: expected identifier after FOR\n");
+        cps::sourceError(Lex.getLine(), "expected identifier after FOR");
         return nullptr;
     }
     std::string VarName = Lex.IdentifierStr;
     getNextToken();
 
     if (CurTok != tok_assign) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: expected '<-' in FOR loop\n");
+        cps::sourceError(Lex.getLine(), "expected '<-' in FOR loop");
         return nullptr;
     }
     getNextToken();
@@ -104,7 +104,7 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
     if (!Start) return nullptr;
 
     if (CurTok != tok_to) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: expected TO in FOR loop\n");
+        cps::sourceError(Lex.getLine(), "expected TO in FOR loop");
         return nullptr;
     }
     getNextToken();
@@ -122,18 +122,18 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
     std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_next});
 
     if (CurTok != tok_next) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: expected NEXT\n");
+        cps::sourceError(Lex.getLine(), "expected NEXT");
         return nullptr;
     }
     getNextToken();
     
     if (CurTok != tok_identifier) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: expected identifier after NEXT (e.g., NEXT %s)\n", VarName.c_str());
+        cps::sourceError(Lex.getLine(), "expected identifier after NEXT (e.g., NEXT %s)", VarName.c_str());
         return nullptr;
     }
 
     if (!sameIdentifier(Lex.IdentifierStr, VarName)) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: NEXT identifier '%s' does not match FOR variable '%s'\n",
+        cps::sourceError(Lex.getLine(), "NEXT identifier '%s' does not match FOR variable '%s'",
                 Lex.IdentifierStr.c_str(), VarName.c_str());
         return nullptr;
     }
@@ -178,12 +178,12 @@ bool Parser::atCaseBoundary() {
 std::unique_ptr<StmtAST> Parser::ParseCaseStmt() {
     getNextToken();
     if (CurTok != tok_of) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected OF after CASE at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected OF after CASE");
         return nullptr;
     }
     getNextToken();
     if (CurTok != tok_identifier) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected identifier after CASE OF at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected identifier after CASE OF");
         return nullptr;
     }
     std::string Selector = Lex.IdentifierStr;
@@ -192,7 +192,7 @@ std::unique_ptr<StmtAST> Parser::ParseCaseStmt() {
     bool SeenOtherwise = false;
     while (CurTok != tok_endcase && CurTok != tok_eof) {
         if (SeenOtherwise || !isCaseLabel()) {
-            cps::sourceDiagnostic(Lex.getLine(), "error: Expected CASE label on a new line (OTHERWISE must be last) at line %d\n", Lex.getLine());
+            cps::sourceError(Lex.getLine(), "Expected CASE label on a new line (OTHERWISE must be last)");
             return nullptr;
         }
         CaseBranch Branch;
@@ -213,7 +213,7 @@ std::unique_ptr<StmtAST> Parser::ParseCaseStmt() {
             if (!Branch.Lower) return nullptr;
         }
         if (CurTok != tok_colon) {
-            cps::sourceDiagnostic(Lex.getLine(), "error: Expected ':' after CASE label at line %d\n", Lex.getLine());
+            cps::sourceError(Lex.getLine(), "Expected ':' after CASE label");
             return nullptr;
         }
         getNextToken();
@@ -221,7 +221,7 @@ std::unique_ptr<StmtAST> Parser::ParseCaseStmt() {
         Branches.push_back(std::move(Branch));
     }
     if (CurTok != tok_endcase || Branches.empty()) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected nonempty CASE and ENDCASE at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected nonempty CASE and ENDCASE");
         return nullptr;
     }
     getNextToken();

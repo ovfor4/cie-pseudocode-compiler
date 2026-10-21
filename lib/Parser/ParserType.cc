@@ -18,7 +18,7 @@ std::unique_ptr<StmtAST> Parser::ParseTemplateDecl() {
     bool AtTopLevel = BlockDepth == 1 && CurrentTemplate.empty();
     getNextToken();
     if (CurTok != '<') {
-        sourceDiagnostic(Line, "error: Expected '<' after TEMPLATE at line %d\n", Line);
+        sourceError(Line, "Expected '<' after TEMPLATE");
         return nullptr;
     }
     getNextToken();
@@ -28,19 +28,19 @@ std::unique_ptr<StmtAST> Parser::ParseTemplateDecl() {
     bool SeenPack = false;
     while (true) {
         if (CurTok != tok_identifier) {
-            sourceDiagnostic(Lex.getLine(), "error: Expected template parameter name at line %d\n", Lex.getLine());
+            sourceError(Lex.getLine(), "Expected template parameter name");
             return nullptr;
         }
         TemplateParam P{Lex.IdentifierStr, false, Lex.getLine()};
         if (!Names.insert(P.Name).second) {
-            sourceDiagnostic(P.Line, "error: Duplicate template parameter '%s' at line %d\n", P.Name.c_str(), P.Line);
+            sourceError(P.Line, "Duplicate template parameter '%s'", P.Name.c_str());
             Invalid = true;
         }
         getNextToken();
         if (CurTok == tok_ellipsis) {
             P.IsPack = true;
             if (SeenPack) {
-                sourceDiagnostic(P.Line, "error: A template may have only one parameter pack at line %d\n", P.Line);
+                sourceError(P.Line, "A template may have only one parameter pack");
                 Invalid = true;
             }
             SeenPack = true;
@@ -49,11 +49,11 @@ std::unique_ptr<StmtAST> Parser::ParseTemplateDecl() {
         Params.push_back(std::move(P));
         if (CurTok == '>') break;
         if (CurTok != ',') {
-            sourceDiagnostic(Lex.getLine(), "error: Expected ',' or '>' in TEMPLATE at line %d\n", Lex.getLine());
+            sourceError(Lex.getLine(), "Expected ',' or '>' in TEMPLATE");
             return nullptr;
         }
         if (Params.back().IsPack) {
-            sourceDiagnostic(Params.back().Line, "error: A template parameter pack must be last at line %d\n", Params.back().Line);
+            sourceError(Params.back().Line, "A template parameter pack must be last");
             Invalid = true;
         }
         getNextToken();
@@ -70,7 +70,7 @@ std::unique_ptr<StmtAST> Parser::ParseTemplateDecl() {
     if (CurTok == tok_function || CurTok == tok_procedure) {
         bool Operator = Lex.peekToken() == tok_operator;
         if (Operator) {
-            sourceDiagnostic(Line, "error: Operator templates are not supported at line %d\n", Line);
+            sourceError(Line, "Operator templates are not supported");
             Invalid = true;
             int End = CurTok == tok_function ? tok_endfunction : tok_endprocedure;
             do { getNextToken(); } while (CurTok != End && CurTok != tok_eof);
@@ -89,17 +89,17 @@ std::unique_ptr<StmtAST> Parser::ParseTemplateDecl() {
                 std::unique_ptr<ClassTypeDeclAST>(static_cast<ClassTypeDeclAST *>(Class.release())));
         }
     } else if (CurTok == tok_type) {
-        sourceDiagnostic(Line, "error: TEMPLATE cannot prefix TYPE; use CLASS at line %d\n", Line);
+        sourceError(Line, "TEMPLATE cannot prefix TYPE; use CLASS");
         ParseTypeDecl();
         Invalid = true;
     } else {
-        sourceDiagnostic(Line, "error: TEMPLATE must be followed by FUNCTION, PROCEDURE or CLASS at line %d\n", Line);
+        sourceError(Line, "TEMPLATE must be followed by FUNCTION, PROCEDURE or CLASS");
         Invalid = true;
     }
     CurrentTemplate = std::move(SavedTemplate);
     TypeNames = std::move(SavedTypes);
     if (!AtTopLevel) {
-        sourceDiagnostic(Line, "error: TEMPLATE declarations are only allowed at top level at line %d\n", Line);
+        sourceError(Line, "TEMPLATE declarations are only allowed at top level");
         Invalid = true;
     }
     if (Invalid || !Decl) return nullptr;
@@ -117,7 +117,7 @@ std::optional<std::vector<std::string>> Parser::ParseTemplateArgs() {
         if (Type.empty()) return std::nullopt;
         if (CurTok == tok_ellipsis) {
             if (!isTemplatePack(Type)) {
-                sourceDiagnostic(Line, "error: Only the current template parameter pack may use '...' in a type argument at line %d\n", Line);
+                sourceError(Line, "Only the current template parameter pack may use '...' in a type argument");
                 return std::nullopt;
             }
             Type += "...";
@@ -126,7 +126,7 @@ std::optional<std::vector<std::string>> Parser::ParseTemplateArgs() {
         Args.push_back(std::move(Type));
         if (CurTok == '>') break;
         if (CurTok != ',') {
-            sourceDiagnostic(Lex.getLine(), "error: Expected ',' or '>' in template arguments at line %d\n", Lex.getLine());
+            sourceError(Lex.getLine(), "Expected ',' or '>' in template arguments");
             return std::nullopt;
         }
         getNextToken();
@@ -153,7 +153,7 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
     getNextToken(); // eat TYPE or CLASS
 
     if (CurTok != tok_identifier && !(IsClass && CurTok == tok_string_kw)) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected type name after %s at line %d\n", Keyword, Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected type name after %s", Keyword);
         if (IsClass) ParseRecordBody("<unnamed>", Line, tok_endclass);
         return nullptr;
     }
@@ -169,18 +169,18 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
         if (CurTok == tok_c_type) {
             getNextToken();
             if (CurTok != '(') {
-                cps::sourceDiagnostic(Lex.getLine(), "error: Expected '(' after C_TYPE at line %d\n", Lex.getLine());
+                cps::sourceError(Lex.getLine(), "Expected '(' after C_TYPE");
                 return nullptr;
             }
             getNextToken();
             if (CurTok != tok_string_literal) {
-                cps::sourceDiagnostic(Lex.getLine(), "error: C_TYPE requires a string literal at line %d\n", Lex.getLine());
+                cps::sourceError(Lex.getLine(), "C_TYPE requires a string literal");
                 return nullptr;
             }
             std::string Expression = Lex.StringVal;
             getNextToken();
             if (CurTok != ')') {
-                cps::sourceDiagnostic(Lex.getLine(), "error: Expected ')' after C_TYPE string at line %d\n", Lex.getLine());
+                cps::sourceError(Lex.getLine(), "Expected ')' after C_TYPE string");
                 return nullptr;
             }
             getNextToken();
@@ -190,16 +190,16 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
             std::vector<std::string> Values;
             while (true) {
                 if (CurTok != tok_identifier) {
-                    cps::sourceDiagnostic(Lex.getLine(), "error: Expected an enum value name in TYPE %s at line %d\n",
-                            Name.c_str(), Lex.getLine());
+                    cps::sourceError(Lex.getLine(), "Expected an enum value name in TYPE %s",
+                            Name.c_str());
                     return nullptr;
                 }
                 Values.push_back(Lex.IdentifierStr);
                 getNextToken();
                 if (CurTok == ')') break;
                 if (CurTok != ',') {
-                    cps::sourceDiagnostic(Lex.getLine(), "error: Expected ',' or ')' in TYPE %s at line %d\n",
-                            Name.c_str(), Lex.getLine());
+                    cps::sourceError(Lex.getLine(), "Expected ',' or ')' in TYPE %s",
+                            Name.c_str());
                     return nullptr;
                 }
                 getNextToken();
@@ -212,12 +212,12 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
             if (Pointee.empty()) return nullptr;
             Decl = std::make_unique<PointerTypeDeclAST>(Name, Pointee);
         } else if (CurTok == tok_set) {
-            cps::sourceDiagnostic(Lex.getLine(), "error: SET OF types are not implemented at line %d\n", Lex.getLine());
+            cps::sourceError(Lex.getLine(), "SET OF types are not implemented");
             getNextToken();
             return nullptr;
         } else {
-            cps::sourceDiagnostic(Lex.getLine(), "error: Expected '(', '^' or C_TYPE after '=' in TYPE %s at line %d\n",
-                    Name.c_str(), Lex.getLine());
+            cps::sourceError(Lex.getLine(), "Expected '(', '^' or C_TYPE after '=' in TYPE %s",
+                    Name.c_str());
             return nullptr;
         }
     } else {
@@ -231,7 +231,7 @@ std::unique_ptr<StmtAST> Parser::ParseTypeDecl() {
     }
 
     if (!AtTopLevel) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: %s declarations are only allowed at top level at line %d\n", Keyword, Line);
+        cps::sourceError(Line, "%s declarations are only allowed at top level", Keyword);
         return nullptr;
     }
     TypeNames.insert(Name);
@@ -272,7 +272,7 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
                 bool IsOverload = CurTok == tok_overload;
                 if (IsOverload) getNextToken();
                 if (CurTok != tok_function && CurTok != tok_procedure) {
-                    cps::sourceDiagnostic(Lex.getLine(), "error: OVERLOAD must be followed by FUNCTION or PROCEDURE at line %d\n", Lex.getLine());
+                    cps::sourceError(Lex.getLine(), "OVERLOAD must be followed by FUNCTION or PROCEDURE");
                     HadFieldError = true;
                     continue;
                 }
@@ -284,9 +284,9 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
                 }
             } else if (ParseRecordField(Fields, IsPublic)) continue;
         } else {
-            cps::sourceDiagnostic(Lex.getLine(), "error: Expected %s or %s in %s %s at line %d\n",
+            cps::sourceError(Lex.getLine(), "Expected %s or %s in %s %s",
                     IsClass ? "field, method, PUBLIC or PRIVATE" : "DECLARE", EndKeyword,
-                    Keyword, Name.c_str(), Lex.getLine());
+                    Keyword, Name.c_str());
         }
         HadFieldError = true;
         // Consume invalid bodies rather than replaying their contents as
@@ -305,14 +305,14 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
         }
     }
     if (CurTok != EndToken) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected %s in %s %s at line %d\n",
-                EndKeyword, Keyword, Name.c_str(), Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected %s in %s %s",
+                EndKeyword, Keyword, Name.c_str());
         return std::nullopt;
     }
     getNextToken(); // eat body terminator
     if (Fields.empty() && (!Methods || Methods->empty()) && !HadFieldError) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: %s %s has no %s at line %d\n", Keyword, Name.c_str(),
-                IsClass ? "members" : "fields", Line);
+        cps::sourceError(Line, "%s %s has no %s", Keyword, Name.c_str(),
+                IsClass ? "members" : "fields");
         return std::nullopt;
     }
     if (HadFieldError) return std::nullopt;
@@ -326,29 +326,28 @@ bool Parser::ParseRecordField(std::vector<RecordFieldDecl> &Out, bool IsPublic) 
                            : CurTok == tok_public ? "PUBLIC" : "PRIVATE";
     if (CurTok != tok_identifier) getNextToken(); // optional class access keyword
     if (CurTok != tok_identifier) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected field name after %s at line %d\n", Introducer, Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected field name after %s", Introducer);
         return false;
     }
     std::string FieldName = Lex.IdentifierStr;
     getNextToken();
 
     if (CurTok != tok_colon) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected ':' after field name %s at line %d\n",
-                FieldName.c_str(), Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected ':' after field name %s",
+                FieldName.c_str());
         return false;
     }
     getNextToken();
 
     if (CurTok == tok_array) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Array fields inside records are not implemented at line %d\n",
-                Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Array fields inside records are not implemented");
         return false;
     }
 
     std::string TypeName = ParseTypeName(false);
     if (TypeName.empty()) return false;
     if (CurTok == tok_ellipsis || isTemplatePack(TypeName)) {
-        sourceDiagnostic(Line, "error: Pack fields are not supported at line %d\n", Line);
+        sourceError(Line, "Pack fields are not supported");
         if (CurTok == tok_ellipsis) getNextToken();
         return false;
     }
@@ -388,7 +387,7 @@ std::string Parser::ParseTypeName(bool AllowVoid) {
     if (CurTok == tok_identifier) {
         std::string TypeName = Lex.IdentifierStr;
         if (!AllowVoid && sameIdentifier(TypeName, "VOID")) {
-            cps::sourceDiagnostic(Lex.getLine(), "error: VOID is not allowed here\n");
+            cps::sourceError(Lex.getLine(), "VOID is not allowed here");
             return "";
         }
         getNextToken();
@@ -405,7 +404,7 @@ std::string Parser::ParseTypeName(bool AllowVoid) {
         return TypeName;
     }
 
-    cps::sourceDiagnostic(Lex.getLine(), "error: Unknown type name\n");
+    cps::sourceError(Lex.getLine(), "Unknown type name");
     return "";
 }
 
@@ -413,14 +412,14 @@ std::string Parser::ParseTypeName(bool AllowVoid) {
 std::unique_ptr<StmtAST> Parser::ParseDeclare() {
     getNextToken();
     if (CurTok != tok_identifier) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected identifier after DECLARE at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected identifier after DECLARE");
         return nullptr;
     }
     std::string Name = Lex.IdentifierStr;
     getNextToken();
 
     if (CurTok != tok_colon) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected ':' after variable name '%s' at line %d\n", Name.c_str(), Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected ':' after variable name '%s'", Name.c_str());
         return nullptr;
     }
     getNextToken();
@@ -428,7 +427,7 @@ std::unique_ptr<StmtAST> Parser::ParseDeclare() {
     if (CurTok == tok_array) {
         getNextToken(); 
         if (CurTok != '[') {
-            cps::sourceDiagnostic(Lex.getLine(), "error: Expected '[' after ARRAY\n");
+            cps::sourceError(Lex.getLine(), "Expected '[' after ARRAY");
             return nullptr;
         }
         getNextToken();
@@ -440,7 +439,7 @@ std::unique_ptr<StmtAST> Parser::ParseDeclare() {
             if (!Lower) return nullptr;
             
             if (CurTok != tok_colon) {
-                cps::sourceDiagnostic(Lex.getLine(), "error: Expected ':' in array range (e.g. 1:10)\n");
+                cps::sourceError(Lex.getLine(), "Expected ':' in array range (e.g. 1:10)");
                 return nullptr;
             }
             getNextToken();
@@ -455,13 +454,13 @@ std::unique_ptr<StmtAST> Parser::ParseDeclare() {
                 getNextToken();
                 continue;
             }
-            cps::sourceDiagnostic(Lex.getLine(), "error: Expected ',' or ']' in array dims\n");
+            cps::sourceError(Lex.getLine(), "Expected ',' or ']' in array dims");
             return nullptr;
         }
         getNextToken();
         
         if (CurTok != tok_of) {
-            cps::sourceDiagnostic(Lex.getLine(), "error: Expected OF after array dims\n");
+            cps::sourceError(Lex.getLine(), "Expected OF after array dims");
             return nullptr;
         }
         getNextToken();
@@ -494,13 +493,13 @@ std::unique_ptr<StmtAST> Parser::ParseConstant() {
     int Line = Lex.getLine();
     getNextToken();
     if (CurTok != tok_identifier) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected identifier after CONSTANT at line %d\n", Line);
+        cps::sourceError(Line, "Expected identifier after CONSTANT");
         return nullptr;
     }
     std::string Name = Lex.IdentifierStr;
     getNextToken();
     if (CurTok != tok_eq) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected '=' in CONSTANT declaration at line %d\n", Line);
+        cps::sourceError(Line, "Expected '=' in CONSTANT declaration");
         return nullptr;
     }
     getNextToken();
@@ -510,7 +509,7 @@ std::unique_ptr<StmtAST> Parser::ParseConstant() {
     bool Literal = Numeric || CurTok == tok_true || CurTok == tok_false ||
                    CurTok == tok_string_literal || CurTok == tok_c_string_literal || CurTok == tok_char_literal;
     if (!Literal || (Negative && !Numeric)) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: CONSTANT initializer must be a literal at line %d\n", Line);
+        cps::sourceError(Line, "CONSTANT initializer must be a literal");
         return nullptr;
     }
     std::unique_ptr<ExprAST> Value;
@@ -526,7 +525,7 @@ std::unique_ptr<StmtAST> Parser::ParseConstant() {
         if (Negative) Value = std::make_unique<UnaryExprAST>('-', std::move(Value));
     }
     if (GetTokPrecedence() >= 0) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: CONSTANT initializer must be a literal, not an expression, at line %d\n", Line);
+        cps::sourceError(Line, "CONSTANT initializer must be a literal, not an expression");
         return nullptr;
     }
     return std::make_unique<ConstantStmtAST>(std::move(Name), std::move(Value));

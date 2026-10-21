@@ -42,8 +42,13 @@ keep compiling.** No exceptions, no exit mid-compile.
 
 - `Lexer`/`Parser`/`CodeGen` each expose `hadError()`; AST expressions/statements
   share source-line metadata. Parser entry points record token locations. CodeGen
-  saves/restores its diagnostic line across recursive emission and coercion;
-  `reportError` appends `at line N`.
+  saves/restores its diagnostic line across recursive emission and coercion.
+- Diagnostics use the gcc layout `<path>:<line>: error: <message>` (`<path>:` when
+  the line is unknown). Lexer/parser/driver call `cps::sourceError(Line, fmt, ...)`
+  (`sourceWarning` for warnings) from `Diagnostics.h` with the bare message: no
+  `error:` label, location or newline. `reportError` routes through the same helper
+  with `DiagnosticLine`. `DiagnosticSource` holds the unit path as given on the
+  command line.
 - `CodeGen::reportError(fmt, ...)` is the helper for codegen-side diagnostics
   (`ArrayHandler` reaches it through its `CodeGen &` parameter,
   `FunctionGen`/`ArithmeticHandler` hold a `bool &HadError` reference).

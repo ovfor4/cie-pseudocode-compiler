@@ -14,7 +14,7 @@ std::unique_ptr<StmtAST> Parser::ParseOpenFile() {
     if (!FileName) return nullptr;
 
     if (CurTok != tok_for) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected FOR after OPENFILE filename at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected FOR after OPENFILE filename");
         return nullptr;
     }
     getNextToken(); // eat FOR
@@ -25,11 +25,10 @@ std::unique_ptr<StmtAST> Parser::ParseOpenFile() {
     case tok_write:  Mode = FileMode::Write;  break;
     case tok_append: Mode = FileMode::Append; break;
     case tok_random:
-        cps::sourceDiagnostic(Lex.getLine(), "error: File mode RANDOM is not implemented (text files only) at line %d\n",
-                Lex.getLine());
+        cps::sourceError(Lex.getLine(), "File mode RANDOM is not implemented (text files only)");
         return nullptr;
     default:
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected file mode READ, WRITE or APPEND at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected file mode READ, WRITE or APPEND");
         return nullptr;
     }
     getNextToken(); // eat the mode keyword
@@ -46,13 +45,13 @@ std::unique_ptr<StmtAST> Parser::ParseReadFile() {
     if (!FileName) return nullptr;
 
     if (CurTok != ',') {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected ',' after READFILE filename at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected ',' after READFILE filename");
         return nullptr;
     }
     getNextToken(); // eat ','
 
     if (CurTok != tok_identifier) {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected variable name after ',' in READFILE at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected variable name after ',' in READFILE");
         return nullptr;
     }
     std::string VarName = Lex.IdentifierStr;
@@ -62,7 +61,7 @@ std::unique_ptr<StmtAST> Parser::ParseReadFile() {
         // Consume the whole designator so it cannot replay as statements.
         std::vector<DesignatorAccess> Dummy;
         ParseDesignatorSuffix(Dummy);
-        cps::sourceDiagnostic(Lex.getLine(), "error: READFILE target must be a plain STRING variable at line %d\n", Line);
+        cps::sourceError(Line, "READFILE target must be a plain STRING variable");
         return nullptr;
     }
 
@@ -78,7 +77,7 @@ std::unique_ptr<StmtAST> Parser::ParseWriteFile() {
     if (!FileName) return nullptr;
 
     if (CurTok != ',') {
-        cps::sourceDiagnostic(Lex.getLine(), "error: Expected ',' after WRITEFILE filename at line %d\n", Lex.getLine());
+        cps::sourceError(Lex.getLine(), "Expected ',' after WRITEFILE filename");
         return nullptr;
     }
     getNextToken(); // eat ','

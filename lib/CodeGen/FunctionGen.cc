@@ -30,10 +30,7 @@ bool FunctionGen::isReservedRuntimeName(const std::string &Name) {
 void FunctionGen::reportError(const char *Fmt, ...) {
     va_list Args;
     va_start(Args, Fmt);
-    fprintf(stderr, "error: ");
-    vfprintf(stderr, Fmt, Args);
-    if (DiagnosticLine) fprintf(stderr, "%s", lineSuffix(DiagnosticLine).c_str());
-    fprintf(stderr, "\n");
+    cps::vsourceDiagnostic(cps::Severity::Error, DiagnosticLine, Fmt, Args);
     va_end(Args);
     HadError = true;
 }
@@ -449,7 +446,7 @@ static Value *GenerateCall(llvm::Module &Module,
                            bool &HadError, int DiagnosticLine) {
     Function *CalleeF = Module.getFunction(CalleeName);
     if (!CalleeF) {
-        sourceDiagnostic(DiagnosticLine, "error: Call to undefined function %s\n", CalleeName.c_str());
+        sourceError(DiagnosticLine, "Call to undefined function %s", CalleeName.c_str());
         HadError = true;
         return nullptr;
     }
