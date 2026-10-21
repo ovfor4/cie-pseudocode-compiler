@@ -12,7 +12,7 @@ files ──> Lexer ──> Parser ──> vector<unique_ptr<StmtAST>> ──> C
 ```
 
 Fixed value representation (ABI — much code infers types backwards from these):
-INTEGER = `i64`, REAL = `double`, BOOLEAN = `i1`, CHAR = `i8`. STRING is the standard-library class `%record.STRING`, owning a std::string handle; C_STRING is a raw NUL-terminated pointer. User-defined types (§4): enum = `i64` (0-based ordinal),
+INTEGER = `i64`, REAL = `double`, BOOLEAN = `i1`, CHAR = `i8`. STRING is the standard-library class `%record.STRING` (not a builtin pointer type), owning a std::string handle; C_STRING is a raw NUL-terminated pointer. User-defined types (§4): enum = `i64` (0-based ordinal),
 pointer = opaque `ptr`, record = named struct `%record.NAME`. Enums and pointers are LLVM-identical to INTEGER/C_STRING **by design** — their identity lives in the type
 *name*, enforced upstream (see [CONVENTIONS/TYPES.md](../CONVENTIONS/TYPES.md)). Allocation byte sizes are never computed
 host-side: the module has no DataLayout string, so every allocation size is a null-GEP

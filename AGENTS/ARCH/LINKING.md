@@ -30,7 +30,7 @@ prefix, and leaves LLVM itself installed. Source and build caches are versioned;
 the resulting local `lib/cmake/lld` takes precedence over shared system packages.
 The helper's build-time linker can use the installed LLVM dylib; cpsc still links
 the LLD archives and static LLVM components.
-Both macOS configurations explicitly select the SDK with `CMAKE_OSX_SYSROOT`
+Both macOS builds (the LLD helper and cpsc) explicitly select the SDK with `CMAKE_OSX_SYSROOT`
 before compiler detection, so imported SDK include paths do not precede libc++.
 The nightly macOS job's helper caching and LLVM bottle checks are described in
 [NIGHTLY.md](NIGHTLY.md#macos-lld-helper-and-desktop-caches).

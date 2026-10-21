@@ -9,11 +9,9 @@ resolves the string to `TypeInfo{LLVMType, Kind, per-kind payload}`. The parser'
 outside a RETURNS clause via its `AllowVoid` flag); other unknown types only fail
 (softly) in CodeGen.
 
-**Fixed IR representation per builtin type.** INTEGER = `i64`, REAL = `double`,
-BOOLEAN = `i1`, CHAR = `i8`. STRING is the ordinary standard-library class
-`%record.STRING`, not a builtin pointer type. C_STRING remains a raw NUL-terminated C
-pointer. Some arithmetic code still infers types backwards from LLVM widths;
-preserve the builtin scalar ABI.
+**Fixed IR representation per builtin type.** The table lives in
+[ARCH/OVERVIEW.md](../ARCH/OVERVIEW.md). Some arithmetic code still infers types
+backwards from LLVM widths; preserve the builtin scalar ABI.
 
 **C aliases are structural within the C domain.** `CIdentity` retains the canonical
 C base type and pointer levels independently of the alias `Name`. Use `sameType`
@@ -42,7 +40,5 @@ and handles C/user kinds before builtin arithmetic. `coerceValueToType` hard-err
 (not `Symbols`, so they survive FunctionGen's save/clear/restore). Expression
 resolution order is `Symbols` first, then enum constants; collisions with
 DECLARE/array/parameter/function names are compile errors at declaration time, so
-the order can never shadow. TYPE declarations are top-level only, registered by
-`compile()`'s two-pass pre-scan (names first — pointer pointees may
-forward-reference; definitions second, in source order — a by-value record field
-requires its record type to be already complete).
+the order can never shadow. TYPE declarations are top-level only and registered in
+two passes; see [SUBSYSTEMS/USER_TYPES.md](../SUBSYSTEMS/USER_TYPES.md#registration).

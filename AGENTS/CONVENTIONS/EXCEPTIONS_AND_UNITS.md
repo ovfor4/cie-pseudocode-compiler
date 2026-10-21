@@ -14,7 +14,7 @@ Part of [Load-bearing conventions](../CONVENTIONS.md).
 - `RuntimeCheck::emitCheck` prints the source line and error reason to stderr before
   throwing. Generated main catches anything unhandled, prints the generic termination
   message to stderr, and returns 1. Explicit bare THROW prints no diagnostic itself.
-- Arrays in TRY and CATCH use separate block scopes; scalars retain existing function
+- Arrays in TRY and CATCH use separate block scopes; scalars keep function
   scope.
 
 **Compilation units and entry points.**

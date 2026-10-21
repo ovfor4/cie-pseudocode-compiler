@@ -28,16 +28,16 @@ canonical parameter list (MAIN uses internal __cps_main).
   overload-set map (`FunctionGen::getOverloads`, filtered by unit visibility).
 - `resolveCall` selects exact static parameter types/ranks for OVERLOAD, while a single
   ordinary definition keeps implicit conversions.
-- Parameter keys exclude return types, modes and bounds; equivalent C aliases use
+- Parameter keys exclude return types, modes and bounds (they never distinguish
+  overloads); equivalent C aliases use
   CIdentity. Every same-name definition must be OVERLOAD; duplicate keys fail even
   across invisible units.
 - FunctionGen tracks prototype registration separately from source names and indexes
   signatures by LLVM link name for RETURN (`getSignatureByLink`).
 - `CodeGen::marshalCallArgs` consumes the selected FuncSig, and `getExprTypeInfo`
   resolves the same calls without emitting IR.
-- Top-level prototypes are pre-registered at the start of `compile()` (after the TYPE
-  pre-pass), so calls may precede definitions; calling a name with no signature is a
-  compile error (no extern is fabricated).
+- Prototype pre-registration (calls may precede definitions): see
+  [CONVENTIONS/CALLS.md](../CONVENTIONS/CALLS.md).
 
 ## Operator overloads (`OperatorGen.cc`)
 

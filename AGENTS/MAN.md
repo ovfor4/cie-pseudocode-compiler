@@ -21,6 +21,6 @@ Use relative Markdown links between source pages, including `../` when crossing 
 
 ## Build and verification
 
-`doc`, `install` and `release` generate all manuals with Pandoc; ordinary builds do not need it. CMake discovers language sources recursively and preserves categories in generated files and release packages. Windows installs HTML with the same category layout. Unix installs all section 7 pages together in `PREFIX/share/cpsc/man/man7`, alongside the command page in `man1`; manpath registration is handled by the installer.
+Generation, installation and packaging of the manuals (Pandoc, `doc`/`install`/`release` targets, category layout, manpath registration) are described in [ARCH/INSTALL.md](ARCH/INSTALL.md).
 
 Before committing, run `cmake --build build --target doc`, check the affected links and render a changed page with `man -l build/doc/language/keyword/cpsc-keyword-if.7` (use the relevant path). For formatting-only edits, a comparison of Pandoc's man output before and after is sufficient. For path changes, also check HTML links, package contents and a DESTDIR installation. Keep verification simple; do not add a test framework for manual edits.

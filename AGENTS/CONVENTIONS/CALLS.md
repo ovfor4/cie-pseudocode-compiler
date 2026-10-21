@@ -23,13 +23,13 @@ bridge C void* and nominal pseudocode pointer types.
   invoke a same-class BYREF OVERLOAD NEW when defined; STRING-bearing aggregates
   clone their owned fields. Other classes without a copy constructor copy bits; class
   rvalues transfer ownership. Other values use `emitCoercedExpr`.
-- Top-level prototypes are pre-registered (after the TYPE pre-pass) before statement
-  emission, so call-before-definition is fine; a call with no registered signature is
-  a compile error. Method prototypes are pre-registered too.
+- Top-level prototypes are pre-registered at the start of `compile()` (after the TYPE
+  pre-pass) before statement emission, so call-before-definition is fine; a call with
+  no registered signature is a compile error (no extern is fabricated). Method
+  prototypes are pre-registered too.
 - OVERLOAD signatures append canonical parameter types to the link name; ordinary
-  names except MAIN get no mangling. `getOverloads` filters by visibility and
-  `resolveCall` selects exact static types/ranks. Return types, modes and bounds
-  never distinguish overloads.
+  names except MAIN get no mangling. Overload sets, visibility filtering and exact
+  selection: [SUBSYSTEMS/FUNCTIONS.md](../SUBSYSTEMS/FUNCTIONS.md#signatures-and-call-resolution).
 - In all cases, `emitPrototype` rejects names that collide with runtime/libc symbols
   (`isReservedRuntimeName`), builtins, or enum values. Signatures retain the first
   declaration spelling for LLVM lookup, independently of call-site casing.

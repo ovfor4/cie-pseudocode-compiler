@@ -50,7 +50,8 @@ Part of the [subsystem notes](../SUBSYSTEMS.md). Builds on [classes](CLASSES.md)
 - emitOwnedValue constructs lvalue copies and keeps pending arguments Alive until
   marshalling succeeds. RETURN copies lvalues and transfers rvalues.
 - Records and BYVAL arrays recursively clone STRING-bearing fields/elements. Other
-  owning class fields retain the existing shallow-copy limits.
+  owning class fields are copied shallowly (see the
+  [copy limits](../PITFALLS/classes.md#copy-limits)).
 - StackObject::Temporary uses statement cleanup and deferred temporary-only cleanup
   before local handlers, while ordinary objects remain function-scoped.
 - Function-result method receivers are materialized by the same path as operator
@@ -58,4 +59,4 @@ Part of the [subsystem notes](../SUBSYSTEMS.md). Builds on [classes](CLASSES.md)
 - Assignment first selects an exact member OPERATOR<-; without one, STRING-bearing
   aggregate assignment clones string fields from lvalues or transfers them from rvalues,
   releasing the target's old string fields without invoking the enclosing class
-  destructor; other classes retain their existing bitwise assignment behavior.
+  destructor; other classes are assigned bitwise.

@@ -2,7 +2,8 @@
 
 On Linux, `make -C build install` builds the manual and calls the POSIX
 `install.sh` to copy `cpsc` into `CMAKE_INSTALL_PREFIX/bin` and all manuals into
-`CMAKE_INSTALL_PREFIX/share/cpsc/man/man1` and `man7` (default prefix `/usr/local`).
+`CMAKE_INSTALL_PREFIX/share/cpsc/man/man1` and `man7` (default prefix `/usr/local`);
+section 7 pages are installed together in `man7` without category subdirectories.
 Linux man-db registration appends a deduplicated MANDATORY_MANPATH entry to
 `/etc/manpath.config` or `/etc/man_db.conf` as root, or `~/.manpath` as a user.
 macOS root registration uses `/usr/local/etc/man.d/cpsc.conf`; user installation
@@ -47,6 +48,7 @@ The release target explicitly passes the configured Windows flag to
 host platform. Windows packages `cpsc.exe`, `doc/cpsc.html`, `doc/language/**/*.html`, `install.ps1` and
 `LICENSE` as `build/cpsc-VERSION-Windows-ARCH.zip` using CMake's default Deflate
 compression. Unix retains `.tar.xz`, the POSIX installer and the man pages.
+Generated files and release packages preserve the language category layout.
 Linux smoke tests can configure an isolated build with `-DWIN32=TRUE` to exercise
 HTML/ZIP packaging; the resulting renamed Linux executable is only a test fixture,
 not a usable Windows release.

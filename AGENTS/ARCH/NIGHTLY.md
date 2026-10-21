@@ -17,7 +17,7 @@ the current working directory on startup; macOS keeps the compiler inside the ap
 Native runner tests check prefilled input, EOF, diagnostics, output before exit,
 stopping and restart. Portable packages are checked for the desktop executable,
 compiler and notices, then run with toolchain directories removed from PATH.
-The publish job requires both Bundle packages alongside the original four packages.
+The publish job requires both Bundle packages alongside the four compiler and VSIX packages.
 See [`bundle/AGENTS/DEVELOPMENT.md`](../../bundle/AGENTS/DEVELOPMENT.md) for the shared editor and build details.
 
 The Linux compiler and plugin jobs use Ubuntu 24.04 x86_64; the macOS compiler
@@ -35,7 +35,8 @@ packaged binary and checks native generation plus `.ll` output without tool look
 Windows system directories, excluding MSYS2 and LLVM. The macOS check also
 verifies arm64 and rejects non-system dynamic libraries. The plugin uses
 Node.js 22, `npm ci --ignore-scripts` and
-`npm run package`, then checks VSIX contents. Each job retains its checked package
+`npm run package` (which runs the plugin's syntax checks and tests before packaging),
+then checks VSIX contents. Each job retains its checked package
 as a separate Actions artifact for one day, failing if the package is missing.
 Compiler jobs enable
 BUILD_TESTING and run all CTest cases with the push SHA as seed before
@@ -50,7 +51,7 @@ Compiler and VSIX package names use HEAD's UTC commit timestamp and short ID.
 The VSIX internal version is `YYYYMMDD.HHMMSS.0+commit`, with leading zeros
 removed from the numeric time component. Before committing workflow changes, run
 actionlint, simulate release API calls, and smoke-test the packages locally;
-do not modify the real release for local verification.
+do not contact or modify the real release for local verification.
 
 ## macOS LLD helper and desktop caches
 
@@ -64,5 +65,4 @@ compiler/library content, workspace path and helper script hash. No fallback key
 restores a build from a different toolchain. Homebrew updates and the LLVM archive
 symbol check still run before cache lookup. Windows and macOS desktop jobs cache
 compiled Rust dependencies after selecting the toolchain, including on failure;
-project crates rebuild with the current compiler payload. Rust release optimization
-and archive compression settings are unchanged.
+project crates rebuild with the current compiler payload.

@@ -9,7 +9,7 @@ resize helpers and a linked list of live allocation start addresses.
 ## Tracking
 
 - Explicit MALLOC/REALLOC and keyword NEW allocations enter the list; STRING/ARRAY
-  internals retain their existing ownership.
+  internals are not tracked here and keep their own ownership.
 - Helpers use RuntimeCheck and ExceptionHandler, including source-line arguments and
   per-function unwind preparation.
 - Sizes accept INTEGER and C integers and convert to native size_t.

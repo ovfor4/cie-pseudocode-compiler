@@ -30,6 +30,6 @@
   Initialize the JIT before looking up `main` and deinitialize while its code is
   still mapped. Execution failures return 1 without `compilation terminated.`.
   No external runner or PATH lookup is used; `-r` alone runs in memory.
-  Platform-specific changes require native CI verification.
+  Platform-specific changes require native CI verification ([BUILD.md](BUILD.md)).
 
 The embedded JIT lazily loads the captured C++ standard-library and compiler-support archives using StaticLibraryDefinitionGenerator. Members defining exception ABI or unwind symbols are filtered so all exception frames use the host runtime; additional host ABI functions are exposed explicitly. Archive buffers own their extracted bytes for the JIT lifetime.

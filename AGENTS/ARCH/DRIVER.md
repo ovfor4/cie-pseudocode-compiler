@@ -35,7 +35,7 @@ style is in [CONVENTIONS/SYMBOLS_AND_ERRORS.md](../CONVENTIONS/SYMBOLS_AND_ERROR
   compilation, such as file I/O errors, use `fatal error:`. The driver prints
   `compilation terminated.` once on compilation failure, including argument errors.
   Multi-input lexer/parser/codegen diagnostics append the source path after the line number;
-  Diagnostics.h keeps single-input diagnostic text unchanged.
+  single-input diagnostics (Diagnostics.h) do not append it.
   Execution-stage failures do not print that line. Check the exit code rather
   than grepping stderr.
 - Successful compilation overwrites the output, but paths aliasing any input source

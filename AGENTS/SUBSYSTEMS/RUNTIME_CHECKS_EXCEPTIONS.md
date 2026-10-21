@@ -52,4 +52,4 @@ Part of the [subsystem notes](../SUBSYSTEMS.md). Related: [class lifetime](CLASS
   ABI symbols with ORC `absoluteSymbols`, while LLJIT with JITLink manages unwind frames
   (generic EH-frame on Linux, compact-unwind or EH-frame on macOS, COFF SEH registration
   on Windows x86_64); see [ARCH/EMBEDDED_RUNNER.md](../ARCH/EMBEDDED_RUNNER.md).
-- Nightly CI exercises embedded exception execution on all three platforms.
+- CI coverage of embedded exception execution: [ARCH/BUILD.md](../ARCH/BUILD.md).
