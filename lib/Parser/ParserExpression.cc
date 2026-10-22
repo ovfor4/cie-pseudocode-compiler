@@ -279,8 +279,8 @@ std::unique_ptr<ExprAST> Parser::ParsePrimaryImpl() {
     }
     case '(':            return ParseParenExpr();
     default:
-        cps::sourceError(Lex.getLine(), "unknown token '%c' (%d) when expecting an expression",
-                (char)CurTok, CurTok);
+        cps::sourceError(Lex.getLine(), "Expected an expression but found %s",
+                Lexer::tokenSpelling(CurTok, Lex).c_str());
         return nullptr;
     }
 }

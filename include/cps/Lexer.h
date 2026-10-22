@@ -154,6 +154,8 @@ public:
     int getLine() const { return TokenLine; }
     bool isLibrary() const { return Library; }
     bool hadError() const { return HadError; }
+    // Human-readable spelling of Tok for diagnostics; Lex supplies identifier text.
+    static std::string tokenSpelling(int Tok, const Lexer &Lex);
 };
 
 }

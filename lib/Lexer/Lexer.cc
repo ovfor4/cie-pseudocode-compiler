@@ -12,6 +12,115 @@
 
 using namespace cps;
 
+namespace {
+const std::unordered_map<std::string, int> Keywords = {
+    {"CONSTANT", tok_constant},
+    {"INCLUDE", tok_include},
+    {"INCLUDE_OBJ", tok_include_obj},
+    {"EXTERN", tok_extern},
+    {"EXTERN_FUNCTION", tok_extern_function},
+    {"EXTERN_PROCEDURE", tok_extern_procedure},
+    {"GLOBAL", tok_global},
+    {"ENDGLOBAL", tok_endglobal},
+    {"DECLARE", tok_declare},
+    {"INTEGER", tok_integer_kw},
+    {"BOOLEAN", tok_boolean_kw},
+    {"REAL", tok_real_kw},
+    {"STRING", tok_string_kw},
+    {"CHAR", tok_char_kw},
+    {"C_TYPE", tok_c_type},
+    {"C_INT", tok_c_int},
+    {"C_CHAR", tok_c_char},
+    {"C_STRING", tok_c_string},
+    {"C_DOUBLE", tok_c_double},
+    {"TRUE", tok_true},
+    {"FALSE", tok_false},
+    {"INPUT", tok_input},
+    {"OUTPUT", tok_output},
+    {"CASE", tok_case},
+    {"ENDCASE", tok_endcase},
+    {"OTHERWISE", tok_otherwise},
+    {"IF", tok_if},
+    {"THEN", tok_then},
+    {"ELSE", tok_else},
+    {"ENDIF", tok_endif},
+    {"TRY", tok_try},
+    {"CATCH", tok_catch},
+    {"ENDTRY", tok_endtry},
+    {"THROW", tok_throw},
+    {"WHILE", tok_while},
+    {"ENDWHILE", tok_endwhile},
+    {"REPEAT", tok_repeat},
+    {"UNTIL", tok_until},
+    {"FOR", tok_for},
+    {"TO", tok_to},
+    {"STEP", tok_step},
+    {"NEXT", tok_next},
+    {"ARRAY", tok_array},
+    {"OF", tok_of},
+    {"DIV", tok_div},
+    {"MOD", tok_mod},
+    {"AND", tok_and},
+    {"OR", tok_or},
+    {"NOT", tok_not},
+    {"OPERATOR", tok_operator},
+    {"OVERLOAD", tok_overload},
+    {"TEMPLATE", tok_template},
+    {"FUNCTION", tok_function},
+    {"ENDFUNCTION", tok_endfunction},
+    {"PROCEDURE", tok_procedure},
+    {"ENDPROCEDURE", tok_endprocedure},
+    {"RETURN", tok_return},
+    {"RETURNS", tok_returns},
+    {"CALL", tok_call},
+    {"BYREF", tok_byref},
+    {"BYVAL", tok_byval},
+    {"OPENFILE", tok_openfile},
+    {"READFILE", tok_readfile},
+    {"WRITEFILE", tok_writefile},
+    {"CLOSEFILE", tok_closefile},
+    {"READ", tok_read},
+    {"WRITE", tok_write},
+    {"APPEND", tok_append},
+    {"RANDOM", tok_random},
+    {"TYPE", tok_type},
+    {"ENDTYPE", tok_endtype},
+    {"SET", tok_set},
+    {"DEFINE", tok_define},
+    {"NEW", tok_new},
+    {"DELETE", tok_delete},
+    {"CLASS", tok_class},
+    {"ENDCLASS", tok_endclass},
+    {"PUBLIC", tok_public},
+    {"PRIVATE", tok_private},
+};
+}
+
+std::string Lexer::tokenSpelling(int Tok, const Lexer &Lex) {
+    switch (Tok) {
+    case tok_eof:          return "end of file";
+    case tok_identifier:   return "identifier '" + Lex.IdentifierStr + "'";
+    case tok_number_int:
+    case tok_number_real:  return "number";
+    case tok_string_literal:
+    case tok_c_string_literal: return "string literal";
+    case tok_char_literal: return "character literal";
+    case tok_assign:       return "'<-'";
+    case tok_eq:           return "'='";
+    case tok_ne:           return "'<>'";
+    case tok_le:           return "'<='";
+    case tok_ge:           return "'>='";
+    case tok_colon:        return "':'";
+    case tok_ellipsis:     return "'...'";
+    default: break;
+    }
+    for (const auto &[Name, Kind] : Keywords)
+        if (Kind == Tok) return Name;
+    if (Tok > 0) return std::string("'") + static_cast<char>(Tok) + "'";
+    return "unknown token";
+}
+
+
 void Lexer::reportError(int Line, const char *Format, ...) {
     va_list Args;
     va_start(Args, Format);
@@ -163,87 +272,6 @@ int Lexer::readToken() {
                 reportError(TokenLine, "Reserved runtime identifier");
             }
         }
-        static const std::unordered_map<std::string, int> Keywords = {
-            {"CONSTANT", tok_constant},
-            {"INCLUDE", tok_include},
-            {"INCLUDE_OBJ", tok_include_obj},
-            {"EXTERN", tok_extern},
-            {"EXTERN_FUNCTION", tok_extern_function},
-            {"EXTERN_PROCEDURE", tok_extern_procedure},
-            {"GLOBAL", tok_global},
-            {"ENDGLOBAL", tok_endglobal},
-            {"DECLARE", tok_declare},
-            {"INTEGER", tok_integer_kw},
-            {"BOOLEAN", tok_boolean_kw},
-            {"REAL", tok_real_kw},
-            {"STRING", tok_string_kw},
-            {"CHAR", tok_char_kw},
-            {"C_TYPE", tok_c_type},
-            {"C_INT", tok_c_int},
-            {"C_CHAR", tok_c_char},
-            {"C_STRING", tok_c_string},
-            {"C_DOUBLE", tok_c_double},
-            {"TRUE", tok_true},
-            {"FALSE", tok_false},
-            {"INPUT", tok_input},
-            {"OUTPUT", tok_output},
-            {"CASE", tok_case},
-            {"ENDCASE", tok_endcase},
-            {"OTHERWISE", tok_otherwise},
-            {"IF", tok_if},
-            {"THEN", tok_then},
-            {"ELSE", tok_else},
-            {"ENDIF", tok_endif},
-            {"TRY", tok_try},
-            {"CATCH", tok_catch},
-            {"ENDTRY", tok_endtry},
-            {"THROW", tok_throw},
-            {"WHILE", tok_while},
-            {"ENDWHILE", tok_endwhile},
-            {"REPEAT", tok_repeat},
-            {"UNTIL", tok_until},
-            {"FOR", tok_for},
-            {"TO", tok_to},
-            {"STEP", tok_step},
-            {"NEXT", tok_next},
-            {"ARRAY", tok_array},
-            {"OF", tok_of},
-            {"DIV", tok_div},
-            {"MOD", tok_mod},
-            {"AND", tok_and},
-            {"OR", tok_or},
-            {"NOT", tok_not},
-            {"OPERATOR", tok_operator},
-            {"OVERLOAD", tok_overload},
-            {"TEMPLATE", tok_template},
-            {"FUNCTION", tok_function},
-            {"ENDFUNCTION", tok_endfunction},
-            {"PROCEDURE", tok_procedure},
-            {"ENDPROCEDURE", tok_endprocedure},
-            {"RETURN", tok_return},
-            {"RETURNS", tok_returns},
-            {"CALL", tok_call},
-            {"BYREF", tok_byref},
-            {"BYVAL", tok_byval},
-            {"OPENFILE", tok_openfile},
-            {"READFILE", tok_readfile},
-            {"WRITEFILE", tok_writefile},
-            {"CLOSEFILE", tok_closefile},
-            {"READ", tok_read},
-            {"WRITE", tok_write},
-            {"APPEND", tok_append},
-            {"RANDOM", tok_random},
-            {"TYPE", tok_type},
-            {"ENDTYPE", tok_endtype},
-            {"SET", tok_set},
-            {"DEFINE", tok_define},
-            {"NEW", tok_new},
-            {"DELETE", tok_delete},
-            {"CLASS", tok_class},
-            {"ENDCLASS", tok_endclass},
-            {"PUBLIC", tok_public},
-            {"PRIVATE", tok_private},
-        };
         auto Keyword = Keywords.find(IdentifierStr);
         if (Keyword != Keywords.end()) return Keyword->second;
 
