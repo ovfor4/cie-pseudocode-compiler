@@ -1,7 +1,5 @@
 #include "cps/Diagnostics.h"
 #include "cps/Parser.h"
-#include "cps/FunctionAST.h"
-#include <cstdio>
 
 using namespace cps;
 

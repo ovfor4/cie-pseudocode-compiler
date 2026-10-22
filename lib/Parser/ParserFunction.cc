@@ -2,7 +2,6 @@
 #include "cps/Parser.h"
 #include "cps/FunctionAST.h"
 #include "cps/Operator.h"
-#include <cstdio>
 
 using namespace cps;
 

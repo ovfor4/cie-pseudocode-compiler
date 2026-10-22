@@ -1,7 +1,6 @@
 #include "cps/Diagnostics.h"
 #include "cps/Parser.h"
 #include "cps/FunctionAST.h"
-#include <cstdio>
 #include <limits>
 #include <functional>
 
@@ -9,10 +8,8 @@ using namespace cps;
 
 int Parser::GetTokPrecedence() {
     if (atCaseBoundary()) return -1;
-    if (BinopPrecedence.find(CurTok) == BinopPrecedence.end()) return -1;
-    int TokPrec = BinopPrecedence[CurTok];
-    if (TokPrec <= 0) return -1;
-    return TokPrec;
+    auto It = BinopPrecedence.find(CurTok);
+    return It == BinopPrecedence.end() ? -1 : It->second;
 }
 
 

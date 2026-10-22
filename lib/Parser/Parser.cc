@@ -1,7 +1,6 @@
 #include "cps/Diagnostics.h"
 #include "cps/Parser.h"
 #include "cps/FunctionAST.h"
-#include <cstdio>
 
 using namespace cps;
 
@@ -29,11 +28,10 @@ Parser::Parser(Lexer &L) : Lex(L) {
     BinopPrecedence[tok_mod] = 40;
 }
 
-int Parser::getNextToken() {
+void Parser::getNextToken() {
     int PreviousLine = CurTok == tok_eof ? 0 : Lex.getLine();
     CurTok = Lex.gettok();
     StartsLine = Lex.getLine() != PreviousLine;
-    return CurTok;
 }
 
 std::vector<std::unique_ptr<StmtAST>> Parser::Parse() {

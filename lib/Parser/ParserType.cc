@@ -1,7 +1,6 @@
 #include "cps/Diagnostics.h"
 #include "cps/Parser.h"
 #include "cps/TypeAST.h"
-#include <cstdio>
 
 using namespace cps;
 

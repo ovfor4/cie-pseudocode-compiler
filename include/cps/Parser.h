@@ -12,7 +12,6 @@
 #include <map>
 #include <optional>
 #include <string>
-#include <set>
 
 namespace cps {
 
@@ -33,7 +32,7 @@ class Parser {
         "C_INT", "C_CHAR", "C_STRING", "C_DOUBLE"
     };
 
-    int getNextToken();
+    void getNextToken();
     int GetTokPrecedence();
 
     std::unique_ptr<ExprAST> ParseExpression();
