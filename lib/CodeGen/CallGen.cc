@@ -134,8 +134,7 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
 Value *CodeGen::emitVariadicArgument(ExprAST *Expr, const std::string &Callee, size_t Position,
                                      const TypeInfo *&Promoted) {
     const TypeInfo *Info = isWholeArrayVar(Expr) ? nullptr : getExprTypeInfo(Expr);
-    const TypeInfo *Record = Info && Info->Kind == TypeKind::Pointer
-        ? Types->resolve(Info->Pointer.PointeeTypeName) : Info;
+    const TypeInfo *Record = Types->pointerBase(Info);
     std::string Why;
     if (Record && Record->isRecord() && !Record->IsClass && !Types->isCStruct(Record, &Why)) {
         reportError("Variadic argument %zu to %s uses record %s, which is not a C struct: %s",

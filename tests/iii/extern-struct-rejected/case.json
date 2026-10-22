@@ -15,6 +15,10 @@
     {
       "reason": "Variadic\\ argument\\ 2\\ to\\ printf\\ uses\\ record\\ Person,\\ which\\ is\\ not\\ a\\ C\\ struct:\\ field\\ Name\\ of\\ Person\\ has\\ type\\ STRING",
       "line": 13
+    },
+    {
+      "reason": "EXTERN\\ parameter\\ 1\\ of\\ srand\\ must\\ be\\ a\\ non\\-void\\ C\\ type\\ \\(got\\ PInteger\\)",
+      "line": 15
     }
   ]
 }

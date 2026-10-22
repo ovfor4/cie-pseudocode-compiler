@@ -12,6 +12,14 @@ void scale_sample(struct Sample *s, int k) { s->value *= k; }
 struct Sample *shared_sample(void) { return &shared; }
 int shared_count(void) { return shared.count; }
 
+struct Counter {
+    int *target;
+};
+
+void bump(int *p) { ++*p; }
+void bump_counter(struct Counter *c) { ++*c->target; }
+void get_shared(struct Sample **out) { *out = &shared; }
+
 /* Each argument after n is a struct Sample *, read back with va_arg. */
 int sum_counts(int n, ...) {
     va_list ap;

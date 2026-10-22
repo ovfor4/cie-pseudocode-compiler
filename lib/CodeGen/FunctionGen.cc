@@ -294,8 +294,7 @@ bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
     // Records cross the C boundary only as C structs, by value or through a
     // pointer type. What names the parameter or return type in diagnostics.
     auto CheckRecord = [&](const TypeInfo *Info, const std::string &What) {
-        const TypeInfo *Record = Info->Kind == TypeKind::Pointer
-            ? Types.resolve(Info->Pointer.PointeeTypeName) : Info;
+        const TypeInfo *Record = Types.pointerBase(Info);
         if (!Record || !Record->isRecord() || Record->IsClass) return true;
         std::string Why;
         if (!Types.isCStruct(Record, &Why)) {

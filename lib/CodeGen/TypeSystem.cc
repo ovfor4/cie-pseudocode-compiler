@@ -273,10 +273,8 @@ bool checkCStruct(const TypeSystem &Types, const TypeInfo *Info, std::string *Wh
     if (std::find(Seen.begin(), Seen.end(), Info) != Seen.end()) return true;
     Seen.push_back(Info);
     for (const auto &[FieldName, Field] : Info->Record.Fields) {
-        const TypeInfo *FieldInfo = Types.resolve(Field.TypeName);
-        if (FieldInfo && FieldInfo->isC()) continue;
-        const TypeInfo *Inner = FieldInfo && FieldInfo->Kind == TypeKind::Pointer
-            ? Types.resolve(FieldInfo->Pointer.PointeeTypeName) : FieldInfo;
+        const TypeInfo *Inner = Types.pointerBase(Types.resolve(Field.TypeName));
+        if (Inner && Inner->isC() && !Inner->isVoid()) continue;
         if (Inner && Inner->isRecord() && !Inner->IsClass) {
             if (checkCStruct(Types, Inner, Why, Seen)) continue;
             return false;
@@ -289,16 +287,26 @@ bool checkCStruct(const TypeSystem &Types, const TypeInfo *Info, std::string *Wh
 
 } // namespace
 
+const TypeInfo *TypeSystem::pointerBase(const TypeInfo *Info) const {
+    std::vector<const TypeInfo *> Chain;
+    while (Info && Info->Kind == TypeKind::Pointer) {
+        if (std::find(Chain.begin(), Chain.end(), Info) != Chain.end()) return nullptr;
+        Chain.push_back(Info);
+        Info = resolve(Info->Pointer.PointeeTypeName);
+    }
+    return Info;
+}
+
 bool TypeSystem::isCStruct(const TypeInfo *Info, std::string *Why) const {
     std::vector<const TypeInfo *> Seen;
     return checkCStruct(*this, Info, Why, Seen);
 }
 
 bool TypeSystem::isExternType(const TypeInfo *Info) const {
-    if (!Info) return false;
-    if (Info->isC()) return !Info->isVoid();
-    if (Info->Kind == TypeKind::Pointer) return isCStruct(resolve(Info->Pointer.PointeeTypeName));
-    return isCStruct(Info);
+    const TypeInfo *Base = pointerBase(Info);
+    if (!Base) return false;
+    if (Base->isC()) return !Base->isVoid();
+    return isCStruct(Base);
 }
 
 const EnumConstant *TypeSystem::lookupEnumConstant(const std::string &Name) const {
