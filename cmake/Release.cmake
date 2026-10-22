@@ -1,16 +1,19 @@
-# Read HEAD at packaging time so subsequent commits do not require reconfiguration.
+# Read the last compiler commit at packaging time so subsequent commits do not require reconfiguration.
 include("${CPSC_SOURCE_DIR}/cmake/FindDependency.cmake")
 include("${CPSC_SOURCE_DIR}/cmake/ManualAliases.cmake")
 cpsc_find_dependency(PROGRAM GIT_EXECUTABLE NAMES git REQUIRED)
 find_package(Git REQUIRED)
+file(STRINGS "${CPSC_SOURCE_DIR}/cmake/CompilerPaths.txt" cpsc_compiler_paths)
+list(TRANSFORM cpsc_compiler_paths STRIP)
+list(FILTER cpsc_compiler_paths EXCLUDE REGEX "^$")
 execute_process(
-    COMMAND "${GIT_EXECUTABLE}" -C "${CPSC_SOURCE_DIR}" log -1 "--format=%ct:%h"
+    COMMAND "${GIT_EXECUTABLE}" -C "${CPSC_SOURCE_DIR}" log -1 "--format=%ct:%h" -- ${cpsc_compiler_paths}
     OUTPUT_VARIABLE cpsc_revision
     OUTPUT_STRIP_TRAILING_WHITESPACE
     RESULT_VARIABLE cpsc_git_result
 )
 if(NOT cpsc_git_result STREQUAL "0" OR NOT cpsc_revision MATCHES "^([0-9]+):([0-9a-f]+)$")
-    message(FATAL_ERROR "Cannot read the HEAD commit for the release version")
+    message(FATAL_ERROR "Cannot read the last compiler commit for the release version")
 endif()
 set(ENV{SOURCE_DATE_EPOCH} "${CMAKE_MATCH_1}")
 set(cpsc_short_id "${CMAKE_MATCH_2}")

@@ -1,0 +1,11 @@
+cmake
+doc
+include
+lib
+pseudocode-lib
+tests
+tools
+CMakeLists.txt
+install.sh
+install.ps1
+LICENSE

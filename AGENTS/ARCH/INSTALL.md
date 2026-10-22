@@ -21,7 +21,8 @@ the extracted executable, and sets its local runtime/data paths as needed. Syste
 Pandoc remains the fallback.
 `make -C build release` packages the executable, all manuals, installer and license
 as `build/cpsc-VERSION-SYSTEM-ARCH.tar.xz`, retaining the configured execution mode.
-`cmake/Release.cmake` reads HEAD at packaging time; VERSION is the commit's UTC
+`cmake/Release.cmake` reads, at packaging time, the last commit that touched the paths
+listed in `cmake/CompilerPaths.txt`; VERSION is that commit's UTC
 timestamp (`yyyymmdd-hhmmss`) followed by its short ID. Git is only required
 for packaging; recipients can install the extracted archive using just the script.
 

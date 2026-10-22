@@ -35,6 +35,7 @@
 | `cmake/BuildTools.cmake`, `cmake/LLVMDependencies.cmake` | Compiler/build tool selection and LLVM dependency discovery |
 | `cmake/Manual.cmake`, `cmake/GenerateManual.cmake.in` | Optional manual generation with local-first Pandoc discovery |
 | `install.sh`, `install.ps1`, `cmake/Install.cmake.in`, `cmake/Release.cmake` | Artifact installation and versioned binary release packaging |
+| `cmake/CompilerPaths.txt` | Plain list of compiler source paths; the last commit touching them versions release packages |
 
 AST nodes live in `include/cps/AST.h` (+ `FunctionAST.h`, `FileAST.h`, `TypeAST.h`, `TemplateAST.h`);
 they are pure data with virtual destructors only — no codegen/visitor methods.
