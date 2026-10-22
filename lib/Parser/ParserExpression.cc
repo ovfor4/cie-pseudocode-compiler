@@ -112,12 +112,18 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
     if (CurTok == '(' && !atCaseBoundary())
         return ParseMemberCall(IdName, std::move(Accesses), Line);
 
-    // Degrade rule: shapes that existed before designators keep their nodes.
+    return makeDesignator(IdName, std::move(Accesses), Line);
+}
+
+// Degrade rule: shapes that existed before designators keep their nodes.
+// A bare VariableExprAST carries no line; callers set it when they need one.
+std::unique_ptr<ExprAST> Parser::makeDesignator(
+    const std::string &Name, std::vector<DesignatorAccess> Accesses, int Line) {
     if (Accesses.empty())
-        return std::make_unique<VariableExprAST>(IdName);
+        return std::make_unique<VariableExprAST>(Name);
     if (Accesses.size() == 1 && Accesses[0].Kind == AccessKind::Index)
-        return std::make_unique<ArrayAccessExprAST>(IdName, std::move(Accesses[0].Indices), Line);
-    return std::make_unique<DesignatorExprAST>(IdName, std::move(Accesses), Line);
+        return std::make_unique<ArrayAccessExprAST>(Name, std::move(Accesses[0].Indices), Line);
+    return std::make_unique<DesignatorExprAST>(Name, std::move(Accesses), Line);
 }
 
 // The final field suffix names the method; preceding suffixes form its receiver.

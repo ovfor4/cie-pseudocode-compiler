@@ -271,13 +271,7 @@ std::unique_ptr<StmtAST> Parser::ParseInputStmt() {
     getNextToken();
     std::vector<DesignatorAccess> Accesses;
     if (!ParseDesignatorSuffix(Accesses)) return nullptr;
-    std::unique_ptr<ExprAST> Target;
-    if (Accesses.empty())
-        Target = std::make_unique<VariableExprAST>(Name);
-    else if (Accesses.size() == 1 && Accesses[0].Kind == AccessKind::Index)
-        Target = std::make_unique<ArrayAccessExprAST>(Name, std::move(Accesses[0].Indices), Line);
-    else
-        Target = std::make_unique<DesignatorExprAST>(Name, std::move(Accesses), Line);
+    auto Target = makeDesignator(Name, std::move(Accesses), Line);
     Target->setLine(Line);
     return std::make_unique<InputStmtAST>(std::move(Target));
 }
