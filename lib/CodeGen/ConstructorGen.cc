@@ -22,9 +22,11 @@ Value *CodeGen::emitOwnedValue(ExprAST *Expr, const TypeInfo *Type,
                                std::vector<size_t> &Transfers) {
     if (!Type || (!Type->IsClass && !containsString(Type))) return emitCoercedExpr(Expr, Type);
     const TypeInfo *Source = getExprTypeInfo(Expr);
-    if (!Source || !Source->sameType(Type)) return emitCoercedExpr(Expr, Type);
+    // A CHAR argument becomes a fresh STRING temporary, owned like any other.
+    bool FromChar = Source && Type->isString() && Source->Kind == TypeKind::Char;
+    if (!Source || (!Source->sameType(Type) && !FromChar)) return emitCoercedExpr(Expr, Type);
     Value *Value = nullptr;
-    if (isObjectLValue(Expr)) {
+    if (!FromChar && isObjectLValue(Expr)) {
         LValueInfo LV;
         const auto *Var = dynamic_cast<VariableExprAST *>(Expr);
         const auto *Symbol = Var ? getSymbolInfo(Var->getName()) : nullptr;
@@ -172,8 +174,11 @@ void CodeGen::emitAssignment(const LValueInfo &Target, ExprAST *Expr, const Symb
         }
         return;
     }
-    if (Info && Info->IsClass) {
-        auto Resolution = resolveOperator(tok_assign, Info, getExprTypeInfo(Expr));
+    const TypeInfo *ExprType = getExprTypeInfo(Expr);
+    // A CHAR assigned to a STRING is converted first, not bound to OPERATOR<-.
+    bool CharToString = Info && Info->isString() && ExprType && ExprType->Kind == TypeKind::Char;
+    if (Info && Info->IsClass && !CharToString) {
+        auto Resolution = resolveOperator(tok_assign, Info, ExprType);
         if (Resolution.Ambiguous) {
             reportError("Ambiguous assignment operator");
             return;
@@ -190,7 +195,9 @@ void CodeGen::emitAssignment(const LValueInfo &Target, ExprAST *Expr, const Symb
         Value *Val = emitCoercedExpr(Expr, Info);
         if (!Val) return;
         std::vector<size_t> Transfers;
-        bool CopySource = isObjectLValue(Expr);
+        // Only a value of the same type is an existing object to copy; a
+        // converted one is already a fresh temporary.
+        bool CopySource = isObjectLValue(Expr) && ExprType && ExprType->sameType(Info);
         if (!CopySource) {
             materializeOperatorReceiver(Val, Info);
             if (typeNeedsDestruction(Info->Name)) Transfers.push_back(StackObjects.size() - 1);

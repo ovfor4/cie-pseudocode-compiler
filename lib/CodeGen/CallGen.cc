@@ -225,6 +225,30 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
         }
     }
     if (Ordinary) return Ordinary;
+    // Failing an exact match, CHAR and STRING arguments convert into one
+    // another; the overload must be unique.
+    if (!HasTemplates && !HasExplicit) {
+        auto Scalar = [](const TypeInfo *T) { return T && (T->Kind == TypeKind::Char || T->isString()); };
+        const FuncSig *Converted = nullptr;
+        for (const FuncSig *Sig : Overloads) {
+            if (Sig->Params.size() != Actual.size()) continue;
+            bool Match = true;
+            for (size_t I = 0; I < Actual.size() && Match; ++I) {
+                const ParamSig &P = Sig->Params[I];
+                const TypeInfo *Formal = Types->resolve(P.TypeName);
+                Match = Actual[I].Rank == (P.IsArray ? P.Rank : 0) && Actual[I].Type &&
+                        (Actual[I].Type->sameType(Formal) ||
+                         (!P.IsByRef && !P.IsArray && Scalar(Actual[I].Type) && Scalar(Formal)));
+            }
+            if (!Match) continue;
+            if (Converted) {
+                reportError("Ambiguous call to %s(%s)", Name.c_str(), Key.c_str());
+                return nullptr;
+            }
+            Converted = Sig;
+        }
+        if (Converted) return Converted;
+    }
     if (HasTemplates) {
         // A matching non-variadic template wins before any variadic candidate.
         for (bool Variadic : {false, true}) {

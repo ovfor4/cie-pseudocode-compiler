@@ -30,6 +30,13 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
         return nullptr;
     }
 
+    // CHAR and STRING convert into one another; a STRING that is not exactly
+    // one character long is a runtime error.
+    if (Src && Src->Kind == TypeKind::Char && Target->isString())
+        return emitStringFromChar(emitExpr(E));
+    if (Src && Src->isString() && Target->Kind == TypeKind::Char)
+        return emitCharFromString(E, E->getLine() ? E->getLine() : DiagnosticLine);
+
     if (Target->isC() || (Src && Src->isC())) {
         if (auto *Addr = dynamic_cast<AddrOfExprAST*>(E)) {
             const PointerPayload *PP = Target->asPointer();

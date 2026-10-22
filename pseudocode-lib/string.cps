@@ -52,6 +52,9 @@ CLASS STRING
     OVERLOAD PROCEDURE OPERATOR<-(Text : C_STRING)
         CALL _string_impl_assign_cstr(_HANDLE, Text)
     ENDPROCEDURE
+    FUNCTION _LENGTH() RETURNS INTEGER
+        RETURN (INTEGER)_string_impl_length(_HANDLE)
+    ENDFUNCTION
     FUNCTION C_STR() RETURNS C_STRING
         RETURN _string_impl_c_str(_HANDLE)
     ENDFUNCTION

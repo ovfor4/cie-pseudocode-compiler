@@ -214,9 +214,22 @@ void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
             }
             size_t Temporaries = StackObjects.size();
             Value *LabelValue = emitExpr(Label);
-            if (containsString(LabelType) && !isObjectLValue(Label))
+            Value *LeftValue = Selected;
+            const TypeInfo *LeftType = SelectorType;
+            bool LabelConverted = false;
+            // CHAR and STRING compare as STRING.
+            if (SelectorType->isString() && LabelType->Kind == TypeKind::Char) {
+                LabelValue = emitStringFromChar(LabelValue);
+                LabelType = SelectorType;
+                LabelConverted = true;
+            } else if (SelectorType->Kind == TypeKind::Char && LabelType->isString()) {
+                LeftValue = emitStringFromChar(Selected);
+                if (LeftValue) materializeOperatorReceiver(LeftValue, LabelType);
+                LeftType = LabelType;
+            }
+            if (containsString(LabelType) && (LabelConverted || !isObjectLValue(Label)))
                 materializeOperatorReceiver(LabelValue, LabelType);
-            auto Overload = resolveOperator(Op, SelectorType, LabelType);
+            auto Overload = resolveOperator(Op, LeftType, LabelType);
             if (Overload.Signature && !Overload.Ambiguous) {
                 const TypeInfo *Result = resolveType(Overload.Signature->ReturnTypeName);
                 if (!Result || Result->Kind != TypeKind::Boolean) {
@@ -224,7 +237,7 @@ void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
                     return nullptr;
                 }
             }
-            Value *Result = emitBinaryOp(Op, Selected, SelectorType, LabelValue, LabelType, Branch.Line);
+            Value *Result = emitBinaryOp(Op, LeftValue, LeftType, LabelValue, LabelType, Branch.Line);
             cleanupTemporaries(Temporaries);
             return Result;
         };

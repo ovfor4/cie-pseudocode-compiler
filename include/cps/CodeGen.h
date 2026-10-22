@@ -133,6 +133,8 @@ class CodeGen {
     std::map<const ConstantStmtAST *, SymbolInfo> StringConstants;
     const TypeInfo *requireStringType();
     llvm::Value *emitStringFromCString(llvm::Value *Text);
+    llvm::Value *emitStringFromChar(llvm::Value *Ch);
+    llvm::Value *emitCharFromString(ExprAST *Expr, int Line);
     llvm::Value *emitStringCString(llvm::Value *Value);
     llvm::Value *emitCStringExpr(ExprAST *Expr);
     llvm::Value *emitFileNameOperand(ExprAST *E, const char *Keyword);

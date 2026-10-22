@@ -16,13 +16,26 @@ CodeGen::OperatorResolution CodeGen::resolveOperator(
         auto Members = FuncGen->getOverloads(Left->Name + "." + operatorName(Op));
         Candidates.insert(Candidates.end(), Members.begin(), Members.end());
     }
-    for (const FuncSig *Sig : Candidates) {
-        bool Member = !Sig->Prototype->getOwnerClass().empty();
-        if (Sig->Prototype->getOperator() != Op || Sig->Params.size() != (Right ? 2u : 1u) - Member) continue;
-        if (!Member && !Left->sameType(resolveType(Sig->Params[0].TypeName))) continue;
-        if (Right && !Right->sameType(resolveType(Sig->Params[Member ? 0 : 1].TypeName))) continue;
-        if (Result.Signature) Result.Ambiguous = true;
-        else Result.Signature = Sig;
+    // An exact match wins; failing that, a CHAR operand may stand in for a
+    // STRING parameter (it is converted when the arguments are marshalled).
+    auto Accepts = [&](const TypeInfo *Actual, const std::string &Param, bool Lenient) {
+        const TypeInfo *Formal = resolveType(Param);
+        if (Actual->sameType(Formal)) return true;
+        return Lenient && Actual->Kind == TypeKind::Char && Formal && Formal->isString();
+    };
+    // Two CHARs compare as CHARs; only '&' always builds a STRING.
+    bool CanConvert = Right && (Op == '&' || Left->isString() || Right->isString());
+    for (bool Lenient : {false, true}) {
+        if (Lenient && !CanConvert) break;
+        for (const FuncSig *Sig : Candidates) {
+            bool Member = !Sig->Prototype->getOwnerClass().empty();
+            if (Sig->Prototype->getOperator() != Op || Sig->Params.size() != (Right ? 2u : 1u) - Member) continue;
+            if (!Member && !Accepts(Left, Sig->Params[0].TypeName, Lenient)) continue;
+            if (Right && !Accepts(Right, Sig->Params[Member ? 0 : 1].TypeName, Lenient)) continue;
+            if (Result.Signature) Result.Ambiguous = true;
+            else Result.Signature = Sig;
+        }
+        if (Result.Signature) break;
     }
     return Result;
 }
