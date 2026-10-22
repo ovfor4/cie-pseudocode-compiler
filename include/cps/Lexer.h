@@ -132,6 +132,9 @@ class Lexer {
         char Character;
     };
     std::deque<TokenData> Lookahead;
+    // Reports a source error at Line (printf-style) and marks the lexer as failed.
+    __attribute__((format(printf, 3, 4)))
+    void reportError(int Line, const char *Format, ...);
     std::string readEscape(bool IsChar);
     int readToken();
     TokenData captureToken(int Kind) const;

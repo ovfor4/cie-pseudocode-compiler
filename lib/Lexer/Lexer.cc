@@ -4,6 +4,7 @@
 #include <charconv>
 #include <limits>
 #include <cctype>
+#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -11,10 +12,17 @@
 
 using namespace cps;
 
+void Lexer::reportError(int Line, const char *Format, ...) {
+    va_list Args;
+    va_start(Args, Format);
+    cps::vsourceDiagnostic(cps::Severity::Error, Line, Format, Args);
+    va_end(Args);
+    HadError = true;
+}
+
 std::string Lexer::readEscape(bool IsChar) {
     auto Error = [&](const char *Reason) {
-        cps::sourceError(TokenLine, "%s", Reason);
-        HadError = true;
+        reportError(TokenLine, "%s", Reason);
         return std::string("?");
     };
     int Escape = Input.get();
@@ -107,8 +115,7 @@ int Lexer::readToken() {
             Directive.pop_back();
         if (Directive == "#LIB") Library = true;
         else {
-            cps::sourceError(TokenLine, "Unknown compiler directive");
-            HadError = true;
+            reportError(TokenLine, "Unknown compiler directive");
         }
         return readToken();
     }
@@ -128,13 +135,11 @@ int Lexer::readToken() {
         }
         if (LastChar == Quote) LastChar = Input.get();
         else {
-            cps::sourceError(TokenLine, "Unterminated %s literal", IsChar ? "char" : "string");
-            HadError = true;
+            reportError(TokenLine, "Unterminated %s literal", IsChar ? "char" : "string");
         }
         if (IsChar) {
             if (StringVal.size() != 1) {
-                cps::sourceError(TokenLine, "CHAR literal must contain exactly one character");
-                HadError = true;
+                reportError(TokenLine, "CHAR literal must contain exactly one character");
             }
             CharVal = StringVal.size() == 1 ? StringVal[0] : '?';
         }
@@ -155,8 +160,7 @@ int Lexer::readToken() {
             std::transform(Prefix.begin(), Prefix.end(), Prefix.begin(),
                            [](unsigned char C) { return std::tolower(C); });
             if (Prefix == "__cps_") {
-                cps::sourceError(TokenLine, "Reserved runtime identifier");
-                HadError = true;
+                reportError(TokenLine, "Reserved runtime identifier");
             }
         }
         static const std::unordered_map<std::string, int> Keywords = {
@@ -267,8 +271,7 @@ int Lexer::readToken() {
         auto Parsed = std::from_chars(NumStr.data(), NumStr.data() + NumStr.size(), NumVal);
         if (Parsed.ec != std::errc{} ||
             NumVal > uint64_t(std::numeric_limits<int64_t>::max()) + 1) {
-            cps::sourceError(TokenLine, "Integer literal is outside the i64 range");
-            HadError = true;
+            reportError(TokenLine, "Integer literal is outside the i64 range");
             NumVal = 0;
         }
         return tok_number_int;
@@ -317,8 +320,7 @@ int Lexer::readToken() {
             LastChar = Input.get();
             return tok_ellipsis;
         }
-        cps::sourceError(CurrentLine, "Expected '...'");
-        HadError = true;
+        reportError(CurrentLine, "Expected '...'");
         LastChar = Input.get();
         return tok_ellipsis;
     }
