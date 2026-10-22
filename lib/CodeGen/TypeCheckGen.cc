@@ -111,8 +111,8 @@ Value *CodeGen::emitUserKindBinaryOp(int Op, Value *L, const TypeInfo *LT,
     const char *RName = RT ? RT->Name.c_str() : "?";
 
     if ((LT && LT->isRecord()) || (RT && RT->isRecord())) {
-        reportError("Operator %s cannot be applied to a record value (type %s)",
-                    operatorSpelling(Op).c_str(), (LT && LT->isRecord()) ? LName : RName);
+        reportError("Operator %s cannot be applied to %s and %s",
+                    operatorSpelling(Op).c_str(), LName, RName);
         return nullptr;
     }
 

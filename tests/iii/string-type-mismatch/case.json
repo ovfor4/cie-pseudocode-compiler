@@ -1,7 +1,7 @@
 {
   "errors": [
     {
-      "reason": "Operator = cannot be applied to a record value \\(type STRING\\)",
+      "reason": "Operator = cannot be applied to STRING and INTEGER",
       "line": 2
     }
   ]

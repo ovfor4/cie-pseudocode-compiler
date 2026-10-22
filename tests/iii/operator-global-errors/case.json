@@ -5,7 +5,7 @@
       "line": 12
     },
     {
-      "reason": "Operator \\+ cannot be applied to a record",
+      "reason": "Operator \\+ cannot be applied to Box and INTEGER",
       "line": 13
     },
     {
