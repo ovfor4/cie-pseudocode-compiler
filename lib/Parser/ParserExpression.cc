@@ -74,14 +74,7 @@ bool Parser::isTemplateCall() {
 std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
     int Line = Lex.getLine();
     std::string IdName;
-    if (CurTok == tok_operator) {
-        int Op;
-        IdName = ParseOperatorName(Op);
-        if (IdName.empty()) return nullptr;
-    } else {
-        IdName = Lex.IdentifierStr;
-        getNextToken();
-    }
+    if (!ParseCalleeName(IdName)) return nullptr;
 
     if (PackNames.count(IdName)) {
         if (CurTok != tok_ellipsis) {
@@ -173,8 +166,7 @@ bool Parser::ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out) {
             DesignatorAccess A;
             A.Kind = AccessKind::Field;
             if (CurTok == tok_operator) {
-                int Op;
-                A.FieldName = ParseOperatorName(Op);
+                A.FieldName = ParseOperatorName();
                 if (A.FieldName.empty()) return false;
             } else {
                 A.FieldName = CurTok == tok_new ? "NEW" : CurTok == tok_delete ? "DELETE" : Lex.IdentifierStr;
@@ -227,8 +219,7 @@ std::unique_ptr<ExprAST> Parser::ParseResultMethods(std::unique_ptr<ExprAST> Exp
         getNextToken();
         std::string Name;
         if (CurTok == tok_operator) {
-            int Op;
-            Name = ParseOperatorName(Op);
+            Name = ParseOperatorName();
             if (Name.empty()) return nullptr;
         } else if (CurTok == tok_identifier || CurTok == tok_delete) {
             Name = CurTok == tok_delete ? "DELETE" : Lex.IdentifierStr;

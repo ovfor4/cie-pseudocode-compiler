@@ -46,7 +46,8 @@ class Parser {
 
     std::unique_ptr<ExprAST> ParseNumberExpr();
     std::unique_ptr<ExprAST> ParseIdentifierExpr();
-    std::string ParseOperatorName(int &Op);
+    std::string ParseOperatorName(int *Op = nullptr);
+    bool ParseCalleeName(std::string &Name);
     std::unique_ptr<ExprAST> ParseParenExpr();
     std::unique_ptr<MemberCallExprAST> ParseMemberCall(
         const std::string &Name, std::vector<DesignatorAccess> Accesses, int Line);

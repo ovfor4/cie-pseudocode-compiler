@@ -141,9 +141,10 @@ std::optional<std::vector<ParamDecl>> Parser::ParsePrototypeArgs(bool AllowByRef
     return Params;
 }
 
-std::string Parser::ParseOperatorName(int &Op) {
+std::string Parser::ParseOperatorName(int *OpOut) {
     getNextToken(); // OPERATOR
-    Op = CurTok;
+    int Op = CurTok;
+    if (OpOut) *OpOut = Op;
     if (operatorSpelling(Op).empty()) {
         sourceError(Lex.getLine(), "Expected a supported operator after OPERATOR");
         getNextToken();
@@ -155,6 +156,17 @@ std::string Parser::ParseOperatorName(int &Op) {
         return {};
     }
     return operatorName(Op);
+}
+
+// A callee is an identifier or OPERATOR <op>; false means a diagnosed failure.
+bool Parser::ParseCalleeName(std::string &Name) {
+    if (CurTok == tok_operator) {
+        Name = ParseOperatorName();
+        return !Name.empty();
+    }
+    Name = Lex.IdentifierStr;
+    getNextToken();
+    return true;
 }
 
 std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerClass, bool IsPublic, bool IsOverload) {
@@ -176,7 +188,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
     int Operator = 0;
     std::string Name;
     if (CurTok == tok_operator) {
-        Name = ParseOperatorName(Operator);
+        Name = ParseOperatorName(&Operator);
         if (Name.empty()) return nullptr;
         if (!IsOverload) {
             sourceError(Line, "An operator function must be declared OVERLOAD");
@@ -236,7 +248,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerC
     bool IsOperator = CurTok == tok_operator;
     std::string OperatorName;
     if (IsOperator) {
-        OperatorName = ParseOperatorName(Operator);
+        OperatorName = ParseOperatorName(&Operator);
         if (OperatorName.empty()) return nullptr;
         if (Operator != tok_assign || OwnerClass.empty() || !IsOverload) {
             sourceError(Line, "Assignment operator must be an OVERLOAD member PROCEDURE");
@@ -376,14 +388,7 @@ std::unique_ptr<StmtAST> Parser::ParseCallStmt() {
     }
 
     std::string Callee;
-    if (CurTok == tok_operator) {
-        int Op;
-        Callee = ParseOperatorName(Op);
-        if (Callee.empty()) return nullptr;
-    } else {
-        Callee = Lex.IdentifierStr;
-        getNextToken();
-    }
+    if (!ParseCalleeName(Callee)) return nullptr;
 
     std::vector<std::string> TemplateArgs;
     if (CurTok == '<') {
