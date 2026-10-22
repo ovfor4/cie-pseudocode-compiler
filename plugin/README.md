@@ -6,14 +6,14 @@ VS Code support for this project's `.cps` files. Requires VS Code 1.85 or newer 
 
 ## Install
 
-Download the VSIX from [Nightly Build](https://github.com/ovfor4/cie-pseudocode-compiler/releases/tag/nightly-build). The same release provides Linux x86_64, Windows x86_64 and macOS 15+ Apple Silicon compiler packages with execution support.
+Download `cpsc-plugin-latest.vsix` from [Nightly Build](https://github.com/ovfor4/cie-pseudocode-compiler/releases/tag/nightly-build). The same release provides Linux x86_64, Windows x86_64 and macOS 15+ Apple Silicon compiler packages with execution support.
 
 If you installed the old extension (`ovfor4.cie-pseudocode`), uninstall it before installing `ovfor4.plugin`. Update any explicit `editor.defaultFormatter` setting to `ovfor4.plugin`.
 
-In the Extensions panel, choose **... > Install from VSIX...** and select the downloaded `cpsc-plugin-<date>-<time>-<commit>.vsix` (for example, `cpsc-plugin-20261018-054123-1b0b287.vsix`), or run:
+In the Extensions panel, choose **... > Install from VSIX...** and select the downloaded `cpsc-plugin-latest.vsix`, or run:
 
 ```sh
-code --install-extension cpsc-plugin-20261018-054123-1b0b287.vsix
+code --install-extension cpsc-plugin-latest.vsix
 ```
 
 Open a `.cps` file. The language mode should show **CIE Pseudocode**.

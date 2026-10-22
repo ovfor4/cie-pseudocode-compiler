@@ -2,7 +2,7 @@
 
 To build from source, follow [build.md](build.md). For command-line usage, see [cpsc.1.md](cpsc.1.md). Run build commands from the project root; package installation commands run from the extracted package directory.
 
-The [Nightly Build](https://github.com/ovfor4/cie-pseudocode-compiler/releases/tag/nightly-build) provides EMBEDDED release archives for Linux x86_64, Windows x86_64 and macOS 15+ Apple Silicon, plus the VS Code extension. The macOS archive is named `cpsc-VERSION-Darwin-arm64.tar.xz`; use the Unix release package instructions below after extraction. For Windows, download `cpsc-VERSION-Windows-ARCH.zip` and follow the Windows release package instructions below; no LLVM or MSYS2 installation is required to run it.
+The [Nightly Build](https://github.com/ovfor4/cie-pseudocode-compiler/releases/tag/nightly-build) provides EMBEDDED release archives for Linux x86_64, Windows x86_64 and macOS 15+ Apple Silicon, plus the VS Code extension. The Nightly Build assets use the stable name `latest` in place of the version (`cpsc-latest-Linux-x86_64.tar.xz`, `cpsc-latest-Darwin-arm64.tar.xz`); `version.json` lists each product's commit time and commit. The extracted folder keeps the versioned name (`cpsc-<time>-<commit>-<Platform>`). For macOS, use the Unix release package instructions below after extraction. For Windows, download `cpsc-latest-Windows-ARCH.zip` and follow the Windows release package instructions below; no LLVM or MSYS2 installation is required to run it.
 
 ## Linux installation
 
@@ -77,8 +77,9 @@ Create an installation archive with:
 make -C build release
 ```
 
-The output is `build/cpsc-VERSION-SYSTEM-ARCH.tar.xz`. `VERSION` uses HEAD's commit
-time in UTC followed by its short ID: `yyyymmdd-hhmmss-commit`.
+The output is `build/cpsc-VERSION-SYSTEM-ARCH.tar.xz`. `VERSION` uses the UTC time
+and short ID of the last commit that changed the compiler sources (the paths in
+`cmake/CompilerPaths.txt`), not HEAD: `yyyymmdd-hhmmss-commit`.
 The version is read each time packaging runs. The package uses the current build's
 execution mode and contains `cpsc`, `doc/cpsc.1`, `doc/language/**/*.7`, `install.sh` and `LICENSE`.
 Packaging builds the compiler and manual automatically; it requires Git and Pandoc.
