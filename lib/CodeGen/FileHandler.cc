@@ -121,6 +121,14 @@ Value *FileHandler::emitLookupOrFail(Value *Name, Value *Line) {
     return Idx;
 }
 
+// Report and throw unless the open file in slot Idx was opened for READ.
+void FileHandler::emitRequireReadMode(Value *Idx, Value *Name, Value *Line) {
+    Type *I8 = Type::getInt8Ty(Context);
+    Value *Mode = Builder.CreateLoad(I8, emitSlotGEP(FileModes, I8, Idx), "mode");
+    Value *NotRead = Builder.CreateICmpNE(Mode, ConstantInt::get(I8, uint8_t(FileMode::Read)), "not_read");
+    Checker.emitCheck(NotRead, ErrNotRead, {Line, Name});
+}
+
 // i64 __cps_file_find(ptr name): strcmp scan over occupied slots; -1 on miss.
 void FileHandler::buildFindFn() {
     PointerType *PtrTy = PointerType::getUnqual(Context);

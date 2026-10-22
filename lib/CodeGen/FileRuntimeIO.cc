@@ -25,9 +25,7 @@ void FileHandler::buildReadFn() {
     Line->setName("line");
 
     Value *Idx = emitLookupOrFail(Name, Line);
-    Value *Mode = Builder.CreateLoad(I8, emitSlotGEP(FileModes, I8, Idx), "mode");
-    Value *NotRead = Builder.CreateICmpNE(Mode, ConstantInt::get(I8, uint8_t(FileMode::Read)), "not_read");
-    Checker.emitCheck(NotRead, ErrNotRead, {Line, Name});
+    emitRequireReadMode(Idx, Name, Line);
     Value *Handle = Builder.CreateLoad(PtrTy, emitSlotGEP(FileHandles, PtrTy, Idx), "handle");
 
     Value *MinusOne = ConstantInt::get(Context, APInt(32, -1, /*isSigned=*/true));
@@ -166,9 +164,8 @@ void FileHandler::buildCloseFn() {
 void FileHandler::buildEofFn() {
     PointerType *PtrTy = PointerType::getUnqual(Context);
     Type *I32 = Type::getInt32Ty(Context);
-    Type *I8 = Type::getInt8Ty(Context);
 
-    EofFn = createHelper("__cps_file_eof",
+    EofFn =createHelper("__cps_file_eof",
                          FunctionType::get(Type::getInt1Ty(Context), {PtrTy, I32}, false));
     Value *Name = EofFn->getArg(0);
     Value *Line = EofFn->getArg(1);
@@ -176,9 +173,7 @@ void FileHandler::buildEofFn() {
     Line->setName("line");
 
     Value *Idx = emitLookupOrFail(Name, Line);
-    Value *Mode = Builder.CreateLoad(I8, emitSlotGEP(FileModes, I8, Idx), "mode");
-    Value *NotRead = Builder.CreateICmpNE(Mode, ConstantInt::get(I8, uint8_t(FileMode::Read)), "not_read");
-    Checker.emitCheck(NotRead, ErrNotRead, {Line, Name});
+    emitRequireReadMode(Idx, Name, Line);
 
     Value *Handle = Builder.CreateLoad(PtrTy, emitSlotGEP(FileHandles, PtrTy, Idx), "handle");
     Value *Ch = Builder.CreateCall(FgetcFunc, {Handle}, "c");

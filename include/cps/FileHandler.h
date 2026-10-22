@@ -54,6 +54,7 @@ class FileHandler {
     llvm::Function *createHelper(const char *Name, llvm::FunctionType *FT);
     llvm::Value *emitSlotGEP(llvm::GlobalVariable *Table, llvm::Type *ElemTy, llvm::Value *Idx);
     llvm::Value *emitLookupOrFail(llvm::Value *Name, llvm::Value *Line);
+    void emitRequireReadMode(llvm::Value *Idx, llvm::Value *Name, llvm::Value *Line);
     void buildFindFn();
     void buildOpenFn();
     void buildReadFn();
