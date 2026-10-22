@@ -34,7 +34,9 @@ x86_64 ZIP into `build/deps/packages/` for CMake to extract. Each compiler job
 extracts and checks its archive, then runs a small OUTPUT program with the
 packaged binary and checks native generation plus `.ll` output without tool lookup. Windows checks its ZIP in PowerShell with PATH limited to
 Windows system directories, excluding MSYS2 and LLVM. The macOS check also
-verifies arm64 and rejects non-system dynamic libraries. The plugin uses
+verifies arm64 and rejects non-system dynamic libraries. Each job then runs its packaged installer into a temporary prefix and runs the installed compiler;
+Windows also checks the Start Menu shortcut, the HKCU PATH entry (no duplicate on a second run) and a
+`cmake --install` of the build tree. The plugin uses
 Node.js 22, `npm ci --ignore-scripts` and
 `npm run package` (which runs the plugin's syntax checks and tests before packaging),
 then checks VSIX contents. Each job retains its checked package

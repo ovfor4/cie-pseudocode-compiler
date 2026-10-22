@@ -104,6 +104,14 @@ jobs:
               esac
             done < <(readelf -d "$binary" | sed -n 's/.*Shared library: \[\(.*\)\].*/\1/p')
           done
+          rm -rf "$RUNNER_TEMP/install-home" "$RUNNER_TEMP/cpsc-install"
+          mkdir -p "$RUNNER_TEMP/install-home"
+          HOME="$RUNNER_TEMP/install-home" "$package_dir/install.sh" --prefix "$RUNNER_TEMP/cpsc-install"
+          test -x "$RUNNER_TEMP/cpsc-install/bin/cpsc"
+          test -f "$RUNNER_TEMP/cpsc-install/share/cpsc/man/man1/cpsc.1"
+          test -f "$RUNNER_TEMP/cpsc-install/share/cpsc/man/man7/cpsc-language-overview.7"
+          output=$(env -i PATH=/usr/bin:/bin "$RUNNER_TEMP/cpsc-install/bin/cpsc" "$RUNNER_TEMP/nightly-smoke.cps" -r)
+          test "$output" = 'nightly smoke'
 
       - uses: actions/setup-node@v7.1.0
         with:
@@ -251,6 +259,14 @@ jobs:
               *) echo "Unexpected program dependency: $library" >&2; exit 1 ;;
             esac
           done < <(otool -L "$RUNNER_TEMP/nightly-smoke.out" | tail -n +2 | awk '{print $1}')
+          rm -rf "$RUNNER_TEMP/install-home" "$RUNNER_TEMP/cpsc-install"
+          mkdir -p "$RUNNER_TEMP/install-home"
+          HOME="$RUNNER_TEMP/install-home" "$package_dir/install.sh" --prefix "$RUNNER_TEMP/cpsc-install"
+          test -x "$RUNNER_TEMP/cpsc-install/bin/cpsc"
+          test -f "$RUNNER_TEMP/cpsc-install/share/cpsc/man/man1/cpsc.1"
+          test -f "$RUNNER_TEMP/cpsc-install/share/cpsc/man/man7/cpsc-language-overview.7"
+          output=$(env -i PATH=/usr/bin:/bin "$RUNNER_TEMP/cpsc-install/bin/cpsc" "$RUNNER_TEMP/nightly-smoke.cps" -r)
+          test "$output" = 'nightly smoke'
 
       - uses: actions/setup-node@v7.1.0
         with:
@@ -429,6 +445,41 @@ jobs:
           } finally {
             $env:PATH = $savedPath
           }
+
+      - name: Smoke test the Windows package installer
+        shell: cmd
+        run: |
+          set "PKGZIP="
+          for %%F in (build\cpsc-*-Windows-*.zip) do set "PKGZIP=%%~nF"
+          if not defined PKGZIP exit /b 1
+          set "PKGDIR=%RUNNER_TEMP%\cpsc-smoke\%PKGZIP%"
+          set "DEST=%RUNNER_TEMP%\cpsc install (smoke)"
+          if exist "%DEST%" rmdir /s /q "%DEST%"
+          call "%PKGDIR%\install.cmd" --no-such-option
+          if not errorlevel 1 exit /b 1
+          call "%PKGDIR%\install.cmd" --prefix "%DEST%"
+          if errorlevel 1 exit /b 1
+          call "%PKGDIR%\install.cmd" --prefix "%DEST%"
+          if errorlevel 1 exit /b 1
+          if not exist "%DEST%\cpsc.exe" exit /b 1
+          if not exist "%DEST%\doc\cpsc.html" exit /b 1
+          if not exist "%DEST%\doc\language\cpsc-language-overview.html" exit /b 1
+          if not exist "%DEST%\doc\language\keyword\cpsc-keyword-if.html" exit /b 1
+          if not exist "%APPDATA%\Microsoft\Windows\Start Menu\Programs\cpsc\cpsc Help.lnk" exit /b 1
+          reg query HKCU\Environment /v Path | find /i "%DEST%"
+          if errorlevel 1 exit /b 1
+          reg query HKCU\Environment /v Path | find /i "%DEST%;%DEST%"
+          if not errorlevel 1 exit /b 1
+          "%DEST%\cpsc.exe" "%RUNNER_TEMP%\nightly-smoke.cps" -r | find "nightly smoke"
+          if errorlevel 1 exit /b 1
+
+      - name: Install the Windows build tree with CMake
+        shell: msys2 {0}
+        run: |
+          prefix="$(cygpath -m "$RUNNER_TEMP")/cpsc cmake install"
+          cmake --install build --prefix "$prefix"
+          test -f "$prefix/cpsc.exe"
+          test -f "$prefix/doc/cpsc.html"
 
       - uses: actions/setup-node@v7.1.0
         with:
