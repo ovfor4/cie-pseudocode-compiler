@@ -16,7 +16,7 @@ npm run package
 
 `npm run package` runs syntax checks and the existing Node tests, then uses vsce
 through `scripts/package.js` to generate `cpsc-plugin-YYYYMMDD-HHMMSS-commit.vsix`.
-Both filename components come from the last commit that touched `plugin/`: its UTC
+Both filename components come from the last commit that touched `plugin/` or `.github/`: its UTC
 commit timestamp and Git short ID.
 The internal version is `YYYYMMDD.HHMMSS.0+commit`; the numeric time component
 has no leading zeros (midnight is `0`). For example, the file

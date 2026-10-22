@@ -5,7 +5,7 @@ const path = require('node:path');
 const pluginDir = path.resolve(__dirname, '..');
 
 try {
-	const revision = execFileSync('git', ['log', '-1', '--format=%ct:%h', '--', '.'], {
+	const revision = execFileSync('git', ['log', '-1', '--format=%ct:%h', '--', '.', '../.github'], {
 		cwd: pluginDir,
 		encoding: 'utf8',
 		stdio: ['ignore', 'pipe', 'pipe']
