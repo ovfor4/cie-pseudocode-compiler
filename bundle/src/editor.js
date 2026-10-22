@@ -33,7 +33,10 @@ export const theme = {
 	tokenColors: [{ settings: { foreground: dark.colors['editor.foreground'], background: dark.colors['editor.background'] } }, ...dark.tokenColors]
 };
 
-for (const [key, value] of Object.entries(dark.colors)) document.documentElement.style.setProperty(`--vscode-${key.replaceAll('.', '-')}`, value);
+export const themeVariable = key => `--vscode-${key.replaceAll('.', '-')}`;
+// VS Code falls back to its terminal defaults when a theme leaves terminal.ansi* unset.
+const colors = { ...parse(sources['../vendor/vscode/terminal-colors.json']).colors, ...dark.colors };
+for (const [key, value] of Object.entries(colors)) document.documentElement.style.setProperty(themeVariable(key), value);
 
 class TokenState {
 	constructor(stack) { this.stack = stack; }

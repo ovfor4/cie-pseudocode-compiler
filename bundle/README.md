@@ -1,6 +1,6 @@
 # CPSC Bundle
 
-Open a `.cps` file, enter its input in **Input**, and click **Run**. The file is saved before running. Program output and errors appear in **Output**. Click **Stop** to end a running program.
+Open a `.cps` file, enter its input in **Input**, and click **Run**. The file is saved before running. Program output and errors appear in **Output**, with compiler errors colored. Click **Stop** to end a running program.
 
 Shortcuts use Cmd on macOS and Ctrl on Windows: **N** new, **O** open, **S** save, **F** find, **/** toggle line comment.
 

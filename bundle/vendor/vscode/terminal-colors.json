@@ -1,0 +1,23 @@
+// Dark defaults that VS Code's terminal uses when a theme leaves terminal.ansi* unset.
+// Values from src/vs/workbench/contrib/terminal/common/terminalColorRegistry.ts at commit
+// f93fdeb454a0f0fafe5f310408cec48dd3b6f58a, under the MIT license in LICENSE.txt.
+{
+	"colors": {
+		"terminal.ansiBlack": "#000000",
+		"terminal.ansiRed": "#cd3131",
+		"terminal.ansiGreen": "#0DBC79",
+		"terminal.ansiYellow": "#e5e510",
+		"terminal.ansiBlue": "#2472c8",
+		"terminal.ansiMagenta": "#bc3fbc",
+		"terminal.ansiCyan": "#11a8cd",
+		"terminal.ansiWhite": "#e5e5e5",
+		"terminal.ansiBrightBlack": "#666666",
+		"terminal.ansiBrightRed": "#f14c4c",
+		"terminal.ansiBrightGreen": "#23d18b",
+		"terminal.ansiBrightYellow": "#f5f543",
+		"terminal.ansiBrightBlue": "#3b8eea",
+		"terminal.ansiBrightMagenta": "#d670d6",
+		"terminal.ansiBrightCyan": "#29b8db",
+		"terminal.ansiBrightWhite": "#e5e5e5"
+	}
+}

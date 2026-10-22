@@ -3,7 +3,8 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open, save, message } from '@tauri-apps/plugin-dialog';
 import { KeyCode, KeyMod } from 'monaco-editor/editor/editor.api.js';
 import { StandardKeyboardEvent } from 'monaco-editor/base/browser/keyboardEvent.js';
-import { createEditor } from './editor.js';
+import { createEditor, themeVariable } from './editor.js';
+import { createAnsiParser } from './ansi.js';
 import './style.css';
 
 const status = document.querySelector('#status');
@@ -34,26 +35,39 @@ async function runFile() {
 	output.textContent = '';
 	status.textContent = 'Running';
 	const decoders = { stdout: new TextDecoder(), stderr: new TextDecoder() };
-	let pending = '';
+	// Only compiler diagnostics on stderr are colored; program output stays verbatim.
+	const diagnostics = createAnsiParser();
+	const pending = document.createDocumentFragment();
 	let frame = null;
 	function flush() {
 		frame = null;
-		if (!pending) return;
-		output.append(document.createTextNode(pending));
-		pending = '';
+		if (!pending.hasChildNodes()) return;
+		output.append(pending);
 		output.scrollTop = output.scrollHeight;
 	}
-	function append(text) {
-		pending += text;
+	function append(stream, text) {
+		for (const run of stream === 'stderr' ? diagnostics(text) : [{ text }]) {
+			if (!run.text) continue;
+			if (!run.bold && !run.color) {
+				if (pending.lastChild?.nodeType === Node.TEXT_NODE) pending.lastChild.appendData(run.text);
+				else pending.append(run.text);
+				continue;
+			}
+			const span = document.createElement('span');
+			if (run.bold) span.style.fontWeight = 'bold';
+			if (run.color) span.style.color = `var(${themeVariable(run.color)})`;
+			span.textContent = run.text;
+			pending.append(span);
+		}
 		if (frame === null) frame = requestAnimationFrame(flush);
 	}
 	let finish;
 	const finished = new Promise(resolve => { finish = resolve; });
 	const channel = new Channel(event => {
 		if (event.event === 'data') {
-			append(decoders[event.stream].decode(Uint8Array.from(event.bytes), { stream: true }));
+			append(event.stream, decoders[event.stream].decode(Uint8Array.from(event.bytes), { stream: true }));
 		} else if (event.event === 'finished') {
-			for (const decoder of Object.values(decoders)) append(decoder.decode());
+			for (const [stream, decoder] of Object.entries(decoders)) append(stream, decoder.decode());
 			if (frame !== null) cancelAnimationFrame(frame);
 			flush();
 			status.textContent = event.stopped ? 'Stopped' : `Exit code: ${event.code ?? 'terminated'}`;

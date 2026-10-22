@@ -100,6 +100,8 @@ async fn run_process(
     command
         .arg(&source)
         .arg("-r")
+        // Output renders stderr colors; auto would only see a pipe.
+        .arg("-fdiagnostics-color=always")
         .current_dir(source.parent().ok_or("Invalid source path.")?)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -193,7 +195,12 @@ mod tests {
                 "done\n",
                 0,
             ),
-            ("OUTPUT Missing\n", "", "compilation terminated.", 1),
+            (
+                "OUTPUT Missing\n",
+                "",
+                "\u{1b}[01;31m\u{1b}[Kerror: \u{1b}[m\u{1b}[K",
+                1,
+            ),
             (
                 "OUTPUT 1 DIV 0\n",
                 "",

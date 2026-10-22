@@ -6,4 +6,6 @@ The editor uses Monaco Editor (MIT), vscode-textmate (MIT), vscode-oniguruma (MI
 
 Source: https://github.com/microsoft/vscode/tree/f93fdeb454a0f0fafe5f310408cec48dd3b6f58a/extensions/theme-defaults/themes
 
+`vendor/vscode/terminal-colors.json` contains the dark default `terminal.ansi*` colors from `src/vs/workbench/contrib/terminal/common/terminalColorRegistry.ts` at the same commit and under the same license.
+
 The grammar and language configuration come directly from this repository's VS Code plugin. See [its third-party notices](../plugin/ThirdPartyNotices.md) for upstream attribution.
