@@ -63,6 +63,17 @@ bool colorTerminal() {
 #endif
 }
 
+// INCLUDE and INCLUDE_OBJ paths are absolute or relative to the including
+// unit's directory.
+llvm::SmallString<256> relativeToUnit(llvm::StringRef UnitPath, llvm::StringRef Path) {
+    llvm::SmallString<256> Result(Path);
+    if (!llvm::sys::path::is_absolute(Result)) {
+        Result = llvm::sys::path::parent_path(UnitPath);
+        llvm::sys::path::append(Result, Path);
+    }
+    return Result;
+}
+
 #ifdef CPSC_RUN_PATH
 bool checkLliVersion(llvm::StringRef LliPath) {
     llvm::SmallString<256> VersionPath;
@@ -243,11 +254,7 @@ int main(int argc, char **argv) {
         for (const auto &Stmt : Units[I].Statements) {
             auto *Include = dynamic_cast<cps::IncludeStmtAST*>(Stmt.get());
             if (!Include) continue;
-            llvm::SmallString<256> Path(Include->getPath());
-            if (!llvm::sys::path::is_absolute(Path)) {
-                Path = llvm::sys::path::parent_path(Units[I].Path);
-                llvm::sys::path::append(Path, Include->getPath());
-            }
+            llvm::SmallString<256> Path = relativeToUnit(Units[I].Path, Include->getPath());
             bool Found = false;
             for (size_t J = 0; J < Units.size(); ++J) {
                 if (llvm::sys::fs::equivalent(Path, Units[J].Path)) {
@@ -284,11 +291,7 @@ int main(int argc, char **argv) {
                 LibcLoaded = true;
                 continue;
             }
-            llvm::SmallString<256> Path(Object->getPath());
-            if (!llvm::sys::path::is_absolute(Path)) {
-                Path = llvm::sys::path::parent_path(Units[I].Path);
-                llvm::sys::path::append(Path, Object->getPath());
-            }
+            llvm::SmallString<256> Path = relativeToUnit(Units[I].Path, Object->getPath());
             if (llvm::sys::path::extension(Path) != ".o") {
                 cps::sourceError(Stmt->getLine(),
                     "INCLUDE_OBJ '%s' must name a .o object file or \"__libc\"",
