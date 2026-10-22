@@ -139,6 +139,8 @@ async function action(callback) {
 // CtrlCmd is Cmd on macOS and Ctrl elsewhere, matching Monaco's own keybindings.
 const shortcuts = [
 	[KeyMod.CtrlCmd | KeyCode.KeyN, () => action(newFile)],
+	// Each window is an independent native OS window, even while this one runs.
+	[KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyN, () => invoke('new_window').catch(report)],
 	[KeyMod.CtrlCmd | KeyCode.KeyO, () => action(openFile)],
 	[KeyMod.CtrlCmd | KeyCode.KeyS, () => action(saveFile)],
 	[KeyMod.CtrlCmd | KeyCode.KeyF, () => { editor.focus(); editor.getAction('actions.find').run(); }]

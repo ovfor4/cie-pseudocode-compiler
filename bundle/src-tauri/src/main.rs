@@ -4,7 +4,29 @@ mod compiler;
 mod runner;
 use compiler::Compiler;
 use runner::{OutputEvent, Runner};
-use tauri::{ipc::Channel, Manager, State};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex,
+    },
+};
+use tauri::{ipc::Channel, AppHandle, Manager, State, WebviewWindow, WebviewWindowBuilder};
+
+// Each window runs its own program, keyed by window label.
+#[derive(Default)]
+struct Runners(Mutex<HashMap<String, Runner>>);
+
+impl Runners {
+    fn get(&self, label: &str) -> Runner {
+        self.0
+            .lock()
+            .unwrap()
+            .entry(label.into())
+            .or_default()
+            .clone()
+    }
+}
 
 #[tauri::command]
 fn read_file(path: String) -> Result<String, String> {
@@ -21,11 +43,13 @@ async fn run_file(
     path: String,
     input: String,
     output: Channel<OutputEvent>,
-    runner: State<'_, Runner>,
+    window: WebviewWindow,
+    runners: State<'_, Runners>,
     compiler: State<'_, Compiler>,
 ) -> Result<(), String> {
     let executable = compiler.inner().0.clone()?;
-    let result = runner
+    let result = runners
+        .get(window.label())
         .run(executable, path.into(), input, |stream, bytes| {
             let _ = output.send(OutputEvent::Data {
                 stream: stream.into(),
@@ -42,25 +66,60 @@ async fn run_file(
 }
 
 #[tauri::command]
-async fn stop_run(runner: State<'_, Runner>) -> Result<(), String> {
-    runner.stop().await;
+async fn stop_run(window: WebviewWindow, runners: State<'_, Runners>) -> Result<(), String> {
+    runners.get(window.label()).stop().await;
     Ok(())
+}
+
+// Async because creating a window from a synchronous command deadlocks on Windows.
+#[tauri::command]
+async fn new_window(app: AppHandle) -> Result<(), String> {
+    static NEXT: AtomicUsize = AtomicUsize::new(1);
+    let mut config = app.config().app.windows[0].clone();
+    config.label = format!("window-{}", NEXT.fetch_add(1, Ordering::Relaxed));
+    WebviewWindowBuilder::from_config(&app, &config)
+        .and_then(|builder| builder.build())
+        .map(drop)
+        .map_err(|error| error.to_string())
 }
 
 fn main() {
     let compiler = Compiler::load();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .manage(Runner::default())
+        .manage(Runners::default())
         .manage(compiler)
         .invoke_handler(tauri::generate_handler![
-            read_file, write_file, run_file, stop_run
+            read_file, write_file, run_file, stop_run, new_window
         ])
         .build(tauri::generate_context!())
         .expect("Could not start CPSC Bundle")
-        .run(|app, event| {
-            if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
-                tauri::async_runtime::block_on(app.state::<Runner>().stop());
+        .run(|app, event| match event {
+            tauri::RunEvent::ExitRequested { .. } => {
+                let runners: Vec<Runner> = app
+                    .state::<Runners>()
+                    .0
+                    .lock()
+                    .unwrap()
+                    .values()
+                    .cloned()
+                    .collect();
+                tauri::async_runtime::block_on(async {
+                    for runner in runners {
+                        runner.stop().await;
+                    }
+                });
             }
+            tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::Destroyed,
+                ..
+            } => {
+                let runner = app.state::<Runners>().0.lock().unwrap().remove(&label);
+                if let Some(runner) = runner {
+                    tauri::async_runtime::block_on(runner.stop());
+                }
+            }
+            _ => {}
         });
 }
