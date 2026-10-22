@@ -136,14 +136,25 @@ async function action(callback) {
 	busy = true;
 	try { await callback(); } catch (error) { report(error); } finally { busy = false; }
 }
-// CtrlCmd is Cmd on macOS and Ctrl elsewhere, matching Monaco's own keybindings.
-const shortcuts = [
-	[KeyMod.CtrlCmd | KeyCode.KeyN, () => action(newFile)],
+function editorAction(id) { editor.focus(); editor.getAction(id).run(); }
+// Keyed by the menu item ids in src-tauri/src/menu.rs.
+const commands = {
+	new: () => action(newFile),
 	// Each window is an independent native OS window, even while this one runs.
-	[KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyN, () => invoke('new_window').catch(report)],
-	[KeyMod.CtrlCmd | KeyCode.KeyO, () => action(openFile)],
-	[KeyMod.CtrlCmd | KeyCode.KeyS, () => action(saveFile)],
-	[KeyMod.CtrlCmd | KeyCode.KeyF, () => { editor.focus(); editor.getAction('actions.find').run(); }]
+	new_window: () => invoke('new_window').catch(report),
+	open: () => action(openFile),
+	save: () => action(saveFile),
+	find: () => editorAction('actions.find'),
+	comment: () => editorAction('editor.action.commentLine')
+};
+// CtrlCmd is Cmd on macOS and Ctrl elsewhere, matching Monaco's own keybindings and the menu.
+const shortcuts = [
+	[KeyMod.CtrlCmd | KeyCode.KeyN, 'new'],
+	[KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyN, 'new_window'],
+	[KeyMod.CtrlCmd | KeyCode.KeyO, 'open'],
+	[KeyMod.CtrlCmd | KeyCode.KeyS, 'save'],
+	[KeyMod.CtrlCmd | KeyCode.KeyF, 'find'],
+	[KeyMod.CtrlCmd | KeyCode.Slash, 'comment']
 ];
 
 try {
@@ -166,8 +177,9 @@ try {
 		const shortcut = shortcuts.find(([binding]) => key.equals(binding));
 		if (!shortcut) return;
 		event.preventDefault();
-		shortcut[1]();
+		commands[shortcut[1]]();
 	});
+	await window.listen('menu', event => commands[event.payload]());
 	await window.onCloseRequested(async event => {
 		if (closing) return;
 		event.preventDefault();

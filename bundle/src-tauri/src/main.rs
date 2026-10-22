@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod compiler;
+mod menu;
 mod runner;
 use compiler::Compiler;
 use runner::{OutputEvent, Runner};
@@ -11,7 +12,9 @@ use std::{
         Mutex,
     },
 };
-use tauri::{ipc::Channel, AppHandle, Manager, State, WebviewWindow, WebviewWindowBuilder};
+use tauri::{
+    ipc::Channel, AppHandle, Emitter, Manager, State, WebviewWindow, WebviewWindowBuilder,
+};
 
 // Each window runs its own program, keyed by window label.
 #[derive(Default)]
@@ -87,6 +90,17 @@ fn main() {
     let compiler = Compiler::load();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .menu(menu::build)
+        // Menu items act on the focused window, like its keyboard shortcuts.
+        .on_menu_event(|app, event| {
+            let focused = app
+                .webview_windows()
+                .into_values()
+                .find(|window| window.is_focused().unwrap_or(false));
+            if let Some(window) = focused {
+                let _ = window.emit_to(window.label(), "menu", event.id().as_ref());
+            }
+        })
         .manage(Runners::default())
         .manage(compiler)
         .invoke_handler(tauri::generate_handler![
