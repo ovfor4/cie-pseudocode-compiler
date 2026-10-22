@@ -23,15 +23,17 @@ using namespace cps;
 bool CodeGen::marshalCallArgs(const FuncSig &Signature,
                               const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
                               int Line,
-                              std::vector<Value*> &Out) {
+                              std::vector<Value*> &Out,
+                              std::vector<const TypeInfo *> *Variadic) {
     std::vector<ExprAST*> Args;
     for (const auto &Arg : ArgExprs) Args.push_back(Arg.get());
-    return marshalCallArgs(Signature, Args, Line, Out);
+    return marshalCallArgs(Signature, Args, Line, Out, Variadic);
 }
 
 bool CodeGen::marshalCallArgs(const FuncSig &Signature,
                               const std::vector<ExprAST*> &ArgExprs,
-                              int Line, std::vector<Value*> &Out) {
+                              int Line, std::vector<Value*> &Out,
+                              std::vector<const TypeInfo *> *Variadic) {
     SaveAndRestore<int> Location(DiagnosticLine, Line ? Line : DiagnosticLine);
     const FuncSig *Sig = &Signature;
     const std::string &Callee = Sig->Name;
@@ -43,9 +45,11 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
     std::vector<size_t> Transfers;
     for (size_t i = 0; i < ArgExprs.size(); ++i) {
         if (i >= Sig->Params.size()) {
-            Value *V = emitVariadicArgument(ArgExprs[i], Callee, i + 1);
+            const TypeInfo *Promoted = nullptr;
+            Value *V = emitVariadicArgument(ArgExprs[i], Callee, i + 1, Promoted);
             if (!V) return false;
             Out.push_back(V);
+            if (Variadic) Variadic->push_back(Promoted);
             continue;
         }
         const ParamSig &P = Sig->Params[i];
@@ -126,20 +130,33 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
 
 // C default argument promotions for the variadic part of an EXTERN call; only
 // C values are accepted, matching the explicit-cast rule for C/pseudocode.
-Value *CodeGen::emitVariadicArgument(ExprAST *Expr, const std::string &Callee, size_t Position) {
+// C structs and pointers to them pass unchanged (C11 6.5.2.2p6-7, 7.16.1.1p2).
+Value *CodeGen::emitVariadicArgument(ExprAST *Expr, const std::string &Callee, size_t Position,
+                                     const TypeInfo *&Promoted) {
     const TypeInfo *Info = isWholeArrayVar(Expr) ? nullptr : getExprTypeInfo(Expr);
-    // Pointers to C structs pass unchanged; records by value are not supported yet.
-    if (!Info || Info->isRecord() || !Types->isExternType(Info)) {
+    const TypeInfo *Record = Info && Info->Kind == TypeKind::Pointer
+        ? Types->resolve(Info->Pointer.PointeeTypeName) : Info;
+    std::string Why;
+    if (Record && Record->isRecord() && !Record->IsClass && !Types->isCStruct(Record, &Why)) {
+        reportError("Variadic argument %zu to %s uses record %s, which is not a C struct: %s",
+                    Position, Callee.c_str(), Record->Name.c_str(), Why.c_str());
+        return nullptr;
+    }
+    if (!Info || !Types->isExternType(Info)) {
         reportError("Variadic argument %zu to %s must be a C value; cast it to a C type", Position, Callee.c_str());
         return nullptr;
     }
+    Promoted = Info;
     Value *V = emitExpr(Expr);
     if (!V || Info->Kind != TypeKind::CScalar) return V;
     if (Info->isReal()) {
         const TypeInfo *Double = resolveType("C_DOUBLE");
-        return Info->CRank < Double->CRank ? convertNumericValue(V, Info, Double) : V;
+        if (Info->CRank >= Double->CRank) return V;
+        Promoted = Double;
+        return convertNumericValue(V, Info, Double);
     }
-    return convertNumericValue(V, Info, Types->promoteCScalar(Info));
+    Promoted = Types->promoteCScalar(Info);
+    return convertNumericValue(V, Info, Promoted);
 }
 
 // Resolve using static source types only; argument evaluation belongs to marshalling.

@@ -1,4 +1,5 @@
-// Records whose fields are C types pass to and return from C functions by value.
+// Records whose fields are C types pass to and return from C functions by
+// value, also as variadic arguments.
 INCLUDE_OBJ "lib.o"
 TYPE CShort = C_TYPE("short")
 TYPE CFloat = C_TYPE("float")
@@ -34,10 +35,13 @@ EXTERN "C" EXTERN_FUNCTION make_pair(C_INT, C_INT) RETURNS Pair
 EXTERN "C" EXTERN_FUNCTION make_vec2(C_DOUBLE, C_DOUBLE) RETURNS Vec2
 EXTERN "C" EXTERN_FUNCTION make_mixed(C_CHAR, C_DOUBLE, C_INT) RETURNS Mixed
 EXTERN "C" EXTERN_FUNCTION make_vec3f(CFloat, CFloat, CFloat) RETURNS Vec3f
+EXTERN "C" EXTERN_FUNCTION sum_vec2(C_INT, ...) RETURNS C_DOUBLE
+EXTERN "C" EXTERN_FUNCTION mixed_counts(C_INT, ...) RETURNS C_INT
 DECLARE P : Pair
 DECLARE U : Vec2
 DECLARE V : Vec2
 DECLARE M : Mixed
+DECLARE N : Mixed
 DECLARE F : Vec3f
 DECLARE W : Wide
 P.A <- (C_INT)3
@@ -68,3 +72,6 @@ M <- make_mixed((C_CHAR)'Q', (C_DOUBLE)0.25, (C_INT)9)
 OUTPUT M.Tag, " ", M.Value, " ", M.Count
 F <- make_vec3f((CFloat)0.5, (CFloat)1.25, (CFloat)2)
 OUTPUT F.X, " ", F.Y, " ", F.Z
+OUTPUT sum_vec2((C_INT)2, U, V)
+N <- make_mixed((C_CHAR)'R', (C_DOUBLE)1, (C_INT)5)
+OUTPUT mixed_counts((C_INT)2, M, N)

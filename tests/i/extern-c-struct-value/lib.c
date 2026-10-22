@@ -1,3 +1,5 @@
+#include <stdarg.h>
+
 /* Each struct is passed or returned by value; the host C ABI decides how. */
 struct Pair { int a, b; };
 struct Vec2 { double x, y; };
@@ -22,3 +24,25 @@ struct Mixed make_mixed(char tag, double value, int count) {
     return m;
 }
 struct Vec3f make_vec3f(float x, float y, float z) { struct Vec3f v = {x, y, z}; return v; }
+
+/* Each argument after n is a struct read back with va_arg. */
+double sum_vec2(int n, ...) {
+    va_list ap;
+    double total = 0;
+    va_start(ap, n);
+    for (int i = 0; i < n; ++i) {
+        struct Vec2 v = va_arg(ap, struct Vec2);
+        total += v.x + v.y;
+    }
+    va_end(ap);
+    return total;
+}
+
+int mixed_counts(int n, ...) {
+    va_list ap;
+    int total = 0;
+    va_start(ap, n);
+    for (int i = 0; i < n; ++i) total += va_arg(ap, struct Mixed).count;
+    va_end(ap);
+    return total;
+}

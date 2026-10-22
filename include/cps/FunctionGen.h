@@ -122,7 +122,9 @@ public:
 
     llvm::Function *emitFunctionDef(FunctionDefAST *FuncAST, const std::function<void(StmtAST*)> &StmtEmitter, unsigned ScopeID);
 
-    llvm::Value *emitCall(const FuncSig &Sig, const std::vector<llvm::Value*> &Args);
+    // Variadic holds the promoted types of an EXTERN call's variadic arguments.
+    llvm::Value *emitCall(const FuncSig &Sig, const std::vector<llvm::Value*> &Args,
+                          const std::vector<const TypeInfo *> &Variadic = {});
 
     void emitReturn(llvm::Value *RetVal);
 };

@@ -11,6 +11,10 @@
     {
       "reason": "The\\ return\\ type\\ of\\ EXTERN_FUNCTION\\ atoi\\ uses\\ record\\ Person,\\ which\\ is\\ not\\ a\\ C\\ struct:\\ field\\ Name\\ of\\ Person\\ has\\ type\\ STRING",
       "line": 10
+    },
+    {
+      "reason": "Variadic\\ argument\\ 2\\ to\\ printf\\ uses\\ record\\ Person,\\ which\\ is\\ not\\ a\\ C\\ struct:\\ field\\ Name\\ of\\ Person\\ has\\ type\\ STRING",
+      "line": 13
     }
   ]
 }

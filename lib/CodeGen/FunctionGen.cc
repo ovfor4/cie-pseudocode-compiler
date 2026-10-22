@@ -470,21 +470,40 @@ llvm::Value *FunctionGen::emitCall(const std::string &Callee, const std::vector<
     return Exceptions.emitCall(CalleeF, Args, "calltmp");
 }
 
-llvm::Value *FunctionGen::emitCall(const FuncSig &Sig, const std::vector<llvm::Value*> &Args) {
+llvm::Value *FunctionGen::emitCall(const FuncSig &Sig, const std::vector<llvm::Value*> &Args,
+                                   const std::vector<const TypeInfo *> &Variadic) {
     if (BeforeCall) BeforeCall(Sig);
     if (!Sig.IsExternal) return emitCall(Sig.LinkName, Args);
     FunctionCallee Callee(Sig.ExternType, Module.getNamedValue(Sig.LinkName));
-    // Variadic arguments arrive promoted and pass as they are.
-    size_t Fixed = Sig.ExternABI.Fixed;
+    // A call with variadic arguments is arranged with their promoted types.
+    const CABISignature *ABISig = &Sig.ExternABI;
+    CABISignature CallABI;
+    if (!Variadic.empty()) {
+        std::vector<const TypeInfo *> ArgTypes;
+        for (const ParamSig &P : Sig.Params) ArgTypes.push_back(Types.resolve(P.TypeName));
+        ArgTypes.insert(ArgTypes.end(), Variadic.begin(), Variadic.end());
+        const TypeInfo *Ret = sameIdentifier(Sig.ReturnTypeName, "VOID")
+            ? nullptr : Types.resolve(Sig.ReturnTypeName);
+        std::string Err;
+        if (!ABI.arrange(Ret, ArgTypes, Sig.Params.size(), true, CallABI, Err)) {
+            reportError("Internal: cannot arrange the call to %s: %s", Sig.Name.c_str(), Err.c_str());
+            return nullptr;
+        }
+        ABISig = &CallABI;
+    }
+    if (Args.size() != ABISig->Args.size()) {
+        reportError("Internal: the call to %s has %zu arguments but %zu are arranged", Sig.Name.c_str(),
+                    Args.size(), ABISig->Args.size());
+        return nullptr;
+    }
     Value *SRet = nullptr;
-    std::vector<Value *> IRArgs = lowerCABIArguments(
-        Builder, Sig.ExternABI, ArrayRef<Value *>(Args).take_front(Fixed), SRet);
-    IRArgs.insert(IRArgs.end(), Args.begin() + Fixed, Args.end());
+    std::vector<Value *> IRArgs = lowerCABIArguments(Builder, *ABISig, Args, SRet);
     Value *Call = Sig.ExternType->getReturnType()->isVoidTy()
         ? Exceptions.emitCall(Callee, IRArgs) : Exceptions.emitCall(Callee, IRArgs, "calltmp");
-    cast<CallBase>(Call)->setAttributes(Sig.ExternAttrs);
-    cast<CallBase>(Call)->setCallingConv(Sig.ExternABI.CallingConv);
-    Value *Result = lowerCABIResult(Builder, Sig.ExternABI, Call, SRet);
+    cast<CallBase>(Call)->setAttributes(ABISig == &Sig.ExternABI
+        ? Sig.ExternAttrs : getCABIAttributes(Context, CallABI));
+    cast<CallBase>(Call)->setCallingConv(ABISig->CallingConv);
+    Value *Result = lowerCABIResult(Builder, *ABISig, Call, SRet);
     return Result ? Result : Call;
 }
 

@@ -231,9 +231,10 @@ Value *CodeGen::emitCall(const std::string &Callee,
     }
 
     std::vector<Value*> Args;
+    std::vector<const TypeInfo *> Variadic;
     const FuncSig *Sig = resolveCall(Name, ArgExprs, Explicit);
-    if (!Sig || !marshalCallArgs(*Sig, ArgExprs, Line, Args)) return nullptr;
-    return FuncGen->emitCall(*Sig, Args);
+    if (!Sig || !marshalCallArgs(*Sig, ArgExprs, Line, Args, &Variadic)) return nullptr;
+    return FuncGen->emitCall(*Sig, Args, Variadic);
 }
 
 Value *CodeGen::emitAllocationSize(ExprAST *Expr) {

@@ -217,13 +217,17 @@ class CodeGen {
     llvm::Value *emitOperatorCall(const FuncSig &Signature, ExprAST *Left, ExprAST *Right = nullptr);
     llvm::Value *emitOperatorValues(const FuncSig &Signature, llvm::Value *Left,
                                      const TypeInfo *LeftType, llvm::Value *Right);
-    llvm::Value *emitVariadicArgument(ExprAST *Expr, const std::string &Callee, size_t Position);
+    llvm::Value *emitVariadicArgument(ExprAST *Expr, const std::string &Callee, size_t Position,
+                                      const TypeInfo *&Promoted);
+    // Variadic, if given, receives the promoted type of each variadic argument.
     bool marshalCallArgs(const FuncSig &Signature,
                          const std::vector<std::unique_ptr<ExprAST>> &ArgExprs,
                          int Line,
-                         std::vector<llvm::Value*> &Out);
+                         std::vector<llvm::Value*> &Out,
+                         std::vector<const TypeInfo *> *Variadic = nullptr);
     bool marshalCallArgs(const FuncSig &Signature, const std::vector<ExprAST*> &ArgExprs,
-                         int Line, std::vector<llvm::Value*> &Out);
+                         int Line, std::vector<llvm::Value*> &Out,
+                         std::vector<const TypeInfo *> *Variadic = nullptr);
     llvm::Value *symbolAddress(const SymbolInfo &Info);
     void emitAssignment(const LValueInfo &Target, ExprAST *Expr,
                         const SymbolInfo *Symbol = nullptr);
