@@ -123,9 +123,10 @@ class TypeSystem {
     std::function<bool(const std::string &)> Visible;
     std::function<const TypeInfo *(const std::string &)> ResolveMiss;
     void registerBuiltins();
-    const TypeInfo *registerType(const std::string &TypeName,
-                                 llvm::Type *LLVMType,
-                                 TypeKind Kind);
+    TypeInfo *registerType(const std::string &TypeName,
+                           llvm::Type *LLVMType,
+                           TypeKind Kind);
+    const TypeInfo *importCType(const std::string &Expression, std::string &Err);
 
 public:
     explicit TypeSystem(llvm::LLVMContext &Ctx);
@@ -151,7 +152,6 @@ public:
                        std::string &Err);
     bool defineCAlias(const std::string &Name, const std::string &Expression,
                       std::string &Err);
-    const TypeInfo *importCType(const std::string &Expression, std::string &Err);
     bool sameType(const std::string &Left, const std::string &Right) const;
     const TypeInfo *promoteCScalar(const TypeInfo *Info) const;
     const TypeInfo *commonCScalar(const TypeInfo *Left, const TypeInfo *Right) const;

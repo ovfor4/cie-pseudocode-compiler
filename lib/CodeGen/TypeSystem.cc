@@ -111,9 +111,9 @@ const TypeInfo *TypeSystem::resolve(const std::string &TypeName) const {
     return &It->second;
 }
 
-const TypeInfo *TypeSystem::registerType(const std::string &TypeName,
-                                         Type *LLVMType,
-                                         TypeKind Kind) {
+TypeInfo *TypeSystem::registerType(const std::string &TypeName,
+                                   Type *LLVMType,
+                                   TypeKind Kind) {
     TypeInfo Info;
     Info.Name = TypeName;
     Info.LLVMType = LLVMType;
@@ -150,8 +150,7 @@ bool TypeSystem::declareUserType(const std::string &Name, TypeKind Kind, std::st
         return false;
     }
 
-    registerType(Name, LLVMType, Kind);
-    Types.find(Name)->second.IsClass = IsClass;
+    registerType(Name, LLVMType, Kind)->IsClass = IsClass;
     return true;
 }
 
