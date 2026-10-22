@@ -123,6 +123,7 @@ class CodeGen {
     void warnMemberShadow(const std::string &Name, int Line) const;
     bool prepareSymbolDeclaration(const std::string &Name, bool IsConstant = false);
     bool requireWritable(const SymbolInfo &Info, const std::string &Name);
+    const SymbolInfo *lookupWritableSymbol(const std::string &Name);
     void emitConstantStmt(ConstantStmtAST *Stmt);
     std::map<const ConstantStmtAST *, SymbolInfo> StringConstants;
     const TypeInfo *requireStringType();

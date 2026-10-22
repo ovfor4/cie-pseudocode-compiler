@@ -152,16 +152,8 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
     }
 
     if (auto *Assign = dynamic_cast<AssignStmtAST*>(Stmt)) {
-        const SymbolInfo *Info = getSymbolInfo(Assign->getName());
-        if (!Info) {
-            if (Types->lookupEnumConstant(Assign->getName())) {
-                reportError("Enum value %s is not an assignable location", Assign->getName().c_str());
-            } else {
-                reportError("Unknown variable name %s", Assign->getName().c_str());
-            }
-            return;
-        }
-        if (!requireWritable(*Info, Assign->getName())) return;
+        const SymbolInfo *Info = lookupWritableSymbol(Assign->getName());
+        if (!Info) return;
         if (Info->IsArray) {
             reportError("Cannot assign array %s without indices", Assign->getName().c_str());
             return;

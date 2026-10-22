@@ -139,22 +139,30 @@ Value *CodeGen::emitMethodCall(const std::string &Class, Value *Receiver,
     return FuncGen->emitCall(*Sig, Args);
 }
 
+// Looks up a variable that is about to be written, diagnosing unknown names,
+// enum values and read-only symbols.
+const SymbolInfo *CodeGen::lookupWritableSymbol(const std::string &Name) {
+    const SymbolInfo *Info = getSymbolInfo(Name);
+    if (!Info) {
+        if (Types->lookupEnumConstant(Name)) {
+            reportError("Enum value %s is not an assignable location", Name.c_str());
+        } else {
+            reportError("Unknown variable name %s", Name.c_str());
+        }
+        return nullptr;
+    }
+    if (!requireWritable(*Info, Name)) return nullptr;
+    return Info;
+}
+
 // Resolves a designator (or legacy variable/array-access node) to the address
 // of its storage plus the type name stored there. Array indexing goes through
 // ArrayHandler's checked pipeline; dereferences emit the null-pointer check.
 bool CodeGen::emitLValue(ExprAST *E, LValueInfo &Out) {
     SaveAndRestore<int> Location(DiagnosticLine, E && E->getLine() ? E->getLine() : DiagnosticLine);
     if (auto *Var = dynamic_cast<VariableExprAST*>(E)) {
-        const SymbolInfo *Info = getSymbolInfo(Var->getName());
-        if (!Info) {
-            if (Types->lookupEnumConstant(Var->getName())) {
-                reportError("Enum value %s is not an assignable location", Var->getName().c_str());
-            } else {
-                reportError("Unknown variable name %s", Var->getName().c_str());
-            }
-            return false;
-        }
-        if (!requireWritable(*Info, Var->getName())) return false;
+        const SymbolInfo *Info = lookupWritableSymbol(Var->getName());
+        if (!Info) return false;
         if (Info->IsArray) {
             reportError("Whole array %s is not an assignable location; index it", Var->getName().c_str());
             return false;
@@ -175,17 +183,8 @@ bool CodeGen::emitLValue(ExprAST *E, LValueInfo &Out) {
         return false;
     }
 
-    const SymbolInfo *Info = getSymbolInfo(D->getBaseName());
-    if (!Info) {
-        if (Types->lookupEnumConstant(D->getBaseName())) {
-            reportError("Enum value %s is not an assignable location", D->getBaseName().c_str());
-        } else {
-            reportError("Unknown variable name %s", D->getBaseName().c_str());
-        }
-        return false;
-    }
-
-    if (!requireWritable(*Info, D->getBaseName())) return false;
+    const SymbolInfo *Info = lookupWritableSymbol(D->getBaseName());
+    if (!Info) return false;
     const auto &Accesses = D->getAccesses();
     Value *Addr = symbolAddress(*Info);
     std::string TypeName = Info->TypeName;
