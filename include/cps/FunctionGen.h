@@ -85,6 +85,8 @@ private:
     std::function<void(llvm::Value *, const std::string &, int)> RegisterCopy;
 
     void createArgumentAllocas(llvm::Function *F, const std::vector<ParamDecl> &Params, bool IsMethod);
+    llvm::Type *getLLVMType(const std::string &TypeName);
+    llvm::Value *emitCall(const std::string &Callee, const std::vector<llvm::Value*> &Args);
 
 public:
     FunctionGen(llvm::LLVMContext &C,
@@ -95,8 +97,6 @@ public:
                 IdentifierMap<SymbolInfo> &Sym,
                 bool &HadErrorFlag, int &Line)
         : Context(C), Module(M), Builder(B), Types(TS), Exceptions(EH), Symbols(Sym), HadError(HadErrorFlag), DiagnosticLine(Line) {}
-
-    llvm::Type *getLLVMType(const std::string &TypeName);
 
     void setArrayParamBinder(ArrayParamBinder Binder) { BindArrayParam = std::move(Binder); }
 
@@ -117,7 +117,6 @@ public:
 
     llvm::Function *emitFunctionDef(FunctionDefAST *FuncAST, const std::function<void(StmtAST*)> &StmtEmitter, unsigned ScopeID);
 
-    llvm::Value *emitCall(const std::string &Callee, const std::vector<llvm::Value*> &Args);
     llvm::Value *emitCall(const FuncSig &Sig, const std::vector<llvm::Value*> &Args);
 
     void emitReturn(llvm::Value *RetVal);

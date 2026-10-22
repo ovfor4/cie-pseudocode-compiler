@@ -57,7 +57,6 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
         }
         Value *ArgVal = &(*AI);
         ++AI;
-        ArgVal->setName(P.Name);
 
         if (P.IsArray) {
             // Data pointer + kBoundArgsPerDim bounds per dimension; binding
@@ -66,10 +65,8 @@ void FunctionGen::createArgumentAllocas(Function *F, const std::vector<ParamDecl
             for (int D = 1; D <= P.Rank; ++D) {
                 Value *LB = &(*AI);
                 ++AI;
-                LB->setName(P.Name + kLowerBoundSuffix + std::to_string(D));
                 Value *UB = &(*AI);
                 ++AI;
-                UB->setName(P.Name + kUpperBoundSuffix + std::to_string(D));
                 LBs.push_back(LB);
                 UBs.push_back(UB);
             }
@@ -438,14 +435,11 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
     return TheFunction;
 }
 
-static Value *GenerateCall(llvm::Module &Module,
-                           ExceptionHandler &Exceptions,
-                           const std::string &CalleeName,
-                           const std::vector<llvm::Value*> &Args,
-                           bool &HadError, int DiagnosticLine) {
-    Function *CalleeF = Module.getFunction(CalleeName);
+llvm::Value *FunctionGen::emitCall(const std::string &Callee, const std::vector<llvm::Value*> &Args) {
+    // A link name can be taken by another module global (e.g. FUNCTION stderr).
+    Function *CalleeF = Module.getFunction(Callee);
     if (!CalleeF) {
-        sourceError(DiagnosticLine, "Call to undefined function %s", CalleeName.c_str());
+        sourceError(DiagnosticLine, "Call to undefined function %s", Callee.c_str());
         HadError = true;
         return nullptr;
     }
@@ -455,10 +449,6 @@ static Value *GenerateCall(llvm::Module &Module,
     }
 
     return Exceptions.emitCall(CalleeF, Args, "calltmp");
-}
-
-llvm::Value *FunctionGen::emitCall(const std::string &Callee, const std::vector<llvm::Value*> &Args) {
-    return GenerateCall(Module, Exceptions, Callee, Args, HadError, DiagnosticLine);
 }
 
 llvm::Value *FunctionGen::emitCall(const FuncSig &Sig, const std::vector<llvm::Value*> &Args) {
