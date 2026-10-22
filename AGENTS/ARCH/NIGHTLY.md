@@ -22,7 +22,8 @@ See [`bundle/AGENTS/DEVELOPMENT.md`](../../bundle/AGENTS/DEVELOPMENT.md) for the
 
 The Linux compiler and plugin jobs use Ubuntu 24.04 x86_64; the macOS compiler
 job uses a macOS 15 arm64 runner, and Windows uses Windows Server 2025 x86_64.
-All four check out the push SHA and run independently. All three
+All four check out the push SHA with full history (per-product versions use
+`git log` on each product's paths) and run independently. All three
 compiler jobs use LLVM/Clang/LLD 23, Perl (build-time), Release and EMBEDDED settings, Pandoc, and the
 existing `release` target. Linux obtains its toolchain from apt.llvm.org; macOS
 uses Homebrew's LLVM 23 and builds matching static LLD with the helper described in
