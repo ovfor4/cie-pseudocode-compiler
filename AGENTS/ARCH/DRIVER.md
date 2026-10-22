@@ -47,8 +47,9 @@ style is in [CONVENTIONS/SYMBOLS_AND_ERRORS.md](../CONVENTIONS/SYMBOLS_AND_ERROR
   than grepping stderr.
 - Successful compilation overwrites the output, but paths aliasing any input source
   (including symlinks/hard links) are rejected.
-- In PATH mode, `-r` executes PATH's `lli` using LLVM Support process APIs, with
-  inherited stdin/stdout/stderr and no shell. Missing lli is rejected before
+- In PATH mode (`tools/driver/PathRunner.cc`, built only in that mode), `-r`
+  executes PATH's `lli` using LLVM Support process APIs, with inherited
+  stdin/stdout/stderr and no shell. Missing lli is rejected before
   compiling or writing output. The selected `lli --version` must identify LLVM 23
   and succeed within five seconds; other or unrecognized versions fail before
   source compilation. Without `-r`, no external tools are checked; clang/clang++

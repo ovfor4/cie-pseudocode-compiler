@@ -101,6 +101,8 @@ if(CPSC_RUN_MODE STREQUAL "EMBEDDED")
     target_sources(cpsc PRIVATE
         tools/driver/EmbeddedRunner.cc
         tools/driver/MinGWJIT.cc)
+elseif(CPSC_RUN_MODE STREQUAL "PATH")
+    target_sources(cpsc PRIVATE tools/driver/PathRunner.cc)
 endif()
 if(MINGW)
     target_link_options(cpsc PRIVATE -static)

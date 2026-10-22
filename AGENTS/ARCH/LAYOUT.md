@@ -28,6 +28,7 @@
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
 | `tools/driver/NativeCompiler.cc`, `cmake/NativeCompiler.cmake` | Host object generation, embedded Clang/LLD linking and compressed link resources |
 | `tools/driver/EmbeddedRunner.cc`, `tools/driver/MinGWJIT.cc`, `cmake/EmbeddedLLVM.cmake` | EMBEDDED-only LLJIT/JITLink runner and MinGW COFF/SEH support; static support-library selection for all modes |
+| `tools/driver/PathRunner.cc` | PATH-only `-r` runner: lli lookup, LLVM 23 version check and lli execution |
 | `cmake/LocalDependencies.cmake`, `cmake/*Packages.cmake` | Local package extraction and platform relocation |
 | `cmake/DependencyPaths.cmake`, `cmake/FindDependency.cmake` | Shared local paths and local-first/system-fallback lookup |
 | `cmake/BuildTools.cmake`, `cmake/LLVMDependencies.cmake` | Compiler/build tool selection and LLVM dependency discovery |
