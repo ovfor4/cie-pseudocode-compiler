@@ -9,12 +9,12 @@ cpsc-keyword-for, cpsc-keyword-to, cpsc-keyword-step, cpsc-keyword-next - iterat
 ```text
 FOR variable <- start TO finish [STEP increment]
     statements
-NEXT variable
+NEXT [variable]
 ```
 
 # DESCRIPTION
 
-The loop variable must already be declared INTEGER. Both endpoints are inclusive. STEP defaults to 1; use a negative value to count down. STEP is evaluated once, while the finish expression is evaluated each iteration. NEXT must name the same variable. Use a nonzero STEP. TO, STEP, and NEXT belong to this syntax.
+The loop variable must already be declared INTEGER. Both endpoints are inclusive. STEP defaults to 1; use a negative value to count down. STEP is evaluated once, while the finish expression is evaluated each iteration. The variable after NEXT is optional. If present, it must be on the same line as NEXT and name the loop variable. Use a nonzero STEP. TO, STEP, and NEXT belong to this syntax.
 
 # EXAMPLE
 

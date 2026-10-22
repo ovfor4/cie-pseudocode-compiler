@@ -124,18 +124,17 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
         return nullptr;
     }
     getNextToken();
-    
-    if (CurTok != tok_identifier) {
-        cps::sourceError(Lex.getLine(), "expected identifier after NEXT (e.g., NEXT %s)", VarName.c_str());
-        return nullptr;
-    }
 
-    if (!sameIdentifier(Lex.IdentifierStr, VarName)) {
-        cps::sourceError(Lex.getLine(), "NEXT identifier '%s' does not match FOR variable '%s'",
-                Lex.IdentifierStr.c_str(), VarName.c_str());
-        return nullptr;
+    // The identifier after NEXT is optional; one on the next line starts a
+    // new statement.
+    if (CurTok == tok_identifier && !StartsLine) {
+        if (!sameIdentifier(Lex.IdentifierStr, VarName)) {
+            cps::sourceError(Lex.getLine(), "NEXT identifier '%s' does not match FOR variable '%s'",
+                    Lex.IdentifierStr.c_str(), VarName.c_str());
+            return nullptr;
+        }
+        getNextToken();
     }
-    getNextToken();
 
     return std::make_unique<ForStmtAST>(VarName, std::move(Start), std::move(End), std::move(Step), std::move(Body));
 }
