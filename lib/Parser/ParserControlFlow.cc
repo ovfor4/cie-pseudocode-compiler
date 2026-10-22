@@ -26,10 +26,13 @@ std::unique_ptr<StmtAST> Parser::ParseIfStmt() {
     if (!Cond) return nullptr;
 
     if (CurTok != tok_then) {
-        cps::sourceError(Lex.getLine(), "expected THEN");
-        return nullptr;
+        cps::sourceError(missingLine(), "expected THEN");
+        // A THEN missing at the end of a line is reported and then treated as
+        // present so the rest of the statement still parses.
+        if (!StartsLine) return nullptr;
+    } else {
+        getNextToken();
     }
-    getNextToken();
 
     std::vector<std::unique_ptr<StmtAST>> ThenStmts = ParseBlock({tok_else, tok_endif});
 
@@ -93,7 +96,7 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
     getNextToken();
 
     if (CurTok != tok_assign) {
-        cps::sourceError(Lex.getLine(), "expected '<-' in FOR loop");
+        cps::sourceError(missingLine(), "expected '<-' in FOR loop");
         return nullptr;
     }
     getNextToken();
@@ -102,7 +105,7 @@ std::unique_ptr<StmtAST> Parser::ParseForStmt() {
     if (!Start) return nullptr;
 
     if (CurTok != tok_to) {
-        cps::sourceError(Lex.getLine(), "expected TO in FOR loop");
+        cps::sourceError(missingLine(), "expected TO in FOR loop");
         return nullptr;
     }
     getNextToken();

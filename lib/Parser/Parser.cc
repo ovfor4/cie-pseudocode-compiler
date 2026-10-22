@@ -30,6 +30,7 @@ Parser::Parser(Lexer &L) : Lex(L) {
 
 void Parser::getNextToken() {
     int PreviousLine = CurTok == tok_eof ? 0 : Lex.getLine();
+    PrevTokLine = PreviousLine;
     CurTok = Lex.gettok();
     StartsLine = Lex.getLine() != PreviousLine;
 }

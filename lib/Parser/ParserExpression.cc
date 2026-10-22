@@ -211,7 +211,7 @@ std::unique_ptr<ExprAST> Parser::ParseParenExpr() {
     auto V = ParseExpression();
     if (!V) return nullptr;
     if (CurTok != ')') {
-        cps::sourceError(Lex.getLine(), "expected ')'");
+        cps::sourceError(missingLine(), "expected ')'");
         return nullptr;
     }
     getNextToken();

@@ -19,6 +19,7 @@ class Parser {
     Lexer &Lex;
     int CurTok = tok_eof;
     bool StartsLine = true;
+    int PrevTokLine = 0; // line of the token before CurTok
     bool ParsingCaseLabel = false;
     std::vector<unsigned> CaseBodyDepths;
     unsigned NumErrors = 0;
@@ -33,6 +34,9 @@ class Parser {
     };
 
     void getNextToken();
+    // Line for a diagnostic about a token missing before CurTok: the previous
+    // line when CurTok starts a new one.
+    int missingLine() const { return StartsLine ? PrevTokLine : Lex.getLine(); }
     int GetTokPrecedence();
 
     std::unique_ptr<ExprAST> ParseExpression();
