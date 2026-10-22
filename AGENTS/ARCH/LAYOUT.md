@@ -25,6 +25,7 @@
 | `lib/CodeGen/MemoryHandler.cc` | Explicit raw memory allocation, resizing and release with a live-address tracking list |
 | `lib/CodeGen/FileHandler.cc`, `FileRuntimeIO.cc` | File runtime setup/lookup/open and call entry points; read/write/close/EOF helper bodies |
 | `lib/CodeGen/ArrayHandler.cc`, `ArrayParameters.cc`, `ArrayOutput.cc` | Array allocation/indexing, parameter binding/arguments and whole/subarray output |
+| `include/cps/CABI.h`, `lib/CodeGen/CABI/ClangABI.cc`, `lib/CodeGen/CABI/Lowering.cc` | EXTERN C ABI: the ABI description, the only file that includes clang CodeGen headers, and the generic lowering of signatures, arguments and returns |
 | `lib/CodeGen/*Handler.cc`, `FunctionGen.cc`, `RuntimeCheck.cc`, `TypeSystem.cc` | Helpers owned by CodeGen (including exception emission) |
 | `CMakeLists.txt` | 3 static libs (CPSLexer, CPSParser, CPSCodeGen) + `cpsc`. **New .cc files must be added to the source lists here** |
 | `tools/driver/NativeCompiler.cc`, `cmake/NativeCompiler.cmake` | Host object generation, embedded Clang/LLD linking and compressed link resources |

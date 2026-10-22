@@ -32,3 +32,6 @@ Build pin: **LLVM 23 and upstream Clang 23** (any 23.x release); 23.1.3 is teste
 by nightly CI on Linux, Windows and macOS. LLVM 23 uses `CreateGlobalString` for opaque string pointers,
 `hasTerminator()` for block termination checks (its `getTerminator()` requires an
 existing terminator), and an explicit `llvm::Triple` for the embedded target.
+The static Clang archives used are `clangDriver` (native linking) and `clangCodeGen`
+(the C ABI for EXTERN, through `clang/CodeGen/CodeGenABITypes.h`); CMake checks that
+both are static.

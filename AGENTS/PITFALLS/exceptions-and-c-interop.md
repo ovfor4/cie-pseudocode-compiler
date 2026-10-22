@@ -31,8 +31,14 @@ Part of the [pitfalls index](../PITFALLS.md).
 
 ## EXTERN "C" extension
 
-- Top-level, body-less; parameters/results are C types only, no BYREF/OVERLOAD/structs.
-  Variadic arguments must be C values (default promotions).
+- Top-level, body-less; parameters/results are C types, C-struct records or pointer
+  types finally pointing to either (not `^INTEGER`, not `TYPE P = ^P`); no
+  BYREF/OVERLOAD. Variadic arguments must be C values (default promotions), C-struct
+  records or pointers (never promoted); `^x` of a C value passes as `void*`.
+- A C-struct record's fields must have those types too: one INTEGER, REAL, CHAR,
+  BOOLEAN, STRING, enum or CLASS field rejects the whole record (`... uses record R,
+  which is not a C struct: field F of R has type T`). cpsc never sees the C
+  declaration: field order and types must match it by hand.
 - The driver checks every EXTERN symbol against INCLUDE_OBJ inputs before CodeGen;
   `"__libc"` must be included explicitly even though the runtime always links libc.
 - Only `.o` user objects; INCLUDE_OBJ is global across inputs. `-S` does not link them.

@@ -23,6 +23,8 @@ A prefix caret takes an address (`^variable`); a suffix caret dereferences a poi
 
 Records contain one or more DECLARE fields and end with ENDTYPE. Access fields with a dot. Whole records copy by value; array fields are unsupported. Distinct user-defined type names remain distinct types. SET/DEFINE are reserved but unsupported.
 
+A record whose fields are all C types, such records or pointer types to either is a C struct: EXTERN functions take and return it by value or through a pointer type. See [cpsc-keyword-extern(7)](cpsc-keyword-extern.7.md).
+
 C_TYPE imports a native C type as an alias. Unlike the original enumerations, records and pointer declarations, C aliases with the same underlying C type are interchangeable. See [cpsc-keyword-c_type(7)](cpsc-keyword-c_type.7.md) for supported types and explicit casts.
 
 # EXAMPLE
@@ -42,4 +44,4 @@ OUTPUT Position.X
 
 # SEE ALSO
 
-[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-declare(7)](cpsc-keyword-declare.7.md), [cpsc-keyword-class(7)](cpsc-keyword-class.7.md), [cpsc-keyword-try(7)](cpsc-keyword-try.7.md).
+[cpsc-language-overview(7)](../cpsc-language-overview.7.md), [cpsc-keyword-declare(7)](cpsc-keyword-declare.7.md), [cpsc-keyword-class(7)](cpsc-keyword-class.7.md), [cpsc-keyword-extern(7)](cpsc-keyword-extern.7.md), [cpsc-keyword-try(7)](cpsc-keyword-try.7.md).
