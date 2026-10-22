@@ -86,6 +86,7 @@ private:
     std::function<void(const FuncSig &)> BeforeCall;
     ArrayParamBinder BindArrayParam;
     std::function<void(llvm::Value *, const std::string &, int)> RegisterCopy;
+    std::function<void(int, const std::string &)> MissingReturn;
     ClangABI ABI{Context, Types}; // clang context created on the first EXTERN
 
     void createArgumentAllocas(llvm::Function *F, const std::vector<ParamDecl> &Params, bool IsMethod);
@@ -104,6 +105,12 @@ public:
         : Context(C), Module(M), Builder(B), Types(TS), Exceptions(EH), Symbols(Sym), HadError(HadErrorFlag), DiagnosticLine(Line) {}
 
     void setArrayParamBinder(ArrayParamBinder Binder) { BindArrayParam = std::move(Binder); }
+
+    // Called (with the FUNCTION header line and name) where a non-VOID FUNCTION
+    // body can fall off its end; emits the runtime error and throw.
+    void setMissingReturnHandler(std::function<void(int, const std::string &)> Handler) {
+        MissingReturn = std::move(Handler);
+    }
 
     void setCopyRegistrar(std::function<void(llvm::Value *, const std::string &, int)> Registrar) {
         RegisterCopy = std::move(Registrar);

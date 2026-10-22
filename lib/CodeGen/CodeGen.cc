@@ -77,6 +77,14 @@ CodeGen::CodeGen() {
         activateStackObject(registerStackObject(Addr, TypeName, Line));
     });
 
+    FuncGen->setMissingReturnHandler([this](int Line, const std::string &Name) {
+        Value *Msg = Builder->CreateGlobalString("[Fatal] line %d: FUNCTION %s ended without RETURN\n",
+                                                 "err_missing_return", 0, TheModule.get());
+        Value *NameStr = Builder->CreateGlobalString(Name, "function_name", 0, TheModule.get());
+        RuntimeChecker->emitStderr(Msg, {RuntimeChecker->lineValue(Line), NameStr});
+        Exceptions->emitThrow();
+    });
+
     SetupExternalFunctions();
 }
 

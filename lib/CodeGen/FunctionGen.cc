@@ -444,6 +444,10 @@ Function *FunctionGen::emitFunctionDef(FunctionDefAST *FuncAST,
     if (!Builder.GetInsertBlock()->hasTerminator()) {
         if (sameIdentifier(Proto->getReturnType(), "VOID")) {
             Exceptions.recordExit(Builder.CreateRetVoid());
+        } else if (MissingReturn && !(!IsMethod && sameIdentifier(Proto->getName(), "MAIN"))) {
+            // Falling off the end of a FUNCTION is a runtime error, not a zero value.
+            // The handler ends the block with a throw (unreachable).
+            MissingReturn(FuncAST->getLine(), Proto->getName());
         } else {
             Exceptions.recordExit(Builder.CreateRet(Constant::getNullValue(TheFunction->getReturnType())));
         }
