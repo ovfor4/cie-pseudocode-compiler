@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <unordered_map>
 
 using namespace cps;
 
@@ -158,100 +159,89 @@ int Lexer::readToken() {
                 HadError = true;
             }
         }
-        if (IdentifierStr == "CONSTANT") return tok_constant;
-        if (IdentifierStr == "INCLUDE") return tok_include;
-        if (IdentifierStr == "INCLUDE_OBJ") return tok_include_obj;
-        if (IdentifierStr == "EXTERN") return tok_extern;
-        if (IdentifierStr == "EXTERN_FUNCTION") return tok_extern_function;
-        if (IdentifierStr == "EXTERN_PROCEDURE") return tok_extern_procedure;
-        if (IdentifierStr == "GLOBAL") return tok_global;
-        if (IdentifierStr == "ENDGLOBAL") return tok_endglobal;
-        if (IdentifierStr == "DECLARE") return tok_declare;
-        if (IdentifierStr == "INTEGER") return tok_integer_kw;
-        if (IdentifierStr == "BOOLEAN") return tok_boolean_kw;
-        if (IdentifierStr == "REAL")    return tok_real_kw;
-        if (IdentifierStr == "STRING")  return tok_string_kw;
-        if (IdentifierStr == "CHAR")    return tok_char_kw;
-        if (IdentifierStr == "C_TYPE") return tok_c_type;
-        if (IdentifierStr == "C_INT") return tok_c_int;
-        if (IdentifierStr == "C_CHAR") return tok_c_char;
-        if (IdentifierStr == "C_STRING") return tok_c_string;
-        if (IdentifierStr == "C_DOUBLE") return tok_c_double;
-
-        if (IdentifierStr == "TRUE") return tok_true;
-        if (IdentifierStr == "FALSE") return tok_false;
-
-        if (IdentifierStr == "INPUT") return tok_input;
-        if (IdentifierStr == "OUTPUT") return tok_output;
-
-        if (IdentifierStr == "CASE") return tok_case;
-        if (IdentifierStr == "ENDCASE") return tok_endcase;
-        if (IdentifierStr == "OTHERWISE") return tok_otherwise;
-
-        if (IdentifierStr == "IF") return tok_if;
-        if (IdentifierStr == "THEN") return tok_then;
-        if (IdentifierStr == "ELSE") return tok_else;
-        if (IdentifierStr == "ENDIF") return tok_endif;
-
-        if (IdentifierStr == "TRY") return tok_try;
-        if (IdentifierStr == "CATCH") return tok_catch;
-        if (IdentifierStr == "ENDTRY") return tok_endtry;
-        if (IdentifierStr == "THROW") return tok_throw;
-
-        if (IdentifierStr == "WHILE") return tok_while;
-        if (IdentifierStr == "ENDWHILE") return tok_endwhile;
-
-        if (IdentifierStr == "REPEAT") return tok_repeat;
-        if (IdentifierStr == "UNTIL") return tok_until;
-
-        if (IdentifierStr == "FOR") return tok_for;
-        if (IdentifierStr == "TO") return tok_to;
-        if (IdentifierStr == "STEP") return tok_step;
-        if (IdentifierStr == "NEXT") return tok_next;
-
-        if (IdentifierStr == "ARRAY") return tok_array;
-        if (IdentifierStr == "OF") return tok_of;
-
-        if (IdentifierStr == "DIV") return tok_div;
-        if (IdentifierStr == "MOD") return tok_mod;
-
-        if (IdentifierStr == "AND") return tok_and;
-        if (IdentifierStr == "OR") return tok_or;
-        if (IdentifierStr == "NOT") return tok_not;
-
-        if (IdentifierStr == "OPERATOR") return tok_operator;
-        if (IdentifierStr == "OVERLOAD") return tok_overload;
-        if (IdentifierStr == "TEMPLATE") return tok_template;
-        if (IdentifierStr == "FUNCTION") return tok_function;
-        if (IdentifierStr == "ENDFUNCTION") return tok_endfunction;
-        if (IdentifierStr == "PROCEDURE") return tok_procedure;
-        if (IdentifierStr == "ENDPROCEDURE") return tok_endprocedure;
-        if (IdentifierStr == "RETURN") return tok_return;
-        if (IdentifierStr == "RETURNS") return tok_returns;
-        if (IdentifierStr == "CALL") return tok_call;
-
-        if (IdentifierStr == "BYREF") return tok_byref;
-        if (IdentifierStr == "BYVAL") return tok_byval;
-
-        if (IdentifierStr == "OPENFILE") return tok_openfile;
-        if (IdentifierStr == "READFILE") return tok_readfile;
-        if (IdentifierStr == "WRITEFILE") return tok_writefile;
-        if (IdentifierStr == "CLOSEFILE") return tok_closefile;
-        if (IdentifierStr == "READ") return tok_read;
-        if (IdentifierStr == "WRITE") return tok_write;
-        if (IdentifierStr == "APPEND") return tok_append;
-        if (IdentifierStr == "RANDOM") return tok_random;
-
-        if (IdentifierStr == "TYPE") return tok_type;
-        if (IdentifierStr == "ENDTYPE") return tok_endtype;
-        if (IdentifierStr == "SET") return tok_set;
-        if (IdentifierStr == "DEFINE") return tok_define;
-        if (IdentifierStr == "NEW") return tok_new;
-        if (IdentifierStr == "DELETE") return tok_delete;
-        if (IdentifierStr == "CLASS") return tok_class;
-        if (IdentifierStr == "ENDCLASS") return tok_endclass;
-        if (IdentifierStr == "PUBLIC") return tok_public;
-        if (IdentifierStr == "PRIVATE") return tok_private;
+        static const std::unordered_map<std::string, int> Keywords = {
+            {"CONSTANT", tok_constant},
+            {"INCLUDE", tok_include},
+            {"INCLUDE_OBJ", tok_include_obj},
+            {"EXTERN", tok_extern},
+            {"EXTERN_FUNCTION", tok_extern_function},
+            {"EXTERN_PROCEDURE", tok_extern_procedure},
+            {"GLOBAL", tok_global},
+            {"ENDGLOBAL", tok_endglobal},
+            {"DECLARE", tok_declare},
+            {"INTEGER", tok_integer_kw},
+            {"BOOLEAN", tok_boolean_kw},
+            {"REAL", tok_real_kw},
+            {"STRING", tok_string_kw},
+            {"CHAR", tok_char_kw},
+            {"C_TYPE", tok_c_type},
+            {"C_INT", tok_c_int},
+            {"C_CHAR", tok_c_char},
+            {"C_STRING", tok_c_string},
+            {"C_DOUBLE", tok_c_double},
+            {"TRUE", tok_true},
+            {"FALSE", tok_false},
+            {"INPUT", tok_input},
+            {"OUTPUT", tok_output},
+            {"CASE", tok_case},
+            {"ENDCASE", tok_endcase},
+            {"OTHERWISE", tok_otherwise},
+            {"IF", tok_if},
+            {"THEN", tok_then},
+            {"ELSE", tok_else},
+            {"ENDIF", tok_endif},
+            {"TRY", tok_try},
+            {"CATCH", tok_catch},
+            {"ENDTRY", tok_endtry},
+            {"THROW", tok_throw},
+            {"WHILE", tok_while},
+            {"ENDWHILE", tok_endwhile},
+            {"REPEAT", tok_repeat},
+            {"UNTIL", tok_until},
+            {"FOR", tok_for},
+            {"TO", tok_to},
+            {"STEP", tok_step},
+            {"NEXT", tok_next},
+            {"ARRAY", tok_array},
+            {"OF", tok_of},
+            {"DIV", tok_div},
+            {"MOD", tok_mod},
+            {"AND", tok_and},
+            {"OR", tok_or},
+            {"NOT", tok_not},
+            {"OPERATOR", tok_operator},
+            {"OVERLOAD", tok_overload},
+            {"TEMPLATE", tok_template},
+            {"FUNCTION", tok_function},
+            {"ENDFUNCTION", tok_endfunction},
+            {"PROCEDURE", tok_procedure},
+            {"ENDPROCEDURE", tok_endprocedure},
+            {"RETURN", tok_return},
+            {"RETURNS", tok_returns},
+            {"CALL", tok_call},
+            {"BYREF", tok_byref},
+            {"BYVAL", tok_byval},
+            {"OPENFILE", tok_openfile},
+            {"READFILE", tok_readfile},
+            {"WRITEFILE", tok_writefile},
+            {"CLOSEFILE", tok_closefile},
+            {"READ", tok_read},
+            {"WRITE", tok_write},
+            {"APPEND", tok_append},
+            {"RANDOM", tok_random},
+            {"TYPE", tok_type},
+            {"ENDTYPE", tok_endtype},
+            {"SET", tok_set},
+            {"DEFINE", tok_define},
+            {"NEW", tok_new},
+            {"DELETE", tok_delete},
+            {"CLASS", tok_class},
+            {"ENDCLASS", tok_endclass},
+            {"PUBLIC", tok_public},
+            {"PRIVATE", tok_private},
+        };
+        auto Keyword = Keywords.find(IdentifierStr);
+        if (Keyword != Keywords.end()) return Keyword->second;
 
         return tok_identifier;
     }
