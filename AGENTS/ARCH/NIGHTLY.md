@@ -5,14 +5,14 @@ filters. A shared concurrency group cancels superseded runs. A final publish job
 requires all four build jobs to succeed before updating the existing `nightly-build`
 release. Any build or check failure leaves all previous attachments untouched.
 The publish job deletes all old uploaded assets, including paginated results,
-then uploads the six new packages. It never creates or deletes the release
+then uploads the six packages under `latest` names, and `version.json` last. It never creates or deletes the release
 and preserves its tag, title and notes. GitHub's generated
 source downloads remain available.
 
 The native compiler jobs also build CPSC Bundle, reusing their EMBEDDED executable.
 Linux compiles and tests the app without publishing an installer. Windows x64
 adds a standalone .exe and macOS arm64 adds a .tar.xz containing the .app,
-both with HEAD-based filenames. Windows embeds its compiler and extracts it into
+both with per-product version filenames. Windows embeds its compiler and extracts it into
 the current working directory on startup; macOS keeps the compiler inside the app.
 Native runner tests check prefilled input, EOF, diagnostics, output before exit,
 stopping and restart. Portable packages are checked for the desktop executable,
@@ -48,7 +48,13 @@ that exactly one nonempty package exists for each build before any release API
 calls. It then checks main's current SHA to avoid modifying nightly for a
 superseded push. Release upload failures do not roll back deleted assets.
 The workflow uses `GITHUB_TOKEN` with `contents: write`.
-Compiler and VSIX package names use HEAD's UTC commit timestamp and short ID.
+Each product (compiler, plugin, bundle) is versioned by the last commit touching its
+paths, and its package names carry that commit's UTC `YYYYMMDD-HHMMSS-shorthash`.
+The publish job validates the names and requires the three compiler packages to
+share one version and the two bundles another, before any API call. Release assets
+replace that segment with `latest` (for example `cpsc-latest-Darwin-arm64.tar.xz`,
+`cpsc-plugin-latest.vsix`, `cpsc-bundle-latest-Windows-x86_64.exe`), and
+`version.json` records each product's `time` and `commit`.
 The VSIX internal version is `YYYYMMDD.HHMMSS.0+commit`, with leading zeros
 removed from the numeric time component. Before committing workflow changes, run
 actionlint, simulate release API calls, and smoke-test the packages locally;

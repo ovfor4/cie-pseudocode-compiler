@@ -549,7 +549,7 @@ jobs:
           linux=(release-packages/nightly-linux/cpsc-*-Linux-x86_64.tar.xz)
           macos=(release-packages/nightly-macos/cpsc-*-Darwin-arm64.tar.xz)
           windows=(release-packages/nightly-windows/cpsc-*-Windows-*.zip)
-          plugin=(release-packages/nightly-plugin/*.vsix)
+          plugin=(release-packages/nightly-plugin/cpsc-plugin-*.vsix)
           bundle_macos=(release-packages/nightly-bundle-macos/cpsc-bundle-*-Darwin-arm64.tar.xz)
           bundle_windows=(release-packages/nightly-bundle-windows/cpsc-bundle-*-Windows-x86_64.exe)
           for count in "${#linux[@]}" "${#macos[@]}" "${#windows[@]}" "${#plugin[@]}" "${#bundle_macos[@]}" "${#bundle_windows[@]}"; do
@@ -562,6 +562,30 @@ jobs:
           for package in "${packages[@]}"; do
             test -s "$package"
           done
+          v='([0-9]{8}-[0-9]{6})-([0-9a-f]{7,40})'
+          version_of() {
+            local name
+            name=$(basename "$1")
+            if [[ ! "$name" =~ $2 ]]; then
+              echo "Unexpected package name: $name; leaving the release untouched." >&2
+              exit 1
+            fi
+            printf '%s %s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+          }
+          linux_v=$(version_of "${linux[0]}" "^cpsc-$v-Linux-x86_64\\.tar\\.xz\$")
+          macos_v=$(version_of "${macos[0]}" "^cpsc-$v-Darwin-arm64\\.tar\\.xz\$")
+          windows_v=$(version_of "${windows[0]}" "^cpsc-$v-Windows-[^/]+\\.zip\$")
+          plugin_v=$(version_of "${plugin[0]}" "^cpsc-plugin-$v\\.vsix\$")
+          bundle_macos_v=$(version_of "${bundle_macos[0]}" "^cpsc-bundle-$v-Darwin-arm64\\.tar\\.xz\$")
+          bundle_windows_v=$(version_of "${bundle_windows[0]}" "^cpsc-bundle-$v-Windows-x86_64\\.exe\$")
+          if [[ "$linux_v" != "$macos_v" || "$linux_v" != "$windows_v" ]]; then
+            echo "Compiler packages have different versions; leaving the release untouched." >&2
+            exit 1
+          fi
+          if [[ "$bundle_macos_v" != "$bundle_windows_v" ]]; then
+            echo "Bundle packages have different versions; leaving the release untouched." >&2
+            exit 1
+          fi
           latest_sha=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
           if [[ "$latest_sha" != "$GITHUB_SHA" ]]; then
             echo "This push has been superseded; leaving the release untouched."
@@ -573,4 +597,20 @@ jobs:
           while IFS= read -r asset_id; do
             gh api --method DELETE "repos/$GH_REPO/releases/assets/$asset_id"
           done < "$RUNNER_TEMP/nightly-asset-ids"
-          gh release upload "$CPSC_NIGHTLY_TAG" "${packages[@]}" --clobber
+          upload="$RUNNER_TEMP/nightly-upload"
+          mkdir -p "$upload"
+          latest_files=()
+          for package in "${packages[@]}"; do
+            name=$(basename "$package")
+            [[ "$name" =~ $v ]]
+            latest_files+=("$upload/${name/${BASH_REMATCH[0]}/latest}")
+            cp "$package" "${latest_files[-1]}"
+          done
+          read -r compiler_time compiler_commit <<< "$linux_v"
+          read -r plugin_time plugin_commit <<< "$plugin_v"
+          read -r bundle_time bundle_commit <<< "$bundle_macos_v"
+          printf '{\n  "compiler": { "time": "%s", "commit": "%s" },\n  "plugin": { "time": "%s", "commit": "%s" },\n  "bundle": { "time": "%s", "commit": "%s" }\n}\n' \
+            "$compiler_time" "$compiler_commit" "$plugin_time" "$plugin_commit" "$bundle_time" "$bundle_commit" \
+            > "$upload/version.json"
+          gh release upload "$CPSC_NIGHTLY_TAG" "${latest_files[@]}" --clobber
+          gh release upload "$CPSC_NIGHTLY_TAG" "$upload/version.json" --clobber
