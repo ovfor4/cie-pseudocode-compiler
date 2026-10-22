@@ -1,4 +1,5 @@
 #pragma once
+#include "cps/CABI.h"
 #include "cps/Identifier.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
@@ -45,9 +46,11 @@ struct FuncSig {
     std::vector<ParamSig> Params;
     size_t OwnerUnit = 0;
     // EXTERN "C": called through its declared C type, which may differ from a
-    // runtime declaration of the same libc symbol.
+    // runtime declaration of the same libc symbol. ExternABI is clang's
+    // arrangement of the fixed parameters; ExternType and ExternAttrs lower it.
     bool IsExternal = false;
     bool IsVariadic = false;
+    CABISignature ExternABI;
     llvm::FunctionType *ExternType = nullptr;
     llvm::AttributeList ExternAttrs;
 };
@@ -83,6 +86,7 @@ private:
     std::function<void(const FuncSig &)> BeforeCall;
     ArrayParamBinder BindArrayParam;
     std::function<void(llvm::Value *, const std::string &, int)> RegisterCopy;
+    ClangABI ABI{Context, Types}; // clang context created on the first EXTERN
 
     void createArgumentAllocas(llvm::Function *F, const std::vector<ParamDecl> &Params, bool IsMethod);
     llvm::Type *getLLVMType(const std::string &TypeName);

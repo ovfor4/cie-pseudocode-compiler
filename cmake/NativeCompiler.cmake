@@ -19,7 +19,7 @@ else()
     set(cpsc_linker_libraries lldELF)
 endif()
 
-foreach(cpsc_native_library clangDriver ${cpsc_linker_libraries})
+foreach(cpsc_native_library clangDriver clangCodeGen ${cpsc_linker_libraries})
     get_target_property(cpsc_native_type ${cpsc_native_library} TYPE)
     if(NOT cpsc_native_type STREQUAL "STATIC_LIBRARY")
         message(FATAL_ERROR "Native output requires static ${cpsc_native_library}; found ${cpsc_native_type}. See doc/build.md for static dependency setup.")
@@ -75,6 +75,9 @@ target_sources(cpsc PRIVATE tools/driver/NativeCompiler.cc)
 target_include_directories(cpsc PRIVATE ${CLANG_INCLUDE_DIRS} ${LLD_INCLUDE_DIRS}
     "${CMAKE_BINARY_DIR}/native-runtime")
 target_link_libraries(cpsc PRIVATE clangDriver ${cpsc_linker_libraries})
+# EXTERN signatures use clang's C ABI code (lib/CodeGen/CABI/ClangABI.cc).
+target_include_directories(CPSCodeGen PRIVATE ${CLANG_INCLUDE_DIRS})
+target_link_libraries(CPSCodeGen PRIVATE clangCodeGen clangDriver)
 if(MINGW AND TARGET LibXml2::LibXml2)
     # LLD's COFF manifest support reaches libxml2 through LLVMWindowsManifest.
     # An explicit .dll.a in that interface bypasses the driver's -static flag.

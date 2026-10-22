@@ -274,7 +274,7 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
 }
 
 // The prototype names the exact C symbol; parameters and the result must be C
-// types. Narrow integers carry the C ABI's sign/zero extension attributes.
+// types. clang arranges the signature for the host C ABI.
 bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
     if (PrototypeLinks.count(Proto)) return true;
     const std::string &Name = Proto->getName();
@@ -290,13 +290,6 @@ bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
         reportError("'%s' is already a type or enum value name", Name.c_str());
         return false;
     }
-
-    auto Extension = [](const TypeInfo *Info) {
-        if (Info->Kind != TypeKind::CScalar || !Info->LLVMType->isIntegerTy() ||
-            Info->LLVMType->getIntegerBitWidth() >= 32)
-            return Attribute::None;
-        return Info->CSigned ? Attribute::SExt : Attribute::ZExt;
-    };
 
     // Records cross the C boundary only as C structs, for now through a
     // pointer type. What names the parameter or return type in diagnostics.
@@ -327,9 +320,7 @@ bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
     Sig.IsExternal = true;
     Sig.IsVariadic = Proto->isVariadic();
 
-    std::vector<Type *> ArgTypes;
-    AttrBuilder RetAttrs(Context);
-    std::vector<AttributeSet> ParamAttrs;
+    std::vector<const TypeInfo *> ArgTypes;
     for (size_t I = 0; I < Proto->getParams().size(); ++I) {
         const ParamDecl &P = Proto->getParams()[I];
         const TypeInfo *Info = Types.resolve(P.TypeName);
@@ -344,15 +335,12 @@ bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
                         I + 1, Name.c_str(), P.TypeName.c_str());
             return false;
         }
-        ArgTypes.push_back(Info->LLVMType);
-        AttrBuilder B(Context);
-        if (Attribute::AttrKind K = Extension(Info); K != Attribute::None) B.addAttribute(K);
-        ParamAttrs.push_back(AttributeSet::get(Context, B));
+        ArgTypes.push_back(Info);
         ParamSig PS;
         PS.TypeName = P.TypeName;
         Sig.Params.push_back(std::move(PS));
     }
-    Type *RetType = Type::getVoidTy(Context);
+    const TypeInfo *RetType = nullptr;
     if (!sameIdentifier(Proto->getReturnType(), "VOID")) {
         const TypeInfo *Info = Types.resolve(Proto->getReturnType());
         if (!Info) {
@@ -365,8 +353,7 @@ bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
                         Name.c_str(), Proto->getReturnType().c_str());
             return false;
         }
-        RetType = Info->LLVMType;
-        if (Attribute::AttrKind K = Extension(Info); K != Attribute::None) RetAttrs.addAttribute(K);
+        RetType = Info;
     }
 
     // Repeated identical EXTERN declarations, as in C, share one symbol; each
@@ -388,6 +375,7 @@ bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
             reportError("Conflicting EXTERN declarations of %s", Name.c_str());
             return false;
         }
+        Sig.ExternABI = First.ExternABI;
         Sig.ExternType = First.ExternType;
         Sig.ExternAttrs = First.ExternAttrs;
         PrototypeLinks.emplace(Proto, Name);
@@ -401,10 +389,16 @@ bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
         else reportError("EXTERN %s conflicts with FUNCTION/PROCEDURE %s", Name.c_str(), Name.c_str());
         return false;
     }
-    Sig.ExternType = FunctionType::get(RetType, ArgTypes, Proto->isVariadic());
-    Sig.ExternAttrs = AttributeList::get(Context, AttributeSet(),
-                                         AttributeSet::get(Context, RetAttrs), ParamAttrs);
-    Module.getOrInsertFunction(Name, Sig.ExternType);
+    std::string Err;
+    if (!ABI.arrange(RetType, ArgTypes, ArgTypes.size(), Sig.IsVariadic, Sig.ExternABI, Err)) {
+        reportError("Internal: cannot arrange EXTERN %s: %s", Name.c_str(), Err.c_str());
+        return false;
+    }
+    Sig.ExternType = getCABIFunctionType(Sig.ExternABI);
+    Sig.ExternAttrs = getCABIAttributes(Context, Sig.ExternABI);
+    FunctionCallee Declared = Module.getOrInsertFunction(Name, Sig.ExternType);
+    if (auto *F = dyn_cast<Function>(Declared.getCallee()))
+        F->setCallingConv(Sig.ExternABI.CallingConv);
     PrototypeLinks.emplace(Proto, Name);
     Overloads.push_back(std::move(Sig));
     return true;
@@ -485,10 +479,18 @@ llvm::Value *FunctionGen::emitCall(const FuncSig &Sig, const std::vector<llvm::V
     if (BeforeCall) BeforeCall(Sig);
     if (!Sig.IsExternal) return emitCall(Sig.LinkName, Args);
     FunctionCallee Callee(Sig.ExternType, Module.getNamedValue(Sig.LinkName));
+    // Variadic arguments arrive promoted and pass as they are.
+    size_t Fixed = Sig.ExternABI.Fixed;
+    Value *SRet = nullptr;
+    std::vector<Value *> IRArgs = lowerCABIArguments(
+        Builder, Sig.ExternABI, ArrayRef<Value *>(Args).take_front(Fixed), SRet);
+    IRArgs.insert(IRArgs.end(), Args.begin() + Fixed, Args.end());
     Value *Call = Sig.ExternType->getReturnType()->isVoidTy()
-        ? Exceptions.emitCall(Callee, Args) : Exceptions.emitCall(Callee, Args, "calltmp");
+        ? Exceptions.emitCall(Callee, IRArgs) : Exceptions.emitCall(Callee, IRArgs, "calltmp");
     cast<CallBase>(Call)->setAttributes(Sig.ExternAttrs);
-    return Call;
+    cast<CallBase>(Call)->setCallingConv(Sig.ExternABI.CallingConv);
+    Value *Result = lowerCABIResult(Builder, Sig.ExternABI, Call, SRet);
+    return Result ? Result : Call;
 }
 
 void FunctionGen::emitReturn(llvm::Value *RetVal) {

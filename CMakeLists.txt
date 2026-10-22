@@ -83,6 +83,8 @@ add_library(CPSCodeGen STATIC
     lib/CodeGen/MemoryHandler.cc
     lib/CodeGen/FileHandler.cc
     lib/CodeGen/FileRuntimeIO.cc
+    lib/CodeGen/CABI/ClangABI.cc
+    lib/CodeGen/CABI/Lowering.cc
 )
 
 llvm_map_components_to_libnames(llvm_libs core support native passes object)
