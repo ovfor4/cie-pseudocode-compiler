@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
             }
             OutputPath = argv[++I];
         } else if (isColorOption(Arg)) {
-            continue;
+            // Already applied above; not an unknown argument.
         } else if (Arg.empty() || Arg[0] == '-') {
             llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "unknown argument '" << Arg << "'\n";
             return compilationTerminated();
