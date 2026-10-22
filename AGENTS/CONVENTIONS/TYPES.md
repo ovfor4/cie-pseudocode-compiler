@@ -28,7 +28,7 @@ declared type names to distinguish `(Type)operand` from `(expression)`.
 **Builtin scalars are strictly typed.** `CodeGen::emitBinaryOp` (ExpressionGen.cc)
 rejects arithmetic on BOOLEAN/CHAR, AND/OR on non-BOOLEAN, and comparisons between
 different kinds (INTEGER with REAL is the only mixed pair); `emitCoercedExpr` allows
-only INTEGER->REAL between the four builtin scalars. BOOLEAN (i1) and CHAR (i8)
+only INTEGER->REAL between the four builtin scalars. REAL->INTEGER therefore errors (with an `INT(...)` hint); `INT` is a compiler builtin (`Builtins.h`, `CodeGen::emitIntBuiltin`) truncating toward zero with a range check. BOOLEAN (i1) and CHAR (i8)
 compare unsigned. C scalars keep C semantics.
 
 **User-kind typing is nominal, and checked upstream only.** Enum/Record/Pointer

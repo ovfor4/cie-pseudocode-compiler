@@ -10,7 +10,7 @@ Keywords are uppercase and case-sensitive. Identifiers, including built-in funct
 
 Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`, `<`, `>`, `<=`, and `>=`. Standard-library STRING comparisons compare contents, case-sensitively. Use `+`, `-`, `*`, and `/` for arithmetic; built-in `/` always returns REAL. Use `&` to join strings.
 
-User-defined types can overload operators with OVERLOAD FUNCTION OPERATOR; expressions then use the declared result type. See [cpsc-keyword-operator(7)](keyword/cpsc-keyword-operator.7.md). STRING cannot be implicitly converted to BOOLEAN. Typing is strict: arithmetic and unary minus accept only INTEGER and REAL, a comparison needs operands of the same type (or INTEGER with REAL), and BOOLEAN, CHAR and INTEGER never convert into one another implicitly (only INTEGER converts to REAL). Use ASC and CHR to move between CHAR and INTEGER.
+User-defined types can overload operators with OVERLOAD FUNCTION OPERATOR; expressions then use the declared result type. See [cpsc-keyword-operator(7)](keyword/cpsc-keyword-operator.7.md). STRING cannot be implicitly converted to BOOLEAN. Typing is strict: arithmetic and unary minus accept only INTEGER and REAL, a comparison needs operands of the same type (or INTEGER with REAL), and BOOLEAN, CHAR and INTEGER never convert into one another implicitly (only INTEGER converts to REAL). Use ASC and CHR to move between CHAR and INTEGER. REAL never converts to INTEGER implicitly; use INT.
 
 Precedence, from highest to lowest: unary operators, `* / DIV MOD`, `+ - &`, comparisons, AND, OR. Parentheses override precedence.
 
@@ -83,6 +83,7 @@ These ordinary functions and the STRING class come from the embedded standard li
 # BUILT-IN FUNCTIONS
 
 - [cpsc-function-eof(7)](function/cpsc-function-eof.7.md): test for the end of a text file.
+- [cpsc-function-int(7)](function/cpsc-function-int.7.md): take the integer part of a number.
 - [cpsc-function-malloc(7)](function/cpsc-function-malloc.7.md): allocate raw memory.
 - [cpsc-function-realloc(7)](function/cpsc-function-realloc.7.md): resize an explicit allocation.
 - [cpsc-function-free(7)](function/cpsc-function-free.7.md): release an explicit allocation.

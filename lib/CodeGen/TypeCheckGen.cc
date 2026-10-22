@@ -109,8 +109,10 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
         bool Allowed = Src->Kind == Target->Kind ||
                        (Src->Kind == TypeKind::Integer && Target->Kind == TypeKind::Real);
         if (!Allowed) {
-            reportError("Cannot use a value of type %s where %s is expected",
-                        Src->Name.c_str(), Target->Name.c_str());
+            reportError("Cannot use a value of type %s where %s is expected%s",
+                        Src->Name.c_str(), Target->Name.c_str(),
+                        Src->Kind == TypeKind::Real && Target->Kind == TypeKind::Integer
+                            ? " (use INT(...) to convert)" : "");
             return nullptr;
         }
     }

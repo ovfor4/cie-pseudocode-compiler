@@ -18,6 +18,7 @@ inline constexpr BuiltinInfo Builtins[] = {
     {"MALLOC",     1, "C_TYPE(\"void*\")"},
     {"REALLOC",    2, "C_TYPE(\"void*\")"},
     {"FREE",       1, "C_TYPE(\"void*\")"},
+    {"INT",        1, "INTEGER"},
 };
 
 inline const BuiltinInfo *findBuiltin(const std::string &Name) {

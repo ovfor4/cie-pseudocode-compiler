@@ -201,6 +201,7 @@ class CodeGen {
     // Read a value from resolved storage.
     llvm::Value *loadFromLValue(const LValueInfo &LV);
     llvm::Value *emitAllocationSize(ExprAST *Expr);
+    llvm::Value *emitIntBuiltin(ExprAST *Arg, int Line);
     llvm::Value *emitCall(const std::string &Callee,
                           const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line,
                           const std::vector<std::string> *Explicit = nullptr);

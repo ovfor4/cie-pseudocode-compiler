@@ -251,6 +251,7 @@ Value *CodeGen::emitCall(const std::string &Callee,
         if (!Address) return nullptr;
         return Memory->emitRelease(Address, Line);
     }
+    if (Name == "INT") return emitIntBuiltin(ArgExprs[0].get(), Line);
     if (Name == "EOF") {
         Value *FileName = emitFileNameOperand(ArgExprs[0].get(), "EOF");
         if (!FileName) return nullptr;
@@ -262,6 +263,30 @@ Value *CodeGen::emitCall(const std::string &Callee,
     const FuncSig *Sig = resolveCall(Name, ArgExprs, Explicit);
     if (!Sig || !marshalCallArgs(*Sig, ArgExprs, Line, Args, &Variadic)) return nullptr;
     return FuncGen->emitCall(*Sig, Args, Variadic);
+}
+
+// INT(x): the integer part of a REAL, truncated toward zero. NaN and values
+// outside the INTEGER range are a runtime error.
+Value *CodeGen::emitIntBuiltin(ExprAST *Arg, int Line) {
+    SaveAndRestore<int> Location(DiagnosticLine, Line ? Line : DiagnosticLine);
+    const TypeInfo *Info = getExprTypeInfo(Arg);
+    if (isWholeArrayVar(Arg) || !Info ||
+        (Info->Kind != TypeKind::Integer && Info->Kind != TypeKind::Real)) {
+        reportError("INT expects an INTEGER or REAL argument");
+        return nullptr;
+    }
+    Value *V = emitExpr(Arg);
+    if (!V || Info->Kind == TypeKind::Integer) return V;
+
+    Type *DoubleTy = Type::getDoubleTy(*TheContext);
+    Value *AtLeastMin = Builder->CreateFCmpOGE(V, ConstantFP::get(DoubleTy, -9223372036854775808.0), "int_ge_min");
+    Value *BelowMax = Builder->CreateFCmpOLT(V, ConstantFP::get(DoubleTy, 9223372036854775808.0), "int_lt_max");
+    Value *InRange = Builder->CreateAnd(AtLeastMin, BelowMax, "int_in_range");
+    Value *OutOfRange = Builder->CreateNot(InRange, "int_out_of_range");
+    Value *Msg = Builder->CreateGlobalString("[Fatal] line %d: INT argument out of INTEGER range\n",
+                                             "err_int_range", 0, TheModule.get());
+    RuntimeChecker->emitCheck(OutOfRange, Msg, {RuntimeChecker->lineValue(Line)});
+    return Builder->CreateFPToSI(V, Type::getInt64Ty(*TheContext), "int_value");
 }
 
 Value *CodeGen::emitAllocationSize(ExprAST *Expr) {
