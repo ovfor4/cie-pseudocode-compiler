@@ -99,6 +99,21 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
                     Src->Name.c_str(), Target->Name.c_str());
         return nullptr;
     }
+    // Builtin scalars never convert into one another implicitly, except
+    // INTEGER -> REAL: BOOLEAN and CHAR are not numbers (use ASC / CHR).
+    auto IsPlain = [](const TypeInfo *T) {
+        return T->Kind == TypeKind::Integer || T->Kind == TypeKind::Real ||
+               T->Kind == TypeKind::Boolean || T->Kind == TypeKind::Char;
+    };
+    if (Src && IsPlain(Target) && IsPlain(Src)) {
+        bool Allowed = Src->Kind == Target->Kind ||
+                       (Src->Kind == TypeKind::Integer && Target->Kind == TypeKind::Real);
+        if (!Allowed) {
+            reportError("Cannot use a value of type %s where %s is expected",
+                        Src->Name.c_str(), Target->Name.c_str());
+            return nullptr;
+        }
+    }
     return coerceValueToType(emitExpr(E), Target);
 }
 

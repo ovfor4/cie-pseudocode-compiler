@@ -12,7 +12,7 @@ NOT expression
 
 # DESCRIPTION
 
-Return BOOLEAN with the opposite truth value. NOT is a unary operator; parenthesize comparisons, for example `NOT (Count = 0)`.
+Return BOOLEAN with the opposite truth value. The operand must be BOOLEAN. NOT is a unary operator; parenthesize comparisons, for example `NOT (Count = 0)`.
 
 # EXAMPLE
 

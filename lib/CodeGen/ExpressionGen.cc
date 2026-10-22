@@ -106,6 +106,10 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
                 reportError("Unary '-' requires a supported numeric operand");
                 return nullptr;
             }
+            if (Info->Kind == TypeKind::Boolean || Info->Kind == TypeKind::Char) {
+                reportError("Unary '-' cannot be applied to %s", Info->Name.c_str());
+                return nullptr;
+            }
             Value *Operand = emitExpr(Unary->getOperand());
             if (!Operand) return nullptr;
             return ArithHandler->emitBinaryOp('-', ConstantInt::get(Type::getInt64Ty(*TheContext), 0),
@@ -188,6 +192,29 @@ Value *CodeGen::emitBinaryOp(int Op, Value *L, const TypeInfo *LT,
         return emitCBinaryOp(Op, L, LT, R, RT, Line);
     if ((LT && LT->isUserKind()) || (RT && RT->isUserKind()))
         return emitUserKindBinaryOp(Op, L, LT, R, RT, Line);
+
+    // Plain scalars only: BOOLEAN and CHAR are not numbers (use ASC / CHR),
+    // AND / OR take BOOLEAN, comparisons need equal types or INTEGER with REAL.
+    auto Numeric = [](const TypeInfo *T) {
+        return T->Kind == TypeKind::Integer || T->Kind == TypeKind::Real;
+    };
+    bool Ok = true;
+    switch (Op) {
+    case '+': case '-': case '*': case '/': case tok_div: case tok_mod:
+        Ok = Numeric(LT) && Numeric(RT);
+        break;
+    case tok_and: case tok_or:
+        Ok = LT->Kind == TypeKind::Boolean && RT->Kind == TypeKind::Boolean;
+        break;
+    case tok_eq: case tok_ne: case '<': case '>': case tok_le: case tok_ge:
+        Ok = LT->Kind == RT->Kind || (Numeric(LT) && Numeric(RT));
+        break;
+    }
+    if (!Ok) {
+        reportError("Operator %s cannot be applied to %s and %s",
+                    operatorSpelling(Op).c_str(), LT->Name.c_str(), RT->Name.c_str());
+        return nullptr;
+    }
     return ArithHandler->emitBinaryOp(Op, L, R, Line);
 }
 

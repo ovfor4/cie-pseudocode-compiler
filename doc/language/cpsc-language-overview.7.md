@@ -10,7 +10,7 @@ Keywords are uppercase and case-sensitive. Identifiers, including built-in funct
 
 Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`, `<`, `>`, `<=`, and `>=`. Standard-library STRING comparisons compare contents, case-sensitively. Use `+`, `-`, `*`, and `/` for arithmetic; built-in `/` always returns REAL. Use `&` to join strings.
 
-User-defined types can overload operators with OVERLOAD FUNCTION OPERATOR; expressions then use the declared result type. See [cpsc-keyword-operator(7)](keyword/cpsc-keyword-operator.7.md). STRING cannot be implicitly converted to BOOLEAN.
+User-defined types can overload operators with OVERLOAD FUNCTION OPERATOR; expressions then use the declared result type. See [cpsc-keyword-operator(7)](keyword/cpsc-keyword-operator.7.md). STRING cannot be implicitly converted to BOOLEAN. Typing is strict: arithmetic and unary minus accept only INTEGER and REAL, a comparison needs operands of the same type (or INTEGER with REAL), and BOOLEAN, CHAR and INTEGER never convert into one another implicitly (only INTEGER converts to REAL). Use ASC and CHR to move between CHAR and INTEGER.
 
 Precedence, from highest to lowest: unary operators, `* / DIV MOD`, `+ - &`, comparisons, AND, OR. Parentheses override precedence.
 

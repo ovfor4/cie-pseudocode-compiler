@@ -12,7 +12,7 @@ left AND right
 
 # DESCRIPTION
 
-Return BOOLEAN: true when both operands are true. Both operands are evaluated; AND does not short-circuit. AND binds more tightly than OR and less tightly than comparisons. Use parentheses for clarity.
+Return BOOLEAN: true when both operands are true. Both operands must be BOOLEAN; numbers and characters are rejected. Both operands are evaluated; AND does not short-circuit. AND binds more tightly than OR and less tightly than comparisons. Use parentheses for clarity.
 
 # EXAMPLE
 

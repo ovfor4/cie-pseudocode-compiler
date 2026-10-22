@@ -25,6 +25,12 @@ Allocation sizes still use LLVM sizeof; native C type widths use build-compiler
 sizeof. C alias declarations precede casts using their names; the parser tracks
 declared type names to distinguish `(Type)operand` from `(expression)`.
 
+**Builtin scalars are strictly typed.** `CodeGen::emitBinaryOp` (ExpressionGen.cc)
+rejects arithmetic on BOOLEAN/CHAR, AND/OR on non-BOOLEAN, and comparisons between
+different kinds (INTEGER with REAL is the only mixed pair); `emitCoercedExpr` allows
+only INTEGER->REAL between the four builtin scalars. BOOLEAN (i1) and CHAR (i8)
+compare unsigned. C scalars keep C semantics.
+
 **User-kind typing is nominal, and checked upstream only.** Enum/Record/Pointer
 identity is case-insensitive name equality (`P1 = ^INTEGER` and `P2 = ^INTEGER` are
 incompatible; same-layout records too). Their LLVM representations are
