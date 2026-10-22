@@ -364,7 +364,9 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
     RuntimeChecker->emitStderr(Msg);
     Builder->CreateRet(ConstantInt::get(Type::getInt32Ty(*TheContext), 1));
 
-    if (verifyModule(*TheModule, &errs())) {
+    // After a reported error the IR may be incomplete; verifying it would only
+    // dump noise behind the real diagnostic.
+    if (!HadError && verifyModule(*TheModule, &errs())) {
         errs() << cps::diagnosticPrefix(cps::Severity::Fatal, "") << "LLVM module verification failed\n";
         HadError = true;
     }

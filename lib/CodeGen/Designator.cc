@@ -219,7 +219,9 @@ bool CodeGen::emitLValue(ExprAST *E, LValueInfo &Out) {
             }
             const RecordFieldInfo *FI = RP->findField(A.FieldName);
             if (!FI) {
-                reportError("Record type %s has no field %s", TypeName.c_str(), A.FieldName.c_str());
+                // The rejected field was already reported with its record.
+                if (!RP->Invalid)
+                    reportError("Record type %s has no field %s", TypeName.c_str(), A.FieldName.c_str());
                 return false;
             }
             if (!FI->IsPublic && !sameIdentifier(CurrentClass, TypeName)) {

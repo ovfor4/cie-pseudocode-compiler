@@ -45,6 +45,7 @@ struct RecordFieldInfo {
 
 struct RecordPayload {
     std::vector<std::pair<std::string, RecordFieldInfo>> Fields; // declaration order
+    bool Invalid = false; // a field was rejected and skipped
     const RecordFieldInfo *findField(const std::string &Name) const;
 };
 

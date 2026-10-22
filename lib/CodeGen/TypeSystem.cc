@@ -199,32 +199,38 @@ bool TypeSystem::defineRecord(const std::string &Name,
         return false;
     }
 
+    // A bad field is skipped so the record still gets a body; Err keeps the
+    // first diagnostic and Invalid silences follow-up missing-field errors.
     std::vector<Type*> FieldTypes;
     RecordPayload Payload;
+    auto Bad = [&](std::string Message) {
+        if (!Payload.Invalid) Err = std::move(Message);
+        Payload.Invalid = true;
+    };
     for (const RecordFieldDecl &Field : Fields) {
         const std::string &FieldName = Field.Name;
         const std::string &FieldTypeName = Field.TypeName;
         if (Payload.findField(FieldName)) {
-            Err = "Duplicate field '" + FieldName + "' in record " + Name;
-            return false;
+            Bad("Duplicate field '" + FieldName + "' in record " + Name);
+            continue;
         }
         const TypeInfo *FieldInfo = resolve(FieldTypeName);
         if (!FieldInfo) {
-            Err = "Unknown type " + FieldTypeName + " for field " + FieldName +
-                  " of record " + Name;
-            return false;
+            Bad("Unknown type " + FieldTypeName + " for field " + FieldName +
+                " of record " + Name);
+            continue;
         }
         if (FieldInfo->isVoid()) {
-            Err = "Field " + FieldName + " of record " + Name + " cannot be VOID";
-            return false;
+            Bad("Field " + FieldName + " of record " + Name + " cannot be VOID");
+            continue;
         }
         // By-value record fields require a *completed* record (source order);
         // this also rules out self/mutual inclusion. Inclusion via a pointer
         // type is fine (opaque ptr, always complete).
         if (FieldInfo->isRecord() && llvm::cast<StructType>(FieldInfo->LLVMType)->isOpaque()) {
-            Err = "Record type " + FieldTypeName + " must be fully defined before field " +
-                  FieldName + " of record " + Name + " (records cannot contain themselves)";
-            return false;
+            Bad("Record type " + FieldTypeName + " must be fully defined before field " +
+                FieldName + " of record " + Name + " (records cannot contain themselves)");
+            continue;
         }
 
         RecordFieldInfo FI;
@@ -236,8 +242,9 @@ bool TypeSystem::defineRecord(const std::string &Name,
     }
 
     llvm::cast<StructType>(It->second.LLVMType)->setBody(FieldTypes);
+    bool Ok = !Payload.Invalid;
     It->second.Record = std::move(Payload);
-    return true;
+    return Ok;
 }
 
 bool TypeSystem::definePointer(const std::string &Name,
