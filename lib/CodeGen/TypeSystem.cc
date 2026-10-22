@@ -1,6 +1,7 @@
 #include "cps/TypeSystem.h"
 #include "cps/TypeAST.h"
 #include "llvm/IR/Constants.h"
+#include <algorithm>
 #include <utility>
 
 using namespace llvm;
@@ -260,6 +261,44 @@ bool TypeSystem::definePointer(const std::string &Name,
 
     It->second.Pointer.PointeeTypeName = Pointee->Name;
     return true;
+}
+
+namespace {
+
+// Seen holds the records already being checked, so self-referential
+// pointer types (linked lists) end the recursion.
+bool checkCStruct(const TypeSystem &Types, const TypeInfo *Info, std::string *Why,
+                  std::vector<const TypeInfo *> &Seen) {
+    if (!Info || !Info->isRecord() || Info->IsClass) return false;
+    if (std::find(Seen.begin(), Seen.end(), Info) != Seen.end()) return true;
+    Seen.push_back(Info);
+    for (const auto &[FieldName, Field] : Info->Record.Fields) {
+        const TypeInfo *FieldInfo = Types.resolve(Field.TypeName);
+        if (FieldInfo && FieldInfo->isC()) continue;
+        const TypeInfo *Inner = FieldInfo && FieldInfo->Kind == TypeKind::Pointer
+            ? Types.resolve(FieldInfo->Pointer.PointeeTypeName) : FieldInfo;
+        if (Inner && Inner->isRecord() && !Inner->IsClass) {
+            if (checkCStruct(Types, Inner, Why, Seen)) continue;
+            return false;
+        }
+        if (Why) *Why = "field " + FieldName + " of " + Info->Name + " has type " + Field.TypeName;
+        return false;
+    }
+    return true;
+}
+
+} // namespace
+
+bool TypeSystem::isCStruct(const TypeInfo *Info, std::string *Why) const {
+    std::vector<const TypeInfo *> Seen;
+    return checkCStruct(*this, Info, Why, Seen);
+}
+
+bool TypeSystem::isExternType(const TypeInfo *Info) const {
+    if (!Info) return false;
+    if (Info->isC()) return !Info->isVoid();
+    if (Info->Kind == TypeKind::Pointer) return isCStruct(resolve(Info->Pointer.PointeeTypeName));
+    return isCStruct(Info);
 }
 
 const EnumConstant *TypeSystem::lookupEnumConstant(const std::string &Name) const {

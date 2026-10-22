@@ -154,6 +154,13 @@ public:
                       std::string &Err);
     bool sameType(const std::string &Left, const std::string &Right) const;
     const TypeInfo *promoteCScalar(const TypeInfo *Info) const;
+    // A TYPE record (not a CLASS) whose fields are C scalars, C pointers,
+    // C structs or pointer types to C structs. Otherwise Why, if given,
+    // names the first offending field and its type.
+    bool isCStruct(const TypeInfo *Info, std::string *Why = nullptr) const;
+    // Crosses the EXTERN "C" boundary: a non-void C type, a C struct or a
+    // pointer type to one.
+    bool isExternType(const TypeInfo *Info) const;
     const TypeInfo *commonCScalar(const TypeInfo *Left, const TypeInfo *Right) const;
 
     const EnumConstant *lookupEnumConstant(const std::string &Name) const;
