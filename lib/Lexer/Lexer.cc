@@ -333,15 +333,6 @@ int Lexer::readToken() {
         return tok_ellipsis;
     }
 
-    if (LastChar == '(') { LastChar = Input.get(); return '('; }
-    if (LastChar == ')') { LastChar = Input.get(); return ')'; }
-    if (LastChar == '[') { LastChar = Input.get(); return '['; }
-    if (LastChar == ']') { LastChar = Input.get(); return ']'; }
-    if (LastChar == ',') { LastChar = Input.get(); return ','; }
-    if (LastChar == '+') { LastChar = Input.get(); return '+'; }
-    if (LastChar == '-') { LastChar = Input.get(); return '-'; }
-    if (LastChar == '*') { LastChar = Input.get(); return '*'; }
-
     if (LastChar == '/') {
         int NextChar = Input.get();
         if (NextChar == '/') {
