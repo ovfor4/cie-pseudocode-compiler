@@ -21,19 +21,8 @@ void ArrayHandler::bindArrayParameter(const std::string &Name,
         return;
     }
 
-    std::vector<Value*> Multipliers;
     Value *TotalElements = nullptr;
-    computeDimsAndMultipliers(Name, LBs, UBs, Multipliers, TotalElements);
-
-    ArrayMetadata Meta;
-    Meta.Rank = static_cast<int>(LBs.size());
-    Meta.ElementTypeName = ElemInfo->Name;
-    Meta.ElementType = ElemInfo->LLVMType;
-    Meta.ElementSizeC = Types.getSizeOfConstant(ElemInfo->LLVMType);
-    Meta.LowerBounds = LBs;
-    Meta.UpperBounds = UBs;
-    Meta.Multipliers = std::move(Multipliers);
-    ArrayTable[Name] = Meta;
+    const ArrayMetadata &Meta = defineMetadata(Name, ElemInfo, LBs, UBs, TotalElements);
 
     Value *Ptr = DataPtr;
     if (MakeCopy) {

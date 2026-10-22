@@ -47,6 +47,11 @@ class ArrayHandler {
                                    const std::vector<llvm::Value*> &Highs,
                                    std::vector<llvm::Value*> &Multipliers,
                                    llvm::Value *&TotalElements);
+    // Computes the bounds math, then fills and registers Name's metadata.
+    const ArrayMetadata &defineMetadata(const std::string &Name, const TypeInfo *ElemInfo,
+                                        std::vector<llvm::Value*> Lows,
+                                        std::vector<llvm::Value*> Highs,
+                                        llvm::Value *&TotalElements);
     bool emitCheckedIndices(const std::string &Name,
                             const std::vector<std::unique_ptr<ExprAST>> &IndexExprs,
                             int Line,

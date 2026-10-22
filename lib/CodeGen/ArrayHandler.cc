@@ -78,7 +78,6 @@ Value *ArrayHandler::getElementPointer(const std::string &Name, Value *Offset) {
 
 void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
     std::string Name = Stmt->getName();
-    int Rank = static_cast<int>(Stmt->getBounds().size());
 
     const TypeInfo *ElemInfo = Types.resolve(Stmt->getType());
     if (!ElemInfo || !ElemInfo->LLVMType || ElemInfo->isVoid()) {
@@ -113,19 +112,9 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
         Highs.push_back(R);
     }
 
-    std::vector<Value*> Multipliers;
     Value *TotalElements = nullptr;
-    computeDimsAndMultipliers(Name, Lows, Highs, Multipliers, TotalElements);
-
-    ArrayMetadata Meta;
-    Meta.Rank = Rank;
-    Meta.ElementTypeName = ElemInfo->Name;
-    Meta.ElementType = ElemInfo->LLVMType;
-    Meta.ElementSizeC = Types.getSizeOfConstant(ElemInfo->LLVMType);
-    Meta.LowerBounds = std::move(Lows);
-    Meta.UpperBounds = std::move(Highs);
-    Meta.Multipliers = std::move(Multipliers);
-    ArrayTable[Name] = Meta;
+    const ArrayMetadata &Meta =
+        defineMetadata(Name, ElemInfo, std::move(Lows), std::move(Highs), TotalElements);
 
     Value *TotalBytes = Builder->CreateMul(TotalElements, Meta.ElementSizeC, Name + "_total_bytes");
     CallInst *Ptr = Builder->CreateCall(MallocFunc, TotalBytes, Name + "_malloc");
@@ -159,6 +148,24 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
         Builder->SetInsertPoint(Done);
     }
     CG.activateStackObject(Lifetime, TotalElements);
+}
+
+const ArrayMetadata &ArrayHandler::defineMetadata(const std::string &Name, const TypeInfo *ElemInfo,
+                                                 std::vector<Value*> Lows,
+                                                 std::vector<Value*> Highs,
+                                                 Value *&TotalElements) {
+    std::vector<Value*> Multipliers;
+    computeDimsAndMultipliers(Name, Lows, Highs, Multipliers, TotalElements);
+
+    ArrayMetadata Meta;
+    Meta.Rank = static_cast<int>(Lows.size());
+    Meta.ElementTypeName = ElemInfo->Name;
+    Meta.ElementType = ElemInfo->LLVMType;
+    Meta.ElementSizeC = Types.getSizeOfConstant(ElemInfo->LLVMType);
+    Meta.LowerBounds = std::move(Lows);
+    Meta.UpperBounds = std::move(Highs);
+    Meta.Multipliers = std::move(Multipliers);
+    return ArrayTable[Name] = std::move(Meta);
 }
 
 void ArrayHandler::computeDimsAndMultipliers(const std::string &Name,
