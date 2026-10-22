@@ -82,7 +82,6 @@ struct TypeInfo {
     bool isC() const;
     bool sameType(const TypeInfo *Other) const;
 
-    bool isNumeric() const;
     bool isIntegral() const;
     bool isReal() const;
     bool isBoolean() const;

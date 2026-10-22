@@ -4,7 +4,6 @@
 #include <limits>
 #include <type_traits>
 #include <sstream>
-#include <cctype>
 
 using namespace llvm;
 using namespace cps;

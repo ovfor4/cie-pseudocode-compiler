@@ -22,11 +22,6 @@ const RecordFieldInfo *RecordPayload::findField(const std::string &Name) const {
     return nullptr;
 }
 
-bool TypeInfo::isNumeric() const {
-    return Kind == TypeKind::Integer || Kind == TypeKind::Real ||
-        (Kind == TypeKind::CScalar && !isVoid());
-}
-
 bool TypeInfo::isIntegral() const {
     return Kind == TypeKind::Integer || Kind == TypeKind::Char ||
         (Kind == TypeKind::CScalar && LLVMType->isIntegerTy());

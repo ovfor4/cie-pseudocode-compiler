@@ -2,7 +2,6 @@
 #include "cps/ArithmeticHandler.h"
 #include "cps/Lexer.h"
 #include "cps/RuntimeCheck.h"
-#include <cstdio>
 
 using namespace llvm;
 using namespace cps;
@@ -46,7 +45,7 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
         }
         RuntimeChecker.emitDivZeroCheck(RHS, Line);
         if (Op == tok_div) return Builder.CreateSDiv(LHS, RHS, "div_int_tmp");
-        if (Op == tok_mod) return Builder.CreateSRem(LHS, RHS, "mod_tmp");
+        return Builder.CreateSRem(LHS, RHS, "mod_tmp");
     }
     
     if (Op == tok_and || Op == tok_or) {
@@ -64,7 +63,7 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
             R = Builder.CreateFCmpONE(R, ConstantFP::get(Context, APFloat(0.0)), "tobool");
 
         if (Op == tok_and) return Builder.CreateAnd(L, R, "andtmp");
-        if (Op == tok_or) return Builder.CreateOr(L, R, "ortmp");
+        return Builder.CreateOr(L, R, "ortmp");
     }
 
     if (LIsDouble || RIsDouble) {

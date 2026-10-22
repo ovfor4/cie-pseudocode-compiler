@@ -77,10 +77,7 @@ void RuntimeCheck::emitCheck(Value *Condition, Value *Msg, ArrayRef<Value *> Fmt
     Builder.CreateCondBr(Condition, FailBB, ContBB);
 
     Builder.SetInsertPoint(FailBB);
-    std::vector<Value*> PrintArgs;
-    PrintArgs.push_back(Msg);
-    PrintArgs.insert(PrintArgs.end(), FmtArgs.begin(), FmtArgs.end());
-    emitStderr(Msg, ArrayRef<Value *>(PrintArgs).drop_front());
+    emitStderr(Msg, FmtArgs);
 
     Exceptions.emitThrow();
 
