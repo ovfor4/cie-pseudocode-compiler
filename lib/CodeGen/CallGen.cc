@@ -128,7 +128,8 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
 // C values are accepted, matching the explicit-cast rule for C/pseudocode.
 Value *CodeGen::emitVariadicArgument(ExprAST *Expr, const std::string &Callee, size_t Position) {
     const TypeInfo *Info = isWholeArrayVar(Expr) ? nullptr : getExprTypeInfo(Expr);
-    if (!Info || !Info->isC() || Info->isVoid()) {
+    // Pointers to C structs pass unchanged; records by value are not supported yet.
+    if (!Info || Info->isRecord() || !Types->isExternType(Info)) {
         reportError("Variadic argument %zu to %s must be a C value; cast it to a C type", Position, Callee.c_str());
         return nullptr;
     }

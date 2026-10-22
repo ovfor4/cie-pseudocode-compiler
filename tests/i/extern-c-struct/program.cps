@@ -9,8 +9,10 @@ TYPE PSample = ^Sample
 EXTERN "C" EXTERN_PROCEDURE scale_sample(PSample, C_INT)
 EXTERN "C" EXTERN_FUNCTION shared_sample() RETURNS PSample
 EXTERN "C" EXTERN_FUNCTION shared_count() RETURNS C_INT
+EXTERN "C" EXTERN_FUNCTION sum_counts(C_INT, ...) RETURNS C_INT
 DECLARE S : Sample
 DECLARE P : PSample
+DECLARE Q : PSample
 S.Tag <- (C_CHAR)'S'
 S.Value <- (C_DOUBLE)1.5
 S.Count <- (C_INT)5
@@ -20,3 +22,5 @@ P <- shared_sample()
 OUTPUT P^.Tag, " ", P^.Value, " ", P^.Count
 P^.Count <- (C_INT)9
 OUTPUT shared_count()
+Q <- ^S
+OUTPUT sum_counts((C_INT)2, P, Q)
