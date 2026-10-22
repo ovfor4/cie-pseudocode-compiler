@@ -126,6 +126,11 @@ Missing input, including invoking `cpsc` without arguments, reports `cpsc: fatal
 
 Generated IR uses the C++ exception ABI. Native binaries need the C++ runtime; EMBEDDED includes it, while PATH uses the runtime available to `lli`. Nightly CI runs embedded exception tests on Linux, Windows and macOS with LLVM 23.
 
+# FILES
+
+*cache directory*/cpsc/std-*hash*
+:   Per-user cache of the embedded standard library sources and objects, where *cache directory* is `$XDG_CACHE_HOME` or `~/.cache` on Linux, `~/Library/Caches` on macOS and the local application data directory on Windows. Directories are named by a hash of their content, files are replaced atomically, and `cpsc` never deletes them; they may be removed at any time. If no cache directory can be created, `cpsc` extracts to a temporary directory and removes it on exit.
+
 # SEE ALSO
 
 [cpsc-language-overview(7)](language/cpsc-language-overview.7.md) describes supported syntax and links to the keyword, builtin and standard-library function manuals.

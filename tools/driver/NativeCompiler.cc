@@ -337,8 +337,7 @@ bool compileNative(const cps::CodeGen &CG, llvm::StringRef OutputPath, const cha
 #endif
     LinkArgs.append(Job.getArguments().begin(), Job.getArguments().end());
     auto Result = lld::lldMain(LinkArgs, llvm::outs(), llvm::errs(), Linkers);
-    if (!Result.canRunAgain) std::exit(1);
-    if (Result.retCode != 0) return fail("native linking failed");
+    if (!Result.canRunAgain || Result.retCode != 0) return fail("native linking failed");
     if (auto EC = llvm::sys::fs::setPermissions(StagedPath,
             llvm::sys::fs::all_read | llvm::sys::fs::owner_write | llvm::sys::fs::all_exe))
         return fail("cannot set executable permissions: " + EC.message());

@@ -10,7 +10,11 @@ import rules: [CONVENTIONS/EXCEPTIONS_AND_UNITS.md](../CONVENTIONS/EXCEPTIONS_AN
 - The default build compiles each .cc with the host compiler into
   build/pseudocode-lib/*.o, copies .cps units beside them, and embeds all these outputs
   in cpsc.
-- StandardLibrary extracts the resources through linking/execution; the driver
+- StandardLibrary extracts the resources through linking/execution into a per-user,
+  content-keyed cache (`llvm::sys::path::cache_directory()/cpsc/std-<xxh3 hex>`). Files are
+  reused when identical, otherwise published by atomic rename; the cache is never deleted, so
+  a killed run leaks nothing. Only if no cache directory is usable does it fall back to a
+  temporary `cpsc-std` directory removed on exit. The driver
   implicitly imports std.cps unless -no-std is set. std.cps imports string.cps.
 - Source/object resources are embedded in installed/released cpsc, which needs no
   separate library directory; manually linking saved IR still requires the matching
