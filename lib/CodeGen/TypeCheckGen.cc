@@ -2,31 +2,10 @@
 #include "cps/CodeGen.h"
 #include "cps/TypeAST.h"
 #include "cps/Lexer.h"
+#include "cps/Operator.h"
 
 using namespace llvm;
 using namespace cps;
-
-namespace {
-
-// Operator spelling for diagnostics (raw ASCII or a keyword token).
-std::string opToText(int Op) {
-    switch (Op) {
-    case tok_eq:  return "=";
-    case tok_ne:  return "<>";
-    case tok_le:  return "<=";
-    case tok_ge:  return ">=";
-    case tok_and: return "AND";
-    case tok_or:  return "OR";
-    case tok_div: return "DIV";
-    case tok_mod: return "MOD";
-    default:
-        if (Op >= 0) return std::string(1, static_cast<char>(Op));
-        return "?";
-    }
-}
-
-} // namespace
-
 
 // The single name-level admission gate. Targets of a user kind demand exact
 // type-name equality (their representations are indistinguishable at the
@@ -133,7 +112,7 @@ Value *CodeGen::emitUserKindBinaryOp(int Op, Value *L, const TypeInfo *LT,
 
     if ((LT && LT->isRecord()) || (RT && RT->isRecord())) {
         reportError("Operator %s cannot be applied to a record value (type %s)",
-                    opToText(Op).c_str(), (LT && LT->isRecord()) ? LName : RName);
+                    operatorSpelling(Op).c_str(), (LT && LT->isRecord()) ? LName : RName);
         return nullptr;
     }
 
@@ -144,7 +123,7 @@ Value *CodeGen::emitUserKindBinaryOp(int Op, Value *L, const TypeInfo *LT,
                                 : Builder->CreateICmpNE(L, R, "ptr_ne");
         }
         reportError("Pointer values support only = and <> between the same pointer type (got %s %s %s)",
-                    LName, opToText(Op).c_str(), RName);
+                    LName, operatorSpelling(Op).c_str(), RName);
         return nullptr;
     }
 
@@ -182,6 +161,6 @@ Value *CodeGen::emitUserKindBinaryOp(int Op, Value *L, const TypeInfo *LT,
 
     reportError("Operator %s cannot be applied to %s and %s "
                 "(enums allow comparison with the same enum type, and enum + or - INTEGER)",
-                opToText(Op).c_str(), LName, RName);
+                operatorSpelling(Op).c_str(), LName, RName);
     return nullptr;
 }
