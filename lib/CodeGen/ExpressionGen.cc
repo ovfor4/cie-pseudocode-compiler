@@ -225,11 +225,7 @@ Value *CodeGen::emitCall(const std::string &Callee,
         return Memory->emitRelease(Address, Line);
     }
     if (Name == "EOF") {
-        if (isWholeArrayVar(ArgExprs[0].get())) {
-            reportError("Cannot use a whole array as the EOF filename");
-            return nullptr;
-        }
-        Value *FileName = emitCStringExpr(ArgExprs[0].get());
+        Value *FileName = emitFileNameOperand(ArgExprs[0].get(), "EOF");
         if (!FileName) return nullptr;
         return Files->emitEof(FileName, Line);
     }

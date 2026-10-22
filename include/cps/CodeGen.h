@@ -128,6 +128,7 @@ class CodeGen {
     llvm::Value *emitStringFromCString(llvm::Value *Text);
     llvm::Value *emitStringCString(llvm::Value *Value);
     llvm::Value *emitCStringExpr(ExprAST *Expr);
+    llvm::Value *emitFileNameOperand(ExprAST *E, const char *Keyword);
     bool containsString(const TypeInfo *Type) const;
     std::unique_ptr<TypeSystem> Types;
 

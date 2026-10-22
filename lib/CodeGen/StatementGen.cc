@@ -239,11 +239,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
     }
 
     if (auto *Open = dynamic_cast<OpenFileStmtAST*>(Stmt)) {
-        if (isWholeArrayVar(Open->getFileName())) {
-            reportError("Cannot use a whole array as the OPENFILE filename");
-            return;
-        }
-        Value *Name = emitCStringExpr(Open->getFileName());
+        Value *Name = emitFileNameOperand(Open->getFileName(), "OPENFILE");
         if (!Name) return;
         Files->emitOpen(Name, Open->getMode(), Open->getLine());
         return;
@@ -265,11 +261,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
                         Read->getVarName().c_str(), Info->TypeName.c_str());
             return;
         }
-        if (isWholeArrayVar(Read->getFileName())) {
-            reportError("Cannot use a whole array as the READFILE filename");
-            return;
-        }
-        Value *Name = emitCStringExpr(Read->getFileName());
+        Value *Name = emitFileNameOperand(Read->getFileName(), "READFILE");
         if (!Name) return;
         Value *LineStr = Files->emitRead(Name, Read->getLine());
         if (!LineStr) return;
@@ -302,11 +294,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
     }
 
     if (auto *Close = dynamic_cast<CloseFileStmtAST*>(Stmt)) {
-        if (isWholeArrayVar(Close->getFileName())) {
-            reportError("Cannot use a whole array as the CLOSEFILE filename");
-            return;
-        }
-        Value *Name = emitCStringExpr(Close->getFileName());
+        Value *Name = emitFileNameOperand(Close->getFileName(), "CLOSEFILE");
         if (!Name) return;
         Files->emitClose(Name, Close->getLine());
         return;
@@ -345,4 +333,14 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
         emitAssignment(LV, DA->getExpr());
         return;
     }
+}
+
+// File keywords take their filename as a STRING-valued expression; a whole
+// array is rejected before evaluation.
+Value *CodeGen::emitFileNameOperand(ExprAST *E, const char *Keyword) {
+    if (isWholeArrayVar(E)) {
+        reportError("Cannot use a whole array as the %s filename", Keyword);
+        return nullptr;
+    }
+    return emitCStringExpr(E);
 }
