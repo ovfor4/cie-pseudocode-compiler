@@ -35,7 +35,7 @@ The library provides `&`, six case-sensitive content comparisons, and these ordi
 - `ASC(CHAR)` and `ASC(STRING)` return the unsigned character or first-byte code; an empty string returns zero.
 - `CHR(Code)` returns a one-byte STRING containing the low eight bits. `LENGTH(CHR(0))` is 1.
 - `NUM_TO_STR(INTEGER)` and `NUM_TO_STR(REAL)` use C++17 `std::to_string`, with six fractional digits for REAL.
-- `STR_TO_NUM(S)` returns REAL using `std::stod` and requires full consumption. Invalid text, trailing junk, and out-of-range values throw.
-- `IS_NUM(S)` tests full consumption by `strtod` without throwing for invalid text. Leading whitespace is accepted; trailing whitespace, trailing junk, empty input, and embedded NUL bytes are rejected.
+- `STR_TO_NUM(S)` returns REAL through the same `parseNumber` helper as IS_NUM (`strtod`, full consumption). Invalid text and trailing junk throw `STR_TO_NUM: '<text>' is not a number`; overflow throws `... is out of the REAL range`; underflow is accepted.
+- `IS_NUM(S)` agrees with STR_TO_NUM: full consumption by `strtod` and no overflow, without throwing. Leading whitespace is accepted; trailing whitespace, trailing junk, empty input, embedded NUL bytes, and overflowing values (`1e999`) are rejected.
 
 Library C++ exceptions print the user call line and can be caught with TRY/CATCH. Library functions follow the guide where specified; LEFT, STRING case conversion, byte-code and numeric-conversion functions remain compatibility extensions.

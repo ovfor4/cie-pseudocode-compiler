@@ -30,7 +30,7 @@ source, most also by compiling and running test programs.
 - **`/` always yields REAL** (double FDiv), even for two INTEGERs; integer division is
   DIV/MOD only.
   - CHR returns an owning one-byte STRING, not CHAR; CHR(0) retains one NUL byte.
-  - STR_TO_NUM always returns REAL and uses std::stod with full-consumption checks.
+  - STR_TO_NUM always returns REAL and shares parseNumber (strtod, full consumption, overflow rejected) with IS_NUM.
   - NUM_TO_STR uses std::to_string, preserving the full signed i64 range and six
     fractional digits for REAL.
 - **`getExprTypeInfo` returns nullptr** for expressions it can't classify (null-check

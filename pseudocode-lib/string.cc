@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <cerrno>
+#include <cmath>
 #include <cstdlib>
 #include <exception>
 #include <stdexcept>
@@ -20,6 +22,20 @@ decltype(auto) checked(Operation &&Op) {
     }
 }
 std::string &text(void *Handle) { return *static_cast<std::string *>(Handle); }
+
+enum class NumberStatus { Ok, Invalid, OutOfRange };
+
+// Shared by IS_NUM and STR_TO_NUM so that they always agree.
+NumberStatus parseNumber(const std::string &Source, double &Result) {
+    if (Source.empty()) return NumberStatus::Invalid;
+    char *End = nullptr;
+    errno = 0;
+    double Number = std::strtod(Source.c_str(), &End);
+    if (End != Source.c_str() + Source.size()) return NumberStatus::Invalid;
+    if (errno == ERANGE && std::isinf(Number)) return NumberStatus::OutOfRange;
+    Result = Number;
+    return NumberStatus::Ok;
+}
 }
 
 extern "C" {
@@ -58,11 +74,14 @@ void _string_impl_from_real(void *Target, double Number) {
 }
 double _string_impl_to_real(void *Handle) {
     return checked([&] {
-        std::size_t Consumed = 0;
-        double Number = std::stod(text(Handle), &Consumed);
-        if (Consumed != text(Handle).size())
-            throw std::invalid_argument("unconsumed characters in string conversion");
-        return Number;
+        double Number = 0;
+        switch (parseNumber(text(Handle), Number)) {
+        case NumberStatus::Ok: return Number;
+        case NumberStatus::OutOfRange:
+            throw std::out_of_range("STR_TO_NUM: '" + text(Handle) + "' is out of the REAL range");
+        case NumberStatus::Invalid: break;
+        }
+        throw std::invalid_argument("STR_TO_NUM: '" + text(Handle) + "' is not a number");
     });
 }
 long long _string_impl_length(void *Handle) {
@@ -130,10 +149,8 @@ void _string_impl_chr(void *Target, long long Code) {
 }
 int _string_impl_is_num(void *Handle) {
     return checked([&]() -> int {
-        const auto &Source = text(Handle);
-        char *End = nullptr;
-        std::strtod(Source.c_str(), &End);
-        return !Source.empty() && End == Source.c_str() + Source.size();
+        double Number = 0;
+        return parseNumber(text(Handle), Number) == NumberStatus::Ok;
     });
 }
 const char *_string_impl_c_str(void *Handle) {

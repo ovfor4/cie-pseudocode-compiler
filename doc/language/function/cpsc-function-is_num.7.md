@@ -14,7 +14,7 @@ IS_NUM(text : STRING) RETURNS BOOLEAN
 
 Provided by the standard string library, loaded and linked by default.
 
-Return true for a nonempty string fully consumed by the runtime's numeric conversion. Leading whitespace is accepted; trailing whitespace or other trailing text is rejected.
+Return true exactly when STR_TO_NUM would succeed: a nonempty string fully consumed by `strtod`, with a value inside the REAL range. Leading whitespace, NaN, inf and hexadecimal forms are accepted; trailing whitespace, trailing text, embedded NUL bytes and overflowing values such as `1e999` are rejected. Underflow to zero or a denormal is accepted.
 
 # EXAMPLE
 

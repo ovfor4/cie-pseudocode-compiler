@@ -1,2 +1,2 @@
-[Fatal] line 27: unconsumed characters in string conversion
+[Fatal] line 27: STR_TO_NUM: '12x' is not a number
 [Fatal] line 32: negative string length
