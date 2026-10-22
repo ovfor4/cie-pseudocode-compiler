@@ -262,6 +262,8 @@ void CodeGen::emitDeclareStmt(DeclareStmtAST *Stmt) {
         reportError("Constructor arguments require a class type");
         return;
     }
-    if (emitConstruct(Info->Name, Alloca, Stmt->getArgs(), Stmt->getLine()))
-        activateStackObject(Lifetime);
+    bool Constructed = Stmt->hasParens()
+        ? emitConstruct(Info->Name, Alloca, Stmt->getArgs(), Stmt->getLine())
+        : emitDefaultConstruct(Info->Name, Alloca, Stmt->getLine());
+    if (Constructed) activateStackObject(Lifetime);
 }

@@ -20,8 +20,10 @@ Part of the [pitfalls index](../PITFALLS.md).
 ## Construction
 
 - PROCEDURE NEW is an ordinary case-insensitive member, also called automatically
-  after zero initialization by DECLARE and assignment-only keyword NEW. Fields and
-  array elements recursively require parameterless construction before the outer NEW.
+  after zero initialization by assignment-only keyword NEW and by DECLARE with
+  parentheses. A plain DECLARE (and fields and array elements, constructed before the
+  outer NEW) calls NEW only when a parameterless NEW exists (`emitDefaultConstruct`);
+  otherwise the zeroed object waits for `x <- NEW C(...)` (guide 10.2).
 - Class variables and BYVAL class parameters use reference slots: keyword NEW rebinds
   them, while ordinary assignment copies into their current object.
 - Fields, array elements, BYREF, this and pointer dereferences receive a value copy

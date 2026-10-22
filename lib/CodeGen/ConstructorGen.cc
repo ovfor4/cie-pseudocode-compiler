@@ -114,8 +114,16 @@ bool CodeGen::emitConstruct(const std::string &TypeName, Value *Addr,
     return true;
 }
 
+// Guide 10.2 creation pattern: a plain DECLARE only runs NEW when the class has
+// a parameterless one; otherwise the object stays zeroed (fields constructed)
+// and a later `x <- NEW C(...)` binds it.
 bool CodeGen::emitDefaultConstruct(const std::string &TypeName, Value *Addr, int Line) {
-    return emitConstruct(TypeName, Addr, {}, Line);
+    const TypeInfo *Info = resolveType(TypeName);
+    if (!Info) return false;
+    for (const FuncSig *Sig : FuncGen->getOverloads(TypeName + ".NEW"))
+        if (Sig->Params.empty()) return emitConstruct(TypeName, Addr, {}, Line);
+    SaveAndRestore<int> Location(DiagnosticLine, Line);
+    return !Info->asRecord() || emitFieldDefaults(Info, Addr, Line);
 }
 
 // Default-constructs, in declaration order, each field of the record at Addr

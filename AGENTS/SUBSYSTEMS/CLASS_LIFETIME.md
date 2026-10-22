@@ -10,8 +10,10 @@ Part of the [subsystem notes](../SUBSYSTEMS.md). Builds on [classes](CLASSES.md)
   marshalling and exception-aware calls.
 - DECLARE zeroes its original storage on every execution; arrays loop over all flat
   elements and default-construct each one.
-- Constructor argument lists are class-only, and field/array defaults require a
-  parameterless NEW. Explicit NEW method calls do not reconstruct fields.
+- Constructor argument lists are class-only. Plain DECLARE, field and array defaults go
+  through `emitDefaultConstruct`, which calls NEW only when a parameterless one exists
+  (else the object stays zeroed with constructed fields; guide 10.2); DECLARE with
+  parentheses uses `emitConstruct`. Explicit NEW method calls do not reconstruct fields.
 - `SymbolInfo::IsReference` marks a pointer slot for declared class variables and BYVAL
   class parameters; `symbolAddress` loads their current object address for all value,
   lvalue, address-of, receiver and BYREF paths. Field aliases, this and BYREF
