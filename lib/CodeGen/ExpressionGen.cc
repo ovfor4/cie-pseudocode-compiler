@@ -145,6 +145,9 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             if (Overload.Signature)
                 return emitOperatorCall(*Overload.Signature, Bin->getLHS(), Bin->getRHS());
         }
+        if ((Bin->getOp() == tok_and || Bin->getOp() == tok_or) && LT && RT &&
+            Builder->GetInsertBlock() && isLogicalOperand(LT) && isLogicalOperand(RT))
+            return emitShortCircuit(Bin, LT, RT);
         Value *L = emitExpr(Bin->getLHS());
         Value *R = emitExpr(Bin->getRHS());
         return emitBinaryOp(Bin->getOp(), L, LT, R, RT, Bin->getLine());
@@ -171,6 +174,46 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
     }
 
     return nullptr;
+}
+
+// BOOLEAN, or a C scalar tested against zero; everything else keeps the
+// ordinary operator path (and its diagnostics).
+bool CodeGen::isLogicalOperand(const TypeInfo *T) {
+    return T->Kind == TypeKind::Boolean || (T->Kind == TypeKind::CScalar && !T->isVoid());
+}
+
+// AND / OR evaluate the right operand only when the left one does not
+// already decide the result.
+Value *CodeGen::emitShortCircuit(BinaryExprAST *Bin, const TypeInfo *LT, const TypeInfo *RT) {
+    SaveAndRestore<int> Location(DiagnosticLine, Bin->getLine() ? Bin->getLine() : DiagnosticLine);
+    const TypeInfo *Bool = resolveType("BOOLEAN");
+    bool IsAnd = Bin->getOp() == tok_and;
+    auto EmitOperand = [&](ExprAST *E, const TypeInfo *T) -> Value * {
+        Value *V = emitExpr(E);
+        if (!V) return nullptr;
+        return T->Kind == TypeKind::Boolean ? V : convertNumericValue(V, T, Bool);
+    };
+
+    Value *L = EmitOperand(Bin->getLHS(), LT);
+    if (!L) return nullptr;
+    Function *TheFunction = Builder->GetInsertBlock()->getParent();
+    BasicBlock *LeftBB = Builder->GetInsertBlock();
+    BasicBlock *RightBB = BasicBlock::Create(*TheContext, IsAnd ? "and_rhs" : "or_rhs", TheFunction);
+    BasicBlock *DoneBB = BasicBlock::Create(*TheContext, IsAnd ? "and_done" : "or_done", TheFunction);
+    if (IsAnd) Builder->CreateCondBr(L, RightBB, DoneBB);
+    else       Builder->CreateCondBr(L, DoneBB, RightBB);
+
+    Builder->SetInsertPoint(RightBB);
+    Value *R = EmitOperand(Bin->getRHS(), RT);
+    if (!R) return nullptr;
+    BasicBlock *RightEndBB = Builder->GetInsertBlock();
+    Builder->CreateBr(DoneBB);
+
+    Builder->SetInsertPoint(DoneBB);
+    PHINode *Result = Builder->CreatePHI(Type::getInt1Ty(*TheContext), 2, IsAnd ? "andtmp" : "ortmp");
+    Result->addIncoming(ConstantInt::get(Type::getInt1Ty(*TheContext), IsAnd ? 0 : 1), LeftBB);
+    Result->addIncoming(R, RightEndBB);
+    return Result;
 }
 
 // Ordinary binary expressions and CASE use the same typed operations.

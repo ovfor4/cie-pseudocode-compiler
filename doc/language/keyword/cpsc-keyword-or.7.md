@@ -12,7 +12,7 @@ left OR right
 
 # DESCRIPTION
 
-Return BOOLEAN: true when either operand is true. Both operands must be BOOLEAN; numbers and characters are rejected. Both operands are evaluated; OR does not short-circuit. OR binds less tightly than AND and comparisons.
+Return BOOLEAN: true when either operand is true. Both operands must be BOOLEAN; numbers and characters are rejected. OR short-circuits: the right operand is evaluated only when the left one is false. OR binds less tightly than AND and comparisons.
 
 # EXAMPLE
 

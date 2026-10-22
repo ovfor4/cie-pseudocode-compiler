@@ -30,6 +30,7 @@ rejects arithmetic on BOOLEAN/CHAR, AND/OR on non-BOOLEAN, and comparisons betwe
 different kinds (INTEGER with REAL is the only mixed pair); `emitCoercedExpr` allows
 only INTEGER->REAL between the four builtin scalars. REAL->INTEGER therefore errors (with an `INT(...)` hint); `INT` is a compiler builtin (`Builtins.h`, `CodeGen::emitIntBuiltin`) truncating toward zero with a range check. BOOLEAN (i1) and CHAR (i8)
 compare unsigned. C scalars keep C semantics.
+AND/OR short-circuit (`CodeGen::emitShortCircuit`) unless a user overload applies.
 
 **User-kind typing is nominal, and checked upstream only.** Enum/Record/Pointer
 identity is case-insensitive name equality (`P1 = ^INTEGER` and `P2 = ^INTEGER` are
