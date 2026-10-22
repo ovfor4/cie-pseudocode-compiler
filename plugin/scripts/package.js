@@ -5,13 +5,13 @@ const path = require('node:path');
 const pluginDir = path.resolve(__dirname, '..');
 
 try {
-	const revision = execFileSync('git', ['log', '-1', '--format=%ct:%h'], {
+	const revision = execFileSync('git', ['log', '-1', '--format=%ct:%h', '--', '.'], {
 		cwd: pluginDir,
 		encoding: 'utf8',
 		stdio: ['ignore', 'pipe', 'pipe']
 	}).trim();
 	const match = /^(\d+):([0-9a-f]+)$/.exec(revision);
-	if (!match) throw new Error('Cannot read the HEAD commit for the package version.');
+	if (!match) throw new Error('Cannot read the last plugin commit for the package version.');
 	const timestamp = new Date(Number(match[1]) * 1000).toISOString();
 	const date = timestamp.slice(0, 10).replace(/-/g, '');
 	const time = timestamp.slice(11, 19).replace(/:/g, '');

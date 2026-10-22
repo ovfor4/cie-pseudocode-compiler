@@ -16,14 +16,15 @@ npm run package
 
 `npm run package` runs syntax checks and the existing Node tests, then uses vsce
 through `scripts/package.js` to generate `cpsc-plugin-YYYYMMDD-HHMMSS-commit.vsix`.
-Both filename components come from HEAD: its UTC commit timestamp and Git short ID.
+Both filename components come from the last commit that touched `plugin/`: its UTC
+commit timestamp and Git short ID.
 The internal version is `YYYYMMDD.HHMMSS.0+commit`; the numeric time component
 has no leading zeros (midnight is `0`). For example, the file
 `cpsc-plugin-20261018-054123-1b0b287.vsix` contains version
 `20261018.54123.0+1b0b287` in both package.json and the VSIX manifest.
 The source manifest and lockfile retain their development version; vsce overrides
 only the packaged version, without modifying source files or creating commits/tags.
-Missing Git or unreadable HEAD fails packaging. Runtime dependencies are not bundled.
+Missing Git or an unreadable last plugin commit fails packaging. Runtime dependencies are not bundled.
 `@vscode/vsce`, `vscode-textmate` and `vscode-oniguruma` are development tools only.
 
 Do simple verification before each feature commit and follow the global commit
