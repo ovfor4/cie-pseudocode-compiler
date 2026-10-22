@@ -9,7 +9,7 @@
 | `lib/Parser/ParserFunction.cc` | FUNCTION/PROCEDURE/CALL/RETURN + parameter-list parsing |
 | `lib/Parser/ParserFile.cc` | OPENFILE/READFILE/WRITEFILE/CLOSEFILE parsing |
 | `lib/Parser/ParserType.cc` | Type names, variable/array/constant declarations, TYPE/ENDTYPE and CLASS/ENDCLASS declarations, shared field and method parsing, SET/DEFINE reserved stubs |
-| `include/cps/TemplateAST.h`, `lib/Parser/ParserType.cc` | TEMPLATE declarations, type parameter packs and canonical template ids; call and pack parsing also uses ParserExpression.cc/ParserFunction.cc |
+| `include/cps/TemplateAST.h`, `lib/Parser/ParserTemplate.cc` | TEMPLATE declarations, type parameter packs and canonical template ids; call and pack parsing also uses ParserExpression.cc/ParserFunction.cc |
 | `lib/CodeGen/CodeGen.cc` | Initialization, symbols and main() compilation |
 | `lib/CodeGen/CallGen.cc` | Call-argument marshalling (`marshalCallArgs`, variadic arguments) and call resolution (`resolveCall`) |
 | `lib/CodeGen/ExpressionGen.cc`, `StatementGen.cc`, `ControlFlowGen.cc` | Expression/statement dispatch and control-flow emission |

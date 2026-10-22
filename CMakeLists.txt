@@ -50,6 +50,7 @@ add_library(CPSParser STATIC
     lib/Parser/ParserFunction.cc
     lib/Parser/ParserFile.cc
     lib/Parser/ParserType.cc
+    lib/Parser/ParserTemplate.cc
 )
 
 add_library(CPSCodeGen STATIC
