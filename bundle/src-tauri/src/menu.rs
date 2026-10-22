@@ -30,6 +30,10 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .item(&item("find", "Find", "CmdOrCtrl+F")?)
         .item(&item("comment", "Toggle Line Comment", "CmdOrCtrl+/")?)
         .build()?;
+    // Windows share the menu but run independently, so the label covers both states.
+    let run = SubmenuBuilder::new(app, "Run")
+        .item(&item("run", "Run/Stop", "F5")?)
+        .build()?;
     let window = SubmenuBuilder::new(app, "Window")
         .minimize()
         .maximize()
@@ -51,5 +55,5 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
             .quit()
             .build()?,
     );
-    menu.items(&[&file, &edit, &window]).build()
+    menu.items(&[&file, &edit, &run, &window]).build()
 }

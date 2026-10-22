@@ -145,7 +145,8 @@ const commands = {
 	open: () => action(openFile),
 	save: () => action(saveFile),
 	find: () => editorAction('actions.find'),
-	comment: () => editorAction('editor.action.commentLine')
+	comment: () => editorAction('editor.action.commentLine'),
+	run: () => running ? invoke('stop_run').catch(report) : action(runFile)
 };
 // CtrlCmd is Cmd on macOS and Ctrl elsewhere, matching Monaco's own keybindings and the menu.
 const shortcuts = [
@@ -154,19 +155,14 @@ const shortcuts = [
 	[KeyMod.CtrlCmd | KeyCode.KeyO, 'open'],
 	[KeyMod.CtrlCmd | KeyCode.KeyS, 'save'],
 	[KeyMod.CtrlCmd | KeyCode.KeyF, 'find'],
-	[KeyMod.CtrlCmd | KeyCode.Slash, 'comment']
+	[KeyMod.CtrlCmd | KeyCode.Slash, 'comment'],
+	[KeyCode.F5, 'run']
 ];
 
 try {
 	editor = await createEditor(document.querySelector('#editor'));
 	editor.onDidChangeModelContent(refreshTitle);
-	runButton.onclick = () => {
-		if (running) {
-			invoke('stop_run').catch(report);
-		} else {
-			action(runFile);
-		}
-	};
+	runButton.onclick = commands.run;
 	document.querySelector('#save').onclick = () => action(saveFile);
 	document.querySelector('#new').onclick = () => action(newFile);
 	document.querySelector('#open').onclick = () => action(openFile);
