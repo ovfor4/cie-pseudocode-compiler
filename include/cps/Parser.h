@@ -58,6 +58,10 @@ class Parser {
 
     std::unique_ptr<StmtAST> ParseStatement();
     std::unique_ptr<StmtAST> ParseStatementImpl();
+    std::unique_ptr<StmtAST> ParseIncludeOrGlobal();
+    std::unique_ptr<StmtAST> ParseDeleteStmt();
+    std::unique_ptr<StmtAST> ParseInputStmt();
+    std::unique_ptr<StmtAST> ParseOutputStmt();
     std::vector<std::unique_ptr<StmtAST>> ParseBlock(std::initializer_list<int> Terminators, bool CaseBody = false);
     bool isCaseLabel();
     bool atCaseBoundary();

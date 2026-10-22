@@ -104,54 +104,14 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
         }
         return ParseExternDecl();
     }
-    if (CurTok == tok_include || CurTok == tok_include_obj || CurTok == tok_global) {
-        const char *Keyword = CurTok == tok_include ? "INCLUDE" : CurTok == tok_include_obj ? "INCLUDE_OBJ" : "GLOBAL";
-        bool Object = CurTok == tok_include_obj;
-        bool Include = Object || CurTok == tok_include;
-        int Line = Lex.getLine();
-        getNextToken();
-        if (BlockDepth != 1) {
-            sourceError(Line, "%s is only allowed at top level", Keyword);
-            return nullptr;
-        }
-        if (Include) {
-            if (CurTok != tok_string_literal) {
-                sourceError(Line, "%s requires a string literal", Keyword);
-                return nullptr;
-            }
-            std::unique_ptr<StmtAST> Stmt;
-            if (Object) Stmt = std::make_unique<IncludeObjStmtAST>(Lex.StringVal);
-            else Stmt = std::make_unique<IncludeStmtAST>(Lex.StringVal);
-            getNextToken();
-            return Stmt;
-        }
-        auto Body = ParseBlock({tok_endglobal});
-        if (CurTok != tok_endglobal) {
-            sourceError(Lex.getLine(), "Expected ENDGLOBAL");
-            return nullptr;
-        }
-        getNextToken();
-        return std::make_unique<GlobalBlockAST>(std::move(Body));
-    }
+    if (CurTok == tok_include || CurTok == tok_include_obj || CurTok == tok_global)
+        return ParseIncludeOrGlobal();
     if (CurTok == tok_endglobal) {
         sourceError(Lex.getLine(), "ENDGLOBAL without matching GLOBAL");
         getNextToken();
         return nullptr;
     }
-    if (CurTok == tok_delete) {
-        int Line = Lex.getLine();
-        getNextToken();
-        if (CurTok != tok_identifier) {
-            cps::sourceError(Line, "DELETE requires an object designator");
-            return nullptr;
-        }
-        std::string Name = Lex.IdentifierStr;
-        getNextToken();
-        std::vector<DesignatorAccess> Accesses;
-        if (!ParseDesignatorSuffix(Accesses)) return nullptr;
-        auto Target = std::make_unique<DesignatorExprAST>(Name, std::move(Accesses), Line);
-        return std::make_unique<DeleteStmtAST>(std::move(Target));
-    }
+    if (CurTok == tok_delete) return ParseDeleteStmt();
     if (CurTok == tok_case) return ParseCaseStmt();
     if (CurTok == tok_endcase || CurTok == tok_otherwise) {
         cps::sourceError(Lex.getLine(), "Unexpected CASE terminator");
@@ -166,37 +126,10 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
         return ParseAssignStmt();
     }
     else if (CurTok == tok_input) {
-        getNextToken();
-        if (CurTok != tok_identifier) {
-            cps::sourceError(Lex.getLine(), "Expected variable name after INPUT");
-            return nullptr;
-        }
-        std::string Name = Lex.IdentifierStr;
-        int Line = Lex.getLine();
-        getNextToken();
-        std::vector<DesignatorAccess> Accesses;
-        if (!ParseDesignatorSuffix(Accesses)) return nullptr;
-        std::unique_ptr<ExprAST> Target;
-        if (Accesses.empty())
-            Target = std::make_unique<VariableExprAST>(Name);
-        else if (Accesses.size() == 1 && Accesses[0].Kind == AccessKind::Index)
-            Target = std::make_unique<ArrayAccessExprAST>(Name, std::move(Accesses[0].Indices), Line);
-        else
-            Target = std::make_unique<DesignatorExprAST>(Name, std::move(Accesses), Line);
-        Target->setLine(Line);
-        return std::make_unique<InputStmtAST>(std::move(Target));
+        return ParseInputStmt();
     }
     else if (CurTok == tok_output) {
-        getNextToken();
-        std::vector<std::unique_ptr<ExprAST>> Exprs;
-        while (true) {
-            auto Expr = ParseExpression();
-            if (!Expr) return nullptr;
-            Exprs.push_back(std::move(Expr));
-            if (CurTok != ',') break;
-            getNextToken();
-        }
-        return std::make_unique<OutputStmtAST>(std::move(Exprs));
+        return ParseOutputStmt();
     }
     else if (CurTok == tok_if) {
         return ParseIfStmt();
@@ -277,6 +210,90 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     cps::sourceError(Lex.getLine(), "Unexpected token when expecting a statement");
     getNextToken(); // guarantee progress so error recovery cannot loop forever
     return nullptr;
+}
+
+// INCLUDE "<file>" | INCLUDE_OBJ "<file>" | GLOBAL <statements> ENDGLOBAL
+std::unique_ptr<StmtAST> Parser::ParseIncludeOrGlobal() {
+    const char *Keyword = CurTok == tok_include ? "INCLUDE" : CurTok == tok_include_obj ? "INCLUDE_OBJ" : "GLOBAL";
+    bool Object = CurTok == tok_include_obj;
+    bool Include = Object || CurTok == tok_include;
+    int Line = Lex.getLine();
+    getNextToken();
+    if (BlockDepth != 1) {
+        sourceError(Line, "%s is only allowed at top level", Keyword);
+        return nullptr;
+    }
+    if (Include) {
+        if (CurTok != tok_string_literal) {
+            sourceError(Line, "%s requires a string literal", Keyword);
+            return nullptr;
+        }
+        std::unique_ptr<StmtAST> Stmt;
+        if (Object) Stmt = std::make_unique<IncludeObjStmtAST>(Lex.StringVal);
+        else Stmt = std::make_unique<IncludeStmtAST>(Lex.StringVal);
+        getNextToken();
+        return Stmt;
+    }
+    auto Body = ParseBlock({tok_endglobal});
+    if (CurTok != tok_endglobal) {
+        sourceError(Lex.getLine(), "Expected ENDGLOBAL");
+        return nullptr;
+    }
+    getNextToken();
+    return std::make_unique<GlobalBlockAST>(std::move(Body));
+}
+
+// DELETE <designator>
+std::unique_ptr<StmtAST> Parser::ParseDeleteStmt() {
+    int Line = Lex.getLine();
+    getNextToken();
+    if (CurTok != tok_identifier) {
+        cps::sourceError(Line, "DELETE requires an object designator");
+        return nullptr;
+    }
+    std::string Name = Lex.IdentifierStr;
+    getNextToken();
+    std::vector<DesignatorAccess> Accesses;
+    if (!ParseDesignatorSuffix(Accesses)) return nullptr;
+    auto Target = std::make_unique<DesignatorExprAST>(Name, std::move(Accesses), Line);
+    return std::make_unique<DeleteStmtAST>(std::move(Target));
+}
+
+// INPUT <designator>
+std::unique_ptr<StmtAST> Parser::ParseInputStmt() {
+    getNextToken();
+    if (CurTok != tok_identifier) {
+        cps::sourceError(Lex.getLine(), "Expected variable name after INPUT");
+        return nullptr;
+    }
+    std::string Name = Lex.IdentifierStr;
+    int Line = Lex.getLine();
+    getNextToken();
+    std::vector<DesignatorAccess> Accesses;
+    if (!ParseDesignatorSuffix(Accesses)) return nullptr;
+    std::unique_ptr<ExprAST> Target;
+    if (Accesses.empty())
+        Target = std::make_unique<VariableExprAST>(Name);
+    else if (Accesses.size() == 1 && Accesses[0].Kind == AccessKind::Index)
+        Target = std::make_unique<ArrayAccessExprAST>(Name, std::move(Accesses[0].Indices), Line);
+    else
+        Target = std::make_unique<DesignatorExprAST>(Name, std::move(Accesses), Line);
+    Target->setLine(Line);
+    return std::make_unique<InputStmtAST>(std::move(Target));
+}
+
+// OUTPUT <expr> {, <expr>}
+std::unique_ptr<StmtAST> Parser::ParseOutputStmt() {
+    getNextToken();
+    std::vector<std::unique_ptr<ExprAST>> Exprs;
+    while (true) {
+        auto Expr = ParseExpression();
+        if (!Expr) return nullptr;
+        Exprs.push_back(std::move(Expr));
+        if (CurTok != ',') break;
+        getNextToken();
+    }
+    return std::make_unique<OutputStmtAST>(std::move(Exprs));
 }
 
 // <designator> <- <expr>
