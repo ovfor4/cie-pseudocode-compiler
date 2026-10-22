@@ -2,15 +2,27 @@
 
 A compiler for CIE Pseudocode (A Level 9618 Computer Science)
 
-[Usage quick reference](doc/cpsc.1.md) · [Build guide](doc/build.md) · [Installation and releases](doc/install.md)
+[👉 Click to download 👈](https://github.com/ovfor4/cie-pseudocode-compiler/releases/tag/nightly-build)
 
-[Compiler tests](tests/README.md)
+### TL;DR
 
-Download the Linux x86_64, Windows x86_64 or macOS 15+ Apple Silicon compiler package, VS Code extension, or [CPSC Bundle desktop editor](bundle/README.md) from [Nightly Build](https://github.com/ovfor4/cie-pseudocode-compiler/releases/tag/nightly-build). Bundle includes the compiler as a standalone Windows x64 `.exe` or a macOS Apple Silicon `.tar.xz` containing the `.app`. The compiler uses EMBEDDED mode and needs no LLVM installation. Each push to `main` builds all six packages and checks Linux desktop compilation. Release attachments are updated only after every build and check succeeds; any build or check failure keeps all previous attachments.
+[Usage quick reference](doc/cpsc.1.md)
 
-Details can be found here: [Pseudocode Guide for Teachers](https://www.cambridgeinternational.org/Images/697401-2026-pseudocode-guide-for-teachers.pdf)
+- daily builds, always up to date with updater (Bundle or VSCode plugin only)
+- no external dependencies, just single file
+- easy to use, with colorful & detail diagnostic
+- easy to deploy massively (helpful for schools)
 
-## Features
+Here's the "standard": [Pseudocode Guide for Teachers](https://www.cambridgeinternational.org/Images/697401-2026-pseudocode-guide-for-teachers.pdf)
+
+---
+
+## Nerdy info
+
+- [Build guide](doc/build.md)
+- [Installation and releases](doc/install.md)
+
+#### Features
 
 - **LLVM compilation**: Generate native executables by default, save LLVM IR with `-S`, or run programs with `-r` when execution is enabled in the build. Default and temporary IR files use `.ll`.
 - **Runtime checks**: Throw exceptions for array bounds errors, division by zero, file misuse, enum range errors and null pointer dereferences.
@@ -24,20 +36,20 @@ Details can be found here: [Pseudocode Guide for Teachers](https://www.cambridge
 - **Templates**: Instantiate function, procedure and class [templates](doc/language/keyword/cpsc-keyword-template.7.md) with type deduction, explicit type arguments and variadic packs.
 - **Selection and constants**: Support `CASE OF` branches and named literal `CONSTANT` values.
 
-## TODO
+### TODO
 
 - **Source TODOs**: Resolve remaining `TODO` comments.
 - **Random files**: Add `OPENFILE FOR RANDOM`, `SEEK`, `GETRECORD` and `PUTRECORD`.
 - **Set types**: Implement `SET` and `DEFINE`.
 - **Other syntax**: Add `DATE`.
 
-## Note
+### Note
 
 Vibe project. If you have any problems, please open issues. If you want to contribute to this project, please open PR (we never use dual-license because it's scam).
 
 If you have problems configuring the compiler, please open an issue and leave your eamail or discord, and I will contact you as soon as possible (support is 100% free).
 
-## Legal info
+### Legal info
 
 License: AGPL 3.0 or later.
 
@@ -45,6 +57,6 @@ Copyright (C) _ov4
 
 This is free software; see the source for copying conditions.  There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-## Contributors
+### Contributors
 
 ov4, Claude, ChatGPT, Gemini, et al.
