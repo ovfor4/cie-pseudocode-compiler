@@ -3,6 +3,7 @@
 mod compiler;
 mod menu;
 mod runner;
+mod update;
 use compiler::Compiler;
 use runner::{OutputEvent, Runner};
 use std::{
@@ -90,6 +91,12 @@ fn main() {
     let compiler = Compiler::load();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
+        // Once per launch, not per window.
+        .setup(|app| {
+            update::check(app.handle().clone());
+            Ok(())
+        })
         .menu(menu::build)
         // Menu items act on the focused window, like its keyboard shortcuts.
         .on_menu_event(|app, event| {

@@ -7,3 +7,5 @@ Shortcuts use Cmd on macOS and Ctrl on Windows: **N** new, **Shift+N** new windo
 Nightly provides a standalone Windows x64 `.exe` and a macOS Apple Silicon `.tar.xz` containing the `.app`. Windows extracts the included `cpsc.exe` into the current working directory on startup; macOS keeps it inside the `.app`. Windows uses the system WebView2 runtime.
 
 For development and build instructions, see [AGENTS/DEVELOPMENT.md](AGENTS/DEVELOPMENT.md).
+
+At startup the Bundle checks whether a newer nightly exists and tells you where to download it; it never updates itself.
