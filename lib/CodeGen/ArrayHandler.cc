@@ -1,4 +1,5 @@
 #include "cps/ArrayHandler.h"
+#include "llvm/IR/Intrinsics.h"
 #include "cps/CodeGen.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -108,6 +109,15 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
 
         if (!L || !R) return;
 
+        auto *ConstL = dyn_cast<ConstantInt>(L);
+        auto *ConstR = dyn_cast<ConstantInt>(R);
+        if (ConstL && ConstR && ConstR->getSExtValue() < ConstL->getSExtValue()) {
+            CG.reportError("Array %s upper bound %lld is less than lower bound %lld", Name.c_str(),
+                           static_cast<long long>(ConstR->getSExtValue()),
+                           static_cast<long long>(ConstL->getSExtValue()));
+            return;
+        }
+
         Lows.push_back(L);
         Highs.push_back(R);
     }
@@ -116,8 +126,10 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
     const ArrayMetadata &Meta =
         defineMetadata(Name, ElemInfo, std::move(Lows), std::move(Highs), TotalElements);
 
-    Value *TotalBytes = Builder->CreateMul(TotalElements, Meta.ElementSizeC, Name + "_total_bytes");
+    Value *TotalBytes = emitCheckedByteSize(Name, Meta.LowerBounds, Meta.UpperBounds,
+                                            Meta.ElementSizeC, Stmt->getLine());
     CallInst *Ptr = Builder->CreateCall(MallocFunc, TotalBytes, Name + "_malloc");
+    emitAllocCheck(Ptr, Name, Stmt->getLine());
 
     FunctionType *MemsetType = FunctionType::get(PointerType::getUnqual(*TheContext),
                                                  {PointerType::getUnqual(*TheContext), Type::getInt32Ty(*TheContext), Type::getInt64Ty(*TheContext)},
@@ -148,6 +160,53 @@ void ArrayHandler::emitArrayDeclare(ArrayDeclareStmtAST *Stmt, CodeGen &CG) {
         Builder->SetInsertPoint(Done);
     }
     CG.activateStackObject(Lifetime, TotalElements);
+}
+
+Value *ArrayHandler::emitCheckedByteSize(const std::string &Name,
+                                         const std::vector<Value*> &Lows,
+                                         const std::vector<Value*> &Highs,
+                                         Constant *ElementSize, int Line) {
+    Type *I64 = Type::getInt64Ty(*TheContext);
+    Value *NameStr = Builder->CreateGlobalString(Name, "array_name", 0, TheModule);
+    Value *InvalidMsg = Builder->CreateGlobalString(
+        "[Fatal] line %d: Invalid bounds [%lld:%lld] for array %s\n", "err_array_bounds", 0, TheModule);
+    Value *TooLargeMsg = Builder->CreateGlobalString(
+        "[Fatal] line %d: Array %s is too large\n", "err_array_large", 0, TheModule);
+
+    // Pass 1: upper >= lower in every dimension (this also keeps the
+    // differences below non-negative, so only the subtraction can overflow).
+    for (size_t I = 0; I < Lows.size(); ++I) {
+        if (isa<ConstantInt>(Lows[I]) && isa<ConstantInt>(Highs[I])) continue; // checked at compile time
+        Value *Inverted = Builder->CreateICmpSLT(Highs[I], Lows[I], Name + "_inverted");
+        RuntimeChecker.emitCheck(Inverted, InvalidMsg, {RuntimeChecker.lineValue(Line), Lows[I], Highs[I], NameStr});
+    }
+
+    // Pass 2: sizes with overflow detection.
+    auto Overflowing = [&](Intrinsic::ID Id, Value *A, Value *B, Value *&Overflow) {
+        Value *Pair = Builder->CreateBinaryIntrinsic(Id, A, B);
+        Value *Flag = Builder->CreateExtractValue(Pair, 1);
+        Overflow = Overflow ? Builder->CreateOr(Overflow, Flag) : Flag;
+        return Builder->CreateExtractValue(Pair, 0);
+    };
+    Value *Overflow = nullptr;
+    Value *Total = ConstantInt::get(I64, 1);
+    for (size_t I = 0; I < Lows.size(); ++I) {
+        Value *Diff = Overflowing(Intrinsic::ssub_with_overflow, Highs[I], Lows[I], Overflow);
+        Value *Dim = Builder->CreateAdd(Diff, ConstantInt::get(I64, 1), Name + "_dim_size");
+        Total = Overflowing(Intrinsic::umul_with_overflow, Total, Dim, Overflow);
+    }
+    Value *Bytes = Overflowing(Intrinsic::umul_with_overflow, Total, ElementSize, Overflow);
+    RuntimeChecker.emitCheck(Overflow, TooLargeMsg, {RuntimeChecker.lineValue(Line), NameStr});
+    return Bytes;
+}
+
+void ArrayHandler::emitAllocCheck(Value *Ptr, const std::string &Name, int Line) {
+    Value *NameStr = Builder->CreateGlobalString(Name, "array_name", 0, TheModule);
+    Value *TooLargeMsg = Builder->CreateGlobalString(
+        "[Fatal] line %d: Array %s is too large\n", "err_array_large", 0, TheModule);
+    Value *IsNull = Builder->CreateICmpEQ(
+        Ptr, ConstantPointerNull::get(PointerType::getUnqual(*TheContext)), Name + "_alloc_failed");
+    RuntimeChecker.emitCheck(IsNull, TooLargeMsg, {RuntimeChecker.lineValue(Line), NameStr});
 }
 
 const ArrayMetadata &ArrayHandler::defineMetadata(const std::string &Name, const TypeInfo *ElemInfo,

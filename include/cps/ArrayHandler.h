@@ -52,6 +52,15 @@ class ArrayHandler {
                                         std::vector<llvm::Value*> Lows,
                                         std::vector<llvm::Value*> Highs,
                                         llvm::Value *&TotalElements);
+    // Validates every dimension (upper >= lower) and returns the allocation
+    // size in bytes, trapping on overflow. Constant bounds were already checked
+    // at compile time; the others get a runtime check.
+    llvm::Value *emitCheckedByteSize(const std::string &Name,
+                                     const std::vector<llvm::Value*> &Lows,
+                                     const std::vector<llvm::Value*> &Highs,
+                                     llvm::Constant *ElementSize, int Line);
+    // Traps with "Array NAME is too large" when Ptr (a malloc result) is null.
+    void emitAllocCheck(llvm::Value *Ptr, const std::string &Name, int Line);
     bool emitCheckedIndices(const std::string &Name,
                             const std::vector<std::unique_ptr<ExprAST>> &IndexExprs,
                             int Line,

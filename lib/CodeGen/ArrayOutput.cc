@@ -62,6 +62,8 @@ void ArrayHandler::emitPrintLoop(const std::string &Name,
     }
 
     Function *TheFunction = Builder->GetInsertBlock()->getParent();
+    // Do-while shape: safe because every array has at least one element per
+    // dimension (inverted bounds are rejected at declaration).
     BasicBlock *LoopBB = BasicBlock::Create(*TheContext, "arr_loop", TheFunction);
     BasicBlock *AfterBB = BasicBlock::Create(*TheContext, "arr_after", TheFunction);
 

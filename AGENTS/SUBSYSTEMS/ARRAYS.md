@@ -10,6 +10,10 @@ parameter binding/arguments in `ArrayParameters.cc`, and output in `ArrayOutput.
 
 - A DECLAREd array is one malloc'd flat buffer (memset to zero), row-major, any rank,
   any bounds.
+- Every dimension needs `upper >= lower`: constant bounds are a compile error, other
+  bounds a runtime error (`emitCheckedByteSize`). The byte size is computed with
+  `llvm.{ssub,umul}.with.overflow`; overflow or a NULL malloc (also the BYVAL copy)
+  reports `Array X is too large`. Arrays therefore always have at least one element.
 - Bounds and multipliers are *SSA values* cached in `ArrayMetadata`.
 - `ArrayTable` is scoped per function (`exchangeTable`, driven from CodeGen's
   `FunctionDefAST` branch, mirroring the Symbols discipline).

@@ -32,6 +32,7 @@ void ArrayHandler::bindArrayParameter(const std::string &Name,
         Value *TotalBytes = Builder->CreateMul(TotalElements, Meta.ElementSizeC,
                                                Name + "_copy_bytes");
         Value *Copy = Builder->CreateCall(MallocFunc, TotalBytes, Name + "_copy");
+        emitAllocCheck(Copy, Name, CG.DiagnosticLine);
         FunctionType *MemcpyType = FunctionType::get(
             PointerType::getUnqual(*TheContext),
             {PointerType::getUnqual(*TheContext), PointerType::getUnqual(*TheContext),

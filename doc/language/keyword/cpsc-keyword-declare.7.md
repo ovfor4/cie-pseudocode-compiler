@@ -17,7 +17,7 @@ Declare one variable per statement. Built-in types are INTEGER (signed 64-bit), 
 
 C_INT, C_CHAR, C_STRING and C_DOUBLE are native C aliases for int, char, char* and double. C_TYPE can introduce aliases for other supported C base types and pointers. C values start with zero or null; assignment from pseudocode types requires an explicit cast. See [cpsc-keyword-c_type(7)](cpsc-keyword-c_type.7.md).
 
-ARRAY bounds are inclusive and may be expressions; multiple ranges create multiple dimensions. Access elements with `name[index, ...]`. Bounds are checked at run time; an invalid index throws an exception that TRY/CATCH can handle. Whole-array assignment is unsupported. Declare arrays before using them; arrays declared inside a control-flow block stay in that block.
+ARRAY bounds are inclusive and may be expressions; every dimension needs an upper bound that is at least the lower bound (constant bounds that are inverted are a compile error, other bounds a run-time error), and an array too large to allocate is a run-time error; multiple ranges create multiple dimensions. Access elements with `name[index, ...]`. Bounds are checked at run time; an invalid index throws an exception that TRY/CATCH can handle. Whole-array assignment is unsupported. Declare arrays before using them; arrays declared inside a control-flow block stay in that block.
 
 For class variables, an optional argument list after the type supplies constructor arguments, such as `DECLARE Item : Counter(3)`. Declarations zero storage and automatically construct class fields and array elements before calling the outer constructor. See [cpsc-keyword-class(7)](cpsc-keyword-class.7.md) for construction and NEW rebinding rules.
 
