@@ -43,6 +43,16 @@ createEmbeddedObjectLayer(llvm::orc::ExecutionSession &ES,
     return Layer;
 }
 
+// Reports an embedded execution failure and returns runEmbedded's status 1.
+int fail(const llvm::Twine &Message) {
+    llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "") << Message << "\n";
+    return 1;
+}
+
+int fail(const llvm::Twine &Message, llvm::Error Err) {
+    return fail(Message + llvm::toString(std::move(Err)));
+}
+
 } // namespace
 
 // Static runtime symbols are not available through dlsym. Provide their
@@ -195,22 +205,15 @@ int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects)
     // Pipes are fully buffered by default. Use the host CRT's stdout, also
     // preferred by the JIT on Windows, so OUTPUT reaches desktop clients now.
     if (std::setvbuf(stdout, nullptr, _IONBF, 0) != 0) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                     << "cannot configure embedded stdout\n";
-        return 1;
+        return fail("cannot configure embedded stdout");
     }
     if (llvm::InitializeNativeTarget() || llvm::InitializeNativeTargetAsmPrinter()) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                     << "cannot initialize the embedded LLVM target\n";
-        return 1;
+        return fail("cannot initialize the embedded LLVM target");
     }
 
     auto JTMBOrErr = llvm::orc::JITTargetMachineBuilder::detectHost();
     if (!JTMBOrErr) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                     << "cannot detect the embedded JIT target: "
-                     << llvm::toString(JTMBOrErr.takeError()) << "\n";
-        return 1;
+        return fail("cannot detect the embedded JIT target: ", JTMBOrErr.takeError());
     }
     JTMBOrErr->setCodeModel(llvm::CodeModel::Large);
     JTMBOrErr->setRelocationModel(llvm::Reloc::PIC_);
@@ -231,24 +234,15 @@ int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects)
 
     auto JITOrErr = Builder.create();
     if (!JITOrErr) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                     << "cannot create the embedded LLVM engine: "
-                     << llvm::toString(JITOrErr.takeError()) << "\n";
-        return 1;
+        return fail("cannot create the embedded LLVM engine: ", JITOrErr.takeError());
     }
     std::unique_ptr<llvm::orc::LLJIT> J = std::move(*JITOrErr);
 
     if (auto Err = defineRuntimeSymbols(*J)) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                     << "cannot define embedded runtime symbols: "
-                     << llvm::toString(std::move(Err)) << "\n";
-        return 1;
+        return fail("cannot define embedded runtime symbols: ", std::move(Err));
     }
     if (auto Err = loadCxxRuntime(*J)) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                     << "cannot load embedded C++ runtime: "
-                     << llvm::toString(std::move(Err)) << "\n";
-        return 1;
+        return fail("cannot load embedded C++ runtime: ", std::move(Err));
     }
 #ifdef _WIN32
     // Process-wide lookup may find C functions in ucrtbase.dll, loaded by
@@ -257,10 +251,7 @@ int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects)
     auto CRT = llvm::orc::DynamicLibrarySearchGenerator::Load(
         "msvcrt.dll", J->getDataLayout().getGlobalPrefix());
     if (!CRT) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                     << "cannot load the embedded C runtime: "
-                     << llvm::toString(CRT.takeError()) << "\n";
-        return 1;
+        return fail("cannot load the embedded C runtime: ", CRT.takeError());
     }
     J->getMainJITDylib().addGenerator(std::move(*CRT));
 #endif
@@ -270,9 +261,7 @@ int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects)
     llvm::orc::ThreadSafeModule TSM =
         llvm::orc::cloneExternalModuleToContext(CG.getModule(), TSCtx);
     if (!TSM) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                     << "cannot clone the embedded module for JIT execution\n";
-        return 1;
+        return fail("cannot clone the embedded module for JIT execution");
     }
     TSM.withModuleDo([&](llvm::Module &M) {
         M.setTargetTriple(J->getTargetTriple());
@@ -280,39 +269,24 @@ int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects)
     });
 
     if (auto Err = J->addIRModule(J->getMainJITDylib(), std::move(TSM))) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                     << "embedded LLVM execution failed: "
-                     << llvm::toString(std::move(Err)) << "\n";
-        return 1;
+        return fail("embedded LLVM execution failed: ", std::move(Err));
     }
     for (const auto &Path : Objects) {
         auto Buffer = llvm::MemoryBuffer::getFile(Path);
         if (!Buffer) {
-            llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                         << "cannot read object file '" << Path << "': "
-                         << Buffer.getError().message() << "\n";
-            return 1;
+            return fail("cannot read object file '" + Path + "': " + Buffer.getError().message());
         }
         if (auto Err = J->addObjectFile(std::move(*Buffer))) {
-            llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                         << "cannot load object file '" << Path << "': "
-                         << llvm::toString(std::move(Err)) << "\n";
-            return 1;
+            return fail("cannot load object file '" + Path + "': ", std::move(Err));
         }
     }
     if (auto Err = J->initialize(J->getMainJITDylib())) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                     << "embedded LLVM execution failed: "
-                     << llvm::toString(std::move(Err)) << "\n";
-        return 1;
+        return fail("embedded LLVM execution failed: ", std::move(Err));
     }
 
     auto MainSymOrErr = J->lookup("main");
     if (!MainSymOrErr) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                     << "embedded LLVM could not resolve main: "
-                     << llvm::toString(MainSymOrErr.takeError()) << "\n";
-        return 1;
+        return fail("embedded LLVM could not resolve main: ", MainSymOrErr.takeError());
     }
     auto Main = MainSymOrErr->toPtr<int (*)()>();
     int ExitCode = Main();
@@ -320,10 +294,7 @@ int runEmbedded(const cps::CodeGen &CG, const std::vector<std::string> &Objects)
     // Run platform deinitializers while JIT code is still mapped; frame
     // deregistration runs when the JIT releases its memory below.
     if (auto Err = J->deinitialize(J->getMainJITDylib())) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error, "")
-                     << "embedded LLVM execution failed: "
-                     << llvm::toString(std::move(Err)) << "\n";
-        return 1;
+        return fail("embedded LLVM execution failed: ", std::move(Err));
     }
     return ExitCode;
 }
