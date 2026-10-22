@@ -30,4 +30,6 @@ The Rust runner launches the packaged compiler directly, using the source direct
 
 After building the compiler, run `cargo test --release --manifest-path src-tauri/Cargo.toml`. The two native tests exercise real compilation, prefilled input, EOF, Unicode, diagnostics, output before process exit, stopping, single-run exclusion and restart, including source paths with spaces. CI runs them on all three native platforms.
 
+Keyboard shortcuts are Monaco `KeyMod.CtrlCmd` keybindings: the editor registers Find and Toggle Line Comment, and the document handler matches New, Open, Save and Find with `StandardKeyboardEvent.equals`. Never test `ctrlKey`/`metaKey` directly; Monaco resolves CtrlCmd to Cmd on macOS and Ctrl elsewhere.
+
 Use brief English UI labels and messages. Keep the first version to one document and prefilled stdin. Before feature commits, run affected plugin tests, build the frontend and check native compilation as appropriate. Do not add a separate UI test framework for routine changes.

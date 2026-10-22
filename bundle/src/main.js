@@ -1,6 +1,8 @@
 import { invoke, Channel } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open, save, message } from '@tauri-apps/plugin-dialog';
+import { KeyCode, KeyMod } from 'monaco-editor/editor/editor.api.js';
+import { StandardKeyboardEvent } from 'monaco-editor/base/browser/keyboardEvent.js';
 import { createEditor } from './editor.js';
 import './style.css';
 
@@ -96,11 +98,37 @@ async function canReplace() {
 	if (answer === 'Cancel') return false;
 	return answer === 'Discard' || await saveFile();
 }
+async function newFile() {
+	if (!await canReplace()) return;
+	path = null;
+	savedText = '';
+	editor.setValue('');
+	refreshTitle();
+	status.textContent = 'Ready';
+}
+async function openFile() {
+	if (!await canReplace()) return;
+	const target = await open({ filters, multiple: false });
+	if (!target) return;
+	const text = await invoke('read_file', { path: target });
+	path = target;
+	savedText = text;
+	editor.setValue(text);
+	refreshTitle();
+	status.textContent = 'Ready';
+}
 async function action(callback) {
 	if (busy || running) return;
 	busy = true;
 	try { await callback(); } catch (error) { report(error); } finally { busy = false; }
 }
+// CtrlCmd is Cmd on macOS and Ctrl elsewhere, matching Monaco's own keybindings.
+const shortcuts = [
+	[KeyMod.CtrlCmd | KeyCode.KeyN, () => action(newFile)],
+	[KeyMod.CtrlCmd | KeyCode.KeyO, () => action(openFile)],
+	[KeyMod.CtrlCmd | KeyCode.KeyS, () => action(saveFile)],
+	[KeyMod.CtrlCmd | KeyCode.KeyF, () => { editor.focus(); editor.getAction('actions.find').run(); }]
+];
 
 try {
 	editor = await createEditor(document.querySelector('#editor'));
@@ -113,30 +141,16 @@ try {
 		}
 	};
 	document.querySelector('#save').onclick = () => action(saveFile);
-	document.querySelector('#new').onclick = () => action(async () => {
-		if (!await canReplace()) return;
-		path = null;
-		savedText = '';
-		editor.setValue('');
-		refreshTitle();
-		status.textContent = 'Ready';
-	});
-	document.querySelector('#open').onclick = () => action(async () => {
-		if (!await canReplace()) return;
-		const target = await open({ filters, multiple: false });
-		if (!target) return;
-		const text = await invoke('read_file', { path: target });
-		path = target;
-		savedText = text;
-		editor.setValue(text);
-		refreshTitle();
-		status.textContent = 'Ready';
-	});
+	document.querySelector('#new').onclick = () => action(newFile);
+	document.querySelector('#open').onclick = () => action(openFile);
 	document.addEventListener('keydown', event => {
-		if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-			event.preventDefault();
-			action(saveFile);
-		}
+		// Monaco already handled its own keybindings, such as Find inside the editor.
+		if (event.defaultPrevented) return;
+		const key = new StandardKeyboardEvent(event);
+		const shortcut = shortcuts.find(([binding]) => key.equals(binding));
+		if (!shortcut) return;
+		event.preventDefault();
+		shortcut[1]();
 	});
 	await window.onCloseRequested(async event => {
 		if (closing) return;
