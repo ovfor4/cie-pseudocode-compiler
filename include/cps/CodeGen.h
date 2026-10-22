@@ -24,7 +24,6 @@ class FileHandler;
 class MemoryHandler;
 class ExceptionHandler;
 class CastExprAST;
-class NewExprAST;
 class TemplateDeclAST;
 class ClassTypeDeclAST;
 
@@ -97,12 +96,11 @@ class CodeGen {
         llvm::AllocaInst *Alive;
         llvm::AllocaInst *Count; // Non-null for an array; Addr then holds its buffer pointer.
         int Line;
-        bool IsCopy;
         bool Temporary = false;
     };
     std::vector<StackObject> StackObjects;
     size_t registerStackObject(llvm::Value *Addr, const std::string &TypeName, int Line,
-                               bool IsArray = false, bool IsCopy = false);
+                               bool IsArray = false);
     void activateStackObject(size_t Index, llvm::Value *Count = nullptr);
     void emitStackObjectCleanup(const StackObject &Object);
     void finishStackObjects(llvm::Function *F);

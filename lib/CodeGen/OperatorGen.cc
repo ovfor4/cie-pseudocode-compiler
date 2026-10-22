@@ -42,7 +42,7 @@ Value *CodeGen::materializeOperatorReceiver(Value *Val, const TypeInfo *Type) {
     if (!Val || !Type) return nullptr;
     auto *Storage = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
                                           Type->LLVMType, "operator_receiver");
-    size_t Object = registerStackObject(Storage, Type->Name, DiagnosticLine, false, true);
+    size_t Object = registerStackObject(Storage, Type->Name, DiagnosticLine);
     Builder->CreateStore(Val, Storage);
     activateStackObject(Object);
     if (Object != size_t(-1)) StackObjects[Object].Temporary = true;

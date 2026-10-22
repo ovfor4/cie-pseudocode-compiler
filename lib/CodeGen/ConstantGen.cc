@@ -1,6 +1,5 @@
 #include "cps/Diagnostics.h"
 #include "cps/CodeGen.h"
-#include <cstdio>
 
 using namespace llvm;
 using namespace cps;

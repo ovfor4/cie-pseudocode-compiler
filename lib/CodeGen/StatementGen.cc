@@ -137,7 +137,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
             if (!RetVal) return;
         }
         cleanupTemporaries();
-        FuncGen->emitReturn(Ret, RetVal);
+        FuncGen->emitReturn(RetVal);
         return;
     }
 

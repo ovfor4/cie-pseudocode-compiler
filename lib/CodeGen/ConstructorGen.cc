@@ -70,7 +70,7 @@ Value *CodeGen::copyClassValue(const TypeInfo *Type, Value *Address,
     if (!checkOperatorAccess(*Copy)) return nullptr;
     auto *Storage = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
                                            Type->LLVMType, "copy_object");
-    size_t Lifetime = registerStackObject(Storage, Type->Name, DiagnosticLine, false, true);
+    size_t Lifetime = registerStackObject(Storage, Type->Name, DiagnosticLine);
     if (Lifetime != size_t(-1)) StackObjects[Lifetime].Temporary = true;
     Builder->CreateStore(Types->getZeroValue(Type->Name), Storage);
     for (const auto &[Name, Field] : Type->Record.Fields) {
@@ -255,7 +255,7 @@ bool CodeGen::emitDestroy(const std::string &TypeName, Value *Addr, int Line) {
 }
 
 size_t CodeGen::registerStackObject(Value *Addr, const std::string &TypeName, int Line,
-                                     bool IsArray, bool IsCopy) {
+                                     bool IsArray) {
     if (!typeNeedsDestruction(TypeName)) return size_t(-1);
     auto *F = Builder->GetInsertBlock()->getParent();
     IRBuilder<> Entry(&F->getEntryBlock(), F->getEntryBlock().begin());
@@ -266,7 +266,7 @@ size_t CodeGen::registerStackObject(Value *Addr, const std::string &TypeName, in
         Count = Entry.CreateAlloca(Entry.getInt64Ty(), nullptr, "object_count");
         Entry.CreateStore(Entry.getInt64(0), Count);
     }
-    StackObjects.push_back({Addr, TypeName, Alive, Count, Line, IsCopy});
+    StackObjects.push_back({Addr, TypeName, Alive, Count, Line});
     // This DECLARE can execute repeatedly, including after a backward loop edge.
     emitStackObjectCleanup(StackObjects.back());
     return StackObjects.size() - 1;

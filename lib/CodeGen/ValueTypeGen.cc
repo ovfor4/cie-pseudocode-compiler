@@ -161,7 +161,6 @@ Value *CodeGen::coerceValueToType(Value *Val, const TypeInfo *TargetInfo) {
 
     switch (TargetInfo->Kind) {
         case TypeKind::Real:
-            if (Val->getType()->isDoubleTy()) return Val;
             if (Val->getType()->isIntegerTy(1))
                 return Builder->CreateUIToFP(Val, Type::getDoubleTy(*TheContext), "bool_to_real");
             if (Val->getType()->isIntegerTy(8))
@@ -171,7 +170,6 @@ Value *CodeGen::coerceValueToType(Value *Val, const TypeInfo *TargetInfo) {
             break;
 
         case TypeKind::Integer:
-            if (Val->getType()->isIntegerTy(64)) return Val;
             if (Val->getType()->isDoubleTy())
                 return Builder->CreateFPToSI(Val, Type::getInt64Ty(*TheContext), "real_to_int");
             if (Val->getType()->isIntegerTy(1))
@@ -183,7 +181,6 @@ Value *CodeGen::coerceValueToType(Value *Val, const TypeInfo *TargetInfo) {
             break;
 
         case TypeKind::Boolean:
-            if (Val->getType()->isIntegerTy(1)) return Val;
             if (Val->getType()->isIntegerTy())
                 return Builder->CreateICmpNE(Val, Constant::getNullValue(Val->getType()), "to_bool");
             if (Val->getType()->isDoubleTy())
@@ -195,7 +192,6 @@ Value *CodeGen::coerceValueToType(Value *Val, const TypeInfo *TargetInfo) {
             break;
 
         case TypeKind::Char:
-            if (Val->getType()->isIntegerTy(8)) return Val;
             if (Val->getType()->isIntegerTy(1))
                 return Builder->CreateZExt(Val, Type::getInt8Ty(*TheContext), "bool_to_char");
             if (Val->getType()->isDoubleTy())

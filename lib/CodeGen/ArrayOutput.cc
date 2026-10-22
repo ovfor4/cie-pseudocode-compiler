@@ -4,7 +4,6 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
-#include <cstdio>
 
 using namespace llvm;
 using namespace cps;
@@ -55,7 +54,7 @@ void ArrayHandler::emitPrintLoop(const std::string &Name,
 
     if (CurrentDim == Meta->Rank) {
         Value *Offset = computeFlatIndex(Name, CurrentIndices);
-        Value *Val = loadElement(Name, Offset, CG);
+        Value *Val = loadElement(Name, Offset);
         if (!Val) return;
 
         CG.emitOutputValue(Val, Types.resolve(Meta->ElementTypeName), true);

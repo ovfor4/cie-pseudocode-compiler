@@ -4,7 +4,6 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
-#include <cstdio>
 
 using namespace llvm;
 using namespace cps;
@@ -214,7 +213,7 @@ bool ArrayHandler::emitCheckedIndices(const std::string &Name,
     return true;
 }
 
-Value *ArrayHandler::loadElement(const std::string &Name, Value *Offset, CodeGen &CG) {
+Value *ArrayHandler::loadElement(const std::string &Name, Value *Offset) {
     const ArrayMetadata *Meta = getMetadata(Name);
     if (!Meta) return nullptr;
 
@@ -232,7 +231,7 @@ Value *ArrayHandler::emitArrayAccess(ArrayAccessExprAST *Expr, CodeGen &CG) {
         return nullptr;
 
     Value *Offset = computeFlatIndex(Name, Indices);
-    return loadElement(Name, Offset, CG);
+    return loadElement(Name, Offset);
 }
 
 void ArrayHandler::emitArrayAssign(ArrayAssignStmtAST *Stmt, CodeGen &CG) {

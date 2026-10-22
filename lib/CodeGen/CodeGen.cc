@@ -12,7 +12,6 @@
 #include "llvm/IR/Verifier.h"
 #include <algorithm>
 #include <cstdarg>
-#include <cstdio>
 
 using namespace llvm;
 using namespace cps;
@@ -75,7 +74,7 @@ CodeGen::CodeGen() {
         });
 
     FuncGen->setCopyRegistrar([this](Value *Addr, const std::string &TypeName, int Line) {
-        activateStackObject(registerStackObject(Addr, TypeName, Line, false, true));
+        activateStackObject(registerStackObject(Addr, TypeName, Line));
     });
 
     SetupExternalFunctions();

@@ -3,7 +3,6 @@
 #include "cps/CodeGen.h"
 #include "cps/ExceptionHandler.h"
 #include "cps/Operator.h"
-#include <cstdio>
 #include <cstdarg>
 
 using namespace llvm;
@@ -472,7 +471,7 @@ llvm::Value *FunctionGen::emitCall(const FuncSig &Sig, const std::vector<llvm::V
     return Call;
 }
 
-void FunctionGen::emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal) {
+void FunctionGen::emitReturn(llvm::Value *RetVal) {
     Instruction *CatchCleanup = Exceptions.emitReturnCleanup();
     Instruction *RetInst = RetVal ? Builder.CreateRet(RetVal) : Builder.CreateRetVoid();
     Exceptions.recordExit(CatchCleanup ? CatchCleanup : RetInst);

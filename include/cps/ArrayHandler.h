@@ -53,7 +53,7 @@ class ArrayHandler {
                             bool RequireExact,
                             CodeGen &CG,
                             std::vector<llvm::Value*> &Out);
-    llvm::Value *loadElement(const std::string &Name, llvm::Value *Offset, CodeGen &CG);
+    llvm::Value *loadElement(const std::string &Name, llvm::Value *Offset);
     void emitPrintLoop(const std::string &Name,
                        int CurrentDim,
                        std::vector<llvm::Value*> CurrentIndices,

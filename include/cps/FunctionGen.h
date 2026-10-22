@@ -120,7 +120,7 @@ public:
     llvm::Value *emitCall(const std::string &Callee, const std::vector<llvm::Value*> &Args);
     llvm::Value *emitCall(const FuncSig &Sig, const std::vector<llvm::Value*> &Args);
 
-    void emitReturn(ReturnStmtAST *Ret, llvm::Value *RetVal);
+    void emitReturn(llvm::Value *RetVal);
 };
 
 }

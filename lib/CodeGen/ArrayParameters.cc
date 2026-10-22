@@ -4,7 +4,6 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
-#include <cstdio>
 
 using namespace llvm;
 using namespace cps;
@@ -82,7 +81,7 @@ void ArrayHandler::bindArrayParameter(const std::string &Name,
 
     CG.registerSymbol(Name, Alloca, ElemInfo->Name, true);
     if (MakeCopy)
-        CG.activateStackObject(CG.registerStackObject(Alloca, ElemInfo->Name, 0, true, true), TotalElements);
+        CG.activateStackObject(CG.registerStackObject(Alloca, ElemInfo->Name, 0, true), TotalElements);
 }
 
 bool ArrayHandler::emitArrayArgument(ExprAST *ArgExpr,
