@@ -180,16 +180,17 @@ const char *_string_impl_c_str(void *Handle) {
 int _string_impl_compare(void *A, void *B) {
     return checked([&] { return text(A).compare(text(B)); });
 }
+// INPUT of a STRING: the rest of the current line, without its "\n" or "\r\n".
 void _string_impl_input(void *Handle) {
     checked([&] {
         std::string Value;
-        int Ch;
-        do { Ch = std::getchar(); } while (Ch != EOF && std::isspace(static_cast<unsigned char>(Ch)));
-        while (Ch != EOF && !std::isspace(static_cast<unsigned char>(Ch))) {
+        int Ch = std::getchar();
+        if (Ch == EOF) throw std::runtime_error("INPUT reached the end of input");
+        while (Ch != EOF && Ch != '\n') {
             Value.push_back(static_cast<char>(Ch));
             Ch = std::getchar();
         }
-        if (Ch != EOF) std::ungetc(Ch, stdin);
+        if (!Value.empty() && Value.back() == '\r') Value.pop_back();
         text(Handle) = std::move(Value);
     });
 }

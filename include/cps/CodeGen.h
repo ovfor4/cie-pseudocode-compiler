@@ -151,15 +151,10 @@ class CodeGen {
     std::unique_ptr<MemoryHandler> Memory;
 
     llvm::FunctionCallee PrintfFunc;
-    llvm::FunctionCallee ScanfFunc;
     
     llvm::Value *PrintfFormatStr;       // %lld\n
-    llvm::Value *PrintfFloatFormatStr;  // %f\n
     llvm::Value *PrintfStringFormatStr; // %s\n
     llvm::Value *PrintfCharFormatStr;   // %c\n
-    
-    llvm::Value *ScanfFormatStr;        // %lld
-    llvm::Value *ScanfFloatFormatStr;   // %lf
     
     llvm::Value *TrueStr;               // "TRUE"
     llvm::Value *FalseStr;              // "FALSE"
@@ -184,7 +179,8 @@ class CodeGen {
     llvm::Value *emitCBinaryOp(int Op, llvm::Value *L, const TypeInfo *Left,
                                llvm::Value *R, const TypeInfo *Right, int Line);
     void emitCOutput(llvm::Value *Val, const TypeInfo *Info, bool AppendNewline);
-    void emitCInput(llvm::Value *Addr, const TypeInfo *Info);
+    void emitCInput(llvm::Value *Addr, const TypeInfo *Info, int Line);
+    void emitScalarInput(llvm::Value *Addr, const TypeInfo *Info, int Line);
 
     // TYPE-system registration (Designator.cc) and operators (TypeCheckGen.cc).
     void runTypePrePass(const std::vector<std::unique_ptr<StmtAST>> &Statements, int Phase);

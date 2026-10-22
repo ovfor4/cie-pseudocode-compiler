@@ -94,16 +94,9 @@ void CodeGen::SetupExternalFunctions() {
     FunctionType *PrintfType = FunctionType::get(Type::getInt32Ty(*TheContext), PrintfArgs, true);
     PrintfFunc = TheModule->getOrInsertFunction("printf", PrintfType);
 
-    FunctionType *ScanfType = FunctionType::get(Type::getInt32Ty(*TheContext), PrintfArgs, true);
-    ScanfFunc = TheModule->getOrInsertFunction("scanf", ScanfType);
-
     PrintfFormatStr = Builder->CreateGlobalString("%lld\n", "fmt_nl", 0, TheModule.get());
-    PrintfFloatFormatStr = Builder->CreateGlobalString("%f\n", "fmt_flt", 0, TheModule.get());
     PrintfStringFormatStr = Builder->CreateGlobalString("%s\n", "fmt_str", 0, TheModule.get());
     PrintfCharFormatStr = Builder->CreateGlobalString("%c\n", "fmt_chr", 0, TheModule.get());
-
-    ScanfFormatStr = Builder->CreateGlobalString("%lld", "fmt_in", 0, TheModule.get());
-    ScanfFloatFormatStr = Builder->CreateGlobalString("%lf", "fmt_in_flt", 0, TheModule.get());
 
     TrueStr = Builder->CreateGlobalString("TRUE", "str_true", 0, TheModule.get());
     FalseStr = Builder->CreateGlobalString("FALSE", "str_false", 0, TheModule.get());

@@ -8,7 +8,10 @@ int main() {
     for (int i = 0; i < count; ++i) {
         int empty, start, width;
         std::string text;
-        if (!(std::cin >> empty >> text >> start >> width)) return 1;
+        if (!(std::cin >> empty >> start >> width)) return 1;
+        // The text is the rest of the line, as for INPUT into a STRING.
+        if (!std::getline(std::cin >> std::ws, text)) return 1;
+        if (!text.empty() && text.back() == '\r') text.pop_back();
         if (empty) text.clear();
         auto lower = text, upper = text;
         for (auto &c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));

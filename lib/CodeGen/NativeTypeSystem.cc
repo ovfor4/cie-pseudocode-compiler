@@ -45,7 +45,7 @@ void TypeSystem::registerBuiltins() {
     // of assumed LP64/LLP64 widths. LLVM's addressable bytes are eight bits.
     static_assert(CHAR_BIT == 8, "LLVM requires eight-bit addressable bytes");
     auto Integral = [&](auto Sample, const char *Name, unsigned Rank,
-                        const char *InputFormat, const char *OutputFormat) {
+                        const char *OutputFormat) {
         using T = decltype(Sample);
         TypeInfo Info;
         Info.Name = cTypeName(Name);
@@ -54,36 +54,34 @@ void TypeSystem::registerBuiltins() {
         Info.LLVMType = Type::getIntNTy(Context, sizeof(T) * CHAR_BIT);
         Info.CRank = Rank;
         Info.CSigned = std::is_signed<T>::value;
-        Info.CInputFormat = InputFormat;
         Info.COutputFormat = OutputFormat;
         Types.emplace(Info.Name, std::move(Info));
     };
-    Integral(char{}, "char", 2, " %c", "%c");
-    Integral(static_cast<signed char>(0), "signed char", 2, "%hhd", "%hhd");
-    Integral(static_cast<unsigned char>(0), "unsigned char", 2, "%hhu", "%hhu");
-    Integral(short{}, "short", 3, "%hd", "%hd");
-    Integral(static_cast<unsigned short>(0), "unsigned short", 3, "%hu", "%hu");
-    Integral(int{}, "int", 4, "%d", "%d");
-    Integral(static_cast<unsigned int>(0), "unsigned int", 4, "%u", "%u");
-    Integral(long{}, "long", 5, "%ld", "%ld");
-    Integral(static_cast<unsigned long>(0), "unsigned long", 5, "%lu", "%lu");
-    Integral(static_cast<long long>(0), "long long", 6, "%lld", "%lld");
-    Integral(static_cast<unsigned long long>(0), "unsigned long long", 6, "%llu", "%llu");
+    Integral(char{}, "char", 2, "%c");
+    Integral(static_cast<signed char>(0), "signed char", 2, "%hhd");
+    Integral(static_cast<unsigned char>(0), "unsigned char", 2, "%hhu");
+    Integral(short{}, "short", 3, "%hd");
+    Integral(static_cast<unsigned short>(0), "unsigned short", 3, "%hu");
+    Integral(int{}, "int", 4, "%d");
+    Integral(static_cast<unsigned int>(0), "unsigned int", 4, "%u");
+    Integral(long{}, "long", 5, "%ld");
+    Integral(static_cast<unsigned long>(0), "unsigned long", 5, "%lu");
+    Integral(static_cast<long long>(0), "long long", 6, "%lld");
+    Integral(static_cast<unsigned long long>(0), "unsigned long long", 6, "%llu");
 
-    auto Floating = [&](auto Sample, const char *Name, unsigned Rank, const char *Format) {
+    auto Floating = [&](auto Sample, const char *Name, unsigned Rank) {
         TypeInfo Info;
         Info.Name = cTypeName(Name);
         Info.CIdentity = Name;
         Info.Kind = TypeKind::CScalar;
         Info.LLVMType = nativeFloatType<decltype(Sample)>(Context);
         Info.CRank = Rank;
-        Info.CInputFormat = Format;
         Info.COutputFormat = Rank == 9 ? "%Lf" : "%f";
         Types.emplace(Info.Name, std::move(Info));
     };
-    Floating(float{}, "float", 7, "%f");
-    Floating(double{}, "double", 8, "%lf");
-    Floating(static_cast<long double>(0), "long double", 9, "%Lf");
+    Floating(float{}, "float", 7);
+    Floating(double{}, "double", 8);
+    Floating(static_cast<long double>(0), "long double", 9);
 
     TypeInfo Bool;
     Bool.Name = cTypeName("_Bool");

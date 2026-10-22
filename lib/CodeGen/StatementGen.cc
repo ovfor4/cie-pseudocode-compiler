@@ -252,35 +252,15 @@ void CodeGen::emitInputStmt(InputStmtAST *In) {
         return;
     }
 
-    std::vector<Value*> Args;
     if (TypeInfo->isC()) {
-        emitCInput(Target.Addr, TypeInfo);
-    } else if (TypeInfo->isReal()) {
-        Args.push_back(ScanfFloatFormatStr);
-        Args.push_back(Target.Addr);
-        Builder->CreateCall(ScanfFunc, Args);
-    } else if (TypeInfo->isBoolean()) {
-        AllocaInst *TempInt = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(), "tmp_bool_input");
-        Args.push_back(ScanfFormatStr);
-        Args.push_back(TempInt);
-        Builder->CreateCall(ScanfFunc, Args);
-
-        Value *Val = Builder->CreateLoad(Type::getInt64Ty(*TheContext), TempInt);
-        Value *BoolVal = Builder->CreateICmpNE(Val, ConstantInt::get(*TheContext, APInt(64, 0)), "bool_cast");
-        Builder->CreateStore(BoolVal, Target.Addr);
+        emitCInput(Target.Addr, TypeInfo, In->getLine());
     } else if (TypeInfo->isString()) {
         emitMethodCall(TypeInfo->Name, Target.Addr, "READ_INPUT", {}, In->getLine());
-    } else if (TypeInfo->isChar()) {
-        Value *CharFmt = Builder->CreateGlobalString(" %c", "fmt_in_char", 0, TheModule.get());
-        Args.push_back(CharFmt);
-        Args.push_back(Target.Addr);
-        Builder->CreateCall(ScanfFunc, Args);
-    } else if (TypeInfo->Kind == TypeKind::Integer) {
-        Args.push_back(ScanfFormatStr);
-        Args.push_back(Target.Addr);
-        Builder->CreateCall(ScanfFunc, Args);
+    } else if (TypeInfo->Kind == TypeKind::Integer || TypeInfo->isReal() || TypeInfo->isBoolean() ||
+               TypeInfo->isChar()) {
+        emitScalarInput(Target.Addr, TypeInfo, In->getLine());
     } else {
-        // Enum/Record/Pointer and any future kind: scanf'ing raw bytes
+        // Enum/Record/Pointer and any future kind: reading raw bytes
         // into typed storage would corrupt it — reject explicitly.
         reportError("INPUT is not supported for a value of type %s", TypeInfo->Name.c_str());
     }

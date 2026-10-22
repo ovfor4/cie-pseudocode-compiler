@@ -3,12 +3,19 @@ DECLARE Index : INTEGER
 DECLARE Text : STRING
 DECLARE Extra : STRING
 DECLARE Line : STRING
+DECLARE Pair : STRING
+DECLARE Cut : INTEGER
 DECLARE Combined : STRING
 DECLARE Lines : INTEGER
 INPUT Count
 FOR Index <- 1 TO Count
-    INPUT Text
-    INPUT Extra
+    INPUT Pair
+    Cut <- 1
+    WHILE MID(Pair, Cut, 1) <> " "
+        Cut <- Cut + 1
+    ENDWHILE
+    Text <- LEFT(Pair, Cut - 1)
+    Extra <- RIGHT(Pair, LENGTH(Pair) - Cut)
     OPENFILE "roundtrip.txt" FOR WRITE
     WRITEFILE "roundtrip.txt", Text
     WRITEFILE "roundtrip.txt", ""

@@ -9,7 +9,9 @@ source, most also by compiling and running test programs.
   mixed output lists; a final array adds no extra newline. INPUT accepts writable
   scalar locations, including array elements, public record/class fields and
   pointer dereferences, using the shared lvalue checks. Whole arrays and whole
-  records/classes remain unsupported INPUT targets.
+  records/classes remain unsupported INPUT targets. Scalar INPUT reads a validated
+  whitespace-delimited token (IR helpers in `InputGen.cc`, no scanf); STRING INPUT reads
+  the rest of the line via READ_INPUT. Bad input and end of input are runtime errors.
 - **Arrays cross function boundaries only as parameters.** `ArrayTable` is scoped per
   function, so referencing another function's array fails cleanly as
   "Undeclared array". Whole arrays pass as `ARRAY OF T` / `ARRAY[l:u,...] OF T`

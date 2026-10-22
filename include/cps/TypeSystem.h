@@ -77,7 +77,6 @@ struct TypeInfo {
     std::string CIdentity;
     unsigned CRank = 0;
     bool CSigned = false;
-    std::string CInputFormat;
     std::string COutputFormat;
 
     bool isC() const;

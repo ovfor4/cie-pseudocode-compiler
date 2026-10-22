@@ -27,5 +27,5 @@ import rules: [CONVENTIONS/EXCEPTIONS_AND_UNITS.md](../CONVENTIONS/EXCEPTIONS_AN
 - Functions/operators use ordinary resolution; StringValueGen bridges literals, C_STR, C
   conversions and file operands.
 - C_STRING literals have an adjacent uppercase C suffix.
-- INPUT delegates to READ_INPUT, OUTPUT uses C stdout buffers, and READFILE invokes
+- STRING INPUT delegates to READ_INPUT (rest of the line, throws at end of input), OUTPUT uses C stdout buffers, and READFILE invokes
   assignment from C_STRING then frees its temporary buffer.

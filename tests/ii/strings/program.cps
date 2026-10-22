@@ -7,9 +7,9 @@ DECLARE Width : INTEGER
 INPUT Count
 FOR Index <- 1 TO Count
     INPUT Empty
-    INPUT Text
     INPUT Start
     INPUT Width
+    INPUT Text
     IF Empty = 1 THEN
         Text <- ""
     ENDIF

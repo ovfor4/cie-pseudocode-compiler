@@ -12,6 +12,7 @@
 | `include/cps/TemplateAST.h`, `lib/Parser/ParserTemplate.cc` | TEMPLATE declarations, type parameter packs and canonical template ids; call and pack parsing also uses ParserExpression.cc/ParserFunction.cc |
 | `lib/CodeGen/CodeGen.cc` | Initialization, symbols and main() compilation |
 | `lib/CodeGen/CallGen.cc` | Call-argument marshalling (`marshalCallArgs`, variadic arguments) and call resolution (`resolveCall`) |
+| `lib/CodeGen/InputGen.cc` | INPUT token reader and validators for scalar targets, emitted as module-local IR helpers |
 | `lib/CodeGen/ExpressionGen.cc`, `StatementGen.cc`, `ControlFlowGen.cc` | Expression/statement dispatch and control-flow emission |
 | `lib/CodeGen/OperatorGen.cc`, `include/cps/Operator.h` | Exact global/member operator selection, calls and temporary receivers; shared operator spellings |
 | `lib/CodeGen/TemplateGen.cc`, `TemplateClone.h`, `TemplateClone.cc` | Template registry validation, cached function/class instantiation, structural type substitution, pack expansion and deferred bodies; call deduction/selection lives in CallGen.cc |

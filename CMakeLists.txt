@@ -61,6 +61,7 @@ add_library(CPSCodeGen STATIC
     lib/CodeGen/ExpressionGen.cc
     lib/CodeGen/OperatorGen.cc
     lib/CodeGen/StatementGen.cc
+    lib/CodeGen/InputGen.cc
     lib/CodeGen/GlobalGen.cc
     lib/CodeGen/ConstantGen.cc
     lib/CodeGen/ControlFlowGen.cc
