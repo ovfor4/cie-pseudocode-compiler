@@ -219,21 +219,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), RetType, false, OwnerClass, IsPublic, IsOverload);
     Proto->setOperator(Operator);
 
-    auto SavedPacks = std::move(PackNames);
-    PackNames.clear();
-    for (const auto &P : Proto->getParams()) if (P.IsPack) PackNames.insert(P.Name);
-    std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endfunction});
-    PackNames = std::move(SavedPacks);
-
-    if (CurTok != tok_endfunction) {
-        cps::sourceError(Lex.getLine(), "expected ENDFUNCTION");
-        return nullptr;
-    }
-    getNextToken();
-
-    auto Def = std::make_unique<FunctionDefAST>(std::move(Proto), std::move(Body));
-    Def->setLine(Line);
-    return Def;
+    return ParseFunctionBody(std::move(Proto), tok_endfunction, "expected ENDFUNCTION", Line);
 }
 
 std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerClass, bool IsPublic, bool IsOverload) {
@@ -275,14 +261,21 @@ std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerC
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID", false, OwnerClass, IsPublic, IsOverload);
     Proto->setOperator(Operator);
 
+    return ParseFunctionBody(std::move(Proto), tok_endprocedure, "expected ENDPROCEDURE", Line);
+}
+
+// Shared FUNCTION/PROCEDURE tail: the body (with the prototype's pack
+// parameters in scope) up to EndToken, which must be present.
+std::unique_ptr<FunctionDefAST> Parser::ParseFunctionBody(
+    std::unique_ptr<PrototypeAST> Proto, int EndToken, const char *EndMessage, int Line) {
     auto SavedPacks = std::move(PackNames);
     PackNames.clear();
     for (const auto &P : Proto->getParams()) if (P.IsPack) PackNames.insert(P.Name);
-    std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({tok_endprocedure});
+    std::vector<std::unique_ptr<StmtAST>> Body = ParseBlock({EndToken});
     PackNames = std::move(SavedPacks);
 
-    if (CurTok != tok_endprocedure) {
-        cps::sourceError(Lex.getLine(), "expected ENDPROCEDURE");
+    if (CurTok != EndToken) {
+        cps::sourceError(Lex.getLine(), "%s", EndMessage);
         return nullptr;
     }
     getNextToken();

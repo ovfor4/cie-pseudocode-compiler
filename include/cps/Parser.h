@@ -93,6 +93,8 @@ class Parser {
 
     std::unique_ptr<FunctionDefAST> ParseFunction(const std::string &OwnerClass = {}, bool IsPublic = true, bool IsOverload = false);
     std::unique_ptr<FunctionDefAST> ParseProcedure(const std::string &OwnerClass = {}, bool IsPublic = true, bool IsOverload = false);
+    std::unique_ptr<FunctionDefAST> ParseFunctionBody(
+        std::unique_ptr<PrototypeAST> Proto, int EndToken, const char *EndMessage, int Line);
     std::unique_ptr<StmtAST> ParseExternDecl();
     std::unique_ptr<StmtAST> ParseCallStmt();
     std::unique_ptr<StmtAST> ParseReturnStmt();
