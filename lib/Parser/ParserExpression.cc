@@ -38,15 +38,20 @@ std::unique_ptr<ExprAST> Parser::ParseNumberExpr() {
     return std::make_unique<IntegerExprAST>(Value);
 }
 
+// Keyword tokens that name a builtin or C scalar type.
+bool Parser::isBuiltinTypeToken(int Tok) {
+    return Tok == tok_integer_kw || Tok == tok_real_kw || Tok == tok_boolean_kw ||
+        Tok == tok_string_kw || Tok == tok_char_kw ||
+        Tok == tok_c_int || Tok == tok_c_char || Tok == tok_c_string || Tok == tok_c_double;
+}
+
 // Grammar lookahead distinguishes a template call from a comparison without
 // consuming tokens. Like C#, A < B, C > (D) selects the template-call grammar.
 bool Parser::isTemplateCall() {
     if (CurTok != '<') return false;
     unsigned Offset = 0;
     auto IsTypeToken = [](int Tok) {
-        return Tok == tok_identifier || Tok == tok_integer_kw || Tok == tok_real_kw ||
-            Tok == tok_boolean_kw || Tok == tok_string_kw || Tok == tok_char_kw ||
-            Tok == tok_c_int || Tok == tok_c_char || Tok == tok_c_string || Tok == tok_c_double;
+        return Tok == tok_identifier || isBuiltinTypeToken(Tok);
     };
     std::function<bool()> Type = [&] {
         if (!IsTypeToken(Lex.peekToken(Offset))) return false;
@@ -99,10 +104,7 @@ std::unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
         getNextToken();
         auto Args = ParseExprList(')', true);
         if (!Args) return nullptr;
-        if (CurTok == '[' || CurTok == '^') {
-            cps::sourceError(Lex.getLine(), "record/array/pointer access on a function result is not supported");
-            return nullptr;
-        }
+        if (diagnoseResultAccess()) return nullptr;
         return ParseResultMethods(std::make_unique<CallExprAST>(IdName, std::move(*Args), Line, std::move(TemplateArgs)), Line);
     }
 
@@ -126,6 +128,13 @@ std::unique_ptr<ExprAST> Parser::makeDesignator(
     return std::make_unique<DesignatorExprAST>(Name, std::move(Accesses), Line);
 }
 
+// Indexing or dereferencing a call result is rejected; true means diagnosed.
+bool Parser::diagnoseResultAccess() {
+    if (CurTok != '[' && CurTok != '^') return false;
+    cps::sourceError(Lex.getLine(), "record/array/pointer access on a function result is not supported");
+    return true;
+}
+
 // The final field suffix names the method; preceding suffixes form its receiver.
 std::unique_ptr<MemberCallExprAST> Parser::ParseMemberCall(
     const std::string &Name, std::vector<DesignatorAccess> Accesses, int Line) {
@@ -137,16 +146,8 @@ std::unique_ptr<MemberCallExprAST> Parser::ParseMemberCall(
     Accesses.pop_back();
     auto Receiver = std::make_unique<DesignatorExprAST>(Name, std::move(Accesses), Line);
     std::vector<std::unique_ptr<ExprAST>> Args;
-    if (CurTok == '(') {
-        getNextToken();
-        auto Parsed = ParseExprList(')', true);
-        if (!Parsed) return nullptr;
-        Args = std::move(*Parsed);
-    }
-    if (CurTok == '[' || CurTok == '^') {
-        cps::sourceError(Lex.getLine(), "record/array/pointer access on a function result is not supported");
-        return nullptr;
-    }
+    if (!ParseOptionalCallArgs(Args)) return nullptr;
+    if (diagnoseResultAccess()) return nullptr;
     auto Result = ParseResultMethods(std::make_unique<MemberCallExprAST>(std::move(Receiver), Method, std::move(Args), Line), Line);
     return std::unique_ptr<MemberCallExprAST>(static_cast<MemberCallExprAST *>(Result.release()));
 }
@@ -193,10 +194,7 @@ bool Parser::ParseDesignatorSuffix(std::vector<DesignatorAccess> &Out) {
 
 std::unique_ptr<ExprAST> Parser::ParseParenExpr() {
     getNextToken();
-    bool IsType = CurTok == tok_integer_kw || CurTok == tok_real_kw ||
-        CurTok == tok_boolean_kw || CurTok == tok_string_kw || CurTok == tok_char_kw ||
-        CurTok == tok_c_int || CurTok == tok_c_char || CurTok == tok_c_string ||
-        CurTok == tok_c_double ||
+    bool IsType = isBuiltinTypeToken(CurTok) ||
         (CurTok == tok_identifier && TypeNames.count(Lex.IdentifierStr));
     if (IsType) {
         std::string TypeName = ParseTypeName();
@@ -389,6 +387,16 @@ std::optional<std::vector<std::unique_ptr<ExprAST>>> Parser::ParseExprList(char 
     return Elems;
 }
 
+// An optional parenthesized argument list; false means a diagnosed failure.
+bool Parser::ParseOptionalCallArgs(std::vector<std::unique_ptr<ExprAST>> &Args) {
+    if (CurTok != '(') return true;
+    getNextToken();
+    auto Parsed = ParseExprList(')', true);
+    if (!Parsed) return false;
+    Args = std::move(*Parsed);
+    return true;
+}
+
 std::unique_ptr<ExprAST> Parser::ParseAssignmentRHS() {
     if (CurTok != tok_new) return ParseExpression();
     int Line = Lex.getLine();
@@ -396,11 +404,6 @@ std::unique_ptr<ExprAST> Parser::ParseAssignmentRHS() {
     std::string ClassName = ParseTypeName(false);
     if (ClassName.empty()) return nullptr;
     std::vector<std::unique_ptr<ExprAST>> Args;
-    if (CurTok == '(') {
-        getNextToken();
-        auto Parsed = ParseExprList(')', true);
-        if (!Parsed) return nullptr;
-        Args = std::move(*Parsed);
-    }
+    if (!ParseOptionalCallArgs(Args)) return nullptr;
     return std::make_unique<NewExprAST>(ClassName, std::move(Args), Line);
 }

@@ -156,14 +156,13 @@ bool Parser::isCaseLabel() {
         case ')': case ']': if (--Depth < 0) return false; break;
         case tok_identifier: case tok_number_int: case tok_number_real:
         case tok_string_literal: case tok_c_string_literal: case tok_char_literal: case tok_true: case tok_false:
-        case tok_integer_kw: case tok_real_kw: case tok_boolean_kw:
-        case tok_string_kw: case tok_char_kw: case tok_c_int: case tok_c_char:
-        case tok_c_string: case tok_c_double:
         case tok_to: case tok_otherwise: case tok_and: case tok_or: case tok_not:
         case tok_eq: case tok_ne: case tok_le: case tok_ge: case tok_div: case tok_mod:
         case '+': case '-': case '*': case '/': case '&': case '^':
         case '<': case '>': case '.': case ',': break;
-        default: return false;
+        default:
+            if (!isBuiltinTypeToken(T)) return false;
+            break;
         }
     }
 }

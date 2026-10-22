@@ -49,6 +49,9 @@ class Parser {
     std::string ParseOperatorName(int *Op = nullptr);
     bool ParseCalleeName(std::string &Name);
     std::unique_ptr<ExprAST> ParseParenExpr();
+    bool ParseOptionalCallArgs(std::vector<std::unique_ptr<ExprAST>> &Args);
+    bool diagnoseResultAccess();
+    static bool isBuiltinTypeToken(int Tok);
     std::unique_ptr<MemberCallExprAST> ParseMemberCall(
         const std::string &Name, std::vector<DesignatorAccess> Accesses, int Line);
     std::string ParseTypeName(bool AllowVoid = false);
