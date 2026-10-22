@@ -2,11 +2,11 @@
   "errors": [
     {
       "reason": "EXTERN\\ parameter\\ 1\\ of\\ puts\\ uses\\ record\\ Person,\\ which\\ is\\ not\\ a\\ C\\ struct:\\ field\\ Name\\ of\\ Person\\ has\\ type\\ STRING",
-      "line": 12
+      "line": 8
     },
     {
-      "reason": "EXTERN\\ parameter\\ 1\\ of\\ abs\\ cannot\\ be\\ record\\ Point\\ by\\ value;\\ use\\ a\\ pointer\\ type\\ to\\ it",
-      "line": 13
+      "reason": "EXTERN\\ parameter\\ 1\\ of\\ abs\\ uses\\ record\\ Person,\\ which\\ is\\ not\\ a\\ C\\ struct:\\ field\\ Name\\ of\\ Person\\ has\\ type\\ STRING",
+      "line": 9
     }
   ]
 }

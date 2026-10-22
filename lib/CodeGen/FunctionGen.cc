@@ -291,9 +291,9 @@ bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
         return false;
     }
 
-    // Records cross the C boundary only as C structs, for now through a
-    // pointer type. What names the parameter or return type in diagnostics.
-    auto CheckRecord = [&](const TypeInfo *Info, const std::string &What) {
+    // Records cross the C boundary only as C structs, and are not yet
+    // returned by value. What names the parameter or return type in diagnostics.
+    auto CheckRecord = [&](const TypeInfo *Info, const std::string &What, bool IsResult) {
         const TypeInfo *Record = Info->Kind == TypeKind::Pointer
             ? Types.resolve(Info->Pointer.PointeeTypeName) : Info;
         if (!Record || !Record->isRecord() || Record->IsClass) return true;
@@ -303,7 +303,7 @@ bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
                         Record->Name.c_str(), Why.c_str());
             return false;
         }
-        if (Record == Info) {
+        if (IsResult && Record == Info) {
             reportError("%s cannot be record %s by value; use a pointer type to it", What.c_str(),
                         Record->Name.c_str());
             return false;
@@ -328,7 +328,7 @@ bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
             reportError("Unknown type %s", P.TypeName.c_str());
             return false;
         }
-        if (!CheckRecord(Info, "EXTERN parameter " + std::to_string(I + 1) + " of " + Name))
+        if (!CheckRecord(Info, "EXTERN parameter " + std::to_string(I + 1) + " of " + Name, false))
             return false;
         if (!Types.isExternType(Info)) {
             reportError("EXTERN parameter %zu of %s must be a non-void C type (got %s)",
@@ -347,7 +347,7 @@ bool FunctionGen::emitExternPrototype(PrototypeAST *Proto) {
             reportError("Unknown type %s", Proto->getReturnType().c_str());
             return false;
         }
-        if (!CheckRecord(Info, "The return type of EXTERN_FUNCTION " + Name)) return false;
+        if (!CheckRecord(Info, "The return type of EXTERN_FUNCTION " + Name, true)) return false;
         if (!Types.isExternType(Info)) {
             reportError("EXTERN_FUNCTION %s must return a non-void C type (got %s)",
                         Name.c_str(), Proto->getReturnType().c_str());

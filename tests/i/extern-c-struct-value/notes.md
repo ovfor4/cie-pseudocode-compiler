@@ -1,0 +1,7 @@
+# extern-c-struct-value
+
+Human review: pending. Expected output was independently traced by AI, not captured from cpsc.
+
+Basis: compiler extension (EXTERN "C", INCLUDE_OBJ of a user object); a record whose fields are all C types is passed by value like the matching C struct (C11 6.5.2.2p7: arguments are assigned to the parameters).
+
+Trace: the harness compiles `lib.c` with the host C compiler. pair_sum receives Pair {3, 4} and returns 3 + 4 = 7. vec2_dot receives {1.5, 2} and {4, 0.25}: 1.5 * 4 + 2 * 0.25 = 6 + 0.5 = 6.5, printed like other C doubles as `6.500000`. mixed_score receives bias -1, Mixed {'M', 2.5, 3} and k 4: -1 + 2.5 * 4 + 3 + 1 (the tag is 'M') = 13, printed `13.000000`. vec3f_sum receives {0.5, 1.25, 2}, all exact in float, and returns 0.5 + 1.25 + 2 = 3.75, printed `3.750000`. wide_after_five receives five ints and Wide {100, 1000}: 1 + 2 + 3 + 4 + 5 + 100 + 1000 = 1115. On x86-64 System V the five ints leave one integer register, so the 16-byte Wide goes on the stack.
