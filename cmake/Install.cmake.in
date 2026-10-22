@@ -11,12 +11,13 @@ endif()
 
 set(cpsc_install_windows "@WIN32@")
 if(cpsc_install_windows)
-    cpsc_find_dependency(PROGRAM cpsc_powershell NAMES powershell.exe REQUIRED)
+    cpsc_find_dependency(PROGRAM cpsc_cmd NAMES cmd.exe REQUIRED)
+    file(TO_NATIVE_PATH "@CMAKE_CURRENT_SOURCE_DIR@/install.cmd" cpsc_installer)
+    # An explicit "call" keeps cmd's handling of the quoted script path the same on CMake 3.x and 4.x.
     execute_process(
-        COMMAND "${cpsc_powershell}" -NoProfile -NonInteractive -ExecutionPolicy Bypass
-            -File "@CMAKE_CURRENT_SOURCE_DIR@/install.ps1"
-            -SourceDir "@CMAKE_CURRENT_BINARY_DIR@"
-            -Prefix "${CMAKE_INSTALL_PREFIX}"
+        COMMAND "${cpsc_cmd}" /d /c call "${cpsc_installer}"
+            --source-dir "@CMAKE_CURRENT_BINARY_DIR@"
+            --prefix "${CMAKE_INSTALL_PREFIX}"
         RESULT_VARIABLE cpsc_install_result
     )
 else()

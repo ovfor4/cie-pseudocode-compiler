@@ -7,6 +7,6 @@ tests
 tools
 CMakeLists.txt
 install.sh
-install.ps1
+install.cmd
 LICENSE
 .github

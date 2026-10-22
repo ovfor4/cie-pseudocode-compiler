@@ -401,7 +401,7 @@ jobs:
           $smokeDir = Join-Path $env:RUNNER_TEMP 'cpsc-smoke'
           Expand-Archive -LiteralPath $packages[0].FullName -DestinationPath $smokeDir
           $packageDir = Join-Path $smokeDir $packages[0].BaseName
-          foreach ($file in @('cpsc.exe', 'install.ps1', 'LICENSE', 'doc/cpsc.html', 'doc/language/cpsc-language-overview.html')) {
+          foreach ($file in @('cpsc.exe', 'install.cmd', 'LICENSE', 'doc/cpsc.html', 'doc/language/cpsc-language-overview.html')) {
             if (-not (Test-Path -LiteralPath (Join-Path $packageDir $file) -PathType Leaf)) {
               throw "Missing package file: $file"
             }
