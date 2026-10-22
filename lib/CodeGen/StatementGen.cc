@@ -35,27 +35,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
     }
 
     if (auto *FuncDef = dynamic_cast<FunctionDefAST*>(Stmt)) {
-        SaveAndRestore<std::string> ClassContext(CurrentClass, FuncDef->getProto()->getOwnerClass());
-        for (const auto &Param : FuncDef->getProto()->getParams())
-            warnMemberShadow(Param.Name, Param.Line ? Param.Line : DiagnosticLine);
-        BasicBlock *SavedBlock = Builder->GetInsertBlock();
-        // Function bodies get a fresh array scope (metadata SSA values belong
-        // to the emitting function), mirroring FunctionGen's Symbols handling.
-        auto SavedArrays = Arrays->exchangeTable({});
-
-        auto SavedObjects = std::move(StackObjects);
-        StackObjects.clear();
-        auto SavedScopes = std::move(ConstantScopes);
-        ConstantScopes = {{NextScopeID++, {}}};
-        Function *Emitted = FuncGen->emitFunctionDef(FuncDef, [this](StmtAST *S) {
-            this->emitStmt(S);
-        }, ConstantScopes.back().ID);
-        if (Emitted) finishStackObjects(Emitted);
-        StackObjects = std::move(SavedObjects);
-        ConstantScopes = std::move(SavedScopes);
-
-        Arrays->exchangeTable(std::move(SavedArrays));
-        if (SavedBlock) Builder->SetInsertPoint(SavedBlock);
+        emitFunctionDefStmt(FuncDef);
         return;
     }
 
@@ -164,69 +144,12 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
     }
 
     if (auto *In = dynamic_cast<InputStmtAST*>(Stmt)) {
-        LValueInfo Target;
-        if (!emitLValue(In->getTarget(), Target)) return;
-        const TypeInfo *TypeInfo = resolveType(Target.TypeName);
-        if (!TypeInfo) {
-            reportError("Unknown type for INPUT %s", Target.TypeName.c_str());
-            return;
-        }
-
-        std::vector<Value*> Args;
-        if (TypeInfo->isC()) {
-            emitCInput(Target.Addr, TypeInfo);
-        } else if (TypeInfo->isReal()) {
-            Args.push_back(ScanfFloatFormatStr);
-            Args.push_back(Target.Addr);
-            Builder->CreateCall(ScanfFunc, Args);
-        } else if (TypeInfo->isBoolean()) {
-            AllocaInst *TempInt = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(), "tmp_bool_input");
-            Args.push_back(ScanfFormatStr);
-            Args.push_back(TempInt);
-            Builder->CreateCall(ScanfFunc, Args);
-
-            Value *Val = Builder->CreateLoad(Type::getInt64Ty(*TheContext), TempInt);
-            Value *BoolVal = Builder->CreateICmpNE(Val, ConstantInt::get(*TheContext, APInt(64, 0)), "bool_cast");
-            Builder->CreateStore(BoolVal, Target.Addr);
-        } else if (TypeInfo->isString()) {
-            emitMethodCall(TypeInfo->Name, Target.Addr, "READ_INPUT", {}, Stmt->getLine());
-        } else if (TypeInfo->isChar()) {
-            Value *CharFmt = Builder->CreateGlobalString(" %c", "fmt_in_char", 0, TheModule.get());
-            Args.push_back(CharFmt);
-            Args.push_back(Target.Addr);
-            Builder->CreateCall(ScanfFunc, Args);
-        } else if (TypeInfo->Kind == TypeKind::Integer) {
-            Args.push_back(ScanfFormatStr);
-            Args.push_back(Target.Addr);
-            Builder->CreateCall(ScanfFunc, Args);
-        } else {
-            // Enum/Record/Pointer and any future kind: scanf'ing raw bytes
-            // into typed storage would corrupt it — reject explicitly.
-            reportError("INPUT is not supported for a value of type %s", TypeInfo->Name.c_str());
-        }
+        emitInputStmt(In);
         return;
     }
 
     if (auto *Out = dynamic_cast<OutputStmtAST*>(Stmt)) {
-        const auto &Exprs = Out->getExprs();
-        for (size_t I = 0; I < Exprs.size(); ++I) {
-            ExprAST *Expr = Exprs[I].get();
-            if (Arrays->tryEmitArrayOutput(Expr, *this)) continue;
-
-            Value *Val = emitExpr(Expr);
-            const TypeInfo *TypeInfo = getExprTypeInfo(Expr);
-            if (!TypeInfo) {
-                reportError("Cannot infer the type of the OUTPUT expression");
-                continue;
-            }
-            if (TypeInfo->isVoid()) {
-                reportError("Cannot OUTPUT the result of a PROCEDURE call");
-                continue;
-            }
-            if (TypeInfo->IsClass && !isObjectLValue(Expr))
-                materializeOperatorReceiver(Val, TypeInfo);
-            emitOutputValue(Val, TypeInfo, I + 1 == Exprs.size());
-        }
+        emitOutputStmt(Out);
         return;
     }
 
@@ -238,38 +161,7 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
     }
 
     if (auto *Read = dynamic_cast<ReadFileStmtAST*>(Stmt)) {
-        const SymbolInfo *Info = getSymbolInfo(Read->getVarName());
-        if (!Info) {
-            reportError("Unknown variable name %s", Read->getVarName().c_str());
-            return;
-        }
-        if (!requireWritable(*Info, Read->getVarName())) return;
-        if (Info->IsArray) {
-            reportError("READFILE into entire array %s is not supported", Read->getVarName().c_str());
-            return;
-        }
-        if (!sameIdentifier(Info->TypeName, "STRING")) {
-            reportError("READFILE variable %s must be of type STRING (got %s)",
-                        Read->getVarName().c_str(), Info->TypeName.c_str());
-            return;
-        }
-        Value *Name = emitFileNameOperand(Read->getFileName(), "READFILE");
-        if (!Name) return;
-        Value *LineStr = Files->emitRead(Name, Read->getLine());
-        if (!LineStr) return;
-        const auto *Type = resolveType(Info->TypeName);
-        for (const FuncSig *Sig : FuncGen->getOverloads(Type->Name + ".OPERATOR <-")) {
-            if (Sig->Params.size() == 1 && !Sig->Params[0].IsByRef &&
-                resolveType("C_STRING")->sameType(resolveType(Sig->Params[0].TypeName)) &&
-                checkOperatorAccess(*Sig)) {
-                FuncGen->emitCall(*Sig, {symbolAddress(*Info), LineStr});
-                auto Free = TheModule->getOrInsertFunction("free", FunctionType::get(
-                    Type::getVoidTy(*TheContext), {PointerType::getUnqual(*TheContext)}, false));
-                Builder->CreateCall(Free, {LineStr});
-                return;
-            }
-        }
-        reportError("READFILE requires STRING.OPERATOR<-(Text : C_STRING)");
+        emitReadFileStmt(Read);
         return;
     }
 
@@ -325,6 +217,130 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
         emitAssignment(LV, DA->getExpr());
         return;
     }
+}
+
+void CodeGen::emitFunctionDefStmt(FunctionDefAST *FuncDef) {
+    SaveAndRestore<std::string> ClassContext(CurrentClass, FuncDef->getProto()->getOwnerClass());
+    for (const auto &Param : FuncDef->getProto()->getParams())
+        warnMemberShadow(Param.Name, Param.Line ? Param.Line : DiagnosticLine);
+    BasicBlock *SavedBlock = Builder->GetInsertBlock();
+    // Function bodies get a fresh array scope (metadata SSA values belong
+    // to the emitting function), mirroring FunctionGen's Symbols handling.
+    auto SavedArrays = Arrays->exchangeTable({});
+
+    auto SavedObjects = std::move(StackObjects);
+    StackObjects.clear();
+    auto SavedScopes = std::move(ConstantScopes);
+    ConstantScopes = {{NextScopeID++, {}}};
+    Function *Emitted = FuncGen->emitFunctionDef(FuncDef, [this](StmtAST *S) {
+        this->emitStmt(S);
+    }, ConstantScopes.back().ID);
+    if (Emitted) finishStackObjects(Emitted);
+    StackObjects = std::move(SavedObjects);
+    ConstantScopes = std::move(SavedScopes);
+
+    Arrays->exchangeTable(std::move(SavedArrays));
+    if (SavedBlock) Builder->SetInsertPoint(SavedBlock);
+}
+
+void CodeGen::emitInputStmt(InputStmtAST *In) {
+    LValueInfo Target;
+    if (!emitLValue(In->getTarget(), Target)) return;
+    const TypeInfo *TypeInfo = resolveType(Target.TypeName);
+    if (!TypeInfo) {
+        reportError("Unknown type for INPUT %s", Target.TypeName.c_str());
+        return;
+    }
+
+    std::vector<Value*> Args;
+    if (TypeInfo->isC()) {
+        emitCInput(Target.Addr, TypeInfo);
+    } else if (TypeInfo->isReal()) {
+        Args.push_back(ScanfFloatFormatStr);
+        Args.push_back(Target.Addr);
+        Builder->CreateCall(ScanfFunc, Args);
+    } else if (TypeInfo->isBoolean()) {
+        AllocaInst *TempInt = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(), "tmp_bool_input");
+        Args.push_back(ScanfFormatStr);
+        Args.push_back(TempInt);
+        Builder->CreateCall(ScanfFunc, Args);
+
+        Value *Val = Builder->CreateLoad(Type::getInt64Ty(*TheContext), TempInt);
+        Value *BoolVal = Builder->CreateICmpNE(Val, ConstantInt::get(*TheContext, APInt(64, 0)), "bool_cast");
+        Builder->CreateStore(BoolVal, Target.Addr);
+    } else if (TypeInfo->isString()) {
+        emitMethodCall(TypeInfo->Name, Target.Addr, "READ_INPUT", {}, In->getLine());
+    } else if (TypeInfo->isChar()) {
+        Value *CharFmt = Builder->CreateGlobalString(" %c", "fmt_in_char", 0, TheModule.get());
+        Args.push_back(CharFmt);
+        Args.push_back(Target.Addr);
+        Builder->CreateCall(ScanfFunc, Args);
+    } else if (TypeInfo->Kind == TypeKind::Integer) {
+        Args.push_back(ScanfFormatStr);
+        Args.push_back(Target.Addr);
+        Builder->CreateCall(ScanfFunc, Args);
+    } else {
+        // Enum/Record/Pointer and any future kind: scanf'ing raw bytes
+        // into typed storage would corrupt it — reject explicitly.
+        reportError("INPUT is not supported for a value of type %s", TypeInfo->Name.c_str());
+    }
+}
+
+void CodeGen::emitOutputStmt(OutputStmtAST *Out) {
+    const auto &Exprs = Out->getExprs();
+    for (size_t I = 0; I < Exprs.size(); ++I) {
+        ExprAST *Expr = Exprs[I].get();
+        if (Arrays->tryEmitArrayOutput(Expr, *this)) continue;
+
+        Value *Val = emitExpr(Expr);
+        const TypeInfo *TypeInfo = getExprTypeInfo(Expr);
+        if (!TypeInfo) {
+            reportError("Cannot infer the type of the OUTPUT expression");
+            continue;
+        }
+        if (TypeInfo->isVoid()) {
+            reportError("Cannot OUTPUT the result of a PROCEDURE call");
+            continue;
+        }
+        if (TypeInfo->IsClass && !isObjectLValue(Expr))
+            materializeOperatorReceiver(Val, TypeInfo);
+        emitOutputValue(Val, TypeInfo, I + 1 == Exprs.size());
+    }
+}
+
+void CodeGen::emitReadFileStmt(ReadFileStmtAST *Read) {
+    const SymbolInfo *Info = getSymbolInfo(Read->getVarName());
+    if (!Info) {
+        reportError("Unknown variable name %s", Read->getVarName().c_str());
+        return;
+    }
+    if (!requireWritable(*Info, Read->getVarName())) return;
+    if (Info->IsArray) {
+        reportError("READFILE into entire array %s is not supported", Read->getVarName().c_str());
+        return;
+    }
+    if (!sameIdentifier(Info->TypeName, "STRING")) {
+        reportError("READFILE variable %s must be of type STRING (got %s)",
+                    Read->getVarName().c_str(), Info->TypeName.c_str());
+        return;
+    }
+    Value *Name = emitFileNameOperand(Read->getFileName(), "READFILE");
+    if (!Name) return;
+    Value *LineStr = Files->emitRead(Name, Read->getLine());
+    if (!LineStr) return;
+    const auto *Type = resolveType(Info->TypeName);
+    for (const FuncSig *Sig : FuncGen->getOverloads(Type->Name + ".OPERATOR <-")) {
+        if (Sig->Params.size() == 1 && !Sig->Params[0].IsByRef &&
+            resolveType("C_STRING")->sameType(resolveType(Sig->Params[0].TypeName)) &&
+            checkOperatorAccess(*Sig)) {
+            FuncGen->emitCall(*Sig, {symbolAddress(*Info), LineStr});
+            auto Free = TheModule->getOrInsertFunction("free", FunctionType::get(
+                Type::getVoidTy(*TheContext), {PointerType::getUnqual(*TheContext)}, false));
+            Builder->CreateCall(Free, {LineStr});
+            return;
+        }
+    }
+    reportError("READFILE requires STRING.OPERATOR<-(Text : C_STRING)");
 }
 
 // File keywords take their filename as a STRING-valued expression; a whole

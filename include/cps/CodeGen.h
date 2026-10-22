@@ -26,6 +26,7 @@ class ExceptionHandler;
 class CastExprAST;
 class TemplateDeclAST;
 class ClassTypeDeclAST;
+class ReadFileStmtAST;
 
 class CodeGen {
     std::unique_ptr<llvm::LLVMContext> TheContext;
@@ -113,6 +114,10 @@ class CodeGen {
                                  std::vector<size_t> &Transfers);
     void transferObjects(const std::vector<size_t> &Objects);
     void emitStmtImpl(StmtAST *Stmt);
+    void emitFunctionDefStmt(FunctionDefAST *FuncDef);
+    void emitInputStmt(InputStmtAST *In);
+    void emitOutputStmt(OutputStmtAST *Out);
+    void emitReadFileStmt(ReadFileStmtAST *Read);
     struct ConstantScope {
         unsigned ID;
         IdentifierMap<std::optional<SymbolInfo>> Saved;
