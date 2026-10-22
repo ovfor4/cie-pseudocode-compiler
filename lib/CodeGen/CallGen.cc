@@ -133,7 +133,10 @@ bool CodeGen::marshalCallArgs(const FuncSig &Signature,
 // C structs and pointers to them pass unchanged (C11 6.5.2.2p6-7, 7.16.1.1p2).
 Value *CodeGen::emitVariadicArgument(ExprAST *Expr, const std::string &Callee, size_t Position,
                                      const TypeInfo *&Promoted) {
-    const TypeInfo *Info = isWholeArrayVar(Expr) ? nullptr : getExprTypeInfo(Expr);
+    ExprAST *Target = Expr;
+    auto *Addr = dynamic_cast<AddrOfExprAST *>(Expr);
+    if (Addr) Target = Addr->getTarget();
+    const TypeInfo *Info = isWholeArrayVar(Target) ? nullptr : getExprTypeInfo(Target);
     const TypeInfo *Record = Types->pointerBase(Info);
     std::string Why;
     if (Record && Record->isRecord() && !Record->IsClass && !Types->isCStruct(Record, &Why)) {
@@ -144,6 +147,13 @@ Value *CodeGen::emitVariadicArgument(ExprAST *Expr, const std::string &Callee, s
     if (!Info || !Types->isExternType(Info)) {
         reportError("Variadic argument %zu to %s must be a C value; cast it to a C type", Position, Callee.c_str());
         return nullptr;
+    }
+    // ^x of a C value or C struct is a plain pointer, like C's f(n, &x).
+    if (Addr) {
+        LValueInfo LV;
+        if (!emitLValue(Target, LV)) return nullptr;
+        Promoted = Types->resolve("C_TYPE(\"void*\")");
+        return LV.Addr;
     }
     Promoted = Info;
     Value *V = emitExpr(Expr);

@@ -43,3 +43,4 @@ CALL bump_counter(^C)
 OUTPUT N
 CALL get_shared(^R)
 OUTPUT R^.Tag, " ", R^.Count
+OUTPUT sum_counts((C_INT)2, ^S, P)
