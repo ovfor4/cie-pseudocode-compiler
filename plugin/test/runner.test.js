@@ -12,6 +12,8 @@ test('commands quote paths and only run after changing directory', () => {
 		'cd /d "D:\\My Files" && "C:\\My Tools\\cpsc.exe" "D:\\My Files\\test.cps" -r');
 	assert.equal(buildRunCommand('C:\\My Tools\\cpsc.exe', "D:\\Pat's Files\\test.cps", "D:\\Pat's Files", 'powershell'),
 		"Set-Location -LiteralPath 'D:\\Pat''s Files'; if ($?) { & 'C:\\My Tools\\cpsc.exe' 'D:\\Pat''s Files\\test.cps' -r }");
+	assert.equal(buildRunCommand('cpsc', 'Pat\u2019s \u2018x\u201B.cps', '.', 'powershell'),
+		"Set-Location -LiteralPath '.'; if ($?) { & 'cpsc' 'Pat\u2019\u2019s \u2018\u2018x\u201B\u201B.cps' -r }");
 	assert.throws(() => buildRunCommand('cpsc\nother', 'test.cps', '.', 'posix'), /line breaks/);
 	if (process.platform !== 'win32') {
 		const file = "/tmp/Pat's file $(echo unexpected) `echo unexpected`.cps";

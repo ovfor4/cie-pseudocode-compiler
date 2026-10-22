@@ -5,7 +5,9 @@ const path = require('node:path');
 function quote(value, shell) {
 	if (/[\r\n\0]/.test(value)) throw new Error('Run paths must not contain line breaks or NUL characters.');
 	if (shell === 'cmd') return `"${value}"`;
-	return "'" + value.replace(/'/g, shell === 'powershell' ? "''" : "'\\''") + "'";
+	// PowerShell also ends single-quoted strings at the typographic quotes U+2018 to U+201B.
+	if (shell === 'powershell') return "'" + value.replace(/['\u2018-\u201B]/g, m => m + m) + "'";
+	return "'" + value.replace(/'/g, "'\\''") + "'";
 }
 
 function buildRunCommand(compiler, file, cwd, shell) {
