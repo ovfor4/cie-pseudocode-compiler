@@ -126,7 +126,7 @@ jobs:
           npm run prepare:compiler
           npm run tauri -- build --no-bundle
           cargo test --release --locked --manifest-path src-tauri/Cargo.toml
-          python3 scripts/smoke-package.py src-tauri/target/release
+          perl scripts/smoke-package.pl src-tauri/target/release
 
       - name: Upload the compiler package
         uses: actions/upload-artifact@v7.0.2
@@ -295,7 +295,7 @@ jobs:
           smoke_dir="$RUNNER_TEMP/cpsc-bundle-smoke"
           mkdir -p "$smoke_dir"
           tar -xJf "${packages[0]}" -C "$smoke_dir"
-          python3 bundle/scripts/smoke-package.py "$smoke_dir/CPSC Bundle.app"
+          perl bundle/scripts/smoke-package.pl "$smoke_dir/CPSC Bundle.app"
           test "$(lipo -archs "$smoke_dir/CPSC Bundle.app/Contents/MacOS/cpsc-bundle")" = arm64
           test "$(lipo -archs "$smoke_dir/CPSC Bundle.app/Contents/MacOS/cpsc")" = arm64
 
@@ -506,7 +506,7 @@ jobs:
         run: |
           $packages = @(Get-ChildItem -Path bundle/artifacts/cpsc-bundle-*-Windows-x86_64.exe -File)
           if ($packages.Count -ne 1) { throw 'Expected one portable Windows executable' }
-          python bundle/scripts/smoke-package.py $packages[0].FullName
+          & C:\Strawberry\perl\bin\perl.exe bundle/scripts/smoke-package.pl $packages[0].FullName
           if ($LASTEXITCODE -ne 0) { throw 'Desktop package smoke test failed' }
 
       - name: Upload the Windows desktop package
