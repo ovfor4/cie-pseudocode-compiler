@@ -100,6 +100,9 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
             HadError = true;
             return nullptr;
         }
+        // BOOLEAN (i1) and CHAR (i8) are unsigned: FALSE < TRUE and
+        // CHR(200) > CHR(65), which signed predicates would invert.
+        bool Unsigned = L->getType()->isIntegerTy(1) || L->getType()->isIntegerTy(8);
         switch (Op) {
             case '+': return Builder.CreateAdd(L, R, "addtmp");
             case '-': return Builder.CreateSub(L, R, "subtmp");
@@ -107,10 +110,10 @@ Value *ArithmeticHandler::emitBinaryOp(int Op, Value *LHS, Value *RHS, int Line)
 
             case tok_eq: return Builder.CreateICmpEQ(L, R, "eqtmp");
             case tok_ne: return Builder.CreateICmpNE(L, R, "netmp");
-            case '<':    return Builder.CreateICmpSLT(L, R, "slttmp");
-            case '>':    return Builder.CreateICmpSGT(L, R, "sgttmp");
-            case tok_le: return Builder.CreateICmpSLE(L, R, "sletmp");
-            case tok_ge: return Builder.CreateICmpSGE(L, R, "sgetmp");
+            case '<':    return Unsigned ? Builder.CreateICmpULT(L, R, "ulttmp") : Builder.CreateICmpSLT(L, R, "slttmp");
+            case '>':    return Unsigned ? Builder.CreateICmpUGT(L, R, "ugttmp") : Builder.CreateICmpSGT(L, R, "sgttmp");
+            case tok_le: return Unsigned ? Builder.CreateICmpULE(L, R, "uletmp") : Builder.CreateICmpSLE(L, R, "sletmp");
+            case tok_ge: return Unsigned ? Builder.CreateICmpUGE(L, R, "ugetmp") : Builder.CreateICmpSGE(L, R, "sgetmp");
         }
     }
 
