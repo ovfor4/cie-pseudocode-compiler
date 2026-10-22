@@ -114,9 +114,44 @@ bool checkLliVersion(llvm::StringRef LliPath) {
 }
 #endif
 
-} // namespace
+#ifdef CPSC_RUN_PATH
+// Finds PATH's lli for -r and checks that it is from LLVM 23.
+bool findLli(std::string &LliPath) {
+    auto Lli = llvm::sys::findProgramByName("lli");
+    if (!Lli) {
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "-r requires lli from LLVM 23 in PATH: " << Lli.getError().message() << "\n";
+        return false;
+    }
+    LliPath = *Lli;
+    return checkLliVersion(LliPath);
+}
 
-int main(int argc, char **argv) {
+// Executes the IR at IRPath with lli and returns the program's status.
+int runLli(const std::string &LliPath, const std::string &IRPath,
+           const std::vector<std::string> &Objects) {
+    llvm::SmallString<256> RunPath(IRPath);
+    if (auto PathError = llvm::sys::fs::make_absolute(RunPath)) {
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "cannot resolve IR path: " << PathError.message() << "\n";
+        return 1;
+    }
+    std::string ExecutionError;
+    std::vector<std::string> LliArgs = {LliPath};
+    for (const auto &Object : Objects) LliArgs.push_back("-extra-object=" + Object);
+    LliArgs.push_back(std::string(RunPath));
+    std::vector<llvm::StringRef> LliArgv(LliArgs.begin(), LliArgs.end());
+    int Result = llvm::sys::ExecuteAndWait(LliPath, LliArgv,
+                                         std::nullopt, {}, 0, 0, &ExecutionError);
+    if (Result < 0) {
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "lli execution failed (status " << Result << "): "
+                     << ExecutionError << "\n";
+        return 1;
+    }
+    return Result;
+}
+#endif
+
+// -h anywhere prints a documentation pointer instead of compiling.
+bool printHelp(int argc, char **argv) {
     for (int I = 1; I < argc; ++I) {
         if (std::string(argv[I]) == "-h") {
             llvm::outs() << "CIE Pseudocode Compiler is licensed under AGPL 3.0 or later. This is free software; see the source for copying conditions. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n";
@@ -130,12 +165,16 @@ int main(int argc, char **argv) {
 #else
             llvm::outs() << "See \'man 1 cpsc\' for help.\n";
 #endif
-            return 0;
+            return true;
         }
     }
+    return false;
+}
 
-    // Like gcc, the last valid -fdiagnostics-color option wins, and it is
-    // applied before any other diagnostic.
+// Like gcc, the last valid -fdiagnostics-color option wins, and it is
+// applied before any other diagnostic. Returns false after reporting an
+// invalid color argument.
+bool applyColorOptions(int argc, char **argv) {
     enum { ColorAuto, ColorAlways, ColorNever } ColorMode = ColorAuto;
     std::string BadColor;
     for (int I = 1; I < argc; ++I) {
@@ -157,81 +196,73 @@ int main(int argc, char **argv) {
                      << "unrecognized argument in option '" << BadColor << "'\n"
                      << cps::diagnosticPrefix(cps::Severity::Note)
                      << "valid arguments to '-fdiagnostics-color=' are: always auto never\n";
-        return compilationTerminated();
+        return false;
     }
+    return true;
+}
 
+struct Options {
     std::vector<std::string> InputPaths;
     std::string OutputPath;
     bool Run = false;
     bool EmitIR = false;
     bool NoStd = false;
+};
+
+// Returns false after reporting an argument error or a missing input.
+bool parseArguments(int argc, char **argv, Options &Opts) {
     for (int I = 1; I < argc; ++I) {
         std::string Arg = argv[I];
         if (Arg == "-r") {
-            Run = true;
+            Opts.Run = true;
         } else if (Arg == "-S") {
-            EmitIR = true;
+            Opts.EmitIR = true;
         } else if (Arg == "-no-std") {
-            NoStd = true;
+            Opts.NoStd = true;
         } else if (Arg == "-o") {
-            if (!OutputPath.empty()) {
+            if (!Opts.OutputPath.empty()) {
                 llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "-o may only be specified once\n";
-                return compilationTerminated();
+                return false;
             }
             if (I + 1 == argc || argv[I + 1][0] == '-' || argv[I + 1][0] == '\0') {
                 llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "-o requires an output path\n";
-                return compilationTerminated();
+                return false;
             }
-            OutputPath = argv[++I];
+            Opts.OutputPath = argv[++I];
         } else if (isColorOption(Arg)) {
             // Already applied above; not an unknown argument.
         } else if (Arg.empty() || Arg[0] == '-') {
             llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "unknown argument '" << Arg << "'\n";
-            return compilationTerminated();
+            return false;
         } else {
-            InputPaths.push_back(Arg);
+            Opts.InputPaths.push_back(Arg);
         }
     }
 
-    if (InputPaths.empty()) {
+    if (Opts.InputPaths.empty()) {
         llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "no input files\n";
-        return compilationTerminated();
+        return false;
     }
-#ifdef CPSC_RUN_PATH
-    std::string LliPath;
-#endif
-    if (Run) {
-#ifdef CPSC_RUN_PATH
-        auto Lli = llvm::sys::findProgramByName("lli");
-        if (!Lli) {
-            llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "-r requires lli from LLVM 23 in PATH: " << Lli.getError().message() << "\n";
-            return compilationTerminated();
-        }
-        LliPath = *Lli;
-        if (!checkLliVersion(LliPath)) return compilationTerminated();
-#elif defined(CPSC_RUN_NONE)
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "-r is disabled in this build (CPSC_RUN_MODE=NONE)\n";
-        return compilationTerminated();
-#endif
-    }
-    const bool Save = !Run || EmitIR || !OutputPath.empty();
-    const size_t UserInputCount = InputPaths.size();
-    StandardLibrary StdLibrary;
-    if (!NoStd && !StdLibrary.load(InputPaths)) return compilationTerminated();
-    std::vector<std::vector<std::unique_ptr<cps::StmtAST>>> Programs(InputPaths.size());
-    std::vector<cps::SourceUnit> Units;
+    return true;
+}
+
+// Parses each input independently into Programs[I] and its unit. Every unit
+// sees itself; user inputs also see the embedded std.cps.
+bool parseUnits(const std::vector<std::string> &InputPaths, size_t UserInputCount, bool NoStd,
+                std::vector<std::vector<std::unique_ptr<cps::StmtAST>>> &Programs,
+                std::vector<cps::SourceUnit> &Units) {
     for (size_t I = 0; I < InputPaths.size(); ++I) {
         const auto &InputPath = InputPaths[I];
         for (size_t J = 0; J < I; ++J) {
             if (llvm::sys::fs::equivalent(InputPath, InputPaths[J])) {
                 llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "duplicate input file '" << InputPath << "'\n";
-                return compilationTerminated();
+                return false;
             }
         }
         std::ifstream Input(InputPath, std::ios::binary);
         if (!Input) {
             llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot open source file '" << InputPath << "'\n";
-            return compilationTerminated();
+            return false;
         }
         cps::DiagnosticSource = InputPath;
         cps::Lexer Lex(Input);
@@ -239,9 +270,9 @@ int main(int argc, char **argv) {
         Programs[I] = Parser.Parse();
         if (Input.bad()) {
             llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot read source file '" << InputPath << "'\n";
-            return compilationTerminated();
+            return false;
         }
-        if (Lex.hadError() || Parser.hadError()) return compilationTerminated();
+        if (Lex.hadError() || Parser.hadError()) return false;
         Units.push_back({InputPath, Programs[I], std::vector<bool>(InputPaths.size(), false), Lex.isLibrary()});
         Units.back().Visible[I] = true;
         if (!NoStd && I < UserInputCount)
@@ -249,6 +280,11 @@ int main(int argc, char **argv) {
                 if (llvm::sys::path::filename(InputPaths[J]) == "std.cps")
                     Units.back().Visible[J] = true;
     }
+    return true;
+}
+
+// Each INCLUDE makes the named command-line unit visible to the includer.
+bool resolveIncludes(std::vector<cps::SourceUnit> &Units) {
     for (size_t I = 0; I < Units.size(); ++I) {
         cps::DiagnosticSource = Units[I].Path;
         for (const auto &Stmt : Units[I].Statements) {
@@ -266,20 +302,26 @@ int main(int argc, char **argv) {
                 cps::sourceError(Stmt->getLine(),
                     "cannot INCLUDE '%s': not given on the command line",
                     Include->getPath().c_str());
-                return compilationTerminated();
+                return false;
             }
         }
     }
+    return true;
+}
+
+// Visibility is transitive.
+void closeVisibility(std::vector<cps::SourceUnit> &Units) {
     for (size_t K = 0; K < Units.size(); ++K)
         for (size_t I = 0; I < Units.size(); ++I)
             for (size_t J = 0; J < Units.size(); ++J)
                 Units[I].Visible[J] = Units[I].Visible[J] ||
                     (Units[I].Visible[K] && Units[K].Visible[J]);
+}
 
-    // INCLUDE_OBJ is global: every input's objects join one link, and each
-    // EXTERN symbol must be defined by one of them ("__libc" is built in).
-    std::vector<std::string> Objects;
-    llvm::StringSet<> ExternSymbols;
+// INCLUDE_OBJ is global: every input's objects join one link, and each
+// EXTERN symbol must be defined by one of them ("__libc" is built in).
+bool loadObjects(const std::vector<cps::SourceUnit> &Units, std::vector<std::string> &Objects,
+                 llvm::StringSet<> &ExternSymbols) {
     bool LibcLoaded = false;
     for (size_t I = 0; I < Units.size(); ++I) {
         cps::DiagnosticSource = Units[I].Path;
@@ -287,7 +329,7 @@ int main(int argc, char **argv) {
             auto *Object = dynamic_cast<cps::IncludeObjStmtAST*>(Stmt.get());
             if (!Object) continue;
             if (Object->getPath() == "__libc") {
-                if (!LibcLoaded && !collectLibcSymbols(ExternSymbols)) return compilationTerminated();
+                if (!LibcLoaded && !collectLibcSymbols(ExternSymbols)) return false;
                 LibcLoaded = true;
                 continue;
             }
@@ -296,7 +338,7 @@ int main(int argc, char **argv) {
                 cps::sourceError(Stmt->getLine(),
                     "INCLUDE_OBJ '%s' must name a .o object file or \"__libc\"",
                     Object->getPath().c_str());
-                return compilationTerminated();
+                return false;
             }
             bool Seen = false;
             for (const auto &Existing : Objects)
@@ -306,11 +348,16 @@ int main(int argc, char **argv) {
             if (!collectObjectSymbols(Path, ExternSymbols, Error)) {
                 cps::sourceError(Stmt->getLine(), "cannot INCLUDE_OBJ '%s': %s",
                     Object->getPath().c_str(), Error.c_str());
-                return compilationTerminated();
+                return false;
             }
             Objects.push_back(std::string(Path));
         }
     }
+    return true;
+}
+
+// Reports every EXTERN whose symbol no INCLUDE_OBJ defines.
+bool checkExterns(const std::vector<cps::SourceUnit> &Units, const llvm::StringSet<> &ExternSymbols) {
     bool MissingSymbol = false;
     for (size_t I = 0; I < Units.size(); ++I) {
         cps::DiagnosticSource = Units[I].Path;
@@ -322,40 +369,27 @@ int main(int argc, char **argv) {
             MissingSymbol = true;
         }
     }
-    if (MissingSymbol) return compilationTerminated();
+    return !MissingSymbol;
+}
 
-    cps::CodeGen CG;
-    CG.compile(Units);
-    if (CG.hadError()) return compilationTerminated();
-
-    if (OutputPath.empty() && Save) {
-        llvm::SmallString<256> DefaultPath(InputPaths[CG.getMainUnit()]);
+// Without -o, the entry source's extension becomes .ll or the executable's.
+std::string defaultOutputPath(llvm::StringRef EntryPath, bool EmitIR) {
+    llvm::SmallString<256> DefaultPath(EntryPath);
 #ifdef _WIN32
-        const char *ExecutableExtension = ".exe";
+    const char *ExecutableExtension = ".exe";
 #else
-        const char *ExecutableExtension = ".out";
+    const char *ExecutableExtension = ".out";
 #endif
-        llvm::sys::path::replace_extension(DefaultPath, EmitIR ? ".ll" : ExecutableExtension);
-        OutputPath = std::string(DefaultPath);
-    }
-    for (const auto &InputPath : InputPaths) {
-        if (Save && llvm::sys::fs::equivalent(InputPath, OutputPath)) {
-            llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "output file must not be the source file\n";
-            return compilationTerminated();
-        }
-    }
+    llvm::sys::path::replace_extension(DefaultPath, EmitIR ? ".ll" : ExecutableExtension);
+    return std::string(DefaultPath);
+}
 
-    if (Save && !EmitIR) {
-        if (!compileNative(CG, OutputPath, argv[0], Objects)) return compilationTerminated();
-        if (!Run) return 0;
-    }
-    std::string IRPath = Save && EmitIR ? OutputPath : std::string();
-#ifdef CPSC_RUN_EMBEDDED
-    if (Run && IRPath.empty()) return runEmbedded(CG, Objects);
-#endif
+// Writes textual IR to IRPath, or to a new temporary file owned by
+// TemporaryOutput when IRPath is empty. Returns false after reporting a
+// fatal error.
+bool writeIR(cps::CodeGen &CG, std::string &IRPath, llvm::FileRemover &TemporaryOutput) {
     std::error_code EC;
     int OutputFD;
-    llvm::FileRemover TemporaryOutput;
     if (IRPath.empty()) {
         llvm::SmallString<256> TemporaryPath;
         EC = llvm::sys::fs::createTemporaryFile("cpsc", "ll", OutputFD, TemporaryPath);
@@ -369,7 +403,7 @@ int main(int argc, char **argv) {
     if (EC) {
         llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot open output file '" << IRPath
                      << "': " << EC.message() << "\n";
-        return compilationTerminated();
+        return false;
     }
     llvm::raw_fd_ostream Output(OutputFD, true);
     CG.print(Output);
@@ -378,29 +412,73 @@ int main(int argc, char **argv) {
         llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot write output file '" << IRPath
                      << "': " << Output.error().message() << "\n";
         Output.clear_error();
-        return compilationTerminated();
+        return false;
     }
-    if (!Run) return 0;
+    return true;
+}
+
+} // namespace
+
+int main(int argc, char **argv) {
+    if (printHelp(argc, argv)) return 0;
+    if (!applyColorOptions(argc, argv)) return compilationTerminated();
+
+    Options Opts;
+    if (!parseArguments(argc, argv, Opts)) return compilationTerminated();
+    auto &InputPaths = Opts.InputPaths;
+#ifdef CPSC_RUN_PATH
+    std::string LliPath;
+#endif
+    if (Opts.Run) {
+#ifdef CPSC_RUN_PATH
+        if (!findLli(LliPath)) return compilationTerminated();
+#elif defined(CPSC_RUN_NONE)
+        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "-r is disabled in this build (CPSC_RUN_MODE=NONE)\n";
+        return compilationTerminated();
+#endif
+    }
+    const bool Save = !Opts.Run || Opts.EmitIR || !Opts.OutputPath.empty();
+    const size_t UserInputCount = InputPaths.size();
+    StandardLibrary StdLibrary;
+    if (!Opts.NoStd && !StdLibrary.load(InputPaths)) return compilationTerminated();
+    std::vector<std::vector<std::unique_ptr<cps::StmtAST>>> Programs(InputPaths.size());
+    std::vector<cps::SourceUnit> Units;
+    if (!parseUnits(InputPaths, UserInputCount, Opts.NoStd, Programs, Units)) return compilationTerminated();
+    if (!resolveIncludes(Units)) return compilationTerminated();
+    closeVisibility(Units);
+
+    std::vector<std::string> Objects;
+    llvm::StringSet<> ExternSymbols;
+    if (!loadObjects(Units, Objects, ExternSymbols)) return compilationTerminated();
+    if (!checkExterns(Units, ExternSymbols)) return compilationTerminated();
+
+    cps::CodeGen CG;
+    CG.compile(Units);
+    if (CG.hadError()) return compilationTerminated();
+
+    if (Opts.OutputPath.empty() && Save)
+        Opts.OutputPath = defaultOutputPath(InputPaths[CG.getMainUnit()], Opts.EmitIR);
+    for (const auto &InputPath : InputPaths) {
+        if (Save && llvm::sys::fs::equivalent(InputPath, Opts.OutputPath)) {
+            llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "output file must not be the source file\n";
+            return compilationTerminated();
+        }
+    }
+
+    if (Save && !Opts.EmitIR) {
+        if (!compileNative(CG, Opts.OutputPath, argv[0], Objects)) return compilationTerminated();
+        if (!Opts.Run) return 0;
+    }
+    std::string IRPath = Save && Opts.EmitIR ? Opts.OutputPath : std::string();
+#ifdef CPSC_RUN_EMBEDDED
+    if (Opts.Run && IRPath.empty()) return runEmbedded(CG, Objects);
+#endif
+    llvm::FileRemover TemporaryOutput;
+    if (!writeIR(CG, IRPath, TemporaryOutput)) return compilationTerminated();
+    if (!Opts.Run) return 0;
 
 #ifdef CPSC_RUN_PATH
-    llvm::SmallString<256> RunPath(IRPath);
-    if (auto PathError = llvm::sys::fs::make_absolute(RunPath)) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "cannot resolve IR path: " << PathError.message() << "\n";
-        return 1;
-    }
-    std::string ExecutionError;
-    std::vector<std::string> LliArgs = {LliPath};
-    for (const auto &Object : Objects) LliArgs.push_back("-extra-object=" + Object);
-    LliArgs.push_back(std::string(RunPath));
-    std::vector<llvm::StringRef> LliArgv(LliArgs.begin(), LliArgs.end());
-    int Result = llvm::sys::ExecuteAndWait(LliPath, LliArgv,
-                                         std::nullopt, {}, 0, 0, &ExecutionError);
-    if (Result < 0) {
-        llvm::errs() << cps::diagnosticPrefix(cps::Severity::Error) << "lli execution failed (status " << Result << "): "
-                     << ExecutionError << "\n";
-        return 1;
-    }
-    return Result;
+    return runLli(LliPath, IRPath, Objects);
 #elif defined(CPSC_RUN_EMBEDDED)
     return runEmbedded(CG, Objects);
 #else
