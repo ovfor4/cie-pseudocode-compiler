@@ -113,23 +113,23 @@ const FuncSig *FunctionGen::getSignatureByLink(const std::string &Name) const {
     return &Signatures.at(It->second.first)[It->second.second];
 }
 
-Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
-    auto Registered = PrototypeLinks.find(Proto);
-    if (Registered != PrototypeLinks.end()) return Module.getFunction(Registered->second);
+// Copy-constructor, operator, MAIN and name-collision rules for a
+// FUNCTION/PROCEDURE prototype; reports the first violation.
+bool FunctionGen::validatePrototype(PrototypeAST *Proto) {
     if (!Proto->getOwnerClass().empty() && sameIdentifier(Proto->getName(), "NEW") &&
         Proto->getParams().size() == 1) {
         const auto &P = Proto->getParams()[0];
         if (!P.IsArray && sameIdentifier(P.TypeName, Proto->getOwnerClass()) &&
             P.Mode != PassMode::ByRef) {
             reportError("A copy constructor must take BYREF to its own class");
-            return nullptr;
+            return false;
         }
     }
     if (Proto->getOperator() == tok_assign &&
         (Proto->getOwnerClass().empty() || !Proto->isOverload() ||
          !sameIdentifier(Proto->getReturnType(), "VOID"))) {
         reportError("Assignment operator must be an OVERLOAD member PROCEDURE");
-        return nullptr;
+        return false;
     }
     if (int Op = Proto->getOperator()) {
         size_t Count = Proto->getParams().size() + !Proto->getOwnerClass().empty();
@@ -137,48 +137,55 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
                          : Op == tok_not ? Count == 1 : Count == 2;
         if (!ValidCount) {
             reportError("Invalid operand count for %s", Proto->getName().c_str());
-            return nullptr;
+            return false;
         }
         bool HasUserOperand = !Proto->getOwnerClass().empty();
         for (const auto &P : Proto->getParams()) {
             if (P.IsArray) {
                 reportError("An operator parameter cannot be a whole array");
-                return nullptr;
+                return false;
             }
             const TypeInfo *T = Types.resolve(P.TypeName);
             HasUserOperand |= T && (T->isRecord() || T->isEnum());
         }
         if (!HasUserOperand) {
             reportError("%s requires a record, class or enum operand", Proto->getName().c_str());
-            return nullptr;
+            return false;
         }
     }
     if (Proto->isOverload() && Proto->getOwnerClass().empty() && sameIdentifier(Proto->getName(), "MAIN")) {
         reportError("MAIN cannot be declared OVERLOAD");
-        return nullptr;
+        return false;
     }
     if (Proto->getOwnerClass().empty()) {
         if (!Proto->isExternal() && isReservedRuntimeName(Proto->getName())) {
             reportError("'%s' is a reserved runtime symbol and cannot be a FUNCTION/PROCEDURE name",
                     Proto->getName().c_str());
-            return nullptr;
+            return false;
         }
         if (CodeGen::isBuiltinName(Proto->getName())) {
             reportError("'%s' is a built-in function and cannot be redefined",
                     Proto->getName().c_str());
-            return nullptr;
+            return false;
         }
         if (Types.lookupEnumConstant(Proto->getName())) {
             reportError("'%s' is an enum value and cannot be a FUNCTION/PROCEDURE name",
                     Proto->getName().c_str());
-            return nullptr;
+            return false;
         }
         if (Types.resolve(Proto->getName())) {
             reportError("'%s' is a type name and cannot be a FUNCTION/PROCEDURE name",
                     Proto->getName().c_str());
-            return nullptr;
+            return false;
         }
     }
+    return true;
+}
+
+Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
+    auto Registered = PrototypeLinks.find(Proto);
+    if (Registered != PrototypeLinks.end()) return Module.getFunction(Registered->second);
+    if (!validatePrototype(Proto)) return nullptr;
 
     FuncSig Sig;
     Sig.OwnerUnit = CurrentUnit;

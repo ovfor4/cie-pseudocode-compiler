@@ -86,6 +86,7 @@ private:
 
     void createArgumentAllocas(llvm::Function *F, const std::vector<ParamDecl> &Params, bool IsMethod);
     llvm::Type *getLLVMType(const std::string &TypeName);
+    bool validatePrototype(PrototypeAST *Proto);
     llvm::Value *emitCall(const std::string &Callee, const std::vector<llvm::Value*> &Args);
 
 public:
