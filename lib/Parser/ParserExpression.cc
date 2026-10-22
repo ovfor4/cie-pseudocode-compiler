@@ -196,6 +196,21 @@ std::unique_ptr<ExprAST> Parser::ParseParenExpr() {
     getNextToken();
     bool IsType = isBuiltinTypeToken(CurTok) ||
         (CurTok == tok_identifier && TypeNames.count(Lex.IdentifierStr));
+    // A type declared in another source file is unknown here, so `( IDENT )`
+    // directly followed on the same line by the start of a primary is also a
+    // cast. `+` and `-` stay binary: `(n) - 5` is arithmetic.
+    if (!IsType && CurTok == tok_identifier && Lex.peekToken(0) == ')' &&
+        Lex.peekLine(1) == Lex.peekLine(0)) {
+        switch (Lex.peekToken(1)) {
+        case tok_identifier: case tok_number_int: case tok_number_real:
+        case tok_string_literal: case tok_c_string_literal: case tok_char_literal:
+        case tok_true: case tok_false: case '(': case tok_not:
+            IsType = true;
+            break;
+        default:
+            break;
+        }
+    }
     if (IsType) {
         std::string TypeName = ParseTypeName();
         if (TypeName.empty()) return nullptr;
