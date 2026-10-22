@@ -191,6 +191,58 @@ FunctionCallee getParseIntHelper(Module &M) {
     return {HelperTy, F};
 }
 
+// Defines `i1 __cps_parse_uint(ptr token, ptr out)`: an optionally '+'-signed decimal that fills the
+// whole token and fits in 64 unsigned bits. Negative numbers are rejected.
+FunctionCallee getParseUIntHelper(Module &M) {
+    LLVMContext &Ctx = M.getContext();
+    Type *I1 = Type::getInt1Ty(Ctx), *I8 = Type::getInt8Ty(Ctx), *I64 = Type::getInt64Ty(Ctx);
+    PointerType *Ptr = PointerType::getUnqual(Ctx);
+    FunctionType *HelperTy = FunctionType::get(I1, {Ptr, Ptr}, false);
+    if (Function *Existing = M.getFunction("__cps_parse_uint")) return {HelperTy, Existing};
+
+    Function *F = Function::Create(HelperTy, Function::InternalLinkage, "__cps_parse_uint", &M);
+    Value *Token = F->getArg(0), *Out = F->getArg(1);
+    BasicBlock *Entry = BasicBlock::Create(Ctx, "entry", F);
+    BasicBlock *Head = BasicBlock::Create(Ctx, "head", F), *Body = BasicBlock::Create(Ctx, "body", F);
+    BasicBlock *Next = BasicBlock::Create(Ctx, "next", F), *Tail = BasicBlock::Create(Ctx, "tail", F);
+    BasicBlock *Ok = BasicBlock::Create(Ctx, "ok", F), *Fail = BasicBlock::Create(Ctx, "fail", F);
+
+    IRBuilder<> B(Entry);
+    Value *Acc = B.CreateAlloca(I64, nullptr, "acc");
+    Value *Pos = B.CreateAlloca(Ptr, nullptr, "pos");
+    Value *HasSign = B.CreateICmpEQ(B.CreateLoad(I8, Token), ConstantInt::get(I8, '+'));
+    Value *Start = B.CreateGEP(I8, Token, {B.CreateZExt(HasSign, I64)});
+    B.CreateStore(ConstantInt::get(I64, 0), Acc);
+    B.CreateStore(Start, Pos);
+    B.CreateBr(Head);
+
+    B.SetInsertPoint(Head);
+    Value *P = B.CreateLoad(Ptr, Pos);
+    Value *Digit = B.CreateSub(B.CreateLoad(I8, P), ConstantInt::get(I8, '0'));
+    B.CreateCondBr(B.CreateICmpULT(Digit, ConstantInt::get(I8, 10)), Body, Tail);
+    B.SetInsertPoint(Body);
+    Value *Mul = B.CreateBinaryIntrinsic(Intrinsic::umul_with_overflow, B.CreateLoad(I64, Acc),
+                                         ConstantInt::get(I64, 10));
+    Value *Add = B.CreateBinaryIntrinsic(Intrinsic::uadd_with_overflow, B.CreateExtractValue(Mul, 0),
+                                         B.CreateZExt(Digit, I64));
+    Value *Overflow = B.CreateOr(B.CreateExtractValue(Mul, 1), B.CreateExtractValue(Add, 1));
+    B.CreateStore(B.CreateExtractValue(Add, 0), Acc);
+    B.CreateStore(B.CreateGEP(I8, P, {ConstantInt::get(I64, 1)}), Pos);
+    B.CreateCondBr(Overflow, Fail, Next);
+    B.SetInsertPoint(Next);
+    B.CreateBr(Head);
+
+    B.SetInsertPoint(Tail);
+    Value *AtEnd = B.CreateICmpEQ(B.CreateLoad(I8, P), ConstantInt::get(I8, 0));
+    B.CreateCondBr(B.CreateAnd(AtEnd, B.CreateICmpNE(P, Start)), Ok, Fail);
+    B.SetInsertPoint(Ok);
+    B.CreateStore(B.CreateLoad(I64, Acc), Out);
+    B.CreateRet(ConstantInt::getTrue(Ctx));
+    B.SetInsertPoint(Fail);
+    B.CreateRet(ConstantInt::getFalse(Ctx));
+    return {HelperTy, F};
+}
+
 // Defines `i1 __cps_parse_real(ptr token, ptr out)`: the rule of parseNumber in pseudocode-lib/
 // string.cc (shared by IS_NUM and STR_TO_NUM): strtod must consume the whole token and must not
 // overflow to infinity. A finite overflow is told from an "inf" literal by the missing letter i.
@@ -305,7 +357,8 @@ void CodeGen::emitScalarInput(Value *Addr, const TypeInfo *Info, int Line) {
         Builder->CreateStore(Number, Addr);
     } else {
         AllocaInst *Slot = CreateEntryBlockAlloca(Fn, I64, "input_int");
-        Require(Builder->CreateCall(getParseIntHelper(M), {Token, Slot}));
+        bool Unsigned = Info->isC() && !Info->isBoolean() && !Info->CSigned;
+        Require(Builder->CreateCall(Unsigned ? getParseUIntHelper(M) : getParseIntHelper(M), {Token, Slot}));
         Value *Number = Builder->CreateLoad(I64, Slot);
         if (Info->isBoolean()) {
             Builder->CreateStore(Builder->CreateICmpNE(Number, ConstantInt::get(I64, 0)), Addr);
@@ -313,14 +366,10 @@ void CodeGen::emitScalarInput(Value *Addr, const TypeInfo *Info, int Line) {
             unsigned Bits = Info->LLVMType->getIntegerBitWidth();
             Value *Stored = Number;
             if (Bits < 64) {
-                Type *Narrow = Info->LLVMType;
-                Stored = Builder->CreateTrunc(Number, Narrow);
-                Value *Back = Info->isC() && !Info->CSigned ? Builder->CreateZExt(Stored, I64)
-                                                            : Builder->CreateSExt(Stored, I64);
+                Stored = Builder->CreateTrunc(Number, Info->LLVMType);
+                Value *Back = Unsigned ? Builder->CreateZExt(Stored, I64) : Builder->CreateSExt(Stored, I64);
                 Require(Builder->CreateICmpEQ(Back, Number));
             }
-            if (Info->isC() && !Info->CSigned)
-                Require(Builder->CreateICmpSGE(Number, ConstantInt::get(I64, 0)));
             Builder->CreateStore(Stored, Addr);
         }
     }
