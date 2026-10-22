@@ -11,7 +11,7 @@ This file is an index; the detail lives in `AGENTS/ARCH/`.
 | [DRIVER.md](ARCH/DRIVER.md) | `tools/driver/main.cc`: options, multi-file inputs, entry points, output and exit-code rules, PATH/NONE modes |
 | [EMBEDDED_RUNNER.md](ARCH/EMBEDDED_RUNNER.md) | EMBEDDED LLJIT/JITLink runner, MinGW COFF/SEH support, archive loading |
 | [LINKING.md](ARCH/LINKING.md) | Static LLVM/LLD linking, `NativeCompiler`, macOS static LLD helper |
-| [INSTALL.md](ARCH/INSTALL.md) | `install.sh`/`install.ps1`, manual generation, release packaging |
+| [INSTALL.md](ARCH/INSTALL.md) | `install.sh`/`install.cmd`, manual generation, release packaging |
 | [NIGHTLY.md](ARCH/NIGHTLY.md) | `nightly-build.yml` jobs, Bundle packages, macOS LLD/Rust caching, publish rules, package naming |
 | [LAYOUT.md](ARCH/LAYOUT.md) | Source file map (lexer, parser, codegen, CMake, installers), AST conventions |
 

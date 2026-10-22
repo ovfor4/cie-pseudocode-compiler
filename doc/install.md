@@ -97,59 +97,65 @@ discovery of an adjacent shared man directory. For explicit lookup, use
 
 Install from an existing MinGW build with:
 
-```powershell
+```bat
 cmake --build build --target install
 ```
 
 This is equivalent to `mingw32-make -C build install`: it generates the HTML
-manual with Pandoc and calls `install.ps1`. The Windows default
+manual with Pandoc and runs `install.cmd` through `cmd.exe`. The Windows default
 `CMAKE_INSTALL_PREFIX` is `%LOCALAPPDATA%\Programs\cpsc`; an explicitly configured
 prefix is preserved. To change it, run
 `cmake -S . -B build -DCMAKE_INSTALL_PREFIX="D:/My Programs/cpsc"` before installing.
 
-You can also call `install.ps1` directly. It installs for the current user without
-administrator rights. Its source directory must contain `cpsc.exe`,
-`doc/cpsc.html` and `doc/language/**/*.html`:
+You can also run `install.cmd` directly. It installs for the current user without
+administrator rights and needs no PowerShell script execution. Its source directory
+must contain `cpsc.exe`, `doc\cpsc.html` and `doc\language\**\*.html`:
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -SourceDir .\build
+```bat
+install.cmd --source-dir build
 ```
+
+In PowerShell, run `.\install.cmd` instead. Quote paths that contain spaces:
+`install.cmd --prefix "D:\My Programs\cpsc"`. Use `--help` for usage.
 
 The default destination is `%LOCALAPPDATA%\Programs\cpsc`: `cpsc.exe` goes in
 that directory, the command manual goes in `doc`, and syntax manuals go in
-`doc/language/function` and `doc/language/keyword`; the overview stays in
-`doc/language`. The command manual links to the language overview and its pages.
-The installer adds the directory to the user PATH and creates Start Menu > cpsc > cpsc Help,
-which opens the manual in the default browser. Open a new terminal afterward;
-existing parent terminals retain their old PATH. Reinstalling does not duplicate
-the PATH entry. Use `-Prefix 'D:\My Programs\cpsc'` for a custom destination,
-or `-Help` for usage. Windows installation does not support `DESTDIR` staging.
-The PowerShell installer targets Windows PowerShell 5.1 or later and has only
-been reviewed statically; Windows installation still needs testing on Windows.
+`doc\language\function` and `doc\language\keyword`; the overview stays in
+`doc\language`. The command manual links to the language overview and its pages.
+The installer adds the directory to the user PATH only (not the system PATH) and
+creates Start Menu > cpsc > cpsc Help, which opens the manual in the default browser.
+Only this shortcut uses PowerShell; if PowerShell is unavailable or blocked, the
+installer prints a warning with the path to `doc\cpsc.html` and still succeeds.
+Open a new terminal afterward; existing parent terminals retain their old PATH
+(sign out and in if `cpsc` is still not found). Reinstalling does not duplicate
+the PATH entry.
+
+Limits: `DESTDIR` staging is unsupported, the prefix must be an absolute path
+without `;`, `=`, `!`, `%` or `^`, and a user PATH that contains quotation marks or is longer than
+about 8000 characters cannot be updated by the installer; add the directory by hand
+in that case. CI runs the installer on Windows; double-click behaviour and the
+Explorer PATH refresh still need a manual desktop check.
 
 ## Windows release packages
 
 Create an installation archive from the configured MinGW build with:
 
-```powershell
+```bat
 cmake --build build --target release
 ```
 
 This is equivalent to `mingw32-make -C build release`. Windows produces
 `build/cpsc-VERSION-Windows-ARCH.zip`, using the same UTC commit version as Unix
 and retaining the configured execution mode. The ZIP contains `cpsc.exe`,
-`doc/cpsc.html`, `doc/language/**/*.html`, `install.ps1` and `LICENSE` under one top-level directory.
+`doc/cpsc.html`, `doc/language/**/*.html`, `install.cmd` and `LICENSE` under one top-level directory.
 It uses CMake's default Deflate compression and needs no additional compression
 tool; packaging requires Git and Pandoc, just as on Unix.
 
-Extract the ZIP using Windows Explorer, open PowerShell in the extracted package
-directory, then run:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
-```
+Extract the whole ZIP using Windows Explorer, then double-click `install.cmd` in the
+extracted package directory, or run it from Command Prompt (`install.cmd`) or
+PowerShell (`.\install.cmd`). Double-clicking keeps the window open until a key is pressed.
 
 Recipients need neither CMake, Git nor Pandoc to install. To check installation,
-open a new terminal, run `Get-Command cpsc` and compile a source with
+open a new terminal, run `where cpsc` and compile a source with
 `cpsc test.cps`; open Start Menu > cpsc > cpsc Help to check the manual. Running
 the installer again should leave only one entry for its directory in the user PATH.
