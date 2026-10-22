@@ -13,7 +13,7 @@ source, most also by compiling and running test programs.
 - **Arrays cross function boundaries only as parameters.** `ArrayTable` is scoped per
   function, so referencing another function's array fails cleanly as
   "Undeclared array". Whole arrays pass as `ARRAY OF T` / `ARRAY[l:u,...] OF T`
-  parameters (BYVAL copies the entire buffer and never frees it); a whole-array
+  parameters (BYVAL copies the entire buffer; the copy is freed when the callee ends); a whole-array
   argument against a scalar parameter is still a compile error. FUNCTIONs cannot
   RETURN arrays. A whole-array variable is also rejected as an operand or as a
   value of its element type.

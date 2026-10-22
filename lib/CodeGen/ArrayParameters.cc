@@ -27,8 +27,8 @@ void ArrayHandler::bindArrayParameter(const std::string &Name,
     Value *Ptr = DataPtr;
     if (MakeCopy) {
         // BYVAL: whole-buffer copy so callee writes stay invisible to the
-        // caller. The copy is malloc'd and never freed, consistent with the
-        // project-wide string policy.
+        // caller. The copy is malloc'd and registered below, so it is freed
+        // when the callee ends.
         Value *TotalBytes = Builder->CreateMul(TotalElements, Meta.ElementSizeC,
                                                Name + "_copy_bytes");
         Value *Copy = Builder->CreateCall(MallocFunc, TotalBytes, Name + "_copy");

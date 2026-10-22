@@ -12,8 +12,8 @@ Part of the [pitfalls index](../PITFALLS.md).
 - Uncaught exceptions also print the generic termination message and return 1.
 - Native compilation links the C++ runtime automatically; manually linking emitted
   `.ll` files must use LLVM 23's `clang++` (`clang++-23` on Debian/Ubuntu).
-- Owned STRING values follow class cleanup during unwinding; raw array buffers are
-  not freed and files are not automatically closed.
+- Owned STRING values follow class cleanup during unwinding; array buffers are freed
+  and files are not automatically closed.
 - Check the native nightly job results when changing platform-specific code
   (CI coverage: [ARCH/BUILD.md](../ARCH/BUILD.md)).
 

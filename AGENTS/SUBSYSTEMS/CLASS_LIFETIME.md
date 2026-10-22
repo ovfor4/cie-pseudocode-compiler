@@ -37,6 +37,10 @@ Part of the [subsystem notes](../SUBSYSTEMS.md). Builds on [classes](CLASSES.md)
 - Each record retains the original address, an entry-initialized Alive flag and, for
   arrays, a runtime element count in an entry slot. Array buffer addresses also live in
   entry slots so deferred cleanup never references branch-local bound SSA values.
+- Every array registers, even when its elements need no destruction: cleanup runs the
+  element-destroy loop only when needed, then `free`s the buffer and nulls the slot, so
+  re-DECLARE, RETURN, unwinding and BYVAL copies all release it. BYREF arrays are never
+  registered.
 - Repeated DECLARE destroys its previous live incarnation first. Alive becomes true only
   after construction or copy completes and is cleared before destruction.
 - Rebinding a reference slot with NEW does not change the original address tracked for

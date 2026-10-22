@@ -43,8 +43,8 @@ Part of the [subsystem notes](../SUBSYSTEMS.md). Related: [class lifetime](CLASS
   propagates and interrupts remaining cleanup instead of terminating.
 - Main records only its normal return, leaving its final uncaught-exception handler free
   of automatic object destruction.
-- Owned STRING values follow class cleanup. Raw array buffers are not freed and files
-  are not automatically closed.
+- Owned STRING values follow class cleanup. Array buffers are freed with their
+  scope (also when unwinding) and files are not automatically closed.
 
 ### Runtime and platforms
 

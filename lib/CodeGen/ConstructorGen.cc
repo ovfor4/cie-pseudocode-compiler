@@ -256,7 +256,8 @@ bool CodeGen::emitDestroy(const std::string &TypeName, Value *Addr, int Line) {
 
 size_t CodeGen::registerStackObject(Value *Addr, const std::string &TypeName, int Line,
                                      bool IsArray) {
-    if (!typeNeedsDestruction(TypeName)) return size_t(-1);
+    // Arrays always register: their buffer is freed when the scope ends.
+    if (!IsArray && !typeNeedsDestruction(TypeName)) return size_t(-1);
     auto *F = Builder->GetInsertBlock()->getParent();
     IRBuilder<> Entry(&F->getEntryBlock(), F->getEntryBlock().begin());
     auto *Alive = Entry.CreateAlloca(Entry.getInt1Ty(), nullptr, "object_alive");
@@ -291,23 +292,33 @@ void CodeGen::emitStackObjectCleanup(const StackObject &Object) {
         emitDestroy(Object.TypeName, Object.Addr, Object.Line);
     } else {
         Value *Base = Builder->CreateLoad(PointerType::getUnqual(*TheContext), Object.Addr);
-        Value *Count = Builder->CreateLoad(Builder->getInt64Ty(), Object.Count);
-        auto *Preheader = Builder->GetInsertBlock();
-        auto *Loop = BasicBlock::Create(*TheContext, "destroy_elements", F);
-        auto *Body = BasicBlock::Create(*TheContext, "destroy_element", F);
-        Builder->CreateBr(Loop);
-        Builder->SetInsertPoint(Loop);
-        auto *Index = Builder->CreatePHI(Builder->getInt64Ty(), 2);
-        Index->addIncoming(Count, Preheader);
-        Builder->CreateCondBr(Builder->CreateICmpNE(Index, Builder->getInt64(0)), Body, Done);
-        Builder->SetInsertPoint(Body);
-        Value *Previous = Builder->CreateSub(Index, Builder->getInt64(1));
-        Value *Element = Builder->CreateGEP(resolveType(Object.TypeName)->LLVMType, Base, Previous);
-        emitDestroy(Object.TypeName, Element, Object.Line);
-        Index->addIncoming(Previous, Builder->GetInsertBlock());
-        Builder->CreateBr(Loop);
-        Builder->SetInsertPoint(Done);
-        return;
+        auto *Free = BasicBlock::Create(*TheContext, "free_array", F);
+        if (typeNeedsDestruction(Object.TypeName)) {
+            Value *Count = Builder->CreateLoad(Builder->getInt64Ty(), Object.Count);
+            auto *Preheader = Builder->GetInsertBlock();
+            auto *Loop = BasicBlock::Create(*TheContext, "destroy_elements", F);
+            auto *Body = BasicBlock::Create(*TheContext, "destroy_element", F);
+            Builder->CreateBr(Loop);
+            Builder->SetInsertPoint(Loop);
+            auto *Index = Builder->CreatePHI(Builder->getInt64Ty(), 2);
+            Index->addIncoming(Count, Preheader);
+            Builder->CreateCondBr(Builder->CreateICmpNE(Index, Builder->getInt64(0)), Body, Free);
+            Builder->SetInsertPoint(Body);
+            Value *Previous = Builder->CreateSub(Index, Builder->getInt64(1));
+            Value *Element = Builder->CreateGEP(resolveType(Object.TypeName)->LLVMType, Base, Previous);
+            emitDestroy(Object.TypeName, Element, Object.Line);
+            Index->addIncoming(Previous, Builder->GetInsertBlock());
+            Builder->CreateBr(Loop);
+        } else {
+            Builder->CreateBr(Free);
+        }
+        // Release the buffer; the slot is nulled so a later cleanup of the
+        // same (inactive) object can never free it twice.
+        Builder->SetInsertPoint(Free);
+        FunctionCallee FreeFunc = TheModule->getOrInsertFunction(
+            "free", FunctionType::get(Builder->getVoidTy(), {PointerType::getUnqual(*TheContext)}, false));
+        Builder->CreateCall(FreeFunc, {Base});
+        Builder->CreateStore(ConstantPointerNull::get(PointerType::getUnqual(*TheContext)), Object.Addr);
     }
     Builder->CreateBr(Done);
     Builder->SetInsertPoint(Done);
