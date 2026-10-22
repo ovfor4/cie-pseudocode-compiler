@@ -39,8 +39,8 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .maximize()
         .build()?;
     let menu = MenuBuilder::new(app);
-    // macOS shows the first submenu as the application menu. Quit skips unsaved-changes
-    // prompts, so other platforms close windows instead.
+    // macOS shows the first submenu as the application menu. The predefined Quit terminates
+    // without closing windows, skipping their unsaved-changes prompts, so "quit" closes them.
     #[cfg(target_os = "macos")]
     let menu = menu.item(
         &SubmenuBuilder::new(app, "CPSC Bundle")
@@ -52,7 +52,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
             .hide_others()
             .show_all()
             .separator()
-            .quit()
+            .item(&item("quit", "Quit CPSC Bundle", "CmdOrCtrl+Q")?)
             .build()?,
     );
     menu.items(&[&file, &edit, &run, &window]).build()

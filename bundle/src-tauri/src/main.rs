@@ -93,11 +93,12 @@ fn main() {
         .menu(menu::build)
         // Menu items act on the focused window, like its keyboard shortcuts.
         .on_menu_event(|app, event| {
-            let focused = app
-                .webview_windows()
-                .into_values()
-                .find(|window| window.is_focused().unwrap_or(false));
-            if let Some(window) = focused {
+            let mut windows = app.webview_windows().into_values();
+            if event.id() == "quit" {
+                // Each window runs its unsaved-changes prompt; the app exits after the last.
+                windows.for_each(|window| drop(window.close()));
+            } else if let Some(window) = windows.find(|window| window.is_focused().unwrap_or(false))
+            {
                 let _ = window.emit_to(window.label(), "menu", event.id().as_ref());
             }
         })
