@@ -90,6 +90,7 @@ class CodeGen {
     bool emitConstruct(const std::string &TypeName, llvm::Value *Addr,
                        const std::vector<std::unique_ptr<ExprAST>> &Args, int Line);
     bool emitDefaultConstruct(const std::string &TypeName, llvm::Value *Addr, int Line);
+    bool emitFieldDefaults(const TypeInfo *Type, llvm::Value *Addr, int Line);
     struct StackObject {
         llvm::Value *Addr;
         std::string TypeName;

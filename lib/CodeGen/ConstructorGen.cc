@@ -73,12 +73,7 @@ Value *CodeGen::copyClassValue(const TypeInfo *Type, Value *Address,
     size_t Lifetime = registerStackObject(Storage, Type->Name, DiagnosticLine);
     if (Lifetime != size_t(-1)) StackObjects[Lifetime].Temporary = true;
     Builder->CreateStore(Types->getZeroValue(Type->Name), Storage);
-    for (const auto &[Name, Field] : Type->Record.Fields) {
-        if (typeNeedsConstruction(Field.TypeName) &&
-            !emitDefaultConstruct(Field.TypeName,
-                Builder->CreateStructGEP(Type->LLVMType, Storage, Field.Index), DiagnosticLine))
-            return nullptr;
-    }
+    if (!emitFieldDefaults(Type, Storage, DiagnosticLine)) return nullptr;
     if (!FuncGen->emitCall(*Copy, {Storage, Address})) return nullptr;
     activateStackObject(Lifetime);
     Transfers.push_back(Lifetime);
@@ -109,13 +104,7 @@ bool CodeGen::emitConstruct(const std::string &TypeName, Value *Addr,
     SaveAndRestore<int> Location(DiagnosticLine, Line);
     const TypeInfo *Info = resolveType(TypeName);
     if (!Info) return false;
-    if (Info->asRecord()) {
-        for (const auto &[Name, Field] : Info->Record.Fields) {
-            if (!typeNeedsConstruction(Field.TypeName)) continue;
-            Value *FieldAddr = Builder->CreateStructGEP(Info->LLVMType, Addr, Field.Index);
-            if (!emitDefaultConstruct(Field.TypeName, FieldAddr, Line)) return false;
-        }
-    }
+    if (Info->asRecord() && !emitFieldDefaults(Info, Addr, Line)) return false;
     if (findMethod(TypeName, "NEW"))
         return emitMethodCall(TypeName, Addr, "NEW", Args, Line) != nullptr;
     if (!Args.empty()) {
@@ -127,6 +116,17 @@ bool CodeGen::emitConstruct(const std::string &TypeName, Value *Addr,
 
 bool CodeGen::emitDefaultConstruct(const std::string &TypeName, Value *Addr, int Line) {
     return emitConstruct(TypeName, Addr, {}, Line);
+}
+
+// Default-constructs, in declaration order, each field of the record at Addr
+// that needs construction.
+bool CodeGen::emitFieldDefaults(const TypeInfo *Type, Value *Addr, int Line) {
+    for (const auto &[Name, Field] : Type->Record.Fields) {
+        if (!typeNeedsConstruction(Field.TypeName)) continue;
+        Value *FieldAddr = Builder->CreateStructGEP(Type->LLVMType, Addr, Field.Index);
+        if (!emitDefaultConstruct(Field.TypeName, FieldAddr, Line)) return false;
+    }
+    return true;
 }
 
 Value *CodeGen::symbolAddress(const SymbolInfo &Info) {

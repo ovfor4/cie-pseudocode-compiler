@@ -29,11 +29,7 @@ Value *CodeGen::emitStringFromCString(Value *Text) {
     auto *Storage = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
                                           Type->LLVMType, "string_value");
     Builder->CreateStore(Types->getZeroValue(Type->Name), Storage);
-    for (const auto &[Name, Field] : Type->Record.Fields)
-        if (typeNeedsConstruction(Field.TypeName) &&
-            !emitDefaultConstruct(Field.TypeName,
-                Builder->CreateStructGEP(Type->LLVMType, Storage, Field.Index), DiagnosticLine))
-            return nullptr;
+    if (!emitFieldDefaults(Type, Storage, DiagnosticLine)) return nullptr;
     if (!FuncGen->emitCall(*Constructor, {Storage, Text})) return nullptr;
     // The consumer takes ownership, just as with an ordinary class result.
     return Builder->CreateLoad(Type->LLVMType, Storage, "string");
