@@ -14,7 +14,7 @@ NUM_TO_STR(number : INTEGER or REAL) RETURNS STRING
 
 Provided by the standard string library, loaded and linked by default.
 
-Format INTEGER as signed decimal text and REAL with six digits after the decimal point.
+Format INTEGER as signed decimal text and REAL in the same shortest round-trip form that OUTPUT prints. The text is the shortest decimal text that reads back as the same value (as Python's `repr`): fixed notation with at least one fractional digit when 1e-4 <= |x| < 1e16 (`2.0`, `87.5`, `0.0001`), otherwise scientific notation with an exponent of at least two digits (`1e-07`, `1.5e-07`, `1e+16`); special values print as `-0.0`, `inf`, `-inf` and `nan`.
 
 # EXAMPLE
 

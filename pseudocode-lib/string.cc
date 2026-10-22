@@ -23,6 +23,27 @@ decltype(auto) checked(Operation &&Op) {
 }
 std::string &text(void *Handle) { return *static_cast<std::string *>(Handle); }
 
+// Python-repr-style shortest round-trip text for a REAL. Keep in sync with getOutputRealHelper in
+// lib/CodeGen/OutputGen.cc, which OUTPUT uses.
+std::string realText(double Number) {
+    if (std::isnan(Number)) return "nan";
+    if (std::isinf(Number)) return Number < 0 ? "-inf" : "inf";
+    char Buffer[64];
+    double Abs = std::fabs(Number);
+    if (Abs == 0 || (Abs >= 1e-4 && Abs < 1e16)) {
+        for (int Decimals = 1; Decimals < 40; ++Decimals) {
+            std::snprintf(Buffer, sizeof Buffer, "%.*f", Decimals, Number);
+            if (std::strtod(Buffer, nullptr) == Number) break;
+        }
+    } else {
+        for (int Precision = 0; Precision < 17; ++Precision) {
+            std::snprintf(Buffer, sizeof Buffer, "%.*e", Precision, Number);
+            if (std::strtod(Buffer, nullptr) == Number) break;
+        }
+    }
+    return Buffer;
+}
+
 enum class NumberStatus { Ok, Invalid, OutOfRange };
 
 // Shared by IS_NUM and STR_TO_NUM so that they always agree.
@@ -70,7 +91,7 @@ void _string_impl_from_int(void *Target, long long Number) {
     checked([&] { text(Target) = std::to_string(Number); });
 }
 void _string_impl_from_real(void *Target, double Number) {
-    checked([&] { text(Target) = std::to_string(Number); });
+    checked([&] { text(Target) = realText(Number); });
 }
 double _string_impl_to_real(void *Handle) {
     return checked([&] {

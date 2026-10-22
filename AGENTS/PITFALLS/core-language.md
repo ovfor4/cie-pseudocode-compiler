@@ -31,8 +31,9 @@ source, most also by compiling and running test programs.
   DIV/MOD only.
   - CHR returns an owning one-byte STRING, not CHAR; CHR(0) retains one NUL byte.
   - STR_TO_NUM always returns REAL and shares parseNumber (strtod, full consumption, overflow rejected) with IS_NUM.
-  - NUM_TO_STR uses std::to_string, preserving the full signed i64 range and six
-    fractional digits for REAL.
+  - NUM_TO_STR keeps the full signed i64 range for INTEGER; REAL uses the shortest
+    round-trip text (realText in string.cc), byte-identical to OUTPUT's IR helper in
+    OutputGen.cc (`__cps_output_real`); change both together. C_DOUBLE output keeps `%f`.
 - **`getExprTypeInfo` returns nullptr** for expressions it can't classify (null-check
   it at any new call site) and internally defaults to INTEGER for unclassified
   arithmetic expressions; unknown or unmatched calls diagnose and return nullptr.

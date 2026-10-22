@@ -3,7 +3,7 @@ helloworld
 3
 20500
 20500
-421.250000
+421.25
 TRUE
 conversion caught
 length caught
