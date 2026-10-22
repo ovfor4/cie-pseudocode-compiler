@@ -133,18 +133,36 @@ bool isLibcInput(llvm::StringRef Path) {
 #endif
 }
 
-bool unpackRuntime(llvm::json::Object *&Metadata, std::optional<llvm::json::Value> &Manifest,
-                   llvm::SmallVector<uint8_t, 0> &Data) {
-    auto Parsed = llvm::json::parse(NativeRuntimeManifest);
-    if (!Parsed) return fail(llvm::toString(Parsed.takeError()));
-    Manifest = std::move(*Parsed);
-    Metadata = Manifest->getAsObject();
-    if (auto Error = llvm::compression::zlib::decompress(
-            llvm::ArrayRef(reinterpret_cast<const uint8_t *>(NativeRuntimeData),
-                           sizeof(NativeRuntimeData) - 1), Data, NativeRuntimeSize))
-        return fail("cannot unpack native link resources: " + llvm::toString(std::move(Error)));
-    return true;
-}
+// The embedded link resources: their manifest and decompressed file contents.
+// Metadata points into Manifest, so the object is neither copied nor moved.
+struct NativeRuntime {
+    std::optional<llvm::json::Value> Manifest;
+    llvm::json::Object *Metadata = nullptr;
+    llvm::SmallVector<uint8_t, 0> Data;
+
+    NativeRuntime() = default;
+    NativeRuntime(const NativeRuntime &) = delete;
+    NativeRuntime &operator=(const NativeRuntime &) = delete;
+
+    bool load() {
+        auto Parsed = llvm::json::parse(NativeRuntimeManifest);
+        if (!Parsed) return fail(llvm::toString(Parsed.takeError()));
+        Manifest = std::move(*Parsed);
+        Metadata = Manifest->getAsObject();
+        if (auto Error = llvm::compression::zlib::decompress(
+                llvm::ArrayRef(reinterpret_cast<const uint8_t *>(NativeRuntimeData),
+                               sizeof(NativeRuntimeData) - 1), Data, NativeRuntimeSize))
+            return fail("cannot unpack native link resources: " + llvm::toString(std::move(Error)));
+        return true;
+    }
+
+    const llvm::json::Array &files() const { return *Metadata->getArray("files"); }
+
+    llvm::StringRef contents(const llvm::json::Object &File) const {
+        return llvm::StringRef(reinterpret_cast<const char *>(Data.data()) +
+                                   *File.getInteger("offset"), *File.getInteger("size"));
+    }
+};
 
 } // namespace
 
@@ -169,26 +187,20 @@ bool collectObjectSymbols(llvm::StringRef Path, llvm::StringSet<> &Out, std::str
 }
 
 bool collectLibcSymbols(llvm::StringSet<> &Out) {
-    llvm::json::Object *Metadata = nullptr;
-    std::optional<llvm::json::Value> Manifest;
-    llvm::SmallVector<uint8_t, 0> Data;
-    if (!unpackRuntime(Metadata, Manifest, Data)) return false;
-    for (const auto &Entry : *Metadata->getArray("files")) {
+    NativeRuntime Resources;
+    if (!Resources.load()) return false;
+    for (const auto &Entry : Resources.files()) {
         const auto &File = *Entry.getAsObject();
         if (*File.getBoolean("script") || !isLibcInput(*File.getString("path"))) continue;
-        llvm::StringRef Contents(reinterpret_cast<const char *>(Data.data()) +
-                                     *File.getInteger("offset"), *File.getInteger("size"));
-        addBinarySymbols(llvm::MemoryBufferRef(Contents, *File.getString("path")), Out);
+        addBinarySymbols(llvm::MemoryBufferRef(Resources.contents(File), *File.getString("path")), Out);
     }
     return true;
 }
 
 bool unpackCxxRuntime(std::vector<std::unique_ptr<llvm::MemoryBuffer>> &Archives) {
-    llvm::json::Object *Metadata = nullptr;
-    std::optional<llvm::json::Value> Manifest;
-    llvm::SmallVector<uint8_t, 0> Data;
-    if (!unpackRuntime(Metadata, Manifest, Data)) return false;
-    for (const auto &Entry : *Metadata->getArray("files")) {
+    NativeRuntime Resources;
+    if (!Resources.load()) return false;
+    for (const auto &Entry : Resources.files()) {
         const auto &File = *Entry.getAsObject();
         llvm::StringRef Path = *File.getString("path");
         llvm::StringRef Name = llvm::sys::path::filename(Path);
@@ -196,9 +208,7 @@ bool unpackCxxRuntime(std::vector<std::unique_ptr<llvm::MemoryBuffer>> &Archives
         if (*File.getBoolean("script") ||
             !(Name == "libstdc++.a" || Name == "libc++.a" || Name == "libc++abi.a" ||
               Name == "libgcc.a" || Name == "libmingwex.a" || Name == "libm.a")) continue;
-        llvm::StringRef Contents(reinterpret_cast<const char *>(Data.data()) +
-                                     *File.getInteger("offset"), *File.getInteger("size"));
-        Archives.push_back(llvm::MemoryBuffer::getMemBufferCopy(Contents, Path));
+        Archives.push_back(llvm::MemoryBuffer::getMemBufferCopy(Resources.contents(File), Path));
     }
     return true;
 }
@@ -209,11 +219,9 @@ bool compileNative(const cps::CodeGen &CG, llvm::StringRef OutputPath, const cha
     if (auto EC = llvm::sys::fs::createUniqueDirectory("cpsc-native", Runtime.Path))
         return fail("cannot create native compilation directory: " + EC.message());
 
-    llvm::json::Object *MetadataObject = nullptr;
-    std::optional<llvm::json::Value> Manifest;
-    llvm::SmallVector<uint8_t, 0> Data;
-    if (!unpackRuntime(MetadataObject, Manifest, Data)) return false;
-    auto &Metadata = *MetadataObject;
+    NativeRuntime Resources;
+    if (!Resources.load()) return false;
+    auto &Metadata = *Resources.Metadata;
 
     auto relocate = [&](llvm::StringRef Text) {
         std::string Result = Text.str();
@@ -225,7 +233,7 @@ bool compileNative(const cps::CodeGen &CG, llvm::StringRef OutputPath, const cha
         }
         return Result;
     };
-    for (const auto &Entry : *Metadata.getArray("files")) {
+    for (const auto &Entry : Resources.files()) {
         const auto &File = *Entry.getAsObject();
         llvm::SmallString<256> Path(Runtime.Path);
         llvm::sys::path::append(Path, *File.getString("path"));
@@ -234,8 +242,7 @@ bool compileNative(const cps::CodeGen &CG, llvm::StringRef OutputPath, const cha
         std::error_code EC;
         llvm::raw_fd_ostream Output(Path, EC);
         if (EC) return fail("cannot open native link resource: " + EC.message());
-        llvm::StringRef Contents(reinterpret_cast<const char *>(Data.data()) +
-                                     *File.getInteger("offset"), *File.getInteger("size"));
+        llvm::StringRef Contents = Resources.contents(File);
         if (*File.getBoolean("script")) Output << relocate(Contents);
         else Output << Contents;
         Output.close();
