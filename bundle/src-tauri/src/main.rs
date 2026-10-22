@@ -110,7 +110,8 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("Could not start CPSC Bundle")
         .run(|app, event| match event {
-            tauri::RunEvent::ExitRequested { .. } => {
+            // Also reached when macOS terminates without closing windows, such as Dock Quit.
+            tauri::RunEvent::Exit => {
                 let runners: Vec<Runner> = app
                     .state::<Runners>()
                     .0
