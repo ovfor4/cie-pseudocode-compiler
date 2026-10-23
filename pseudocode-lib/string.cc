@@ -49,6 +49,10 @@ enum class NumberStatus { Ok, Invalid, OutOfRange };
 // Shared by IS_NUM and STR_TO_NUM so that they always agree.
 NumberStatus parseNumber(const std::string &Source, double &Result) {
     if (Source.empty()) return NumberStatus::Invalid;
+    // Only decimal text: reject nan, inf/infinity and hexadecimal forms that strtod accepts.
+    if (Source.find_first_not_of("0123456789.eE+-", Source.find_first_not_of(" \t\n\v\f\r")) !=
+        std::string::npos)
+        return NumberStatus::Invalid;
     char *End = nullptr;
     errno = 0;
     double Number = std::strtod(Source.c_str(), &End);

@@ -244,18 +244,20 @@ FunctionCallee getParseUIntHelper(Module &M) {
 }
 
 // Defines `i1 __cps_parse_real(ptr token, ptr out)`: the rule of parseNumber in pseudocode-lib/
-// string.cc (shared by IS_NUM and STR_TO_NUM): strtod must consume the whole token and must not
-// overflow to infinity. A finite overflow is told from an "inf" literal by the missing letter i.
+// string.cc (shared by IS_NUM and STR_TO_NUM): the token holds only 0-9 . e E + -, which rules
+// out nan, inf/infinity and hexadecimal; strtod must consume the whole token and must not
+// overflow to infinity, so an infinite result can only come from overflow.
 FunctionCallee getParseRealHelper(Module &M) {
     LLVMContext &Ctx = M.getContext();
-    Type *I1 = Type::getInt1Ty(Ctx), *I8 = Type::getInt8Ty(Ctx), *I32 = Type::getInt32Ty(Ctx);
+    Type *I1 = Type::getInt1Ty(Ctx), *I8 = Type::getInt8Ty(Ctx), *I64 = Type::getInt64Ty(Ctx);
     Type *DoubleTy = Type::getDoubleTy(Ctx);
     PointerType *Ptr = PointerType::getUnqual(Ctx);
     FunctionType *HelperTy = FunctionType::get(I1, {Ptr, Ptr}, false);
     if (Function *Existing = M.getFunction("__cps_parse_real")) return {HelperTy, Existing};
 
     FunctionCallee Strtod = M.getOrInsertFunction("strtod", FunctionType::get(DoubleTy, {Ptr, Ptr}, false));
-    FunctionCallee Strchr = M.getOrInsertFunction("strchr", FunctionType::get(Ptr, {Ptr, I32}, false));
+    FunctionCallee Strspn = M.getOrInsertFunction("strspn", FunctionType::get(I64, {Ptr, Ptr}, false));
+    FunctionCallee Strlen = M.getOrInsertFunction("strlen", FunctionType::get(I64, {Ptr}, false));
     Function *F = Function::Create(HelperTy, Function::InternalLinkage, "__cps_parse_real", &M);
     Value *Token = F->getArg(0), *Out = F->getArg(1);
     IRBuilder<> B(BasicBlock::Create(Ctx, "entry", F));
@@ -265,11 +267,10 @@ FunctionCallee getParseRealHelper(Module &M) {
     Value *Progress = B.CreateICmpNE(B.CreateLoad(Ptr, EndSlot), Token);
     Value *IsInf = B.CreateFCmpOEQ(B.CreateUnaryIntrinsic(Intrinsic::fabs, Number),
                                    ConstantFP::getInfinity(DoubleTy));
-    Value *NoLowerI = B.CreateIsNull(B.CreateCall(Strchr, {Token, ConstantInt::get(I32, 'i')}));
-    Value *NoUpperI = B.CreateIsNull(B.CreateCall(Strchr, {Token, ConstantInt::get(I32, 'I')}));
-    Value *Overflowed = B.CreateAnd(IsInf, B.CreateAnd(NoLowerI, NoUpperI));
+    Value *Decimal = B.CreateICmpEQ(B.CreateCall(Strspn, {Token, B.CreateGlobalString("0123456789.eE+-")}),
+                                    B.CreateCall(Strlen, {Token}));
     B.CreateStore(Number, Out);
-    B.CreateRet(B.CreateAnd(B.CreateAnd(Consumed, Progress), B.CreateNot(Overflowed)));
+    B.CreateRet(B.CreateAnd(Decimal, B.CreateAnd(B.CreateAnd(Consumed, Progress), B.CreateNot(IsInf))));
     return {HelperTy, F};
 }
 
