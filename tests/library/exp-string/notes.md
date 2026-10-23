@@ -18,6 +18,6 @@ UCASE converts AbC@19 to ABC@19 without modifying the source. Its CHAR overload 
 
 ASC returns 65 for CHAR A and the first byte of ABCDEFGH, zero for empty strings or NUL, and 255 for a byte with all eight bits set. These byte-code functions are compiler/library extensions.
 
-CHR codes 65 and 90 concatenate to AZ; converting A to a code and back preserves 65. Code zero produces one retained NUL byte. Taking the low eight bits gives 65 for 321 and 255 for -1.
+CHR codes 65 and 90 concatenate to AZ; converting A to a code and back preserves 65. CHR returns CHAR; code zero produces a NUL CHAR whose STRING conversion retains one byte. Taking the low eight bits gives 65 for 321 and 255 for -1.
 
 IS_NUM accepts 12.5 and a leading space before 12.5. It rejects trailing junk, empty input, trailing space, whitespace alone, and a NUL byte before or after a valid number, without throwing. Numeric recognition follows the compiler's strtod-based extension.

@@ -33,7 +33,7 @@ The library provides `&`, six case-sensitive content comparisons, and these ordi
 - `MID(S, Start, Count)` uses a one-based Start. Starts below 1 clamp to 1; starts beyond the end and nonpositive counts return empty. Counts clamp to the remaining bytes.
 - `LCASE(CHAR)` and `UCASE(CHAR)` return CHAR, following guide section 5.5. STRING overloads return independent strings. Nonletters and embedded NUL bytes are preserved; use ASCII for predictable case conversion.
 - `ASC(CHAR)` and `ASC(STRING)` return the unsigned character or first-byte code; an empty string returns zero.
-- `CHR(Code)` returns a one-byte STRING containing the low eight bits. `LENGTH(CHR(0))` is 1.
+- `CHR(Code)` returns a CHAR containing the low eight bits. `LENGTH(CHR(0))` is 1.
 - `NUM_TO_STR(INTEGER)` and `NUM_TO_STR(REAL)` convert INTEGER to decimal text and REAL to the shortest round-trip text (Python `repr` style, identical to OUTPUT: `2.0`, `0.1`, `1e-07`, `inf`).
 - `STR_TO_NUM(S)` returns REAL through the same `parseNumber` helper as IS_NUM (`strtod`, full consumption). Invalid text and trailing junk throw `STR_TO_NUM: '<text>' is not a number`; overflow throws `... is out of the REAL range`; underflow is accepted.
 - `IS_NUM(S)` agrees with STR_TO_NUM: full consumption by `strtod` and no overflow, without throwing. Leading whitespace is accepted; trailing whitespace, trailing junk, empty input, embedded NUL bytes, and overflowing values (`1e999`) are rejected.

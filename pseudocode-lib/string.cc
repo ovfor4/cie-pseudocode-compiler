@@ -163,11 +163,7 @@ long long _string_impl_asc(void *Handle) {
 long long _string_impl_asc_char(char Ch) {
     return checked([&]() -> long long { return static_cast<unsigned char>(Ch); });
 }
-void _string_impl_chr(void *Target, long long Code) {
-    checked([&] {
-        text(Target).assign(1, static_cast<char>(static_cast<unsigned char>(Code)));
-    });
-}
+char _string_impl_chr_char(long long Code) { return static_cast<char>(static_cast<unsigned char>(Code)); }
 int _string_impl_is_num(void *Handle) {
     return checked([&]() -> int {
         double Number = 0;

@@ -31,7 +31,7 @@ source, most also by compiling and running test programs.
   annotate `BYVAL` explicitly.
 - **`/` always yields REAL** (double FDiv), even for two INTEGERs; integer division is
   DIV/MOD only.
-  - CHR returns an owning one-byte STRING, not CHAR; CHR(0) retains one NUL byte.
+  - CHR returns CHAR, not STRING; CHR(0) is a NUL CHAR that converts to a one-byte STRING.
   - STR_TO_NUM always returns REAL and shares parseNumber (strtod, full consumption, overflow rejected) with IS_NUM.
   - NUM_TO_STR keeps the full signed i64 range for INTEGER; REAL uses the shortest
     round-trip text (realText in string.cc), byte-identical to OUTPUT's IR helper in
