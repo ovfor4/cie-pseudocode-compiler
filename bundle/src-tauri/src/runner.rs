@@ -192,6 +192,12 @@ mod tests {
             (
                 "DECLARE S : STRING\nINPUT S\nOUTPUT \"done\"\n",
                 "",
+                "INPUT reached the end of input",
+                1,
+            ),
+            (
+                "DECLARE S : STRING\nINPUT S\nOUTPUT \"done\"\n",
+                "\n",
                 "done\n",
                 0,
             ),
