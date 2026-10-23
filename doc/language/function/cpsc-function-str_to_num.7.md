@@ -8,6 +8,7 @@ cpsc-function-str_to_num - convert text to a real number
 
 ```text
 STR_TO_NUM(text : STRING) RETURNS REAL
+STR_TO_NUM(text : CHAR) RETURNS REAL
 ```
 
 # DESCRIPTION
