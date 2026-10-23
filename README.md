@@ -13,7 +13,7 @@ A compiler for CIE Pseudocode (A Level 9618 Computer Science)
 - easy to use, with colorful & detail diagnostic
 - easy to deploy massively (helpful for schools)
 
-Here's the "standard": [Pseudocode Guide for Teachers](https://www.cambridgeinternational.org/Images/697401-2026-pseudocode-guide-for-teachers.pdf)
+Here's the "standard": [Pseudocode Guide for Teachers](https://www.cambridgeinternational.org/Images/697401-2026-pseudocode-guide-for-teachers.pdf), and [Standard Library Functions (aka insert)](https://bestexamhelp.com/exam/cambridge-international-a-level/computer-science-9618/2025/9618_w25_in_21.pdf)
 
 ---
 
