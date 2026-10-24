@@ -40,10 +40,12 @@ Part of [Load-bearing conventions](../CONVENTIONS.md). Basic call resolution is 
 - `OperatorGen.cc` probes visible global and left-class member signatures without
   emitting diagnostics or evaluating operands. Matching is exact; member/global ties
   are ambiguous and access is checked only after selection.
-- Both getExprTypeInfo and emission must consult this resolver before hardcoded
-  builtin result types. Returns may be any supported function result, including
-  non-BOOLEAN comparisons/logic. emitCoercedExpr rejects implicit STRING to BOOLEAN;
-  CASE separately requires BOOLEAN comparisons.
+- Both getExprTypeInfo and emission must consult this resolver with the expression's
+  result context before hardcoded builtin result types. A strict context requires the
+  overload's return type to match exactly; a cast only prefers it; without a context,
+  return-only-distinct candidates are ambiguous. Returns may be any supported function
+  result, including non-BOOLEAN comparisons/logic. emitCoercedExpr still rejects a
+  direct STRING to BOOLEAN conversion; CASE requires BOOLEAN comparisons.
 - Operators use shared argument marshalling and exception-aware calls. Member
   lvalues keep their original address; rvalues are materialized with Alive tracking
   and destroyed at statement end.

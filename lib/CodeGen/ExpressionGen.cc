@@ -75,9 +75,17 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             reportError("A whole array cannot be used as an operand; index it");
             return nullptr;
         }
-        auto Overload = resolveOperator(Unary->getOp(), getExprTypeInfo(Unary->getOperand()));
+        const ResultContext *Context = resultContext(Expr);
+        const TypeInfo *OperandType = getExprTypeInfo(Unary->getOperand());
+        auto Overload = resolveOperator(Unary->getOp(), OperandType, nullptr, Context);
         if (Overload.Ambiguous) {
             reportError("Ambiguous overload for %s", operatorName(Unary->getOp()).c_str());
+            return nullptr;
+        }
+        if (Overload.WrongResult) {
+            reportError("No matching overload for %s(%s) returning %s",
+                        operatorName(Unary->getOp()).c_str(),
+                        OperandType ? OperandType->Name.c_str() : "?", Context->Type->Name.c_str());
             return nullptr;
         }
         if (Overload.Signature) return emitOperatorCall(*Overload.Signature, Unary->getOperand());
@@ -135,11 +143,18 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
         // '&' path: their admissible operations are decided by name here.
         const TypeInfo *LT = getExprTypeInfo(Bin->getLHS());
         const TypeInfo *RT = getExprTypeInfo(Bin->getRHS());
+        const ResultContext *Context = resultContext(Expr);
         if (LT && RT) {
-            auto Overload = resolveOperator(Bin->getOp(), LT, RT);
+            auto Overload = resolveOperator(Bin->getOp(), LT, RT, Context);
             if (Overload.Ambiguous) {
                 reportError("Ambiguous overload for %s(%s, %s)", operatorName(Bin->getOp()).c_str(),
                             LT->Name.c_str(), RT->Name.c_str());
+                return nullptr;
+            }
+            if (Overload.WrongResult) {
+                reportError("No matching overload for %s(%s, %s) returning %s",
+                            operatorName(Bin->getOp()).c_str(), LT->Name.c_str(),
+                            RT->Name.c_str(), Context->Type->Name.c_str());
                 return nullptr;
             }
             if (Overload.Signature)
@@ -150,7 +165,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
             return emitShortCircuit(Bin, LT, RT);
         Value *L = emitExpr(Bin->getLHS());
         Value *R = emitExpr(Bin->getRHS());
-        return emitBinaryOp(Bin->getOp(), L, LT, R, RT, Bin->getLine());
+        return emitBinaryOp(Bin->getOp(), L, LT, R, RT, Bin->getLine(), Context);
     }
 
     if (auto *Call = dynamic_cast<MemberCallExprAST*>(Expr))
@@ -219,16 +234,22 @@ Value *CodeGen::emitShortCircuit(BinaryExprAST *Bin, const TypeInfo *LT, const T
 
 // Ordinary binary expressions and CASE use the same typed operations.
 Value *CodeGen::emitBinaryOp(int Op, Value *L, const TypeInfo *LT,
-                             Value *R, const TypeInfo *RT, int Line) {
+                             Value *R, const TypeInfo *RT, int Line,
+                             const ResultContext *Context) {
     SaveAndRestore<int> Location(DiagnosticLine, Line ? Line : DiagnosticLine);
     if (!L || !R) return nullptr;
     if (!LT || !RT) {
         reportError("Cannot determine operand types for %s", operatorName(Op).c_str());
         return nullptr;
     }
-    auto Overload = resolveOperator(Op, LT, RT);
+    auto Overload = resolveOperator(Op, LT, RT, Context);
     if (Overload.Ambiguous) {
         reportError("Ambiguous overload for %s(%s, %s)", operatorName(Op).c_str(), LT->Name.c_str(), RT->Name.c_str());
+        return nullptr;
+    }
+    if (Overload.WrongResult) {
+        reportError("No matching overload for %s(%s, %s) returning %s", operatorName(Op).c_str(),
+                    LT->Name.c_str(), RT->Name.c_str(), Context->Type->Name.c_str());
         return nullptr;
     }
     if (Overload.Signature) return emitOperatorValues(*Overload.Signature, L, LT, R);

@@ -229,7 +229,12 @@ void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
             }
             if (containsString(LabelType) && (LabelConverted || !isObjectLValue(Label)))
                 materializeOperatorReceiver(LabelValue, LabelType);
-            auto Overload = resolveOperator(Op, LeftType, LabelType);
+            ResultContext BoolContext{resolveType("BOOLEAN"), true};
+            auto Overload = resolveOperator(Op, LeftType, LabelType, &BoolContext);
+            if (Overload.WrongResult) {
+                reportError("CASE comparison must return BOOLEAN");
+                return nullptr;
+            }
             if (Overload.Signature && !Overload.Ambiguous) {
                 const TypeInfo *Result = resolveType(Overload.Signature->ReturnTypeName);
                 if (!Result || Result->Kind != TypeKind::Boolean) {
@@ -237,7 +242,8 @@ void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
                     return nullptr;
                 }
             }
-            Value *Result = emitBinaryOp(Op, LeftValue, LeftType, LabelValue, LabelType, Branch.Line);
+            Value *Result = emitBinaryOp(Op, LeftValue, LeftType, LabelValue, LabelType, Branch.Line,
+                                         &BoolContext);
             cleanupTemporaries(Temporaries);
             return Result;
         };

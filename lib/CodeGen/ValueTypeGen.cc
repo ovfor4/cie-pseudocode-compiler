@@ -86,8 +86,8 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
     if (auto *Unary = dynamic_cast<UnaryExprAST*>(Expr)) {
         if (isWholeArrayVar(Unary->getOperand())) return nullptr;
         const TypeInfo *Operand = getExprTypeInfo(Unary->getOperand());
-        auto Overload = resolveOperator(Unary->getOp(), Operand);
-        if (Overload.Ambiguous) return nullptr;
+        auto Overload = resolveOperator(Unary->getOp(), Operand, nullptr, resultContext(Expr));
+        if (Overload.Ambiguous || Overload.WrongResult) return nullptr;
         if (Overload.Signature) return resolveType(Overload.Signature->ReturnTypeName);
         if (Unary->getOp() == tok_not) {
             return resolveType("BOOLEAN");
@@ -102,8 +102,8 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
         const TypeInfo *L = getExprTypeInfo(Bin->getLHS());
         const TypeInfo *R = getExprTypeInfo(Bin->getRHS());
         if (!L || !R || isWholeArrayVar(Bin->getLHS()) || isWholeArrayVar(Bin->getRHS())) return nullptr;
-        auto Overload = resolveOperator(Bin->getOp(), L, R);
-        if (Overload.Ambiguous) return nullptr;
+        auto Overload = resolveOperator(Bin->getOp(), L, R, resultContext(Expr));
+        if (Overload.Ambiguous || Overload.WrongResult) return nullptr;
         if (Overload.Signature) return resolveType(Overload.Signature->ReturnTypeName);
         switch (Bin->getOp()) {
             case tok_eq:

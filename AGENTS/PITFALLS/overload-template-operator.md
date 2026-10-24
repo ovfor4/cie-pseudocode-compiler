@@ -50,11 +50,13 @@ Part of the [pitfalls index](../PITFALLS.md).
 
 - Unary/binary operators require OVERLOAD FUNCTION, with supported arity and at least
   one record/class/enum operand. Pointer aliases alone do not qualify.
-- Exact matching considers visible globals and left-class members together; ties are
-  errors, including private/public ties.
-- Comparison and logic result types are declared, not assumed BOOLEAN; implicit
-  STRING to BOOLEAN is rejected. CASE comparisons must return BOOLEAN. AND/OR
-  overloads evaluate both operands.
+- Exact matching considers visible globals and left-class members together, and the
+  result type joins the match when the context supplies one; ties are errors,
+  including private/public ties. Without a context, return-only-distinct candidates
+  are ambiguous; casts only prefer their target type.
+- Comparison and logic result types are declared, not assumed BOOLEAN; a strict
+  BOOLEAN context requires an overload returning BOOLEAN. CASE comparisons must return
+  BOOLEAN. AND/OR overloads evaluate both operands.
 - Temporary member receivers are destroyed at statement end, including exception
   exits; ordinary DECLARE objects remain function-scoped.
 - Explicit calls use OPERATOR+(a,b) or a.OPERATOR+(b).

@@ -1,7 +1,7 @@
 {
   "errors": [
     {
-      "reason": "Cannot implicitly convert STRING to BOOLEAN",
+      "reason": "No matching overload for OPERATOR <\\(Box, Box\\) returning BOOLEAN",
       "line": 12
     },
     {

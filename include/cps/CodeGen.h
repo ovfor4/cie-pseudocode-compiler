@@ -184,7 +184,8 @@ class CodeGen {
                                      const TypeInfo *Target);
     llvm::Value *emitCast(CastExprAST *Cast);
     llvm::Value *emitBinaryOp(int Op, llvm::Value *L, const TypeInfo *LT,
-                              llvm::Value *R, const TypeInfo *RT, int Line);
+                              llvm::Value *R, const TypeInfo *RT, int Line,
+                              const ResultContext *Context = nullptr);
     llvm::Value *emitCBinaryOp(int Op, llvm::Value *L, const TypeInfo *Left,
                                llvm::Value *R, const TypeInfo *Right, int Line);
     void emitCOutput(llvm::Value *Val, const TypeInfo *Info, bool AppendNewline);
@@ -222,8 +223,10 @@ class CodeGen {
     struct OperatorResolution {
         const FuncSig *Signature = nullptr;
         bool Ambiguous = false;
+        bool WrongResult = false;
     };
-    OperatorResolution resolveOperator(int Op, const TypeInfo *Left, const TypeInfo *Right = nullptr);
+    OperatorResolution resolveOperator(int Op, const TypeInfo *Left, const TypeInfo *Right = nullptr,
+                                       const ResultContext *Context = nullptr);
     bool checkOperatorAccess(const FuncSig &Signature);
     llvm::Value *materializeOperatorReceiver(llvm::Value *Value, const TypeInfo *Type);
     llvm::Value *emitOperatorCall(const FuncSig &Signature, ExprAST *Left, ExprAST *Right = nullptr);

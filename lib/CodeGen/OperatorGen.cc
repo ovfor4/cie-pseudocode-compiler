@@ -8,7 +8,7 @@ using namespace llvm;
 // Probing candidates must not evaluate operands or diagnose absent overloads:
 // both static typing and emission use this same selection.
 CodeGen::OperatorResolution CodeGen::resolveOperator(
-    int Op, const TypeInfo *Left, const TypeInfo *Right) {
+    int Op, const TypeInfo *Left, const TypeInfo *Right, const ResultContext *Context) {
     OperatorResolution Result;
     if (!Left) return Result;
     auto Candidates = FuncGen->getOverloads(operatorName(Op));
@@ -25,17 +25,46 @@ CodeGen::OperatorResolution CodeGen::resolveOperator(
     };
     // Two CHARs compare as CHARs; only '&' always builds a STRING.
     bool CanConvert = Right && (Op == '&' || Left->isString() || Right->isString());
-    for (bool Lenient : {false, true}) {
-        if (Lenient && !CanConvert) break;
-        for (const FuncSig *Sig : Candidates) {
-            bool Member = !Sig->Prototype->getOwnerClass().empty();
-            if (Sig->Prototype->getOperator() != Op || Sig->Params.size() != (Right ? 2u : 1u) - Member) continue;
-            if (!Member && !Accepts(Left, Sig->Params[0].TypeName, Lenient)) continue;
-            if (Right && !Accepts(Right, Sig->Params[Member ? 0 : 1].TypeName, Lenient)) continue;
-            if (Result.Signature) Result.Ambiguous = true;
-            else Result.Signature = Sig;
+    const bool PreferResult = Context && Context->Type;
+    auto ReturnsWanted = [&](const FuncSig *Sig) {
+        const TypeInfo *Ret = resolveType(Sig->ReturnTypeName);
+        return Ret && Ret->sameType(Context->Type);
+    };
+    bool ParamMatched = false;
+    auto RunLayers = [&](bool FilterReturn) {
+        Result.Signature = nullptr;
+        Result.Ambiguous = false;
+        for (bool Lenient : {false, true}) {
+            if (Lenient && !CanConvert) break;
+            const FuncSig *Selected = nullptr;
+            int Count = 0;
+            for (const FuncSig *Sig : Candidates) {
+                bool Member = !Sig->Prototype->getOwnerClass().empty();
+                if (Sig->Prototype->getOperator() != Op ||
+                    Sig->Params.size() != (Right ? 2u : 1u) - Member) continue;
+                if (!Member && !Accepts(Left, Sig->Params[0].TypeName, Lenient)) continue;
+                if (Right && !Accepts(Right, Sig->Params[Member ? 0 : 1].TypeName, Lenient)) continue;
+                ParamMatched = true;
+                if (FilterReturn && !ReturnsWanted(Sig)) continue;
+                ++Count;
+                if (!Selected) Selected = Sig;
+            }
+            if (Selected) {
+                Result.Signature = Selected;
+                Result.Ambiguous = Count > 1;
+                break;
+            }
         }
-        if (Result.Signature) break;
+    };
+
+    if (PreferResult) {
+        RunLayers(true);
+        if (Result.Signature || Result.Ambiguous) return Result;
+    }
+    if (!Context || !Context->Exact) {
+        RunLayers(false);
+    } else if (ParamMatched) {
+        Result.WrongResult = true;
     }
     return Result;
 }
