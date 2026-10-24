@@ -2,7 +2,7 @@
 
 # NAME
 
-cpsc-keyword-overload - explicitly overload functions, procedures and constructors
+cpsc-keyword-overload - explicitly overload functions, procedures, methods and constructors
 
 # SYNOPSIS
 

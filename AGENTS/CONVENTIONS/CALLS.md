@@ -27,9 +27,11 @@ bridge C void* and nominal pseudocode pointer types.
   pre-pass) before statement emission, so call-before-definition is fine; a call with
   no registered signature is a compile error (no extern is fabricated). Method
   prototypes are pre-registered too.
-- OVERLOAD signatures append canonical parameter types to the link name; ordinary
-  names except MAIN get no mangling. Overload sets, visibility filtering and exact
-  selection: [SUBSYSTEMS/FUNCTIONS.md](../SUBSYSTEMS/FUNCTIONS.md#signatures-and-call-resolution).
+- OVERLOAD link names append canonical parameter types, plus `:ReturnKey` for non-VOID
+  results (NEW and OPERATOR<- excepted); ordinary names except MAIN get no mangling.
+  An expression's expected result type filters overloads when present. Overload sets,
+  visibility filtering and exact selection:
+  [SUBSYSTEMS/FUNCTIONS.md](../SUBSYSTEMS/FUNCTIONS.md#signatures-and-call-resolution).
 - In all cases, `emitPrototype` rejects names that collide with runtime/libc symbols
   (`isReservedRuntimeName`), builtins, or enum values. Signatures retain the first
   declaration spelling for LLVM lookup, independently of call-site casing.

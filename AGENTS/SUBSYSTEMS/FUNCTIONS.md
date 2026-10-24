@@ -6,7 +6,8 @@ Part of the [subsystem notes](../SUBSYSTEMS.md). See also [EXTERN "C"](EXTERN.md
 ## Functions (`FunctionGen`)
 
 Plain LLVM functions, external linkage, exact pseudocode name unless OVERLOAD appends a
-canonical parameter list (MAIN uses internal __cps_main).
+canonical parameter list and, for non-VOID results, a `:ReturnKey` suffix (MAIN uses
+internal __cps_main).
 
 ### Parameters and bodies
 
@@ -51,8 +52,10 @@ canonical parameter list (MAIN uses internal __cps_main).
 - PrototypeAST retains the operator token; FunctionGen validates operand count and
   requires a record/class/enum operand.
 - Global signatures and left-class methods share exact-type selection, used by
-  ValueTypeGen and ExpressionGen before builtin operations. Missing candidates leave
-  builtin rules intact; ties are errors. Member access is checked after selection.
+  ValueTypeGen and ExpressionGen before builtin operations and filtered by an expected
+  result type where present. A strict context whose operands match but whose result does
+  not sets `WrongResult`. Missing candidates leave builtin rules intact; ties are
+  errors. Member access is checked after selection.
 - The raw-expression argument-marshalling overload borrows AST pointers for operator
   calls; ordinary calls adapt their unique_ptr lists into it.
 - Member receivers use lvalue storage or a materialized, Alive-tracked temporary.

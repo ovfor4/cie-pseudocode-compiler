@@ -16,7 +16,9 @@ callable lookup.
 
 - `CodeGen::resolveCall` retains ordinary fast paths when no templates exist. Otherwise
   it computes static argument types and whole-array ranks once, selecting exact ordinary
-  definitions before non-variadic templates and then variadic templates.
+  definitions (including an expected result type when present) before non-variadic
+  templates and then variadic templates. Templates still match only substituted
+  parameter types; result contexts do not filter them.
 - Explicit type arguments pre-bind positional parameters and constrain a pack prefix;
   deduction from `T` or array element `T` fills remaining bindings. Composite types such
   as `Box<T>` are checked after substitution but do not deduce T.

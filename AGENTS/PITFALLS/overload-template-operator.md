@@ -28,8 +28,8 @@ Part of the [pitfalls index](../PITFALLS.md).
   Deduction recognizes T and array element T, never the T inside Box<T>.
 - When multiple ordinary/template functions share a name, every definition must
   specify OVERLOAD; exact ordinary definitions win, then non-variadic templates, then
-  variadic templates, with same-tier ties ambiguous. Explicit arguments select
-  templates only.
+  variadic templates, with same-tier ties ambiguous. An expected result type filters
+  ordinary definitions but not templates. Explicit arguments select templates only.
 - Packs are final non-array parameters and expand only in call/constructor argument
   lists; pack fields are rejected, including in variadic classes.
 - Unsupported: non-type parameters, SIZEOF..., member/operator templates,

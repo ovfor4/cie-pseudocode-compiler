@@ -22,8 +22,8 @@ construction and destruction are in [class lifetime](CLASS_LIFETIME.md).
 
 - Class ASTs also own their `FunctionDefAST` methods. PrototypeAST retains the owner and
   access level; `getLinkName()` supplies the source key `Class.Method`.
-- FunctionGen appends `(canonical parameter types)` only for OVERLOAD, leaving ordinary
-  symbols unchanged.
+- FunctionGen appends `(canonical parameter types)` and, for non-VOID results, a
+  `:ReturnKey` suffix only for OVERLOAD, leaving ordinary symbols and NEW unchanged.
 - CodeGen registers methods separately in `ClassMethods` overload vectors and
   pre-registers their prototypes after the type pre-pass.
 - `resolveMethod` uses `resolveCall`; access is checked on the selected overload.

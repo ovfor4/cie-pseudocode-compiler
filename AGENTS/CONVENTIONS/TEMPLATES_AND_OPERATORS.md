@@ -22,7 +22,9 @@ Part of [Load-bearing conventions](../CONVENTIONS.md). Basic call resolution is 
 - When multiple definitions share a function/procedure name, every ordinary and
   template definition must specify OVERLOAD.
 - `resolveCall` computes static argument types/ranks once, then tries exact ordinary,
-  non-variadic template and variadic template tiers; same-tier ties are errors.
+  non-variadic template and variadic template tiers; an expected result type filters
+  ordinary candidates, while template tiers still match parameters only. Same-tier ties
+  are errors.
 - Candidate checking must stay silent and must not instantiate speculative class
   types. Explicit arguments pre-bind types without allowing conversions.
 - Instances keep the template owner for diagnostics/library behavior and the first

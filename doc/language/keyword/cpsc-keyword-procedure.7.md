@@ -20,7 +20,7 @@ Arrays accept `ARRAY OF type` or `ARRAY[lower:upper, ...] OF type`; explicit bou
 
 A PROCEDURE inside CLASS defines a member procedure, called as `Object.Method(arguments)` or `CALL Object.Method(arguments)`. It follows the same parameter rules and modifies the receiver. Within a method, `this` refers directly to the current object; see [cpsc-keyword-class(7)](cpsc-keyword-class.7.md).
 
-Prefix a definition with OVERLOAD to share its name with other explicitly marked definitions having different parameter signatures. Calls then require exact argument types; see [cpsc-keyword-overload(7)](cpsc-keyword-overload.7.md).
+Prefix a definition with OVERLOAD to share its name with other explicitly marked definitions having different parameters or return types; a procedure counts as returning VOID. A CALL statement has no expected result type, so a procedure and a function with the same parameters are ambiguous there. Other calls require exact argument types and, when a result type is required, an exact return type; see [cpsc-keyword-overload(7)](cpsc-keyword-overload.7.md).
 
 # EXAMPLE
 

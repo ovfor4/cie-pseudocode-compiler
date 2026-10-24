@@ -26,7 +26,7 @@ object <- NEW ClassName(arguments)
 
 # DESCRIPTION
 
-Declare a class at top level with at least one field or method. Fields and methods are public by default; PUBLIC or PRIVATE may be specified for each member. Fields do not use DECLARE. ENDCLASS closes the declaration. Fields and methods share a case-insensitive member namespace; fields and methods cannot share a name. Methods with distinct parameter signatures may share a name when every definition is prefixed with OVERLOAD, after any access keyword; see [cpsc-keyword-overload(7)](cpsc-keyword-overload.7.md).
+Declare a class at top level with at least one field or method. Fields and methods are public by default; PUBLIC or PRIVATE may be specified for each member. Fields do not use DECLARE. ENDCLASS closes the declaration. Fields and methods share a case-insensitive member namespace; fields and methods cannot share a name. Methods with distinct signatures, differing in parameters or return type, may share a name when every definition is prefixed with OVERLOAD, after any access keyword; see [cpsc-keyword-overload(7)](cpsc-keyword-overload.7.md).
 
 Call methods as `Object.Method(arguments)` in expressions or as standalone statements, or use `CALL Object.Method(arguments)`. A receiver may be a variable, array element, nested field, or pointer dereference. Class-valued function and method results also support method calls, such as `Make().Get()`, using a temporary receiver. Direct field access, indexing and dereferencing on call results remain unsupported. Calls may precede definitions; methods may call later methods or recurse. Parameters and return values follow the ordinary FUNCTION and PROCEDURE rules.
 
