@@ -15,10 +15,6 @@
     {
       "reason": "Invalid operand count",
       "line": 17
-    },
-    {
-      "reason": "cannot be redefined",
-      "line": 20
     }
   ]
 }

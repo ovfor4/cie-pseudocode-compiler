@@ -20,6 +20,7 @@ void CodeGen::transferObjects(const std::vector<size_t> &Objects) {
 
 Value *CodeGen::emitOwnedValue(ExprAST *Expr, const TypeInfo *Type,
                                std::vector<size_t> &Transfers) {
+    expectResult(Expr, Type);
     if (!Type || (!Type->IsClass && !containsString(Type))) return emitCoercedExpr(Expr, Type);
     const TypeInfo *Source = getExprTypeInfo(Expr);
     // A CHAR argument becomes a fresh STRING temporary, owned like any other.
@@ -146,6 +147,7 @@ Value *CodeGen::symbolAddress(const SymbolInfo &Info) {
 
 void CodeGen::emitAssignment(const LValueInfo &Target, ExprAST *Expr, const SymbolInfo *Symbol) {
     const TypeInfo *Info = resolveType(Target.TypeName);
+    expectResult(Expr, Info);
     if (auto *New = dynamic_cast<NewExprAST*>(Expr)) {
         SaveAndRestore<int> Location(DiagnosticLine, New->getLine());
         const TypeInfo *Class = resolveType(New->getClassName());

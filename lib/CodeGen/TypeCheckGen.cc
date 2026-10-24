@@ -14,6 +14,7 @@ using namespace cps;
 Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
     SaveAndRestore<int> Location(DiagnosticLine, E && E->getLine() ? E->getLine() : DiagnosticLine);
     if (!E || !Target) return nullptr;
+    expectResult(E, Target);
 
     // A whole-array reference evaluates to its raw data pointer, and
     // getExprTypeInfo reports the ELEMENT type for it — both would slip

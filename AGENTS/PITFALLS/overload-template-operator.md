@@ -6,12 +6,16 @@ Part of the [pitfalls index](../PITFALLS.md).
 
 - OVERLOAD is reserved and prefixes FUNCTION/PROCEDURE (after PUBLIC/PRIVATE for
   methods). Every same-name definition must opt in.
-- Only count, canonical parameter types and array rank distinguish signatures: return
-  type, BYREF/BYVAL and array bounds do not.
+- Count, canonical parameter types, array rank and (for non-VOID definitions) return
+  type distinguish signatures; a PROCEDURE counts as VOID. BYREF/BYVAL and array
+  bounds do not.
 - Calls match exact static types, even for a single OVERLOAD definition; ordinary
-  functions still coerce arguments.
-- Call visibility filters the set, but duplicate signatures conflict across all
-  inputs. MAIN and builtins cannot be overloaded.
+  functions still coerce arguments. A known expected result type (assignment, BYVAL
+  argument, RETURN, condition, subscript, CASE comparison) must match the overload's
+  return type exactly; `(T) x` only prefers T and otherwise converts. Without a
+  context, return-only-distinct candidates are ambiguous.
+- Call visibility filters the set, but duplicate signatures (parameters and return
+  type) conflict across all inputs. MAIN and builtins cannot be overloaded.
 - NEW supports overloads; DECLARE, fields and arrays needing default construction
   require a matching no-argument NEW.
 - Private access is checked after selection, never used to select a public fallback.

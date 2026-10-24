@@ -8,6 +8,19 @@ using namespace cps;
 
 using namespace cps::detail;
 
+// The first context registered for a node wins: it is the outermost place the
+// result is consumed, and later queries must agree with that selection.
+void CodeGen::expectResult(const ExprAST *E, const TypeInfo *Type, bool Exact) {
+    if (!E || !Type) return;
+    ResultContexts.emplace(E, ResultContext{Type, Exact});
+}
+
+const CodeGen::ResultContext *CodeGen::resultContext(const ExprAST *E) const {
+    if (!E) return nullptr;
+    auto It = ResultContexts.find(E);
+    return It == ResultContexts.end() ? nullptr : &It->second;
+}
+
 const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
     if (!Expr) return nullptr;
 
@@ -128,7 +141,9 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
 
     if (auto *Call = dynamic_cast<MemberCallExprAST*>(Expr)) {
         const TypeInfo *Receiver = getExprTypeInfo(Call->getReceiver());
-        const FuncSig *Sig = Receiver ? resolveMethod(Receiver->Name, Call->getMethod(), Call->getArgs()) : nullptr;
+        const FuncSig *Sig = Receiver
+            ? resolveMethod(Receiver->Name, Call->getMethod(), Call->getArgs(), resultContext(Expr))
+            : nullptr;
         if (!Sig || (!Sig->Prototype->isPublic() && !sameIdentifier(CurrentClass, Receiver->Name))) return nullptr;
         return resolveType(Sig->ReturnTypeName);
     }
@@ -142,7 +157,8 @@ const TypeInfo *CodeGen::getExprTypeInfo(ExprAST *Expr) {
             }
             return resolveType(B->ReturnTypeName);
         }
-        if (const FuncSig *Sig = resolveCall(Name, Call->getArgs(), &Call->getTemplateArgs())) {
+        if (const FuncSig *Sig = resolveCall(Name, Call->getArgs(), &Call->getTemplateArgs(),
+                                            resultContext(Expr))) {
             return resolveType(Sig->ReturnTypeName);
         }
 

@@ -40,6 +40,7 @@ struct FuncSig {
     std::string Name;
     std::string LinkName;
     std::string ParamKey;
+    std::string ReturnKey;
     bool IsOverload = false;
     const PrototypeAST *Prototype = nullptr;
     std::string ReturnTypeName;

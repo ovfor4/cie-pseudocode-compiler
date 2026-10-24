@@ -229,6 +229,10 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     }
 
     Type *RetType = getLLVMType(Proto->getReturnType());
+    const TypeInfo *ReturnInfo = Types.resolve(Proto->getReturnType());
+    Sig.ReturnKey = ReturnInfo
+        ? (ReturnInfo->isC() ? "C:" + ReturnInfo->CIdentity : ReturnInfo->Name)
+        : Proto->getReturnType();
     FunctionType *FT = FunctionType::get(RetType, ArgTypes, false);
     auto &Overloads = Signatures[Sig.Name];
     for (const FuncSig &Existing : Overloads) {
@@ -241,7 +245,8 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
                         Proto->getName().c_str(), Proto->getName().c_str());
             return nullptr;
         }
-        if (sameIdentifier(Existing.ParamKey, Sig.ParamKey)) {
+        if (sameIdentifier(Existing.ParamKey, Sig.ParamKey) &&
+            sameIdentifier(Existing.ReturnKey, Sig.ReturnKey)) {
             if (Existing.OwnerUnit != CurrentUnit)
                 reportError("Duplicate definition %s in %s and %s", Sig.Name.c_str(),
                             UnitPaths[Existing.OwnerUnit].c_str(), UnitPaths[CurrentUnit].c_str());
@@ -250,6 +255,12 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
         }
     }
     Sig.LinkName = Sig.Name + (Sig.IsOverload ? "(" + Sig.ParamKey + ")" : "");
+    // Only the return type distinguishes non-void overloads that share a
+    // parameter list, so it enters their link name. PROCEDURE, NEW and
+    // OPERATOR<- keep the established names.
+    if (Sig.IsOverload && ReturnInfo && !ReturnInfo->isVoid() &&
+        !sameIdentifier(Proto->getName(), "NEW") && Proto->getOperator() != tok_assign)
+        Sig.LinkName += ":" + Sig.ReturnKey;
     Function *F = Function::Create(FT,
         Proto->getOwnerClass().empty() && sameIdentifier(Proto->getName(), "MAIN")
             ? Function::InternalLinkage : Function::ExternalLinkage,

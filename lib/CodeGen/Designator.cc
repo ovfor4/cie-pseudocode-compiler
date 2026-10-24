@@ -96,16 +96,17 @@ bool CodeGen::isRegisteredMethod(const std::string &Class, const PrototypeAST *M
 }
 
 const FuncSig *CodeGen::resolveMethod(const std::string &Class, const std::string &Name,
-                                    const std::vector<std::unique_ptr<ExprAST>> &Args) {
+                                    const std::vector<std::unique_ptr<ExprAST>> &Args,
+                                    const ResultContext *Context) {
     const auto *Methods = findMethod(Class, Name);
     if (!Methods) {
         reportError("Type %s has no method %s", Class.c_str(), Name.c_str());
         return nullptr;
     }
-    return resolveCall(Methods->front()->getProto()->getLinkName(), Args);
+    return resolveCall(Methods->front()->getProto()->getLinkName(), Args, nullptr, Context);
 }
 
-Value *CodeGen::emitMemberCall(MemberCallExprAST *Call) {
+Value *CodeGen::emitMemberCall(MemberCallExprAST *Call, const ResultContext *Context) {
     SaveAndRestore<int> Location(DiagnosticLine, Call->getLine());
     LValueInfo Receiver;
     if (isObjectLValue(Call->getReceiver())) {
@@ -120,14 +121,15 @@ Value *CodeGen::emitMemberCall(MemberCallExprAST *Call) {
         if (!Receiver.Addr) return nullptr;
     }
     return emitMethodCall(Receiver.TypeName, Receiver.Addr, Call->getMethod(),
-                          Call->getArgs(), Call->getLine());
+                          Call->getArgs(), Call->getLine(), Context);
 }
 
 Value *CodeGen::emitMethodCall(const std::string &Class, Value *Receiver,
                                 const std::string &Name,
-                                const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line) {
+                                const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line,
+                                const ResultContext *Context) {
     SaveAndRestore<int> Location(DiagnosticLine, Line);
-    const FuncSig *Sig = resolveMethod(Class, Name, ArgExprs);
+    const FuncSig *Sig = resolveMethod(Class, Name, ArgExprs, Context);
     if (!Sig) return nullptr;
     const PrototypeAST *Method = Sig->Prototype;
     if (!Method->isPublic() && !sameIdentifier(CurrentClass, Class)) {

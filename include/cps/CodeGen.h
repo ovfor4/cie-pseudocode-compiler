@@ -79,12 +79,21 @@ class CodeGen {
     std::string CurrentClass;
     const std::vector<FunctionDefAST *> *findMethod(const std::string &Class, const std::string &Name) const;
     bool isRegisteredMethod(const std::string &Class, const PrototypeAST *Method) const;
+    // The type a call or operator result must have where it is used. A cast
+    // only prefers its type (Exact = false) and otherwise converts the result.
+    struct ResultContext { const TypeInfo *Type = nullptr; bool Exact = true; };
+    std::map<const ExprAST *, ResultContext> ResultContexts;
+    void expectResult(const ExprAST *E, const TypeInfo *Type, bool Exact = true);
+    const ResultContext *resultContext(const ExprAST *E) const;
     const FuncSig *resolveMethod(const std::string &Class, const std::string &Name,
-                                 const std::vector<std::unique_ptr<ExprAST>> &Args);
-    llvm::Value *emitMemberCall(MemberCallExprAST *Call);
+                                 const std::vector<std::unique_ptr<ExprAST>> &Args,
+                                 const ResultContext *Context = nullptr);
+    llvm::Value *emitMemberCall(MemberCallExprAST *Call,
+                                const ResultContext *Context = nullptr);
     llvm::Value *emitMethodCall(const std::string &Class, llvm::Value *Receiver,
                                 const std::string &Name,
-                                const std::vector<std::unique_ptr<ExprAST>> &Args, int Line);
+                                const std::vector<std::unique_ptr<ExprAST>> &Args, int Line,
+                                const ResultContext *Context = nullptr);
     bool typeNeedsDestruction(const std::string &TypeName) const;
     bool emitDestroy(const std::string &TypeName, llvm::Value *Addr, int Line);
     bool typeNeedsConstruction(const std::string &TypeName) const;
@@ -204,10 +213,12 @@ class CodeGen {
     llvm::Value *emitIntBuiltin(ExprAST *Arg, int Line);
     llvm::Value *emitCall(const std::string &Callee,
                           const std::vector<std::unique_ptr<ExprAST>> &ArgExprs, int Line,
-                          const std::vector<std::string> *Explicit = nullptr);
+                          const std::vector<std::string> *Explicit = nullptr,
+                          const ResultContext *Context = nullptr);
     const FuncSig *resolveCall(const std::string &Name,
                                const std::vector<std::unique_ptr<ExprAST>> &Args,
-                               const std::vector<std::string> *Explicit = nullptr);
+                               const std::vector<std::string> *Explicit = nullptr,
+                               const ResultContext *Context = nullptr);
     struct OperatorResolution {
         const FuncSig *Signature = nullptr;
         bool Ambiguous = false;

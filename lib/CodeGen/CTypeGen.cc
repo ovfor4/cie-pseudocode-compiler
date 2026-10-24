@@ -49,6 +49,7 @@ Value *CodeGen::emitCast(CastExprAST *Cast) {
         reportError("Invalid cast target %s", Cast->getTypeName().c_str());
         return nullptr;
     }
+    expectResult(Operand, Target, /*Exact=*/false);
     if (isWholeArrayVar(Operand)) {
         reportError("Cannot cast a whole array; index it");
         return nullptr;

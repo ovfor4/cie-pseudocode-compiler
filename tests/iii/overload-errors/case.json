@@ -5,10 +5,6 @@
       "line": 4
     },
     {
-      "reason": "Function Ret cannot be redefined",
-      "line": 10
-    },
-    {
       "reason": "Function Mode cannot be redefined",
       "line": 15
     },

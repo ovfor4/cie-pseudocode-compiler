@@ -26,14 +26,21 @@ canonical parameter list (MAIN uses internal __cps_main).
 
 - `emitPrototype` records each function's pseudocode signature in a `FuncSig`
   overload-set map (`FunctionGen::getOverloads`, filtered by unit visibility).
-- `resolveCall` selects exact static parameter types/ranks for OVERLOAD, while a single
-  ordinary definition keeps implicit conversions.
-- Parameter keys exclude return types, modes and bounds (they never distinguish
-  overloads); equivalent C aliases use
-  CIdentity. Every same-name definition must be OVERLOAD; duplicate keys fail even
-  across invisible units.
+- `resolveCall` selects exact static parameter types/ranks for OVERLOAD. When the call
+  site has an expected result type, the candidate must also return exactly that type;
+  a cast only prefers it. Without a context, return-only-distinct candidates are
+  ambiguous. A single ordinary definition keeps implicit conversions.
+- Parameter keys exclude return types, modes and bounds; the separate ReturnKey holds
+  the declared result (PROCEDURE is VOID). Equivalent C aliases use CIdentity.
+  Duplicate signatures require both keys to match, even across invisible units.
+- CodeGen records result contexts per expression node before the first type query
+  (`expectResult`/`resultContext`); assignment, BYVAL/RETURN, coercion and cast sites
+  register them, and call/operator selection consults the same table for typing and
+  emission.
 - FunctionGen tracks prototype registration separately from source names and indexes
-  signatures by LLVM link name for RETURN (`getSignatureByLink`).
+  signatures by LLVM link name for RETURN (`getSignatureByLink`). A non-VOID
+  OVERLOAD link name appends `:ReturnKey` after `Name(ParamKey)`; PROCEDURE, NEW and
+  OPERATOR<- keep their old names.
 - `CodeGen::marshalCallArgs` consumes the selected FuncSig, and `getExprTypeInfo`
   resolves the same calls without emitting IR.
 - Prototype pre-registration (calls may precede definitions): see

@@ -171,7 +171,8 @@ Value *CodeGen::emitVariadicArgument(ExprAST *Expr, const std::string &Callee, s
 // Resolve using static source types only; argument evaluation belongs to marshalling.
 const FuncSig *CodeGen::resolveCall(const std::string &Name,
                                   const std::vector<std::unique_ptr<ExprAST>> &Args,
-                                  const std::vector<std::string> *Explicit) {
+                                  const std::vector<std::string> *Explicit,
+                                  const ResultContext *Context) {
     auto Overloads = FuncGen->getOverloads(Name);
     bool HasTemplates = hasFunctionTemplate(Name);
     bool HasExplicit = Explicit && !Explicit->empty();
@@ -202,52 +203,77 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
         if (Rank) Key += "ARRAY" + std::to_string(Rank) + " OF ";
         Key += Type ? Type->Name : "?";
     }
-    const FuncSig *Ordinary = nullptr;
-    for (const FuncSig *Sig : Overloads) {
-        if (HasExplicit) break;
-        if (Sig->Params.size() != Actual.size()) continue;
-        bool Match = true;
-        for (size_t I = 0; I < Actual.size(); ++I) {
-            const ParamSig &P = Sig->Params[I];
-            if (Actual[I].Rank != (P.IsArray ? P.Rank : 0) || !Actual[I].Type ||
-                !Actual[I].Type->sameType(Types->resolve(P.TypeName))) {
-                Match = false;
-                break;
-            }
-        }
-        if (Match) {
-            if (Ordinary && HasTemplates) {
-                reportError("Ambiguous call to %s(%s)", Name.c_str(), Key.c_str());
-                return nullptr;
-            }
-            Ordinary = Sig;
-            if (!HasTemplates) return Sig;
-        }
-    }
-    if (Ordinary) return Ordinary;
-    // Failing an exact match, CHAR and STRING arguments convert into one
-    // another; the overload must be unique.
-    if (!HasTemplates && !HasExplicit) {
-        auto Scalar = [](const TypeInfo *T) { return T && (T->Kind == TypeKind::Char || T->isString()); };
-        const FuncSig *Converted = nullptr;
+    // A context with a type prefers candidates that return it; a strict
+    // context requires one. Without a context (or after a cast's preference
+    // finds nothing) selection stays parameter-only.
+    const bool PreferResult = Context && Context->Type;
+    auto ReturnsWanted = [&](const FuncSig *Sig) {
+        const TypeInfo *Ret = resolveType(Sig->ReturnTypeName);
+        return Ret && Ret->sameType(Context->Type);
+    };
+    auto Scalar = [](const TypeInfo *T) { return T && (T->Kind == TypeKind::Char || T->isString()); };
+    bool ParamMatched = false;
+    int Count = 0;
+    // One layer of parameter matching. Lenient adds CHAR/STRING conversions;
+    // FilterReturn keeps only candidates whose result is the wanted type.
+    auto Scan = [&](bool Lenient, bool FilterReturn) -> const FuncSig * {
+        const FuncSig *First = nullptr;
+        Count = 0;
         for (const FuncSig *Sig : Overloads) {
+            if (HasExplicit) break;
             if (Sig->Params.size() != Actual.size()) continue;
             bool Match = true;
             for (size_t I = 0; I < Actual.size() && Match; ++I) {
                 const ParamSig &P = Sig->Params[I];
                 const TypeInfo *Formal = Types->resolve(P.TypeName);
-                Match = Actual[I].Rank == (P.IsArray ? P.Rank : 0) && Actual[I].Type &&
-                        (Actual[I].Type->sameType(Formal) ||
-                         (!P.IsByRef && !P.IsArray && Scalar(Actual[I].Type) && Scalar(Formal)));
+                bool SameRank = Actual[I].Rank == (P.IsArray ? P.Rank : 0);
+                bool Same = SameRank && Actual[I].Type && Actual[I].Type->sameType(Formal);
+                Match = Same ||
+                    (Lenient && SameRank && Actual[I].Type && !P.IsByRef && !P.IsArray &&
+                     Scalar(Actual[I].Type) && Scalar(Formal));
             }
             if (!Match) continue;
-            if (Converted) {
-                reportError("Ambiguous call to %s(%s)", Name.c_str(), Key.c_str());
-                return nullptr;
-            }
-            Converted = Sig;
+            ParamMatched = true;
+            if (FilterReturn && !ReturnsWanted(Sig)) continue;
+            ++Count;
+            if (!First) First = Sig;
         }
-        if (Converted) return Converted;
+        return First;
+    };
+    auto ReportAmbiguous = [&](bool FilterReturn) {
+        if (FilterReturn)
+            reportError("Ambiguous call to %s(%s)", Name.c_str(), Key.c_str());
+        else
+            reportError("Ambiguous call to %s(%s); the return type cannot be determined from context",
+                        Name.c_str(), Key.c_str());
+    };
+    // Exact parameters first, then CHAR/STRING conversions.
+    bool Ambiguous = false;
+    auto Try = [&](bool FilterReturn, const FuncSig *&Selected) {
+        Selected = Scan(false, FilterReturn);
+        if (Count > 1) {
+            ReportAmbiguous(FilterReturn);
+            Ambiguous = true;
+            return;
+        }
+        if (Selected || HasTemplates || HasExplicit) return;
+        Selected = Scan(true, FilterReturn);
+        if (Count > 1) {
+            ReportAmbiguous(FilterReturn);
+            Ambiguous = true;
+        }
+    };
+
+    const FuncSig *Selected = nullptr;
+    if (PreferResult) {
+        Try(true, Selected);
+        if (Ambiguous) return nullptr;
+        if (Selected) return Selected;
+    }
+    if (!Context || !Context->Exact) {
+        Try(false, Selected);
+        if (Ambiguous) return nullptr;
+        if (Selected) return Selected;
     }
     if (HasTemplates) {
         // A matching non-variadic template wins before any variadic candidate.
@@ -322,6 +348,11 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
             }
             if (Selected) return instantiateFunction(*Selected, SelectedBindings);
         }
+    }
+    if (Context && Context->Exact && ParamMatched) {
+        reportError("No matching overload for %s(%s) returning %s", Name.c_str(), Key.c_str(),
+                    Context->Type->Name.c_str());
+        return nullptr;
     }
     reportError("No matching overload for %s(%s)", Name.c_str(), Key.c_str());
     return nullptr;
