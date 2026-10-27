@@ -17,6 +17,7 @@ const filters = [{ name: 'Pseudocode', extensions: ['cps'] }];
 let path = null;
 let savedText = '';
 let busy = false;
+let actionDone = Promise.resolve();
 let closing = false;
 let editor;
 let running = false;
@@ -26,11 +27,12 @@ function setRunning(value) {
 	runButton.textContent = value ? 'Stop' : 'Run';
 	for (const id of ['new', 'open', 'save']) document.getElementById(id).disabled = value;
 	input.disabled = value;
-	editor.updateOptions({ readOnly: value });
+	editor.updateOptions({ readOnly: value || closing });
 }
 
 async function runFile() {
 	if (!await saveFile()) return;
+	if (closing) return;
 	setRunning(true);
 	output.textContent = '';
 	status.textContent = 'Running';
@@ -132,9 +134,12 @@ async function openFile() {
 	status.textContent = 'Ready';
 }
 async function action(callback) {
-	if (busy || running) return;
+	if (busy || running || closing) return;
 	busy = true;
-	try { await callback(); } catch (error) { report(error); } finally { busy = false; }
+	actionDone = (async () => {
+		try { await callback(); } catch (error) { report(error); } finally { busy = false; }
+	})();
+	await actionDone;
 }
 function editorAction(id) { editor.focus(); editor.getAction(id).run(); }
 // Keyed by the menu item ids in src-tauri/src/menu.rs.
@@ -177,19 +182,20 @@ try {
 	});
 	await window.listen('menu', event => commands[event.payload]());
 	await window.onCloseRequested(async event => {
-		if (closing) return;
 		event.preventDefault();
-		if (running) {
-			try { await invoke('stop_run'); } catch (error) { report(error); return; }
-			// The command drains pipes before completing; let runFile release its UI lock.
-			busy = false;
-			setRunning(false);
-		}
-		await action(async () => {
+		if (closing) return;
+		closing = true;
+		editor.updateOptions({ readOnly: true });
+		try {
+			if (running) await invoke('stop_run');
+			// Finish any pending save/open or stopped run before closing the document.
+			await actionDone;
 			if (!await canReplace()) return;
-			closing = true;
-			await window.close();
-		});
+			await window.destroy();
+		} catch (error) { report(error); } finally {
+			closing = false;
+			editor.updateOptions({ readOnly: running });
+		}
 	});
 	editor.focus();
 } catch (error) { report(error); }

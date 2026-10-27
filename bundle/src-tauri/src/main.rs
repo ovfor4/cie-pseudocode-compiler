@@ -117,7 +117,16 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("Could not start CPSC Bundle")
         .run(|app, event| match event {
-            // Also reached when macOS terminates without closing windows, such as Dock Quit.
+            // Dock Quit must run the same document-close flow as the menu and title bar.
+            tauri::RunEvent::ExitRequested { api, code: None, .. } => {
+                let windows = app.webview_windows();
+                if !windows.is_empty() {
+                    api.prevent_exit();
+                    for window in windows.into_values() {
+                        let _ = window.close();
+                    }
+                }
+            }
             tauri::RunEvent::Exit => {
                 let runners: Vec<Runner> = app
                     .state::<Runners>()
