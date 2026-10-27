@@ -1,6 +1,6 @@
 # Standard pseudocode library
 
-`cpsc` embeds `std.cps`, its imported `string.cps`, and the matching `string.o`. Programs use STRING and its functions without INCLUDE statements or extra command-line inputs:
+`cpsc` embeds `std.cps`, its imported `string.cps` and `memory.cps`, and the matching `string.o` and `memory.o`. Programs use STRING, its functions and the memory functions without INCLUDE statements or extra command-line inputs:
 
 ```text
 DECLARE Greeting : STRING
@@ -17,10 +17,30 @@ OUTPUT LENGTH("hello")
 
 ```sh
 cmake --build build
-build/cpsc -no-std prog.cps build/pseudocode-lib/std.cps build/pseudocode-lib/string.cps -r
+build/cpsc -no-std prog.cps build/pseudocode-lib/std.cps build/pseudocode-lib/string.cps build/pseudocode-lib/memory.cps -r
 ```
 
-INCLUDE paths are relative to the including source. Adjust the example paths when the program is elsewhere. Native compilation and `-r` automatically link the required library object. `-S` only emits IR; manually linking that IR requires `build/pseudocode-lib/string.o` and a compatible C++ runtime.
+INCLUDE paths are relative to the including source. Adjust the example paths when the program is elsewhere. Native compilation and `-r` automatically link the required library objects. `-S` only emits IR; manually linking default-library IR requires `build/pseudocode-lib/string.o`, `build/pseudocode-lib/memory.o` and a compatible C++ runtime.
+
+`memory.cps` provides ordinary `MALLOC(bytes)`, `REALLOC(pointer, bytes)` and `FREE(pointer)` functions. Sizes accept INTEGER or any supported C integer, including _Bool, and convert to native size_t; pointer arguments and all results use C `void*`. Zero-byte allocation returns null. FREE(null) returns null; other FREE calls return the released address. REALLOC(null, size) allocates, and REALLOC(pointer, 0) validates and frees the allocation, returning null. Failed nonzero resizing leaves the original block valid. Invalid addresses and allocation failures print the user call line and throw an anonymous exception.
+
+These functions and keyword NEW/DELETE share one allocation list. NEW constructs objects; DELETE validates before destruction; FREE and REALLOC perform no destruction. STRING/ARRAY internal buffers are outside this list. Addresses must start active allocations; tracking cannot distinguish stale aliases after address reuse or validate memory accesses.
+
+With `-no-std`, keyword NEW/DELETE also require the memory library. A program can import only memory.cps, without STRING:
+
+```text
+INCLUDE "build/pseudocode-lib/memory.cps"
+TYPE Raw = C_TYPE("void*")
+DECLARE P : Raw
+P <- MALLOC(8)
+FREE(P)
+```
+
+```sh
+build/cpsc -no-std prog.cps build/pseudocode-lib/memory.cps -r
+```
+
+Manual linking of IR from this memory-only build requires memory.o and the C++ runtime.
 
 STRING is an owning class backed by `std::string`. Constructors accept no arguments, another STRING, C_STRING, or `(INTEGER count, C_CHAR character)`. Copies and assignments are independent, including STRING fields inside records and BYVAL arrays. `_HANDLE` is public for implementation access; do not modify or free it.
 

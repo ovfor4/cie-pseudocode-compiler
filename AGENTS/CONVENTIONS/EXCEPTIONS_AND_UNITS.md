@@ -41,8 +41,10 @@ it only on non-library to library calls. Runtime helper line arguments use
 RuntimeCheck::lineValue too. Compiler diagnostics retain the owning file location.
 
 **Default standard library.** The driver extracts embedded std.cps, its imported units
-and matching objects to a temporary directory that survives linking/execution. User
+and matching objects to a content-keyed cache (or temporary fallback) that survives
+linking/execution. User
 units implicitly import std.cps; normal transitive visibility applies. -no-std
-suppresses all default library inputs and objects. Explicit libraries retain the
+suppresses all default library inputs and objects. std.cps imports string.cps and
+memory.cps; keyword NEW/DELETE require the latter even with -no-std. Explicit libraries retain the
 ordinary INCLUDE/command-line rules. Source files and objects are embedded by a
 build-time Perl generator. Saved -S output remains IR only.

@@ -32,9 +32,10 @@ bridge C void* and nominal pseudocode pointer types.
   An expression's expected result type filters overloads when present. Overload sets,
   visibility filtering and exact selection:
   [SUBSYSTEMS/FUNCTIONS.md](../SUBSYSTEMS/FUNCTIONS.md#signatures-and-call-resolution).
-- In all cases, `emitPrototype` rejects names that collide with runtime/libc symbols
-  (`isReservedRuntimeName`), builtins, or enum values. Signatures retain the first
-  declaration spelling for LLVM lookup, independently of call-site casing.
+- `emitPrototype` rejects builtin and enum names. Ordinary non-EXTERN, non-OVERLOAD
+  definitions also reject runtime/libc names (`isReservedRuntimeName`); OVERLOAD
+  definitions have signature-mangled symbols and cannot replace libc symbols.
+  Signatures retain the first declaration spelling for LLVM lookup, independently of call-site casing.
 - Methods use `Class.Method` names and a hidden leading receiver address; their
   FuncSig parameters contain only explicit source parameters.
 
@@ -52,11 +53,12 @@ callback CodeGen injects into FunctionGen). BYVAL arrays copy their buffer at ca
 entry and clone STRING-bearing elements; BYREF binds the caller's buffer.
 
 **Builtins are plain identifiers backed by one table.** Builtins
-(EOF/MALLOC/FREE/REALLOC) parse as ordinary calls — no lexer/parser support, and the
+(EOF/INT) parse as ordinary calls — no lexer/parser support, and the
 names are not reserved words. The inline constexpr `Builtins` table in the internal
 `lib/CodeGen/Builtins.h` ({Name, Arity, ReturnTypeName}) is the single source of
 truth: `emitCall` checks arity against it before dispatching to the per-builtin emit
 branches (still an if-chain, ahead of the user-function fallback), and
-`getExprTypeInfo` reads return types from it. EOF and the memory builtins consume the
-call source line for runtime diagnostics; they touch mutable runtime state and can
-throw.
+`getExprTypeInfo` reads return types from it. EOF and INT consume the call source
+line for runtime diagnostics and can throw.
+MALLOC/REALLOC/FREE are ordinary OVERLOAD functions in memory.cps, with no builtin
+dispatch or type rules in the compiler.

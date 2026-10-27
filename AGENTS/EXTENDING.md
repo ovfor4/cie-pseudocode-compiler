@@ -23,7 +23,7 @@ already terminated the block.
 `Builtins` table in the internal `lib/CodeGen/Builtins.h` (single source of truth — arity checking in
 `emitCall`, the return type in `getExprTypeInfo`, and the reject-user-redefinition check
 all read it), then implement IR emission as a method on the fitting handler
-(for example MemoryHandler) or inline, and add the name intercept in `CodeGen::emitCall` — null-check every emitted argument before use, like the existing
+(for example FileHandler) or inline, and add the name intercept in `CodeGen::emitCall` — null-check every emitted argument before use, like the existing
 branches do. `emitCall` lives in `ExpressionGen.cc`. Builtins are plain identifiers — nothing is needed in lexer/parser.
 
 **New binary operator:** token (if multi-char) → one line in `BinopPrecedence`
@@ -80,4 +80,4 @@ also be registered in EmbeddedRunner for static-runtime JIT symbol lookup.
 `setupExternalFunctions()` (re-declaring the same symbol in two handlers is fine — it
 dedupes by name).
 
-**Standard-library functions:** define ordinary functions/operators in pseudocode-lib/string.cps with C ABI helpers in string.cc as needed. std.cps imports all public library units. CMake rebuilds and embeds source/object changes; do not add string functions to Builtins.h. Ordinary string literals need STRING.NEW(C_STRING); the compiler bridges OUTPUT/casts/files through C_STR(), INPUT through READ_INPUT(), and READFILE through assignment from C_STRING.
+**Standard-library functions:** define ordinary functions/operators in the appropriate pseudocode-lib/*.cps unit with C ABI helpers in the matching .cc as needed. std.cps imports all public library units. CMake rebuilds and embeds source/object changes; do not add standard-library functions to Builtins.h. Memory allocation functions live in memory.cps/memory.cc; only keyword NEW/DELETE need the MemoryGen bridge. Ordinary string literals need STRING.NEW(C_STRING); the compiler bridges OUTPUT/casts/files through C_STR(), INPUT through READ_INPUT(), and READFILE through assignment from C_STRING.

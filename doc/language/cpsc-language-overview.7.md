@@ -80,13 +80,18 @@ These ordinary functions and the STRING class come from the embedded standard li
 - [cpsc-function-num_to_str(7)](function/cpsc-function-num_to_str.7.md): convert a number to text.
 - [cpsc-function-str_to_num(7)](function/cpsc-function-str_to_num.7.md): convert text to a real number.
 
+# MEMORY LIBRARY FUNCTIONS
+
+These ordinary extension functions come from memory.cps, imported by std.cps automatically. Keyword NEW/DELETE use the same allocation runtime. With **-no-std**, import and supply memory.cps explicitly.
+
+- [cpsc-function-malloc(7)](function/cpsc-function-malloc.7.md): allocate raw memory.
+- [cpsc-function-realloc(7)](function/cpsc-function-realloc.7.md): resize an explicit allocation.
+- [cpsc-function-free(7)](function/cpsc-function-free.7.md): release an explicit allocation.
+
 # BUILT-IN FUNCTIONS
 
 - [cpsc-function-eof(7)](function/cpsc-function-eof.7.md): test for the end of a text file.
 - [cpsc-function-int(7)](function/cpsc-function-int.7.md): take the integer part of a number.
-- [cpsc-function-malloc(7)](function/cpsc-function-malloc.7.md): allocate raw memory.
-- [cpsc-function-realloc(7)](function/cpsc-function-realloc.7.md): resize an explicit allocation.
-- [cpsc-function-free(7)](function/cpsc-function-free.7.md): release an explicit allocation.
 
 # UNSUPPORTED FEATURES
 

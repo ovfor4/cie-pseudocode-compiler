@@ -18,7 +18,7 @@ Part of the [subsystem notes](../SUBSYSTEMS.md). Builds on [classes](CLASSES.md)
   class parameters; `symbolAddress` loads their current object address for all value,
   lvalue, address-of, receiver and BYREF paths. Field aliases, this and BYREF
   parameters bind addresses directly.
-- Assignment-only `NewExprAST` uses checked MemoryHandler allocation (at least one byte
+- Assignment-only `NewExprAST` uses checked memory-library allocation (at least one byte
   for method-only classes), zero initialization and construction, then rebinds
   reference slots or copies into other destinations.
 - Ordinary assignment invokes an exact member OPERATOR<- when available, otherwise it
@@ -31,7 +31,8 @@ Part of the [subsystem notes](../SUBSYSTEMS.md). Builds on [classes](CLASSES.md)
   ordinary DELETE method first, then fields in reverse declaration order. Explicit
   DELETE method calls remain ordinary calls without field recursion.
 - Keyword DELETE resolves a class lvalue, validates its allocation start through
-  MemoryHandler before any destruction, destroys it, then releases it through FREE;
+  the memory-library validator before any destruction, destroys it, then releases it
+  through the same runtime as FREE;
   aliases remain dangling.
 - Stack lifetimes use a per-function `StackObjects` list saved/restored around function
   emission. DECLARE and BYVAL copies share ownership registration, including arrays and

@@ -26,5 +26,5 @@ handles. Records and BYVAL arrays containing STRING recursively copy their
 string-bearing fields/elements; RETURN and temporary cleanup preserve ownership.
 C_STRING casts borrow a STRING buffer or construct an owning STRING copy in the other
 direction. FileHandler owns copied open-file names and frees them on close; READFILE
-buffers are copied into STRING and released. Explicit MemoryHandler allocations remain
+buffers are copied into STRING and released. Explicit memory-library allocations remain
 separate from these internal objects.

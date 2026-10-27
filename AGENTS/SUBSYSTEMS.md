@@ -18,8 +18,8 @@ Deep-dives on the CodeGen helper subsystems, split by topic under `SUBSYSTEMS/`.
 - [Runtime checks and exceptions](SUBSYSTEMS/RUNTIME_CHECKS_EXCEPTIONS.md):
   `RuntimeCheck`, TRY/CATCH/THROW lowering, cleanup pads, EH runtime per platform.
 - [Files](SUBSYSTEMS/FILES.md): `FileHandler` text-file runtime and open-file table.
-- [Explicit memory](SUBSYSTEMS/MEMORY.md): `MemoryHandler` allocation tracking,
-  MALLOC/REALLOC/FREE.
+- [Explicit memory](SUBSYSTEMS/MEMORY.md): standard-library MALLOC/REALLOC/FREE,
+  allocation tracking and keyword NEW/DELETE bridging.
 - [Standard library](SUBSYSTEMS/STDLIB.md): `pseudocode-lib/`, embedding, STRING class.
 - [Templates](SUBSYSTEMS/TEMPLATES.md): template declarations, resolution, cloning,
   instantiation, body emission.

@@ -13,11 +13,15 @@ Part of the [pitfalls index](../PITFALLS.md).
   - GLOBAL accepts only the five primitive scalar types and literal initializers;
     arrays, user types and computed initializers are rejected.
   - Own top-level constants remain positional, imported constants do not.
-- **Default standard library.** std.cps and its imported STRING library are embedded
+- **Default standard library.** std.cps and its imported STRING and memory libraries are embedded
   and automatically linked.
   - Use -no-std before explicitly supplying a replacement STRING class/library;
     otherwise duplicate definitions fail.
   - Ordinary literals require a visible STRING class with NEW(C_STRING).
   - C_TYPE/INCLUDE/EXTERN syntax strings are parser metadata and do not construct
     STRING.
-  - -S emits IR only; manual linking needs string.o and the C++ runtime.
+  - Keyword NEW/DELETE and MALLOC/REALLOC/FREE require memory.cps; -no-std users
+    must explicitly import it. Ordinary constructor/destructor methods still work
+    without it.
+  - -S emits IR only; default-library manual linking needs string.o, memory.o and
+    the C++ runtime.

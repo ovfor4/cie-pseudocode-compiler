@@ -12,11 +12,13 @@ FREE(pointer)
 
 # DESCRIPTION
 
-FREE is a compiler extension. Its argument and return type are C `void*`. Explicitly cast other pointer types to a `void*` alias before passing them. A null pointer is accepted and returned. A non-null pointer must be the start of an active explicit MALLOC, REALLOC or keyword NEW allocation; internal STRING/ARRAY storage, stack addresses, interior addresses and already released allocations are rejected with a source-line diagnostic on stderr and an anonymous exception.
+FREE is an extension provided by the memory.cps standard-library unit. Its argument and return type are C `void*`. Explicitly cast other pointer types to a `void*` alias before passing them. A null pointer is accepted and returned. A non-null pointer must be the start of an active explicit MALLOC, REALLOC or keyword NEW allocation; internal STRING/ARRAY storage, stack addresses, interior addresses and already released allocations are rejected with a source-line diagnostic on stderr and an anonymous exception.
 
 FREE returns its input address after releasing the allocation. It does not clear the caller's variable. The returned address and all aliases are invalid for memory access. Calling FREE again on that address throws unless a subsequent allocation has reused the address. Tracking cannot distinguish stale aliases once an address is reused.
 
 The result can be discarded with a standalone call. No user destructor is called. Use keyword DELETE on a class object to destroy it and its fields before releasing its allocation.
+
+The default std.cps imports memory.cps automatically. With **-no-std**, explicitly INCLUDE memory.cps and pass it as a compiler input; its INCLUDE_OBJ links memory.o for native output and execution. Manual linking of saved IR requires the matching library objects and C++ runtime.
 
 # EXAMPLE
 

@@ -23,7 +23,7 @@
 | `lib/CodeGen/Designator.cc`, `TypeCheckGen.cc` | TYPE pre-pass, member lookup/calls and lvalue access; type admission and user-kind binary operators |
 | `lib/CodeGen/CTypeGen.cc` | CodeGen methods for native C scalar conversions, casts, arithmetic and input/output |
 | `lib/CodeGen/NativeTypeSystem.cc` | Builtin registration, native C type imports/aliases and scalar promotion |
-| `lib/CodeGen/MemoryHandler.cc` | Explicit raw memory allocation, resizing and release with a live-address tracking list |
+| `lib/CodeGen/MemoryGen.cc` | Keyword NEW/DELETE calls to visible EXTERN helpers in memory.cps; memory.cc owns allocation tracking |
 | `lib/CodeGen/FileHandler.cc`, `FileRuntimeIO.cc` | File runtime setup/lookup/open and call entry points; read/write/close/EOF helper bodies |
 | `lib/CodeGen/ArrayHandler.cc`, `ArrayParameters.cc`, `ArrayOutput.cc` | Array allocation/indexing, parameter binding/arguments and whole/subarray output |
 | `include/cps/CABI.h`, `lib/CodeGen/CABI/ClangABI.cc`, `lib/CodeGen/CABI/Lowering.cc` | EXTERN C ABI: the ABI description, the only file that includes clang CodeGen headers, and the generic lowering of signatures, arguments and returns |
