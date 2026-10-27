@@ -35,10 +35,16 @@ Part of [Load-bearing conventions](../CONVENTIONS.md).
   through ExceptionHandler, truncates its result and retains the final uncaught
   handler.
 
-**Library units.** Line-leading `#LIB` marks SourceUnit::IsLibrary. RuntimeCheck uses
-the externally visible i32 `__cps_user_line`; FunctionGen's shared call hook updates
-it only on non-library to library calls. Runtime helper line arguments use
-RuntimeCheck::lineValue too. Compiler diagnostics retain the owning file location.
+**Library regions.** PP_DEFINE __LIB enables library mode for subsequent source
+positions; PP_UNDEF __LIB disables it, including inside functions. SourceUnit owns
+LibraryLines and answers isLibrary(Line). RuntimeCheck queries the current unit's
+map with each original source line and uses the shared external i32 __cps_user_line
+only in enabled regions. FunctionGen's call hook updates that global for calls
+from ordinary positions, regardless of the callee's header mode: a callee can
+enable __LIB inside its body. Library calls preserve it. Runtime helper arguments
+also use RuntimeCheck::lineValue. Templates keep definition source lines and
+owning units; deferred object cleanup keeps its registration's line and unit.
+Compiler diagnostics retain the owning file location.
 
 **Default standard library.** The driver extracts embedded std.cps, its imported units
 and matching objects to a content-keyed cache (or temporary fallback) that survives

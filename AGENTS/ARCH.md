@@ -5,7 +5,7 @@ This file is an index; the detail lives in `AGENTS/ARCH/`.
 
 | File | Contents |
 |---|---|
-| [OVERVIEW.md](ARCH/OVERVIEW.md) | Three-stage pipeline, fixed value representation (ABI), C interop types, pointer to language manuals |
+| [OVERVIEW.md](ARCH/OVERVIEW.md) | Preprocessing and compiler pipeline, fixed value representation (ABI), C interop types, pointer to language manuals |
 | [BUILD.md](ARCH/BUILD.md) | Build and run commands, run modes, exception ABI, runtime errors, CI overview |
 | [DEPENDENCIES.md](ARCH/DEPENDENCIES.md) | Local/system dependency lookup, compiler selection, MSYS2 notes, LLVM 23 pin |
 | [DRIVER.md](ARCH/DRIVER.md) | `tools/driver/main.cc`: options, multi-file inputs, entry points, output and exit-code rules, PATH/NONE modes |
@@ -15,7 +15,7 @@ This file is an index; the detail lives in `AGENTS/ARCH/`.
 | [NIGHTLY.md](ARCH/NIGHTLY.md) | `nightly-build.yml` jobs, Bundle packages, macOS LLD/Rust caching, publish rules, package naming |
 | [LAYOUT.md](ARCH/LAYOUT.md) | Source file map (lexer, parser, codegen, CMake, installers), AST conventions |
 
-`#LIB` library units are described in [CONVENTIONS/EXCEPTIONS_AND_UNITS.md](CONVENTIONS/EXCEPTIONS_AND_UNITS.md);
+`PP_DEFINE __LIB` library regions are described in [CONVENTIONS/EXCEPTIONS_AND_UNITS.md](CONVENTIONS/EXCEPTIONS_AND_UNITS.md);
 the embedded standard library in [SUBSYSTEMS/STDLIB.md](SUBSYSTEMS/STDLIB.md).
 
 ## Detail docs

@@ -3,6 +3,7 @@
 | Path | Contents |
 |---|---|
 | `include/cps/` | All headers, included as `"cps/Foo.h"` |
+| `lib/Lexer/Preprocessor.cc`, `include/cps/Preprocessor.h` | File-local switch preprocessing, conditional masking and original-line library metadata |
 | `lib/Lexer/Lexer.cc` | Token scanning and payload-preserving lookahead; `gettok()` consumes and `peekToken`/`peekLine` inspect buffered tokens |
 | `lib/Parser/Parser.cc` | Entry point, statement dispatch, assignment parsing and error recovery |
 | `lib/Parser/ParserExpression.cc`, `ParserControlFlow.cc` | Expressions/designators and control-flow statement parsing (including ordered CASE branches) |

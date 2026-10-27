@@ -6,7 +6,8 @@ style is in [CONVENTIONS/SYMBOLS_AND_ERRORS.md](../CONVENTIONS/SYMBOLS_AND_ERROR
 
 - One or more source files, with optional `-S`, `-o path`, `-r`, `-no-std` and
   `-fdiagnostics-color[=auto|always|never]` / `-fno-diagnostics-color`; options may appear among inputs.
-  Each stream is parsed independently. INCLUDE paths are relative to the including file,
+  Each input is preprocessed independently before parsing. PP_* switches are file-local;
+  masked source retains line numbers, and SourceUnit owns the per-line __LIB map. INCLUDE paths are relative to the including file,
   matched against command-line inputs with fs::equivalent. The driver rejects repeated
   inputs and computes transitive symbol visibility; cycles do not copy statements.
   CodeGen records owners for signatures, types and exported constants/globals and filters

@@ -57,7 +57,7 @@ callable lookup.
 - After all units' statement loops, `drainTemplateBodies` emits queued functions and
   class methods through `emitStmt`, repeating for newly requested instances until the
   queue is empty. Instantiation depth is limited to 64.
-- `selectUnit` restores the template owner's file, library mode and call hook;
+- `selectUnit` restores the template owner's file, library-line lookup and call hook;
   `VisibilityUnit` uses the first requester's transitive visibility, including
   requester-defined operators needed by a library template.
 - Each body receives the symbol snapshot from the template declaration, preserving

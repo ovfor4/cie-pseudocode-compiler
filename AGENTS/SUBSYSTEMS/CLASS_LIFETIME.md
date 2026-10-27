@@ -37,7 +37,9 @@ Part of the [subsystem notes](../SUBSYSTEMS.md). Builds on [classes](CLASSES.md)
 - Stack lifetimes use a per-function `StackObjects` list saved/restored around function
   emission. DECLARE and BYVAL copies share ownership registration, including arrays and
   records with class fields.
-- Each record retains the original address, an entry-initialized Alive flag and, for
+- Each record retains its original source line and owning unit so deferred cleanup
+  uses the correct __LIB region, even for globals from another unit. It also retains
+  the original address, an entry-initialized Alive flag and, for
   arrays, a runtime element count in an entry slot. Array buffer addresses also live in
   entry slots so deferred cleanup never references branch-local bound SSA values.
 - Every array registers, even when its elements need no destruction: cleanup runs the

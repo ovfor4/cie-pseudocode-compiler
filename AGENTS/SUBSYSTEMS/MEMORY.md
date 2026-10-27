@@ -14,8 +14,8 @@ C ABI lowering, library call-line hook and exception-aware calls.
 - memory.cc owns a linked list of live allocation start addresses. Explicit
   MALLOC/REALLOC and keyword NEW share it; STRING/ARRAY internals keep their own
   ownership outside the list.
-- Errors print the existing reason with __cps_user_line and throw 0. The #LIB call
-  hook supplies the user line, including keyword NEW/DELETE helper calls.
+- Errors print the existing reason with __cps_user_line and throw 0. The call hook
+  supplies the user line from ordinary source positions, including keyword NEW/DELETE helper calls.
 - Sizes accept INTEGER and every supported C integer (including _Bool) through
   ordinary overloads. Wrappers explicitly cast to unsigned long long; C++ converts
   that value to native size_t, preserving the old integer conversion behavior.

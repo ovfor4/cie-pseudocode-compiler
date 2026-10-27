@@ -1,6 +1,6 @@
 # Standard library
 
-Part of the [subsystem notes](../SUBSYSTEMS.md). `#LIB` library units and default
+Part of the [subsystem notes](../SUBSYSTEMS.md). `PP_DEFINE __LIB` library regions and default
 import rules: [CONVENTIONS/EXCEPTIONS_AND_UNITS.md](../CONVENTIONS/EXCEPTIONS_AND_UNITS.md).
 
 **Standard library** (`pseudocode-lib/`)
@@ -31,8 +31,8 @@ import rules: [CONVENTIONS/EXCEPTIONS_AND_UNITS.md](../CONVENTIONS/EXCEPTIONS_AN
 
 ## STRING and I/O bridging
 
-- STRING is a #LIB class with a public internal void* handle owning std::string. The
-  _string_impl_* C ABI reports __cps_user_line and throws 0 on std::exception.
+- The STRING class is defined under PP_DEFINE __LIB. Its public internal void*
+  handle owns std::string. The _string_impl_* C ABI reports __cps_user_line and throws 0 on std::exception.
 - Functions/operators use ordinary resolution; StringValueGen bridges literals, C_STR, C
   conversions and file operands.
 - C_STRING literals have an adjacent uppercase C suffix.

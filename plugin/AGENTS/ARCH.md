@@ -114,11 +114,16 @@ only a subset of its syntax:
   TextMate injection, including nested declaration expressions. Comments, strings,
   fields outside methods and top-level code do not receive this scope.
 - Highlighting covers CASE/ENDCASE/OTHERWISE, CLASS/ENDCLASS/PUBLIC/PRIVATE,
-  CONSTANT, TEMPLATE, OVERLOAD/OPERATOR, EXTERN declarations, INCLUDE_OBJ, #LIB
-  and ellipses using C++ scopes. OVERLOAD borrows a declaration modifier, #LIB
-  borrows #pragma and INCLUDE_OBJ borrows #include. #LIB must occupy its own line.
+  CONSTANT, TEMPLATE, OVERLOAD/OPERATOR, EXTERN declarations, INCLUDE_OBJ
+  and ellipses using C++ scopes. OVERLOAD borrows a declaration modifier and
+  INCLUDE_OBJ borrows #include.
   These rules do not add indentation support for the corresponding constructs.
   SET, DATE and random-file operations remain unsupported by the compiler.
+- PP_DEFINE/PP_UNDEF/PP_IFDEF/PP_IFNDEF/PP_ENDIF highlight only at line start,
+  allowing indentation. Their line context uses C++ preprocessor keyword and
+  macro-name scopes, preserving // comments and shielding switch names from
+  ordinary keyword rules. Conditions add no indentation. Do not evaluate switches
+  in the editor or add inactive-code dimming; preprocessing belongs to the compiler.
 
 Language defaults use real Tabs, display width 4, disabled indentation detection,
 full automatic indentation, on-type formatting and native bracket pair colors.

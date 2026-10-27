@@ -3,6 +3,9 @@
 # The NAME lines in the primary .md sources are the human-readable
 # counterpart and must be kept in sync with this map.
 set(CPSC_MANUAL_ALIASES
+    "cpsc-keyword-pp_undef:cpsc-keyword-pp_define"
+    "cpsc-keyword-pp_ifndef:cpsc-keyword-pp_ifdef"
+    "cpsc-keyword-pp_endif:cpsc-keyword-pp_ifdef"
     "cpsc-keyword-then:cpsc-keyword-if"
     "cpsc-keyword-else:cpsc-keyword-if"
     "cpsc-keyword-endif:cpsc-keyword-if"

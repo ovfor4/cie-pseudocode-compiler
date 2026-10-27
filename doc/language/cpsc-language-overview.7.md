@@ -6,7 +6,7 @@ cpsc-language-overview - supported cpsc pseudocode syntax
 
 # DESCRIPTION
 
-Keywords are uppercase and case-sensitive. Identifiers, including built-in function names, are case insensitive. Indentation is for readability; blocks use explicit closing keywords. Identifiers begin with a letter or underscore and continue with letters, digits, or underscores.
+Keywords are uppercase and case-sensitive. Ordinary identifiers, including built-in function names, are case insensitive. Indentation is for readability; blocks use explicit closing keywords. Identifiers begin with a letter or underscore and continue with letters, digits, or underscores.
 
 Assign with ASCII `<-`: `Count <- Count + 1`. Compare with `=`, `<>`, `<`, `>`, `<=`, and `>=`. Standard-library STRING comparisons compare contents, case-sensitively. Use `+`, `-`, `*`, and `/` for arithmetic; built-in `/` always returns REAL. Use `&` to join strings.
 
@@ -24,9 +24,12 @@ The compiler extensions TRY/CATCH/ENDTRY and THROW support anonymous exceptions 
 
 Multi-file builds use the compiler extensions INCLUDE and GLOBAL. Pass every source file on the command line and include the files whose definitions are needed. The entry file contains the sole top-level executable code, or a parameterless FUNCTION MAIN returning INTEGER; definitions alone do not form a runnable program.
 
-#LIB marks a library source unit. A line-leading `#` starts a compiler directive, not a comment; unknown directives are errors. Library runtime diagnostics report the first user call site. See [cpsc-keyword-lib(7)](keyword/cpsc-keyword-lib.7.md).
+PP_DEFINE and PP_UNDEF control file-local, case-sensitive preprocessor switches. PP_IFDEF and PP_IFNDEF conditionally include source up to PP_ENDIF; conditions may nest. Directives occupy their own lines, allowing leading whitespace and trailing // comments. Switches have no values and do not replace text. PP_DEFINE __LIB enables library runtime line reporting for subsequent source positions; PP_UNDEF __LIB restores ordinary behavior, including inside functions. See [cpsc-keyword-pp_define(7)](keyword/cpsc-keyword-pp_define.7.md) and [cpsc-keyword-pp_ifdef(7)](keyword/cpsc-keyword-pp_ifdef.7.md).
 
 # KEYWORDS
+
+- [cpsc-keyword-pp_define(7)](keyword/cpsc-keyword-pp_define.7.md): define or remove preprocessor switches and select library code regions.
+- [cpsc-keyword-pp_ifdef(7)](keyword/cpsc-keyword-pp_ifdef.7.md): conditionally compile source according to switch definitions.
 
 - [cpsc-keyword-include(7)](keyword/cpsc-keyword-include.7.md): import definitions from another compilation unit.
 - [cpsc-keyword-global(7)](keyword/cpsc-keyword-global.7.md): declare shared primitive variables.
@@ -62,7 +65,7 @@ Multi-file builds use the compiler extensions INCLUDE and GLOBAL. Pass every sou
 - [cpsc-keyword-div(7)](keyword/cpsc-keyword-div.7.md): perform integer division.
 - [cpsc-keyword-mod(7)](keyword/cpsc-keyword-mod.7.md): find the integer division remainder.
 
-Closing and auxiliary keywords are documented with their main constructs: THEN/ELSE/ENDIF with IF; OF/OTHERWISE/ENDCASE with CASE; CATCH/ENDTRY/THROW with TRY; ENDWHILE with WHILE; UNTIL with REPEAT; TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE; ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE; ENDGLOBAL with GLOBAL; ENDTYPE with TYPE; EXTERN_FUNCTION/EXTERN_PROCEDURE with EXTERN; PUBLIC/PRIVATE/ENDCLASS with CLASS. TRUE/FALSE are BOOLEAN literals.
+Closing and auxiliary keywords are documented with their main constructs: PP_UNDEF with PP_DEFINE; PP_IFNDEF/PP_ENDIF with PP_IFDEF; THEN/ELSE/ENDIF with IF; OF/OTHERWISE/ENDCASE with CASE; CATCH/ENDTRY/THROW with TRY; ENDWHILE with WHILE; UNTIL with REPEAT; TO/STEP/NEXT with FOR; RETURN/RETURNS/BYVAL/BYREF and function/procedure closing keywords with FUNCTION/PROCEDURE; READ/WRITE/APPEND with OPENFILE; ARRAY/OF and INTEGER/REAL/BOOLEAN/CHAR/STRING with DECLARE; ENDGLOBAL with GLOBAL; ENDTYPE with TYPE; EXTERN_FUNCTION/EXTERN_PROCEDURE with EXTERN; PUBLIC/PRIVATE/ENDCLASS with CLASS. TRUE/FALSE are BOOLEAN literals.
 
 # STRING LIBRARY FUNCTIONS
 

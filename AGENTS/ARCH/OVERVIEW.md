@@ -1,14 +1,14 @@
 # Overview and value representation
 
-`cpsc` compiles CIE A-Level 9618 pseudocode to native executables or LLVM IR. Classic three-stage
-Kaleidoscope-style design, C++17, built with LLVM 23 and Clang 23. CMake rejects
+`cpsc` compiles CIE A-Level 9618 pseudocode to native executables or LLVM IR. A line preprocessor feeds a
+Kaleidoscope-style lexer/parser/codegen pipeline, C++17, built with LLVM 23 and Clang 23. CMake rejects
 other major versions and non-Clang compilers. Execution is selected at
 build time: external lli, an embedded static LLVM engine, or disabled.
 
 ```
-files ──> Lexer ──> Parser ──> vector<unique_ptr<StmtAST>> ──> CodeGen ──> LLVM IR ──> NativeCompiler (object emission + embedded LLD)
-        (istream)  (recursive       (flat program list;         (one llvm::Module "cps_module",
-                    descent)         FunctionDefAST mixed in)    entry code inside i32 main())
+files -> Preprocessor -> Lexer -> Parser -> AST statements -> CodeGen -> LLVM IR -> NativeCompiler
+         (per-file        (istream) (recursive descent)       (one module)          (object + embedded LLD)
+          switches and source-line library metadata)
 ```
 
 Fixed value representation (ABI — much code infers types backwards from these):
