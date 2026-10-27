@@ -190,7 +190,7 @@ try {
 			if (running) await invoke('stop_run');
 			// Finish any pending save/open or stopped run before closing the document.
 			await actionDone;
-			if (!await canReplace()) return;
+			if (dirty() && !await saveFile()) return;
 			await window.destroy();
 		} catch (error) { report(error); } finally {
 			closing = false;

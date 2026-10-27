@@ -102,7 +102,7 @@ fn main() {
         .on_menu_event(|app, event| {
             let mut windows = app.webview_windows().into_values();
             if event.id() == "quit" {
-                // Each window runs its unsaved-changes prompt; the app exits after the last.
+                // Each window saves changes before closing; the app exits after the last.
                 windows.for_each(|window| drop(window.close()));
             } else if let Some(window) = windows.find(|window| window.is_focused().unwrap_or(false))
             {
