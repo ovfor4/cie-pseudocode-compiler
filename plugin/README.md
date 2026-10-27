@@ -20,7 +20,7 @@ Open a `.cps` file. The language mode should show **CIE Pseudocode**.
 
 ## Features
 
-- C++ style syntax colors that follow your dark theme.
+- C++ style syntax colors that follow your dark theme, including PP_DEFINE, PP_UNDEF, PP_IFDEF, PP_IFNDEF and PP_ENDIF. Preprocessor conditions do not add indentation.
 - Automatic Tab indentation and outdent for block keywords.
 - **Format Selection**: select code, then press **Cmd+K, Cmd+F** on macOS or **Ctrl+K, Ctrl+F** on Windows/Linux. Only indentation changes.
 - Colored `()` and `[]` pairs; unmatched brackets turn red. Quotes and comments are ignored.

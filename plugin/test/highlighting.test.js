@@ -155,13 +155,27 @@ test('supported keywords reuse C++ scopes without matching identifiers or quoted
 	}
 });
 
-test('library directives require their own line and ellipses use the C++ variadic scope', () => {
-	assert.ok(scopesAt('\t#LIB  ', '#').includes('punctuation.definition.directive.cpp'));
-	assert.ok(scopesAt('\t#LIB  ', 'LIB').includes('keyword.control.directive.pragma.cpp'));
-	for (const text of ['#lib', '#LIBRARY', '#LIB // comment', 'X #LIB', '// #LIB', 'OUTPUT "#LIB"']) {
-		assert.ok(!scopesAt(text, '#')
-			.includes('punctuation.definition.directive.cpp'), text);
+test('preprocessor directives reuse C++ scopes and shield switch names from ordinary keywords', () => {
+	for (const [word, scope] of [
+		['PP_DEFINE', 'keyword.control.directive.define.cpp'],
+		['PP_UNDEF', 'keyword.control.directive.undef.cpp'],
+		['PP_IFDEF', 'keyword.control.directive.conditional.cpp'],
+		['PP_IFNDEF', 'keyword.control.directive.conditional.cpp'],
+		['PP_ENDIF', 'keyword.control.directive.conditional.cpp']
+	]) {
+		assert.ok(scopesAt(`\t${word} __LIB // comment`, word).includes(scope));
+		for (const text of [word.toLowerCase(), `${word}Value`, `_${word}`, `X ${word}`, `// ${word}`, `OUTPUT "${word}"`]) {
+			assert.ok(!scopesAt(text, word.toLowerCase() === text ? text : word).includes(scope), text);
+		}
 	}
+	for (const word of ['__LIB', 'FUNCTION', 'INTEGER']) {
+		assert.ok(scopesAt(`PP_DEFINE ${word}`, word).includes('entity.name.function.preprocessor.cpp'));
+	}
+	assert.ok(scopesAt('PP_IFDEF Flag // PP_ENDIF', 'PP_ENDIF').some(s => s.startsWith('comment.')));
+	assert.ok(!scopesAt('#LIB', 'LIB').some(s => s.startsWith('keyword.control.directive.')));
+});
+
+test('ellipses use the C++ variadic scope', () => {
 	for (const text of ['TEMPLATE <Types...>', 'EXTERN "C" EXTERN_PROCEDURE print(C_INT, ...)', 'CALL print(Values...)']) {
 		assert.ok(scopesAt(text, '...').includes('punctuation.vararg-ellipses.cpp'), text);
 	}

@@ -418,6 +418,9 @@
           "include": "#strings"
         },
         {
+          "include": "#preprocessor"
+        },
+        {
           "include": "#class"
         },
         {
@@ -440,17 +443,6 @@
         },
         {
           "include": "#return_type"
-        },
-        {
-          "match": "^\\s*(#)(LIB)\\s*$",
-          "captures": {
-            "1": {
-              "name": "punctuation.definition.directive.cpp"
-            },
-            "2": {
-              "name": "keyword.control.directive.pragma.cpp"
-            }
-          }
         },
         {
           "match": "(?<!\\w)(?:CASE|ENDCASE)(?!\\w)",
@@ -597,6 +589,34 @@
         },
         {
           "include": "#type_tokens"
+        }
+      ]
+    },
+    "preprocessor": {
+      "begin": "^\\s*(?:(PP_DEFINE)|(PP_UNDEF)|(PP_IFDEF|PP_IFNDEF)|(PP_ENDIF))\\b",
+      "end": "$",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.directive.define.cpp"
+        },
+        "2": {
+          "name": "keyword.control.directive.undef.cpp"
+        },
+        "3": {
+          "name": "keyword.control.directive.conditional.cpp"
+        },
+        "4": {
+          "name": "keyword.control.directive.conditional.cpp"
+        }
+      },
+      "name": "meta.preprocessor.cie-pseudocode",
+      "patterns": [
+        {
+          "include": "#line_comment"
+        },
+        {
+          "match": "[A-Za-z_][A-Za-z0-9_]*",
+          "name": "entity.name.function.preprocessor.cpp"
         }
       ]
     }

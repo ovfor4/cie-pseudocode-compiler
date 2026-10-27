@@ -75,3 +75,13 @@ ENDCLASS
 DECLARE Count : Counter
 CALL Count.Add(Limit)
 OUTPUT Count.Get()
+
+// Preprocessor conditions do not add indentation.
+PP_DEFINE Demo
+PP_IFDEF Demo
+OUTPUT "Enabled"
+PP_IFNDEF OtherDemo
+OUTPUT "Nested condition"
+PP_ENDIF
+PP_ENDIF
+PP_UNDEF Demo

@@ -82,3 +82,13 @@ test('escaped quotes keep block keywords inside literals masked', () => {
 		'THEN', String.raw`OUTPUT "escaped \" ENDIF //"`, 'ENDIF'
 	]), [0, 0, 1, 0]);
 });
+
+test('preprocessor conditions preserve ordinary block depth without adding indentation', () => {
+	const lines = [
+		'PP_DEFINE Flag', 'PP_IFDEF Flag', 'PROCEDURE Demo()', 'PP_IFNDEF Other',
+		'IF Ready THEN', 'OUTPUT 1', 'ENDIF', 'PP_ENDIF', 'PP_UNDEF Flag',
+		'ENDPROCEDURE', 'PP_ENDIF'
+	];
+	assert.deepEqual(lineDepths(lines), [0, 0, 0, 1, 1, 2, 1, 1, 1, 0, 0]);
+	assert.deepEqual(indentationEdits(['PP_IFDEF Flag', 'OUTPUT 1', 'PP_ENDIF'], 0, 2), []);
+});

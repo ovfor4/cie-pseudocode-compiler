@@ -5,9 +5,9 @@ Microsoft VS Code’s built-in C++ extension. Exception keywords reuse its
 `keyword.control.try.cpp`, `keyword.control.catch.cpp` and
 `keyword.control.throw.cpp` scopes; ENDTRY uses the TRY scope. Selection, class,
 access, constant, template, operator and external-declaration highlighting also
-reuse C++ scopes. OVERLOAD borrows a declaration modifier, #LIB borrows #pragma
-and INCLUDE_OBJ borrows #include; ellipses use the C++ variadic scope. Literal
-escapes reuse `constant.character.escape`; the adjacent C string suffix borrows
+reuse C++ scopes. OVERLOAD borrows a declaration modifier, PP_* directives borrow
+C++ preprocessor keyword and macro-name scopes, and INCLUDE_OBJ borrows #include;
+ellipses use the C++ variadic scope. Literal escapes reuse `constant.character.escape`; the adjacent C string suffix borrows
 `keyword.other.suffix.literal.user-defined.string.cpp`. Custom types, template
 parameters and angle delimiters use the corresponding C++ type and template
 scopes; class-method receivers reuse `variable.language.this.cpp`.

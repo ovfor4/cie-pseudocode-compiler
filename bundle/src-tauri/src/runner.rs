@@ -184,6 +184,12 @@ mod tests {
         let runner = Runner::default();
         for (program, input, expected, code) in [
             (
+                "PP_DEFINE Enabled\nPP_IFDEF Enabled\nOUTPUT 1\nPP_ENDIF\nPP_UNDEF Enabled\nPP_IFNDEF Enabled\nOUTPUT 2\nPP_ENDIF\n",
+                "",
+                "1\n2\n",
+                0,
+            ),
+            (
                 "DECLARE N : INTEGER\nINPUT N\nOUTPUT N\nOUTPUT \"\\U0001F600\"\n",
                 "42\n",
                 "42\n😀\n",
