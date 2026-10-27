@@ -1,4 +1,4 @@
-#LIB
+PP_DEFINE __LIB
 INCLUDE_OBJ "string.o"
 TYPE _STRING_HANDLE = C_TYPE("void*")
 TYPE _STRING_C_INTEGER = C_TYPE("long long")

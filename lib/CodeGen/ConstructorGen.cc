@@ -284,7 +284,7 @@ size_t CodeGen::registerStackObject(Value *Addr, const std::string &TypeName, in
         Count = Entry.CreateAlloca(Entry.getInt64Ty(), nullptr, "object_count");
         Entry.CreateStore(Entry.getInt64(0), Count);
     }
-    StackObjects.push_back({Addr, TypeName, Alive, Count, Line});
+    StackObjects.push_back({Addr, TypeName, Alive, Count, Line, CurrentUnit});
     // This DECLARE can execute repeatedly, including after a backward loop edge.
     emitStackObjectCleanup(StackObjects.back());
     return StackObjects.size() - 1;
@@ -298,6 +298,8 @@ void CodeGen::activateStackObject(size_t Index, Value *Count) {
 }
 
 void CodeGen::emitStackObjectCleanup(const StackObject &Object) {
+    size_t SavedUnit = CurrentUnit;
+    selectUnit(Object.OwnerUnit);
     auto *F = Builder->GetInsertBlock()->getParent();
     auto *Destroy = BasicBlock::Create(*TheContext, "destroy_object", F);
     auto *Done = BasicBlock::Create(*TheContext, "destroyed_object", F);
@@ -339,6 +341,7 @@ void CodeGen::emitStackObjectCleanup(const StackObject &Object) {
     }
     Builder->CreateBr(Done);
     Builder->SetInsertPoint(Done);
+    selectUnit(SavedUnit);
 }
 
 void CodeGen::finishStackObjects(Function *F) {

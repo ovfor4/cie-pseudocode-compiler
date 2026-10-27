@@ -1,0 +1,6 @@
+[Fatal] line 2: Division by zero
+[Fatal] line 10: Division by zero
+[Fatal] line 15: Division by zero
+[Fatal] line 23: Division by zero
+[Fatal] line 4: Division by zero
+[Fatal] line 9: Division by zero

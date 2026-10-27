@@ -200,7 +200,7 @@ bool parseUnits(const std::vector<std::string> &InputPaths, size_t UserInputCoun
         cps::Parser Parser(Lex);
         Programs[I] = Parser.Parse();
         if (Lex.hadError() || Parser.hadError()) return false;
-        Units.push_back({InputPath, Programs[I], std::vector<bool>(InputPaths.size(), false), Lex.isLibrary()});
+        Units.push_back({InputPath, Programs[I], std::vector<bool>(InputPaths.size(), false), std::move(Source.LibraryLines)});
         Units.back().Visible[I] = true;
         if (!NoStd && I < UserInputCount)
             for (size_t J = UserInputCount; J < InputPaths.size(); ++J)

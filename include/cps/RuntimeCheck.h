@@ -3,6 +3,8 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include <cstdint>
+#include <functional>
+#include <utility>
 #include <string>
 
 namespace cps {
@@ -18,7 +20,7 @@ class RuntimeCheck {
     llvm::FunctionCallee StderrFunc;   // Windows: __acrt_iob_func(2)
     llvm::GlobalVariable *StderrVar;   // elsewhere: the C library's stderr
     ExceptionHandler &Exceptions;
-    bool LibraryMode = false;
+    std::function<bool(int)> LibraryLookup;
     llvm::GlobalVariable *UserLine;
     llvm::Value *DivZeroMsg;
     llvm::Value *OutOfBoundsMsg;
@@ -33,7 +35,7 @@ public:
     RuntimeCheck(llvm::Module &M, llvm::LLVMContext &C, llvm::IRBuilder<> &B,
                  ExceptionHandler &EH);
 
-    void setLibraryMode(bool Enabled) { LibraryMode = Enabled; }
+    void setLibraryLookup(std::function<bool(int)> Lookup) { LibraryLookup = std::move(Lookup); }
     llvm::Value *lineValue(int Line);
     void setUserLine(int Line);
 

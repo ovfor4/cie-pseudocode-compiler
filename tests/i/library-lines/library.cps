@@ -1,4 +1,4 @@
-#LIB
+PP_DEFINE __LIB
 PROCEDURE Check()
     CALL Inner()
 ENDPROCEDURE

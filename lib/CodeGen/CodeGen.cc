@@ -149,9 +149,12 @@ void CodeGen::selectUnit(size_t Unit) {
     CurrentUnit = Unit;
     DiagnosticSource = (*Units)[Unit].Path;
     FuncGen->setCurrentUnit(Unit, (*Units)[Unit].Path);
-    RuntimeChecker->setLibraryMode((*Units)[Unit].IsLibrary);
-    FuncGen->setCallHook([this](const FuncSig &Sig) {
-        if (!(*Units)[CurrentUnit].IsLibrary && (*Units)[Sig.OwnerUnit].IsLibrary)
+    RuntimeChecker->setLibraryLookup([this](int Line) {
+        return (*Units)[CurrentUnit].isLibrary(Line);
+    });
+    FuncGen->setCallHook([this](const FuncSig &) {
+        // The callee may enable __LIB inside its body even if its header is ordinary code.
+        if (!(*Units)[CurrentUnit].isLibrary(DiagnosticLine))
             RuntimeChecker->setUserLine(DiagnosticLine);
     });
 }
@@ -195,7 +198,8 @@ void CodeGen::compile(const std::vector<SourceUnit> &Sources) {
         if (!Added && !Compatible && (It->second.Unit != CurrentUnit ||
             ((IsTemplate || It->second.IsTemplate) && !(IsFunction && It->second.IsFunction)))) {
             // Default library units follow user inputs; point at the user's conflicting definition.
-            bool UserConflict = Sources[CurrentUnit].IsLibrary && !Sources[It->second.Unit].IsLibrary;
+            bool UserConflict = Sources[CurrentUnit].isLibrary(DiagnosticLine) &&
+                                !Sources[It->second.Unit].isLibrary(It->second.Line);
             SaveAndRestore<int> Location(DiagnosticLine, UserConflict ? It->second.Line : DiagnosticLine);
             SaveAndRestore<std::string> Source(DiagnosticSource,
                 UserConflict ? Sources[It->second.Unit].Path : DiagnosticSource);

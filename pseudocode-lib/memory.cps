@@ -1,4 +1,4 @@
-#LIB
+PP_DEFINE __LIB
 INCLUDE_OBJ "memory.o"
 TYPE _MEMORY_ADDRESS = C_TYPE("void*")
 TYPE _MEMORY_SIZE = C_TYPE("unsigned long long")

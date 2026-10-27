@@ -220,17 +220,10 @@ int Lexer::readToken() {
 
     TokenLine = CurrentLine;
     if (LastChar == '#' && LineStart) {
-        std::string Directive;
         do {
-            Directive += static_cast<char>(LastChar);
             LastChar = Input.get();
         } while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
-        while (!Directive.empty() && isspace(static_cast<unsigned char>(Directive.back())))
-            Directive.pop_back();
-        if (Directive == "#LIB") Library = true;
-        else {
-            reportError(TokenLine, "Unknown compiler directive");
-        }
+        reportError(TokenLine, "Unknown compiler directive");
         return readToken();
     }
     LineStart = false;

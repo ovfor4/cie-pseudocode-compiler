@@ -1,0 +1,6 @@
+{
+  "sources": [
+    "program.cps",
+    "regions.cps"
+  ]
+}

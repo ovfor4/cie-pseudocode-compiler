@@ -17,8 +17,9 @@ RuntimeCheck::RuntimeCheck(Module &M, LLVMContext &C, IRBuilder<> &B, ExceptionH
 }
 
 Value *RuntimeCheck::lineValue(int Line) {
-    return LibraryMode ? Builder.CreateLoad(Builder.getInt32Ty(), UserLine, "user_line")
-                       : static_cast<Value *>(Builder.getInt32(Line));
+    return LibraryLookup && LibraryLookup(Line)
+        ? Builder.CreateLoad(Builder.getInt32Ty(), UserLine, "user_line")
+        : static_cast<Value *>(Builder.getInt32(Line));
 }
 
 void RuntimeCheck::setUserLine(int Line) {

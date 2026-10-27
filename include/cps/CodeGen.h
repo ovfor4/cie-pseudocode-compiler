@@ -106,6 +106,7 @@ class CodeGen {
         llvm::AllocaInst *Alive;
         llvm::AllocaInst *Count; // Non-null for an array; Addr then holds its buffer pointer.
         int Line;
+        size_t OwnerUnit;
         bool Temporary = false;
     };
     std::vector<StackObject> StackObjects;
