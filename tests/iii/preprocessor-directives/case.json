@@ -1,0 +1,28 @@
+{
+  "errors": [
+    {
+      "reason": "PP_ENDIF without matching",
+      "line": 1
+    },
+    {
+      "reason": "PP_DEFINE requires exactly one switch name",
+      "line": 2
+    },
+    {
+      "reason": "PP_UNDEF requires exactly one switch name",
+      "line": 3
+    },
+    {
+      "reason": "PP_IFDEF requires exactly one switch name",
+      "line": 4
+    },
+    {
+      "reason": "PP_ENDIF does not take arguments",
+      "line": 5
+    },
+    {
+      "reason": "Unterminated preprocessor conditional.*PP_ENDIF",
+      "line": 6
+    }
+  ]
+}

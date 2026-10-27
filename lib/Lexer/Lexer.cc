@@ -14,6 +14,11 @@ using namespace cps;
 
 namespace {
 const std::unordered_map<std::string, int> Keywords = {
+    {"PP_DEFINE", tok_pp_define},
+    {"PP_UNDEF", tok_pp_undef},
+    {"PP_IFDEF", tok_pp_ifdef},
+    {"PP_IFNDEF", tok_pp_ifndef},
+    {"PP_ENDIF", tok_pp_endif},
     {"CONSTANT", tok_constant},
     {"INCLUDE", tok_include},
     {"INCLUDE_OBJ", tok_include_obj},

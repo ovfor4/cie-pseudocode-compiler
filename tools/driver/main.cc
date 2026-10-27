@@ -1,4 +1,5 @@
 #include "cps/Lexer.h"
+#include "cps/Preprocessor.h"
 #include "cps/Diagnostics.h"
 #include "cps/Parser.h"
 #include "cps/CodeGen.h"
@@ -17,6 +18,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include <fstream>
+#include <sstream>
 #include <string>
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -187,13 +189,16 @@ bool parseUnits(const std::vector<std::string> &InputPaths, size_t UserInputCoun
             return false;
         }
         cps::DiagnosticSource = InputPath;
-        cps::Lexer Lex(Input);
-        cps::Parser Parser(Lex);
-        Programs[I] = Parser.Parse();
+        auto Source = cps::preprocess(Input);
         if (Input.bad()) {
             llvm::errs() << cps::diagnosticPrefix(cps::Severity::Fatal) << "cannot read source file '" << InputPath << "'\n";
             return false;
         }
+        if (Source.HadError) return false;
+        std::istringstream Processed(Source.Text);
+        cps::Lexer Lex(Processed);
+        cps::Parser Parser(Lex);
+        Programs[I] = Parser.Parse();
         if (Lex.hadError() || Parser.hadError()) return false;
         Units.push_back({InputPath, Programs[I], std::vector<bool>(InputPaths.size(), false), Lex.isLibrary()});
         Units.back().Visible[I] = true;

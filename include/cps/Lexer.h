@@ -113,7 +113,13 @@ enum Token {
     tok_try = -700,
     tok_catch = -701,
     tok_endtry = -702,
-    tok_throw = -703
+    tok_throw = -703,
+
+    tok_pp_define = -710,
+    tok_pp_undef = -711,
+    tok_pp_ifdef = -712,
+    tok_pp_ifndef = -713,
+    tok_pp_endif = -714
 };
 
 class Lexer {

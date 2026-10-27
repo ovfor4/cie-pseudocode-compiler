@@ -42,7 +42,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 include_directories(include)
 
-add_library(CPSLexer STATIC lib/Lexer/Lexer.cc)
+add_library(CPSLexer STATIC lib/Lexer/Lexer.cc lib/Lexer/Preprocessor.cc)
 add_library(CPSParser STATIC
     lib/Parser/Parser.cc
     lib/Parser/ParserExpression.cc
