@@ -1,11 +1,11 @@
 {
   "errors": [
     {
-      "reason": "Allocation\\ size\\ must\\ be\\ INTEGER\\ or\\ a\\ C\\ integer",
+      "reason": "No matching overload for MALLOC",
       "line": 1
     },
     {
-      "reason": "Allocation size must be INTEGER or a C integer",
+      "reason": "No matching overload for REALLOC",
       "line": 4
     }
   ]

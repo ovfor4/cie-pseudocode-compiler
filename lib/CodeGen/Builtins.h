@@ -15,9 +15,6 @@ struct BuiltinInfo {
 
 inline constexpr BuiltinInfo Builtins[] = {
     {"EOF",        1, "BOOLEAN"},
-    {"MALLOC",     1, "C_TYPE(\"void*\")"},
-    {"REALLOC",    2, "C_TYPE(\"void*\")"},
-    {"FREE",       1, "C_TYPE(\"void*\")"},
     {"INT",        1, "INTEGER"},
 };
 

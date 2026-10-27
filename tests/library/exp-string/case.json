@@ -1,1 +1,1 @@
-{"sources":["program.cps","../../../pseudocode-lib/string.cps"],"compiler_args":["-no-std"]}
+{"sources":["program.cps","../../../pseudocode-lib/std.cps","../../../pseudocode-lib/string.cps","../../../pseudocode-lib/memory.cps"],"compiler_args":["-no-std"]}

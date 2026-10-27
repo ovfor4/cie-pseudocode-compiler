@@ -1,0 +1,3 @@
+[Fatal] line 63: Invalid memory address (not an active allocation)
+[Fatal] line 68: Memory allocation failed
+[Fatal] line 73: Memory allocation failed

@@ -1,5 +1,4 @@
 #include "cps/CodeGen.h"
-#include "cps/MemoryHandler.h"
 #include "cps/ExceptionHandler.h"
 #include "cps/TypeAST.h"
 #include <climits>
@@ -165,7 +164,8 @@ void CodeGen::emitAssignment(const LValueInfo &Target, ExprAST *Expr, const Symb
         // a non-null object address (MALLOC(0) deliberately returns null).
         Size = Builder->CreateSelect(Builder->CreateICmpEQ(Size, ConstantInt::get(Size->getType(), 0)),
                                       ConstantInt::get(Size->getType(), 1), Size);
-        Value *Object = Memory->emitAllocate(Size, New->getLine());
+        Value *Object = emitMemoryCall("_memory_impl_malloc", Size, New->getLine());
+        if (!Object) return;
         Builder->CreateStore(Types->getZeroValue(Class->Name), Object);
         if (!emitConstruct(Class->Name, Object, New->getArgs(), New->getLine())) return;
         if (Symbol && Symbol->IsReference) {

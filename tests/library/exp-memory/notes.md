@@ -1,0 +1,3 @@
+# Explicit memory library trace
+
+This compatibility fixture imports memory.cps with -no-std and no STRING library. Each supported C integer type produces null for zero allocation and resizing, then supports a nested allocation/resize/release. NEW storage retains 7 through REALLOC and is accepted by DELETE. MALLOC storage holds 17 and is accepted by DELETE. FREE releases NEW storage, so a subsequent DELETE throws before destruction. Negative signed-char and maximum unsigned-long-long sizes both fail allocation, confirming signed extension and unsigned range preservation. Expected values are derived directly from these assignments; human review pending.

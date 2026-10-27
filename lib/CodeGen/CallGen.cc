@@ -2,7 +2,6 @@
 #include "cps/CodeGen.h"
 #include "cps/ArrayHandler.h"
 #include "cps/FileHandler.h"
-#include "cps/MemoryHandler.h"
 #include "cps/ExceptionHandler.h"
 #include "Builtins.h"
 #include "TemplateClone.h"

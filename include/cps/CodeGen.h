@@ -21,7 +21,6 @@ namespace cps {
 
 class ArrayHandler;
 class FileHandler;
-class MemoryHandler;
 class ExceptionHandler;
 class CastExprAST;
 class TemplateDeclAST;
@@ -157,7 +156,6 @@ class CodeGen {
 
     std::unique_ptr<ArithmeticHandler> ArithHandler;
     std::unique_ptr<FileHandler> Files;
-    std::unique_ptr<MemoryHandler> Memory;
 
     llvm::FunctionCallee PrintfFunc;
     
@@ -208,7 +206,7 @@ class CodeGen {
     bool emitLValue(ExprAST *E, LValueInfo &Out);
     // Read a value from resolved storage.
     llvm::Value *loadFromLValue(const LValueInfo &LV);
-    llvm::Value *emitAllocationSize(ExprAST *Expr);
+    llvm::Value *emitMemoryCall(const char *Name, llvm::Value *Argument, int Line);
     static bool isLogicalOperand(const TypeInfo *T);
     llvm::Value *emitShortCircuit(BinaryExprAST *Bin, const TypeInfo *LT, const TypeInfo *RT);
     llvm::Value *emitIntBuiltin(ExprAST *Arg, int Line);

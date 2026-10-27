@@ -4,7 +4,7 @@
     {"reason": "No matching overload for Max", "line": 20},
     {"reason": "Explicit template arguments require a function template: Plain", "line": 21},
     {"reason": "Explicit template arguments are not allowed on builtin EOF", "line": 22},
-    {"reason": "Explicit template arguments are not allowed on builtin MALLOC", "line": 23},
+    {"reason": "Explicit template arguments require a function template: MALLOC", "line": 23},
     {"reason": "Ambiguous call to Tied", "line": 24}
   ]
 }

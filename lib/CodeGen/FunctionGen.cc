@@ -158,7 +158,8 @@ bool FunctionGen::validatePrototype(PrototypeAST *Proto) {
         return false;
     }
     if (Proto->getOwnerClass().empty()) {
-        if (!Proto->isExternal() && isReservedRuntimeName(Proto->getName())) {
+        // OVERLOAD symbols carry a signature and cannot replace libc symbols.
+        if (!Proto->isExternal() && !Proto->isOverload() && isReservedRuntimeName(Proto->getName())) {
             reportError("'%s' is a reserved runtime symbol and cannot be a FUNCTION/PROCEDURE name",
                     Proto->getName().c_str());
             return false;

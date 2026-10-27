@@ -1,0 +1,27 @@
+{
+  "compiler_args": [
+    "-no-std"
+  ],
+  "errors": [
+    {
+      "reason": "Call to undefined function MALLOC",
+      "line": 6
+    },
+    {
+      "reason": "Call to undefined function REALLOC",
+      "line": 7
+    },
+    {
+      "reason": "Call to undefined function FREE",
+      "line": 8
+    },
+    {
+      "reason": "NEW/DELETE requires memory.cps",
+      "line": 9
+    },
+    {
+      "reason": "NEW/DELETE requires memory.cps",
+      "line": 10
+    }
+  ]
+}

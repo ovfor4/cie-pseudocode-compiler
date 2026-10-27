@@ -1,13 +1,10 @@
 #include "cps/CodeGen.h"
 #include "cps/ArrayHandler.h"
 #include "cps/FileHandler.h"
-#include "cps/MemoryHandler.h"
 #include "cps/Lexer.h"
 #include "cps/TypeAST.h"
 #include "cps/Operator.h"
 #include "Builtins.h"
-#include <climits>
-#include <cstddef>
 
 using namespace llvm;
 using namespace cps;
@@ -300,23 +297,6 @@ Value *CodeGen::emitCall(const std::string &Callee,
             return nullptr;
         }
     }
-    if (Name == "MALLOC") {
-        Value *Size = emitAllocationSize(ArgExprs[0].get());
-        if (!Size) return nullptr;
-        return Memory->emitAllocate(Size, Line);
-    }
-    if (Name == "REALLOC") {
-        Value *Address = emitCoercedExpr(ArgExprs[0].get(), resolveType("C_TYPE(\"void*\")"));
-        if (!Address) return nullptr;
-        Value *Size = emitAllocationSize(ArgExprs[1].get());
-        if (!Size) return nullptr;
-        return Memory->emitResize(Address, Size, Line);
-    }
-    if (Name == "FREE") {
-        Value *Address = emitCoercedExpr(ArgExprs[0].get(), resolveType("C_TYPE(\"void*\")"));
-        if (!Address) return nullptr;
-        return Memory->emitRelease(Address, Line);
-    }
     if (Name == "INT") return emitIntBuiltin(ArgExprs[0].get(), Line);
     if (Name == "EOF") {
         Value *FileName = emitFileNameOperand(ArgExprs[0].get(), "EOF");
@@ -353,20 +333,4 @@ Value *CodeGen::emitIntBuiltin(ExprAST *Arg, int Line) {
                                              "err_int_range", 0, TheModule.get());
     RuntimeChecker->emitCheck(OutOfRange, Msg, {RuntimeChecker->lineValue(Line)});
     return Builder->CreateFPToSI(V, Type::getInt64Ty(*TheContext), "int_value");
-}
-
-Value *CodeGen::emitAllocationSize(ExprAST *Expr) {
-    SaveAndRestore<int> Location(DiagnosticLine, Expr->getLine() ? Expr->getLine() : DiagnosticLine);
-    const TypeInfo *Info = getExprTypeInfo(Expr);
-    if (isWholeArrayVar(Expr) || !Info ||
-        !(Info->Kind == TypeKind::Integer ||
-          (Info->Kind == TypeKind::CScalar && Info->isIntegral()))) {
-        reportError("Allocation size must be INTEGER or a C integer");
-        return nullptr;
-    }
-    Value *Size = emitExpr(Expr);
-    if (!Size) return nullptr;
-    auto *SizeTy = Type::getIntNTy(*TheContext, sizeof(std::size_t) * CHAR_BIT);
-    return Builder->CreateIntCast(Size, SizeTy,
-                                  Info->Kind == TypeKind::Integer || Info->CSigned, "allocation_size");
 }

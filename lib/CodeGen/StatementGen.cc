@@ -2,7 +2,6 @@
 #include "cps/ArrayHandler.h"
 #include "cps/FileAST.h"
 #include "cps/FileHandler.h"
-#include "cps/MemoryHandler.h"
 #include "cps/ExceptionHandler.h"
 #include "cps/TypeAST.h"
 #include "cps/TemplateAST.h"
@@ -54,9 +53,9 @@ void CodeGen::emitStmtImpl(StmtAST *Stmt) {
             reportError("DELETE requires a class object");
             return;
         }
-        Memory->emitValidate(Object.Addr, Stmt->getLine());
+        if (!emitMemoryCall("_memory_impl_validate", Object.Addr, Stmt->getLine())) return;
         if (emitDestroy(Object.TypeName, Object.Addr, Stmt->getLine()))
-            Memory->emitRelease(Object.Addr, Stmt->getLine());
+            emitMemoryCall("_memory_impl_free", Object.Addr, Stmt->getLine());
         return;
     }
     if (auto *Try = dynamic_cast<TryStmtAST*>(Stmt)) {

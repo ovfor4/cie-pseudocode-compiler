@@ -1,4 +1,4 @@
-INCLUDE "../../../pseudocode-lib/string.cps"
+INCLUDE "../../../pseudocode-lib/std.cps"
 FUNCTION Echo(S : STRING) RETURNS STRING
     RETURN S
 ENDFUNCTION

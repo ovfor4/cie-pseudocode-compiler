@@ -81,7 +81,7 @@ add_library(CPSCodeGen STATIC
     lib/CodeGen/StringValueGen.cc
     lib/CodeGen/TypeSystem.cc
     lib/CodeGen/NativeTypeSystem.cc
-    lib/CodeGen/MemoryHandler.cc
+    lib/CodeGen/MemoryGen.cc
     lib/CodeGen/FileHandler.cc
     lib/CodeGen/FileRuntimeIO.cc
     lib/CodeGen/CABI/ClangABI.cc
