@@ -1,0 +1,12 @@
+23.45
+7.0
+23
+-23
+7
+7:7.0
+7
+12
+length caught
+real length caught
+invalid caught
+range caught

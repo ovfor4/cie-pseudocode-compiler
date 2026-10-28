@@ -1,0 +1,36 @@
+DECLARE N : INTEGER
+DECLARE Ch : CHAR
+DECLARE Text : STRING
+OUTPUT STR_TO_NUM("23.45")
+OUTPUT STR_TO_NUM('7')
+N <- STR_TO_NUM("23.45")
+OUTPUT N
+N <- STR_TO_NUM("-23.45")
+OUTPUT N
+N <- STR_TO_NUM('7')
+OUTPUT N
+OUTPUT NUM_TO_STR(7), ":", NUM_TO_STR(7.0)
+Ch <- NUM_TO_STR(7)
+OUTPUT Ch
+Text <- NUM_TO_STR(12)
+OUTPUT Text
+TRY
+    Ch <- NUM_TO_STR(12)
+CATCH
+    OUTPUT "length caught"
+ENDTRY
+TRY
+    Ch <- NUM_TO_STR(7.0)
+CATCH
+    OUTPUT "real length caught"
+ENDTRY
+TRY
+    N <- STR_TO_NUM("bad")
+CATCH
+    OUTPUT "invalid caught"
+ENDTRY
+TRY
+    N <- STR_TO_NUM("1e30")
+CATCH
+    OUTPUT "range caught"
+ENDTRY

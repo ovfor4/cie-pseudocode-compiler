@@ -1,0 +1,4 @@
+[Fatal] line 18: STRING of length 2 cannot be converted to CHAR
+[Fatal] line 23: STRING of length 3 cannot be converted to CHAR
+[Fatal] line 28: STR_TO_NUM: 'bad' is not a number
+[Fatal] line 33: INT argument out of INTEGER range
