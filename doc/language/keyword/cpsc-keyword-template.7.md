@@ -33,7 +33,7 @@ When multiple function or procedure definitions share a name, every definition, 
 
 Use a class instance such as `Box<INTEGER>` wherever a type name is accepted, including nested instances such as `Box<Box<INTEGER>>`. Supply all class type arguments explicitly; variadic CLASS templates are allowed, and their methods may use the class's pack parameters. Pack fields such as `Values : Rest...` are rejected. Constructors, ownership and destruction follow ordinary CLASS rules. In particular, a declaration without constructor arguments needs a matching parameterless NEW when constructors exist; see [cpsc-keyword-class(7)](cpsc-keyword-class.7.md).
 
-Non-type parameters, SIZEOF..., member templates, operator templates, specialization and pointer-alias templates are unsupported. Within a class template, write the full instance type rather than the bare class name. Pointer-linked generic containers remain unsupported because pointer-alias templates are unavailable.
+Non-type parameters, SIZEOF..., member templates, operator templates, specialization and pointer-alias templates are unsupported. DEFAULT return declarations are also unsupported in templates, including methods of class templates. Within a class template, write the full instance type rather than the bare class name. Pointer-linked generic containers remain unsupported because pointer-alias templates are unavailable.
 
 Source template lists cannot be empty: `<>` is the inequality token. Nested closing `>>` works as two tokens. Separate `<` from a following `-` and `>` from a following `=` to avoid the `<-` and `>=` tokens. Expression lookahead treats `A < B, C > (D)` as a template call; parenthesize comparisons to avoid this ambiguity.
 

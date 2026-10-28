@@ -45,7 +45,7 @@ Part of [Load-bearing conventions](../CONVENTIONS.md). Basic call resolution is 
 - Both getExprTypeInfo and emission must consult this resolver with the expression's
   result context before hardcoded builtin result types. A strict context requires the
   overload's return type to match exactly; a cast only prefers it; without a context,
-  return-only-distinct candidates are ambiguous. Returns may be any supported function
+  return-only-distinct candidates need a unique DEFAULT return. Defaults never resolve parameter-signature or global/member ties. Returns may be any supported function
   result, including non-BOOLEAN comparisons/logic. emitCoercedExpr still rejects a
   direct STRING to BOOLEAN conversion; CASE requires BOOLEAN comparisons.
 - Operators use shared argument marshalling and exception-aware calls. Member

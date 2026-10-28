@@ -114,9 +114,10 @@ only a subset of its syntax:
   TextMate injection, including nested declaration expressions. Comments, strings,
   fields outside methods and top-level code do not receive this scope.
 - Highlighting covers CASE/ENDCASE/OTHERWISE, CLASS/ENDCLASS/PUBLIC/PRIVATE,
-  CONSTANT, TEMPLATE, OVERLOAD/OPERATOR, EXTERN declarations, INCLUDE_OBJ
-  and ellipses using C++ scopes. OVERLOAD borrows a declaration modifier and
+  CONSTANT, TEMPLATE, OVERLOAD/DEFAULT/OPERATOR, EXTERN declarations, INCLUDE_OBJ
+  and ellipses using C++ scopes. OVERLOAD and DEFAULT borrow a declaration modifier and
   INCLUDE_OBJ borrows #include.
+  RETURNS DEFAULT preserves result type highlighting, including nested types.
   These rules do not add indentation support for the corresponding constructs.
   SET, DATE and random-file operations remain unsupported by the compiler.
 - PP_DEFINE/PP_UNDEF/PP_IFDEF/PP_IFNDEF/PP_ENDIF highlight only at line start,

@@ -29,8 +29,14 @@ internal __cps_main).
   overload-set map (`FunctionGen::getOverloads`, filtered by unit visibility).
 - `resolveCall` selects exact static parameter types/ranks for OVERLOAD. When the call
   site has an expected result type, the candidate must also return exactly that type;
-  a cast only prefers it. Without a context, return-only-distinct candidates are
-  ambiguous. A single ordinary definition keeps implicit conversions.
+  a cast only prefers it. Without a context, return-only-distinct candidates use
+  the unique DEFAULT return, otherwise they are ambiguous. A single ordinary definition keeps implicit conversions.
+- `RETURNS DEFAULT type` records IsDefaultReturn on PrototypeAST and FuncSig.
+  Only non-VOID OVERLOAD functions support it; templates reject it. Registration
+  rejects two defaults for one name and ParamKey across all input units.
+  FunctionGen::selectDefaultReturn is shared by call and operator resolution; it
+  only resolves candidates with the same name and ParamKey, preserving parameter
+  ambiguity and global/member ties. Defaults do not affect link names.
 - Parameter keys exclude return types, modes and bounds; the separate ReturnKey holds
   the declared result (PROCEDURE is VOID). Equivalent C aliases use CIdentity.
   Duplicate signatures require both keys to match, even across invisible units.

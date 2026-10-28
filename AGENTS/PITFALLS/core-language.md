@@ -32,8 +32,8 @@ source, most also by compiling and running test programs.
 - **`/` always yields REAL** (double FDiv), even for two INTEGERs; integer division is
   DIV/MOD only.
   - CHR returns CHAR, not STRING; CHR(0) is a NUL CHAR that converts to a one-byte STRING.
-  - STR_TO_NUM always returns REAL and shares parseNumber (strtod, full consumption, overflow rejected, only `0-9 . e E + -` after leading whitespace, so no nan/inf/hex) with IS_NUM and INPUT REAL (`__cps_parse_real` in InputGen.cc); change them together.
-  - NUM_TO_STR keeps the full signed i64 range for INTEGER; REAL uses the shortest
+  - STR_TO_NUM defaults to REAL and shares parseNumber (strtod, full consumption, overflow rejected, only `0-9 . e E + -` after leading whitespace, so no nan/inf/hex) with IS_NUM and INPUT REAL (`__cps_parse_real` in InputGen.cc); change them together. Its INTEGER overload applies INT to the parsed REAL, inheriting REAL rounding and truncating toward zero with a range check.
+  - NUM_TO_STR defaults to STRING; its CHAR overload uses the same text and requires length 1. It keeps the full signed i64 range for INTEGER; REAL uses the shortest
     round-trip text (realText in string.cc), byte-identical to OUTPUT's IR helper in
     OutputGen.cc (`__cps_output_real`); change both together. C_DOUBLE output keeps `%f`.
 - **`getExprTypeInfo` returns nullptr** for expressions it can't classify (null-check

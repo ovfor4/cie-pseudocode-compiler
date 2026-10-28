@@ -29,7 +29,7 @@ bridge C void* and nominal pseudocode pointer types.
   prototypes are pre-registered too.
 - OVERLOAD link names append canonical parameter types, plus `:ReturnKey` for non-VOID
   results (NEW and OPERATOR<- excepted); ordinary names except MAIN get no mangling.
-  An expression's expected result type filters overloads when present. Overload sets,
+  An expression's expected result type filters overloads when present. Without a result context, a DEFAULT return resolves return-only ambiguity within one name and canonical parameter signature. Overload sets,
   visibility filtering and exact selection:
   [SUBSYSTEMS/FUNCTIONS.md](../SUBSYSTEMS/FUNCTIONS.md#signatures-and-call-resolution).
 - `emitPrototype` rejects builtin and enum names. Ordinary non-EXTERN, non-OVERLOAD

@@ -13,7 +13,11 @@ Part of the [pitfalls index](../PITFALLS.md).
   functions still coerce arguments. A known expected result type (assignment, BYVAL
   argument, RETURN, condition, subscript, CASE comparison) must match the overload's
   return type exactly; `(T) x` only prefers T and otherwise converts. Without a
-  context, return-only-distinct candidates are ambiguous.
+  context, return-only-distinct candidates need one DEFAULT return or remain ambiguous.
+  DEFAULT never resolves competing parameter signatures.
+- Each name and canonical parameter signature permits only one DEFAULT return,
+  including across invisible units; different parameter signatures may each have
+  their own. Only non-VOID OVERLOAD functions accept RETURNS DEFAULT.
 - Call visibility filters the set, but duplicate signatures (parameters and return
   type) conflict across all inputs. MAIN and builtins cannot be overloaded.
 - NEW supports overloads; DECLARE, fields and arrays needing default construction
@@ -33,7 +37,8 @@ Part of the [pitfalls index](../PITFALLS.md).
 - Packs are final non-array parameters and expand only in call/constructor argument
   lists; pack fields are rejected, including in variadic classes.
 - Unsupported: non-type parameters, SIZEOF..., member/operator templates,
-  specialization, bare injected class name, pointer-alias templates. Pointer-linked
+  specialization, bare injected class name, pointer-alias templates, DEFAULT
+  returns (including methods in class templates). Pointer-linked
   generic containers remain unsupported; use fixed fields or other supported value
   layouts.
 - Class instances follow ordinary constructor rules, so a parameterized NEW alone does
@@ -53,7 +58,8 @@ Part of the [pitfalls index](../PITFALLS.md).
 - Exact matching considers visible globals and left-class members together, and the
   result type joins the match when the context supplies one; ties are errors,
   including private/public ties. Without a context, return-only-distinct candidates
-  are ambiguous; casts only prefer their target type.
+  need a unique DEFAULT return or remain ambiguous; defaults do not resolve
+  global/member ties, and casts only prefer their target type.
 - Comparison and logic result types are declared, not assumed BOOLEAN; a strict
   BOOLEAN context requires an overload returning BOOLEAN. CASE comparisons must return
   BOOLEAN. AND/OR overloads evaluate both operands.
