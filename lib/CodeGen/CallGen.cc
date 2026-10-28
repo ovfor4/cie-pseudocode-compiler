@@ -204,7 +204,7 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
     }
     // A context with a type prefers candidates that return it; a strict
     // context requires one. Without a context (or after a cast's preference
-    // finds nothing) selection stays parameter-only.
+    // finds nothing) a default may resolve return-only ambiguity.
     const bool PreferResult = Context && Context->Type;
     auto ReturnsWanted = [&](const FuncSig *Sig) {
         const TypeInfo *Ret = resolveType(Sig->ReturnTypeName);
@@ -217,6 +217,7 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
     // FilterReturn keeps only candidates whose result is the wanted type.
     auto Scan = [&](bool Lenient, bool FilterReturn) -> const FuncSig * {
         const FuncSig *First = nullptr;
+        std::vector<const FuncSig *> Matches;
         Count = 0;
         for (const FuncSig *Sig : Overloads) {
             if (HasExplicit) break;
@@ -235,7 +236,14 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
             ParamMatched = true;
             if (FilterReturn && !ReturnsWanted(Sig)) continue;
             ++Count;
+            Matches.push_back(Sig);
             if (!First) First = Sig;
+        }
+        if (!FilterReturn && Count > 1) {
+            if (const FuncSig *Default = FunctionGen::selectDefaultReturn(Matches)) {
+                Count = 1;
+                return Default;
+            }
         }
         return First;
     };

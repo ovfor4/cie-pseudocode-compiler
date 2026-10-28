@@ -1,0 +1,10 @@
+{
+  "errors": [
+    {"reason": "Duplicate DEFAULT return", "line": 4},
+    {"reason": "DEFAULT requires a non-VOID OVERLOAD FUNCTION", "line": 7},
+    {"reason": "DEFAULT requires a non-VOID OVERLOAD FUNCTION", "line": 10},
+    {"reason": "No matching overload for Typed\\(\\) returning BOOLEAN", "line": 25},
+    {"reason": "Ambiguous call to Ambiguous", "line": 26},
+    {"reason": "Ambiguous call to Clash", "line": 33}
+  ]
+}

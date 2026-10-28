@@ -113,9 +113,30 @@ const FuncSig *FunctionGen::getSignatureByLink(const std::string &Name) const {
     return &Signatures.at(It->second.first)[It->second.second];
 }
 
+// Defaults resolve only return-type ambiguity within one parameter signature.
+const FuncSig *FunctionGen::selectDefaultReturn(const std::vector<const FuncSig *> &Candidates) {
+    const FuncSig *Selected = nullptr;
+    for (const FuncSig *Sig : Candidates) {
+        if (!sameIdentifier(Sig->Name, Candidates.front()->Name) ||
+            !sameIdentifier(Sig->ParamKey, Candidates.front()->ParamKey)) return nullptr;
+        if (Sig->IsDefaultReturn) {
+            if (Selected) return nullptr;
+            Selected = Sig;
+        }
+    }
+    return Selected;
+}
+
 // Copy-constructor, operator, MAIN and name-collision rules for a
 // FUNCTION/PROCEDURE prototype; reports the first violation.
 bool FunctionGen::validatePrototype(PrototypeAST *Proto) {
+    if (Proto->isDefaultReturn()) {
+        const TypeInfo *Return = Types.resolve(Proto->getReturnType());
+        if (!Proto->isOverload() || (Return && Return->isVoid())) {
+            reportError("DEFAULT requires a non-VOID OVERLOAD FUNCTION");
+            return false;
+        }
+    }
     if (!Proto->getOwnerClass().empty() && sameIdentifier(Proto->getName(), "NEW") &&
         Proto->getParams().size() == 1) {
         const auto &P = Proto->getParams()[0];
@@ -192,6 +213,7 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     Sig.OwnerUnit = CurrentUnit;
     Sig.Name = Proto->getLinkName();
     Sig.IsOverload = Proto->isOverload();
+    Sig.IsDefaultReturn = Proto->isDefaultReturn();
     Sig.Prototype = Proto;
     Sig.ReturnTypeName = Proto->getReturnType();
 
@@ -244,6 +266,11 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
         if (!Sig.IsOverload || !Existing.IsOverload) {
             reportError("Function %s cannot be redefined. Multiple definition of %s; every overload must be declared OVERLOAD",
                         Proto->getName().c_str(), Proto->getName().c_str());
+            return nullptr;
+        }
+        if (sameIdentifier(Existing.ParamKey, Sig.ParamKey) &&
+            Existing.IsDefaultReturn && Sig.IsDefaultReturn) {
+            reportError("Duplicate DEFAULT return for %s(%s)", Sig.Name.c_str(), Sig.ParamKey.c_str());
             return nullptr;
         }
         if (sameIdentifier(Existing.ParamKey, Sig.ParamKey) &&

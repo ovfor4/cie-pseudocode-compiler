@@ -1,0 +1,5 @@
+{
+  "errors": [
+    {"reason": "DEFAULT return types are not supported in templates", "line": 2}
+  ]
+}

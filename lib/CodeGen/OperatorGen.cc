@@ -38,6 +38,7 @@ CodeGen::OperatorResolution CodeGen::resolveOperator(
             if (Lenient && !CanConvert) break;
             const FuncSig *Selected = nullptr;
             int Count = 0;
+            std::vector<const FuncSig *> Matches;
             for (const FuncSig *Sig : Candidates) {
                 bool Member = !Sig->Prototype->getOwnerClass().empty();
                 if (Sig->Prototype->getOperator() != Op ||
@@ -47,7 +48,14 @@ CodeGen::OperatorResolution CodeGen::resolveOperator(
                 ParamMatched = true;
                 if (FilterReturn && !ReturnsWanted(Sig)) continue;
                 ++Count;
+                Matches.push_back(Sig);
                 if (!Selected) Selected = Sig;
+            }
+            if (!FilterReturn && Count > 1) {
+                if (const FuncSig *Default = FunctionGen::selectDefaultReturn(Matches)) {
+                    Selected = Default;
+                    Count = 1;
+                }
             }
             if (Selected) {
                 Result.Signature = Selected;

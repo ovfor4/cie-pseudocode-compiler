@@ -203,8 +203,13 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
     if (!Args) return nullptr;
 
     std::string RetType = "INTEGER";
+    bool IsDefaultReturn = false;
     if (CurTok == tok_returns) {
         getNextToken();
+        if (CurTok == tok_default) {
+            IsDefaultReturn = true;
+            getNextToken();
+        }
         if (CurTok == tok_array) {
             cps::sourceError(Lex.getLine(), "A FUNCTION cannot RETURN an array; use a BYREF PROCEDURE parameter instead");
             return nullptr;
@@ -218,8 +223,14 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
 
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), RetType, false, OwnerClass, IsPublic, IsOverload);
     Proto->setOperator(Operator);
+    Proto->setDefaultReturn(IsDefaultReturn);
 
-    return ParseFunctionBody(std::move(Proto), tok_endfunction, "expected ENDFUNCTION", Line);
+    auto Def = ParseFunctionBody(std::move(Proto), tok_endfunction, "expected ENDFUNCTION", Line);
+    if (IsDefaultReturn && !CurrentTemplate.empty()) {
+        sourceError(Line, "DEFAULT return types are not supported in templates");
+        return nullptr;
+    }
+    return Def;
 }
 
 std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerClass, bool IsPublic, bool IsOverload) {

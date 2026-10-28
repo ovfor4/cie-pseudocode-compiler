@@ -1,0 +1,6 @@
+{
+  "sources": ["program.cps", "first.cps", "second.cps"],
+  "errors": [
+    {"reason": "Duplicate DEFAULT return", "file": "second.cps", "line": 1}
+  ]
+}

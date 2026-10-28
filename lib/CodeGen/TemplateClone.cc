@@ -220,6 +220,7 @@ std::unique_ptr<FunctionDefAST> TemplateClone::function(const FunctionDefAST *So
     auto CopyProto = std::make_unique<PrototypeAST>(Name, std::move(Params), type(Proto->getReturnType()),
         Proto->isExternal(), OwnerClass, Proto->isPublic(), Proto->isOverload());
     CopyProto->setOperator(Proto->getOperator());
+    CopyProto->setDefaultReturn(Proto->isDefaultReturn());
     CopyProto->setVariadic(Proto->isVariadic());
     auto Copy = located(std::make_unique<FunctionDefAST>(std::move(CopyProto), body(Source->getBody())), Source);
     PackNames = std::move(SavedNames);

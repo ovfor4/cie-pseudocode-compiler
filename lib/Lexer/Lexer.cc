@@ -77,6 +77,7 @@ const std::unordered_map<std::string, int> Keywords = {
     {"ENDPROCEDURE", tok_endprocedure},
     {"RETURN", tok_return},
     {"RETURNS", tok_returns},
+    {"DEFAULT", tok_default},
     {"CALL", tok_call},
     {"BYREF", tok_byref},
     {"BYVAL", tok_byval},

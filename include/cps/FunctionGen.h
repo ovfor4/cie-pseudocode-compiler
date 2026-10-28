@@ -42,6 +42,7 @@ struct FuncSig {
     std::string ParamKey;
     std::string ReturnKey;
     bool IsOverload = false;
+    bool IsDefaultReturn = false;
     const PrototypeAST *Prototype = nullptr;
     std::string ReturnTypeName;
     std::vector<ParamSig> Params;
@@ -122,6 +123,7 @@ public:
     void setVisibility(std::function<bool(size_t)> Predicate) { Visible = std::move(Predicate); }
     std::vector<const FuncSig *> getOverloads(const std::string &Name, bool AllUnits = false) const;
     static bool isReservedRuntimeName(const std::string &Name);
+    static const FuncSig *selectDefaultReturn(const std::vector<const FuncSig *> &Candidates);
     bool hasFunction(const std::string &Name) const { return !getOverloads(Name).empty(); }
     const FuncSig *getSignatureByLink(const std::string &Name) const;
 
