@@ -70,6 +70,22 @@ test('function names include underscores and explicit nested template arguments'
 	assert.equal('_value'.match(new RegExp(configuration.wordPattern))[0], '_value');
 });
 
+test('default return modifiers preserve builtin and nested result type scopes', () => {
+	for (const [text, names] of [
+		['OVERLOAD FUNCTION Foo(X : STRING) RETURNS DEFAULT REAL', ['REAL']],
+		['PUBLIC OVERLOAD FUNCTION Foo() RETURNS DEFAULT Box<Pair<Widget, REAL>>', ['Box', 'Pair', 'Widget', 'REAL']]
+	]) {
+		assert.ok(scopesAt(text, 'DEFAULT').includes('storage.modifier.cpp'));
+		assert.ok(!scopesAt(text, 'DEFAULT').includes('entity.name.type.cpp'));
+		for (const name of names) {
+			assert.ok(scopesAt(text, name).some(s => /^(entity\.name\.type|storage\.type)\./.test(s)), `${text}: ${name}`);
+		}
+	}
+	assert.ok(!scopesAt('OUTPUT "DEFAULT"', 'DEFAULT').includes('storage.modifier.cpp'));
+	assert.ok(!scopesAt('// DEFAULT', 'DEFAULT').includes('storage.modifier.cpp'));
+	assert.ok(!scopesAt('default()', 'default').includes('storage.modifier.cpp'));
+});
+
 test('types are recognized in declarations, signatures, arrays, aliases, constructors and templates', () => {
 	for (const [text, names] of [
 		['TYPE Student', ['Student']],

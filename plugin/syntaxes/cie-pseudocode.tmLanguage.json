@@ -139,12 +139,15 @@
       }
     },
     "return_type": {
-      "match": "(?<!\\w)(RETURNS)\\s+((?<type>[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*\\g<type>(?:\\s*,\\s*\\g<type>)*\\s*>)?(?:\\s*\\.\\.\\.)?))",
+      "match": "(?<!\\w)(RETURNS)\\s+(?:(DEFAULT)\\s+)?((?<type>[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*\\g<type>(?:\\s*,\\s*\\g<type>)*\\s*>)?(?:\\s*\\.\\.\\.)?))",
       "captures": {
         "1": {
           "name": "storage.modifier.cie-pseudocode"
         },
         "2": {
+          "name": "storage.modifier.cpp"
+        },
+        "3": {
           "patterns": [
             {
               "include": "#type_tokens"
@@ -477,7 +480,7 @@
           "name": "keyword.other.operator.overload.cpp"
         },
         {
-          "match": "(?<!\\w)(?:OVERLOAD)(?!\\w)",
+          "match": "(?<!\\w)(?:OVERLOAD|DEFAULT)(?!\\w)",
           "name": "storage.modifier.cpp"
         },
         {
