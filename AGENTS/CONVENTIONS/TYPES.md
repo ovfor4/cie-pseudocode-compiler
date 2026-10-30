@@ -18,7 +18,8 @@ C base type and pointer levels independently of the alias `Name`. Use `sameType`
 for storage compatibility (including BYREF and array arguments); never equate C
 types just because their LLVM types or widths match. CScalar/CPointer values are
 handled by CTypeGen, not the legacy representation coercions. Cross-domain
-assignments, arguments and operators require explicit casts, including literals.
+assignments, arguments and operators require explicit casts, including numeric literals,
+except for marked IMPLICIT class constructors and the documented text bridges.
 Plain C char uses native signedness; pseudocode CHAR stays unsigned. Numeric
 conversions use source signedness, and native floating formats use numeric_limits.
 Allocation sizes still use LLVM sizeof; native C type widths use build-compiler

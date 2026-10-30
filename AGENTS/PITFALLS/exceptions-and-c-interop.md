@@ -19,11 +19,11 @@ Part of the [pitfalls index](../PITFALLS.md).
 
 ## C type extensions
 
-- C_STRING is a raw char pointer, not a STRING: explicitly cast to STRING for
-  printing or string-library calls.
+- C_STRING is a raw char pointer. A visible IMPLICIT STRING.NEW(C_STRING)
+  permits string-library calls, OUTPUT and file text; an explicit cast also works.
 - C aliases share canonical CIdentity; do not use LLVM widths to recover signedness
   or nominal type identity. Plain char's signedness is native, unlike pseudocode CHAR.
-- C/pseudocode conversions require casts even for literals. C scalar arithmetic uses
+- Other C/pseudocode conversions require casts, including numeric literals. C scalar arithmetic uses
   native promotions, but / always returns REAL.
 - Cast aliases must precede their use.
 - long double may have padding; sizeof does not identify its floating-point format.

@@ -8,8 +8,8 @@ only symbol table.
 
 - Use `symbolAddress` for an object address: class variables and BYVAL class
   parameters store their current object address in a reference slot (`IsReference`).
-- Use SymbolInfo::isConstant() for constant checks: scalar literals use
-  ConstantValue; owning STRING constants use ReadOnly plus Storage.
+- Use SymbolInfo::isConstant() for constant checks: literals, including raw
+  C_STRING text constants, use ConstantValue and have no writable storage.
 - Read values through emitExpr. Writable/address-taking paths reject constants
   through requireWritable; internal STRING copy/assignment source bindings may read
   their storage.

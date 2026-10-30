@@ -14,9 +14,9 @@ User-defined types can overload operators with OVERLOAD FUNCTION OPERATOR; expre
 
 Precedence, from highest to lowest: unary operators, `* / DIV MOD`, `+ - &`, comparisons, AND, OR. Parentheses override precedence.
 
-Parenthesized type casts, such as (C_INT)Number, have unary precedence. C_INT, C_CHAR, C_STRING and C_DOUBLE are native C aliases; TYPE name = C_TYPE("...") imports other supported C base types and pointers. Conversions between C and pseudocode types must be explicit. These are compiler extensions; see [cpsc-keyword-c_type(7)](keyword/cpsc-keyword-c_type.7.md). EXTERN "C" declares C functions from objects named with INCLUDE_OBJ; see [cpsc-keyword-extern(7)](keyword/cpsc-keyword-extern.7.md).
+Parenthesized type casts, such as (C_INT)Number, have unary precedence. C_INT, C_CHAR, C_STRING and C_DOUBLE are native C aliases; TYPE name = C_TYPE("...") imports other supported C base types and pointers. Conversions between C and pseudocode types require explicit casts except for IMPLICIT class constructors and the text bridges described below. These are compiler extensions; see [cpsc-keyword-c_type(7)](keyword/cpsc-keyword-c_type.7.md). EXTERN "C" declares C functions from objects named with INCLUDE_OBJ; see [cpsc-keyword-extern(7)](keyword/cpsc-keyword-extern.7.md).
 
-Literals include integers, decimal real numbers, TRUE/FALSE, strings in double quotes, and single-byte characters in single quotes. Negative numbers use unary minus. String and character literals support C++17 simple escapes (`\' \" \? \\ \a \b \f \n \r \t \v`), one to three octal digits, and `\x` followed by hexadecimal digits (byte values only). Unicode escapes `\uXXXX` and `\UXXXXXXXX` encode valid Unicode scalar values as UTF-8 in strings; in CHAR they must be ASCII. Unknown escapes are errors. Ordinary STRING literals retain NUL truncation, so `"a\0b"` is observed as `"a"`. An adjacent uppercase C suffix, as in `"text"C`, produces C_STRING directly. Comments begin with `//` and continue to the end of the line.
+Literals include integers, decimal real numbers, TRUE/FALSE, strings in double quotes, and single-byte characters in single quotes. Negative numbers use unary minus. String and character literals support C++17 simple escapes (`\' \" \? \\ \a \b \f \n \r \t \v`), one to three octal digits, and `\x` followed by hexadecimal digits (byte values only). Unicode escapes `\uXXXX` and `\UXXXXXXXX` encode valid Unicode scalar values as UTF-8 in strings; in CHAR they must be ASCII. Unknown escapes are errors. String literals have type C_STRING and retain NUL truncation in text operations, so `"a\0b"` is observed as `"a"`. An adjacent uppercase C suffix, as in `"text"C`, remains accepted and has the same type. The standard library converts text to STRING through IMPLICIT NEW when needed; see [cpsc-keyword-implicit(7)](keyword/cpsc-keyword-implicit.7.md). Comments begin with `//` and continue to the end of the line.
 
 Declare variables before use. See DECLARE for built-in types and arrays, TYPE for records/enumerations/pointers, and CLASS for public/private fields and methods.
 
@@ -47,6 +47,7 @@ PP_DEFINE and PP_UNDEF control file-local, case-sensitive preprocessor switches.
 - [cpsc-keyword-procedure(7)](keyword/cpsc-keyword-procedure.7.md): define a procedure and parameter modes.
 - [cpsc-keyword-operator(7)](keyword/cpsc-keyword-operator.7.md): overload unary and binary operators.
 - [cpsc-keyword-overload(7)](keyword/cpsc-keyword-overload.7.md): explicitly overload functions, procedures and constructors.
+- [cpsc-keyword-implicit(7)](keyword/cpsc-keyword-implicit.7.md): permit automatic class construction from one parameter.
 - [cpsc-keyword-default(7)](keyword/cpsc-keyword-default.7.md): choose a default return type for an overload.
 - [cpsc-keyword-template(7)](keyword/cpsc-keyword-template.7.md): define function, procedure and class templates with type packs.
 - [cpsc-keyword-call(7)](keyword/cpsc-keyword-call.7.md): invoke a procedure.
@@ -70,7 +71,7 @@ Closing and auxiliary keywords are documented with their main constructs: PP_UND
 
 # STRING LIBRARY FUNCTIONS
 
-These ordinary functions and the STRING class come from the embedded standard library, loaded and linked automatically unless **-no-std** is given. Ordinary string literals require a visible STRING class.
+These ordinary functions and the STRING class come from the embedded standard library, loaded and linked automatically unless **-no-std** is given. Using raw text in a STRING context, OUTPUT or file operation requires a visible STRING class with an IMPLICIT NEW(C_STRING) constructor.
 
 - [cpsc-function-length(7)](function/cpsc-function-length.7.md): find a string's length.
 - [cpsc-function-mid(7)](function/cpsc-function-mid.7.md): extract part of a string.

@@ -17,12 +17,14 @@ callable lookup.
 - `CodeGen::resolveCall` retains ordinary fast paths when no templates exist. Otherwise
   it computes static argument types and whole-array ranks once, selecting exact ordinary
   definitions (including an expected result type when present) before non-variadic
-  templates and then variadic templates. Templates still match only substituted
-  parameter types; result contexts do not filter them.
+  templates and then variadic templates, then repeats these tiers with permitted
+  BYVAL conversions. Templates match substituted parameter types; result contexts
+  do not filter them.
 - Explicit type arguments pre-bind positional parameters and constrain a pack prefix;
   deduction from `T` or array element `T` fills remaining bindings. Composite types such
   as `Box<T>` are checked after substitution but do not deduce T.
-- Every position must match exactly and every non-pack type must be bound. Candidate
+- Every non-pack type must be bound; substituted BYVAL positions may use the
+  shared conversion ranks. BYREF and arrays still match exactly. Candidate
   failures stay silent; only the final no-match or ambiguity is diagnosed.
 - `hasCallable` keeps CALL statement re-resolution aware of templates.
 

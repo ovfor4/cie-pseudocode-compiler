@@ -33,8 +33,9 @@ import rules: [CONVENTIONS/EXCEPTIONS_AND_UNITS.md](../CONVENTIONS/EXCEPTIONS_AN
 
 - The STRING class is defined under PP_DEFINE __LIB. Its public internal void*
   handle owns std::string. The _string_impl_* C ABI reports __cps_user_line and throws 0 on std::exception.
-- Functions/operators use ordinary resolution; StringValueGen bridges literals, C_STR, C
-  conversions and file operands.
-- C_STRING literals have an adjacent uppercase C suffix.
+- Functions/operators use ordinary resolution and marked IMPLICIT NEW(C_STRING)
+  and NEW(CHAR). StringValueGen bridges C_STR, explicit casts, CHAR checks and files.
+- All double-quoted literals are C_STRING; the adjacent uppercase C suffix remains
+  accepted. OUTPUT and file text use the marked STRING constructor.
 - STRING INPUT delegates to READ_INPUT (rest of the line, throws at end of input), OUTPUT uses C stdout buffers, and READFILE invokes
   assignment from C_STRING then frees its temporary buffer.

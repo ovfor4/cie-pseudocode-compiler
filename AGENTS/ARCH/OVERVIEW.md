@@ -26,7 +26,8 @@ come from numeric_limits (long double size alone is insufficient). Programs use
 the compiler's build ABI; cross-target emission is not implemented. EXTERN "C"
 declarations call C functions from INCLUDE_OBJ objects (see [SUBSYSTEMS/EXTERN.md](../SUBSYSTEMS/EXTERN.md)).
 CTypeGen handles typed numeric conversions, casts, native arithmetic and I/O.
-Crossing C/pseudocode domains requires a cast, including literals. C arithmetic
+Crossing C/pseudocode domains requires a cast, including numeric literals, except
+for marked IMPLICIT class constructors and the documented text bridges. C arithmetic
 uses C++ promotions, except that / always returns pseudocode REAL.
 
 ## Language manuals

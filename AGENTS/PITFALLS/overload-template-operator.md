@@ -9,8 +9,9 @@ Part of the [pitfalls index](../PITFALLS.md).
 - Count, canonical parameter types, array rank and (for non-VOID definitions) return
   type distinguish signatures; a PROCEDURE counts as VOID. BYREF/BYVAL and array
   bounds do not.
-- Calls match exact static types, even for a single OVERLOAD definition; ordinary
-  functions still coerce arguments. A known expected result type (assignment, BYVAL
+- Calls prefer exact static types, then marked IMPLICIT construction and the
+  existing CHAR/STRING bridge for scalar BYVAL parameters; ordinary functions
+  retain their existing numeric coercions. A known expected result type (assignment, BYVAL
   argument, RETURN, condition, subscript, CASE comparison) must match the overload's
   return type exactly; `(T) x` only prefers T and otherwise converts. Without a
   context, return-only-distinct candidates need one DEFAULT return or remain ambiguous.
@@ -28,7 +29,8 @@ Part of the [pitfalls index](../PITFALLS.md).
 
 - Top-level FUNCTION/PROCEDURE/CLASS only; all template parameters are types, with at
   most one final pack.
-- Exact types are required even with explicit arguments (`Max<REAL>(1, 2.5)` fails).
+- Substituted BYVAL parameters allow marked constructors and CHAR/STRING bridges,
+  but numeric widening still fails (`Max<REAL>(1, 2.5)` fails).
   Deduction recognizes T and array element T, never the T inside Box<T>.
 - When multiple ordinary/template functions share a name, every definition must
   specify OVERLOAD; exact ordinary definitions win, then non-variadic templates, then
@@ -55,7 +57,8 @@ Part of the [pitfalls index](../PITFALLS.md).
 
 - Unary/binary operators require OVERLOAD FUNCTION, with supported arity and at least
   one record/class/enum operand. Pointer aliases alone do not qualify.
-- Exact matching considers visible globals and left-class members together, and the
+- Exact-first matching considers visible globals and left-class members together,
+  with marked BYVAL construction after directly supported builtins. The
   result type joins the match when the context supplies one; ties are errors,
   including private/public ties. Without a context, return-only-distinct candidates
   need a unique DEFAULT return or remain ambiguous; defaults do not resolve

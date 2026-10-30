@@ -27,7 +27,9 @@ internal __cps_main).
 
 - `emitPrototype` records each function's pseudocode signature in a `FuncSig`
   overload-set map (`FunctionGen::getOverloads`, filtered by unit visibility).
-- `resolveCall` selects exact static parameter types/ranks for OVERLOAD. When the call
+- `resolveCall` prefers exact static parameter types/ranks for OVERLOAD, then
+  marked constructor conversions for scalar BYVAL parameters. BYREF and arrays
+  remain exact; a single call never chains IMPLICIT constructors. When the call
   site has an expected result type, the candidate must also return exactly that type;
   a cast only prefers it. Without a context, return-only-distinct candidates use
   the unique DEFAULT return, otherwise they are ambiguous. A single ordinary definition keeps implicit conversions.
@@ -57,7 +59,8 @@ internal __cps_main).
 
 - PrototypeAST retains the operator token; FunctionGen validates operand count and
   requires a record/class/enum operand.
-- Global signatures and left-class methods share exact-type selection, used by
+- Global signatures and left-class methods share exact-first selection with
+  marked BYVAL construction as fallback, used by
   ValueTypeGen and ExpressionGen before builtin operations and filtered by an expected
   result type where present. A strict context whose operands match but whose result does
   not sets `WrongResult`. Missing candidates leave builtin rules intact; ties are

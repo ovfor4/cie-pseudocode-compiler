@@ -17,7 +17,8 @@ Part of the [pitfalls index](../PITFALLS.md).
   and automatically linked.
   - Use -no-std before explicitly supplying a replacement STRING class/library;
     otherwise duplicate definitions fail.
-  - Ordinary literals require a visible STRING class with NEW(C_STRING).
+  - Double-quoted literals are raw C_STRING. STRING contexts, OUTPUT and file text
+    require a visible STRING class with IMPLICIT NEW(C_STRING), including under -no-std.
   - C_TYPE/INCLUDE/EXTERN syntax strings are parser metadata and do not construct
     STRING.
   - Keyword NEW/DELETE and MALLOC/REALLOC/FREE require memory.cps; -no-std users

@@ -21,8 +21,9 @@ Part of the [subsystem notes](../SUBSYSTEMS.md). Builds on [classes](CLASSES.md)
 - Assignment-only `NewExprAST` uses checked memory-library allocation (at least one byte
   for method-only classes), zero initialization and construction, then rebinds
   reference slots or copies into other destinations.
-- Ordinary assignment invokes an exact member OPERATOR<- when available, otherwise it
-  copies.
+- Ordinary assignment prefers an exact member OPERATOR<-, then permitted BYVAL
+  conversions. Without an operator, a marked converting NEW produces a fresh value;
+  replacing a non-STRING class this way releases its previous value before transfer.
 - Heap objects require explicit keyword DELETE; INHERITS/SUPER remain unsupported.
 
 ## Destruction
@@ -65,7 +66,7 @@ Part of the [subsystem notes](../SUBSYSTEMS.md). Builds on [classes](CLASSES.md)
   before local handlers, while ordinary objects remain function-scoped.
 - Function-result method receivers are materialized by the same path as operator
   receivers.
-- Assignment first selects an exact member OPERATOR<-; without one, STRING-bearing
+- Assignment first selects a member OPERATOR<- with exact parameters preferred; without one, STRING-bearing
   aggregate assignment clones string fields from lvalues or transfers them from rvalues,
   releasing the target's old string fields without invoking the enclosing class
   destructor; other classes are assigned bitwise.

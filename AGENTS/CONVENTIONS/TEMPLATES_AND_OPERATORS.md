@@ -22,11 +22,13 @@ Part of [Load-bearing conventions](../CONVENTIONS.md). Basic call resolution is 
 - When multiple definitions share a function/procedure name, every ordinary and
   template definition must specify OVERLOAD.
 - `resolveCall` computes static argument types/ranks once, then tries exact ordinary,
-  non-variadic template and variadic template tiers; an expected result type filters
+  non-variadic template and variadic template tiers, then repeats with permitted
+  BYVAL conversions; an expected result type filters
   ordinary candidates, while template tiers still match parameters only. Same-tier ties
   are errors.
 - Candidate checking must stay silent and must not instantiate speculative class
-  types. Explicit arguments pre-bind types without allowing conversions.
+  types. Explicit arguments pre-bind types; substituted scalar BYVAL parameters
+  may then use permitted conversions.
 - Instances keep the template owner for diagnostics/library behavior and the first
   requester in `VisibilityUnit` for lookup (`value_or(CurrentUnit)`).
 - Deferred bodies use the symbol snapshot at the template declaration to preserve
@@ -40,7 +42,8 @@ Part of [Load-bearing conventions](../CONVENTIONS.md). Basic call resolution is 
   token on PrototypeAST. Canonical names contain a space (`OPERATOR +`,
   `Class.OPERATOR AND`) to avoid collisions with ordinary identifiers.
 - `OperatorGen.cc` probes visible global and left-class member signatures without
-  emitting diagnostics or evaluating operands. Matching is exact; member/global ties
+  emitting diagnostics or evaluating operands. Exact operands and directly supported
+  builtins precede converted overloads; member/global ties
   are ambiguous and access is checked only after selection.
 - Both getExprTypeInfo and emission must consult this resolver with the expression's
   result context before hardcoded builtin result types. A strict context requires the
