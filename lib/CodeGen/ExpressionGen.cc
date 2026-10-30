@@ -249,7 +249,7 @@ Value *CodeGen::emitBinaryOp(int Op, Value *L, const TypeInfo *LT,
                     LT->Name.c_str(), RT->Name.c_str(), Context->Type->Name.c_str());
         return nullptr;
     }
-    if (Overload.Signature) return emitOperatorValues(*Overload.Signature, L, LT, R);
+    if (Overload.Signature) return emitOperatorValues(*Overload.Signature, L, LT, R, RT);
     if ((LT && LT->isC()) || (RT && RT->isC()))
         return emitCBinaryOp(Op, L, LT, R, RT, Line);
     if ((LT && LT->isUserKind()) || (RT && RT->isUserKind()))

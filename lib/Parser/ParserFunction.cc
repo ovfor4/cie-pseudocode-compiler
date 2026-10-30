@@ -233,7 +233,7 @@ std::unique_ptr<FunctionDefAST> Parser::ParseFunction(const std::string &OwnerCl
     return Def;
 }
 
-std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerClass, bool IsPublic, bool IsOverload) {
+std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerClass, bool IsPublic, bool IsOverload, bool IsImplicit) {
     int Line = Lex.getLine();
     getNextToken();
     if (CurTok != tok_identifier && CurTok != tok_new && CurTok != tok_delete && CurTok != tok_operator) {
@@ -265,12 +265,19 @@ std::unique_ptr<FunctionDefAST> Parser::ParseProcedure(const std::string &OwnerC
 
     auto Args = ParsePrototypeArgs(/*AllowByRef=*/true);
     if (!Args) return nullptr;
+    if (IsImplicit) {
+        for (const auto &P : *Args) if (P.IsPack) {
+            cps::sourceError(Line, "IMPLICIT constructor parameters cannot be packs");
+            return nullptr;
+        }
+    }
     if (sameIdentifier(Name, "DELETE") && !Args->empty()) {
         cps::sourceError(Line, "destructor DELETE must have no parameters");
         return nullptr;
     }
     auto Proto = std::make_unique<PrototypeAST>(Name, std::move(*Args), "VOID", false, OwnerClass, IsPublic, IsOverload);
     Proto->setOperator(Operator);
+    Proto->setImplicit(IsImplicit);
 
     return ParseFunctionBody(std::move(Proto), tok_endprocedure, "expected ENDPROCEDURE", Line);
 }

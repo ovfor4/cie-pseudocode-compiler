@@ -1,0 +1,48 @@
+CLASS ExplicitOnly
+    Value : INTEGER
+    PROCEDURE NEW(Number : INTEGER)
+        Value <- Number
+    ENDPROCEDURE
+ENDCLASS
+CLASS First
+    Value : INTEGER
+    IMPLICIT PROCEDURE NEW(Number : INTEGER)
+        Value <- Number
+    ENDPROCEDURE
+ENDCLASS
+CLASS Second
+    Value : INTEGER
+    IMPLICIT PROCEDURE NEW(Other : First)
+        Value <- Other.Value
+    ENDPROCEDURE
+ENDCLASS
+OVERLOAD PROCEDURE Choose(Value : First)
+ENDPROCEDURE
+OVERLOAD PROCEDURE Choose(Value : Second)
+ENDPROCEDURE
+PROCEDURE Ref(BYREF Value : First)
+ENDPROCEDURE
+DECLARE E : ExplicitOnly(1)
+DECLARE S : Second
+DECLARE I : INTEGER
+E <- 1
+S <- 1
+CALL Ref(I)
+CLASS Alternative
+    Value : INTEGER
+    IMPLICIT PROCEDURE NEW(Number : INTEGER)
+        Value <- Number
+    ENDPROCEDURE
+ENDCLASS
+OVERLOAD PROCEDURE Ambiguous(Value : First)
+ENDPROCEDURE
+OVERLOAD PROCEDURE Ambiguous(Value : Alternative)
+ENDPROCEDURE
+CALL Ambiguous(1)
+CLASS Hidden
+    PRIVATE IMPLICIT PROCEDURE NEW(Number : INTEGER)
+    ENDPROCEDURE
+ENDCLASS
+PROCEDURE HiddenArg(Value : Hidden)
+ENDPROCEDURE
+CALL HiddenArg(1)

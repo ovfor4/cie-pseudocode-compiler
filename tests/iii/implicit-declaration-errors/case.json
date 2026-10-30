@@ -1,0 +1,24 @@
+{
+  "errors": [
+    {
+      "line": 2,
+      "reason": "IMPLICIT requires a CLASS constructor NEW with one BYVAL non-array parameter"
+    },
+    {
+      "line": 6,
+      "reason": "IMPLICIT requires a CLASS constructor NEW with one BYVAL non-array parameter"
+    },
+    {
+      "line": 10,
+      "reason": "IMPLICIT requires a CLASS constructor NEW with one BYVAL non-array parameter"
+    },
+    {
+      "line": 14,
+      "reason": "IMPLICIT requires a CLASS constructor NEW with one BYVAL non-array parameter"
+    },
+    {
+      "line": 18,
+      "reason": "IMPLICIT requires a CLASS constructor NEW with one BYVAL non-array parameter"
+    }
+  ]
+}

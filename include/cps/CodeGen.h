@@ -148,6 +148,11 @@ class CodeGen {
     llvm::Value *emitCStringExpr(ExprAST *Expr);
     llvm::Value *emitFileNameOperand(ExprAST *E, const char *Keyword);
     bool containsString(const TypeInfo *Type) const;
+    const FuncSig *findImplicitConstructor(const TypeInfo *Source, const TypeInfo *Target);
+    bool canImplicitlyConvert(const TypeInfo *Source, const TypeInfo *Target);
+    llvm::Value *emitImplicitConstruct(const FuncSig &Constructor, const TypeInfo *Target,
+                                       llvm::Value *Argument,
+                                       const std::vector<size_t> &Transfers = {});
     std::unique_ptr<TypeSystem> Types;
 
     std::unique_ptr<ArrayHandler> Arrays;
@@ -230,7 +235,7 @@ class CodeGen {
     llvm::Value *materializeOperatorReceiver(llvm::Value *Value, const TypeInfo *Type);
     llvm::Value *emitOperatorCall(const FuncSig &Signature, ExprAST *Left, ExprAST *Right = nullptr);
     llvm::Value *emitOperatorValues(const FuncSig &Signature, llvm::Value *Left,
-                                     const TypeInfo *LeftType, llvm::Value *Right);
+                                     const TypeInfo *LeftType, llvm::Value *Right, const TypeInfo *RightType);
     llvm::Value *emitVariadicArgument(ExprAST *Expr, const std::string &Callee, size_t Position,
                                       const TypeInfo *&Promoted);
     // Variadic, if given, receives the promoted type of each variadic argument.

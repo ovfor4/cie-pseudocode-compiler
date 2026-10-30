@@ -7,6 +7,36 @@
 using namespace llvm;
 using namespace cps;
 
+// Candidate queries neither evaluate the source nor follow conversion chains.
+const FuncSig *CodeGen::findImplicitConstructor(const TypeInfo *Source, const TypeInfo *Target) {
+    if (!Source || !Target || !Target->IsClass || Source->sameType(Target)) return nullptr;
+    for (const FuncSig *Sig : FuncGen->getOverloads(Target->Name + ".NEW"))
+        if (Sig->IsImplicit && Sig->Params.size() == 1 &&
+            Source->sameType(resolveType(Sig->Params[0].TypeName))) return Sig;
+    return nullptr;
+}
+
+bool CodeGen::canImplicitlyConvert(const TypeInfo *Source, const TypeInfo *Target) {
+    if (!Source || !Target) return false;
+    if (Source->sameType(Target)) return true;
+    if ((Source->Kind == TypeKind::Char && Target->isString()) ||
+        (Source->isString() && Target->Kind == TypeKind::Char)) return true;
+    return findImplicitConstructor(Source, Target) != nullptr;
+}
+
+Value *CodeGen::emitImplicitConstruct(const FuncSig &Constructor, const TypeInfo *Target,
+                                     Value *Argument, const std::vector<size_t> &Transfers) {
+    if (!Argument || !checkOperatorAccess(Constructor)) return nullptr;
+    auto *Storage = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
+                                           Target->LLVMType, "implicit_object");
+    Builder->CreateStore(Types->getZeroValue(Target->Name), Storage);
+    if (!emitFieldDefaults(Target, Storage, DiagnosticLine)) return nullptr;
+    transferObjects(Transfers);
+    if (!FuncGen->emitCall(Constructor, {Storage, Argument})) return nullptr;
+    // Like a function result, the value is owned by its consumer.
+    return Builder->CreateLoad(Target->LLVMType, Storage, "implicit_value");
+}
+
 // The single name-level admission gate. Targets of a user kind demand exact
 // type-name equality (their representations are indistinguishable at the
 // LLVM level); builtin targets additionally reject user-kind sources, then
@@ -37,6 +67,14 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
         return emitStringFromChar(emitExpr(E));
     if (Src && Src->isString() && Target->Kind == TypeKind::Char)
         return emitCharFromString(E, E->getLine() ? E->getLine() : DiagnosticLine);
+
+    if (const FuncSig *Constructor = findImplicitConstructor(Src, Target)) {
+        if (!checkOperatorAccess(*Constructor)) return nullptr;
+        std::vector<size_t> Transfers;
+        Value *Argument = emitOwnedValue(E, Src, Transfers);
+        if (!Argument) return nullptr;
+        return emitImplicitConstruct(*Constructor, Target, Argument, Transfers);
+    }
 
     if (Target->isC() || (Src && Src->isC())) {
         if (auto *Addr = dynamic_cast<AddrOfExprAST*>(E)) {

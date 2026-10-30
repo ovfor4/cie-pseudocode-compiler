@@ -210,10 +210,9 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
         const TypeInfo *Ret = resolveType(Sig->ReturnTypeName);
         return Ret && Ret->sameType(Context->Type);
     };
-    auto Scalar = [](const TypeInfo *T) { return T && (T->Kind == TypeKind::Char || T->isString()); };
     bool ParamMatched = false;
     int Count = 0;
-    // One layer of parameter matching. Lenient adds CHAR/STRING conversions;
+    // One layer of parameter matching. Lenient admits implicit constructors;
     // FilterReturn keeps only candidates whose result is the wanted type.
     auto Scan = [&](bool Lenient, bool FilterReturn) -> const FuncSig * {
         const FuncSig *First = nullptr;
@@ -230,7 +229,7 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
                 bool Same = SameRank && Actual[I].Type && Actual[I].Type->sameType(Formal);
                 Match = Same ||
                     (Lenient && SameRank && Actual[I].Type && !P.IsByRef && !P.IsArray &&
-                     Scalar(Actual[I].Type) && Scalar(Formal));
+                     canImplicitlyConvert(Actual[I].Type, Formal));
             }
             if (!Match) continue;
             ParamMatched = true;
@@ -254,106 +253,113 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
             reportError("Ambiguous call to %s(%s); the return type cannot be determined from context",
                         Name.c_str(), Key.c_str());
     };
-    // Exact parameters first, then CHAR/STRING conversions.
     bool Ambiguous = false;
+    bool AllowConversions = false;
     auto Try = [&](bool FilterReturn, const FuncSig *&Selected) {
-        Selected = Scan(false, FilterReturn);
-        if (Count > 1) {
-            ReportAmbiguous(FilterReturn);
-            Ambiguous = true;
-            return;
-        }
-        if (Selected || HasTemplates || HasExplicit) return;
-        Selected = Scan(true, FilterReturn);
+        Selected = Scan(AllowConversions, FilterReturn);
         if (Count > 1) {
             ReportAmbiguous(FilterReturn);
             Ambiguous = true;
         }
     };
 
-    const FuncSig *Selected = nullptr;
-    if (PreferResult) {
-        Try(true, Selected);
-        if (Ambiguous) return nullptr;
-        if (Selected) return Selected;
-    }
-    if (!Context || !Context->Exact) {
-        Try(false, Selected);
-        if (Ambiguous) return nullptr;
-        if (Selected) return Selected;
-    }
-    if (HasTemplates) {
-        // A matching non-variadic template wins before any variadic candidate.
-        for (bool Variadic : {false, true}) {
-            const TemplateDefinition *Selected = nullptr;
-            detail::TemplateBindings SelectedBindings;
-            for (const auto &Definition : Templates.at(Name)) {
-                auto *Function = Definition.Decl->getFunction();
-                if (!Function || Definition.Decl->isVariadic() != Variadic || !isVisible(Definition.OwnerUnit)) continue;
-                const auto &Params = Function->getProto()->getParams();
-                const auto &TemplateParams = Definition.Decl->getParams();
-                bool HasPackParam = !Params.empty() && Params.back().IsPack;
-                size_t FixedCount = Params.size() - HasPackParam;
-                if (HasPackParam ? Actual.size() < FixedCount : Actual.size() != FixedCount) continue;
-                detail::TemplateBindings Bindings;
-                for (const auto &Param : TemplateParams) Bindings.emplace(Param.Name, std::vector<std::string>{});
-                SaveAndRestore<bool> Speculation(SpeculativeTemplateResolution, true);
-                bool Match = true;
-                if (HasExplicit) {
-                    size_t FixedTypes = TemplateParams.size() - Variadic;
-                    if (!Variadic && Explicit->size() > FixedTypes) continue;
-                    for (size_t I = 0; I < Explicit->size(); ++I) {
-                        auto Type = canonicalTemplateArgument((*Explicit)[I]);
-                        if (!Type) { Match = false; break; }
-                        Bindings.at(TemplateParams[std::min(I, FixedTypes)].Name).push_back(*Type);
+    // Exhaust exact ordinary/template candidates before considering conversions.
+    for (bool ConversionLayer : {false, true}) {
+        AllowConversions = ConversionLayer;
+        const FuncSig *Selected = nullptr;
+        if (PreferResult) {
+            Try(true, Selected);
+            if (Ambiguous) return nullptr;
+            if (Selected) return Selected;
+        }
+        if (!Context || !Context->Exact) {
+            Try(false, Selected);
+            if (Ambiguous) return nullptr;
+            if (Selected) return Selected;
+        }
+        if (HasTemplates) {
+            // A matching non-variadic template wins before any variadic candidate.
+            for (bool Variadic : {false, true}) {
+                const TemplateDefinition *Selected = nullptr;
+                detail::TemplateBindings SelectedBindings;
+                for (const auto &Definition : Templates.at(Name)) {
+                    auto *Function = Definition.Decl->getFunction();
+                    if (!Function || Definition.Decl->isVariadic() != Variadic || !isVisible(Definition.OwnerUnit)) continue;
+                    const auto &Params = Function->getProto()->getParams();
+                    const auto &TemplateParams = Definition.Decl->getParams();
+                    bool HasPackParam = !Params.empty() && Params.back().IsPack;
+                    size_t FixedCount = Params.size() - HasPackParam;
+                    if (HasPackParam ? Actual.size() < FixedCount : Actual.size() != FixedCount) continue;
+                    detail::TemplateBindings Bindings;
+                    for (const auto &Param : TemplateParams) Bindings.emplace(Param.Name, std::vector<std::string>{});
+                    SaveAndRestore<bool> Speculation(SpeculativeTemplateResolution, true);
+                    bool Match = true;
+                    if (HasExplicit) {
+                        size_t FixedTypes = TemplateParams.size() - Variadic;
+                        if (!Variadic && Explicit->size() > FixedTypes) continue;
+                        for (size_t I = 0; I < Explicit->size(); ++I) {
+                            auto Type = canonicalTemplateArgument((*Explicit)[I]);
+                            if (!Type) { Match = false; break; }
+                            Bindings.at(TemplateParams[std::min(I, FixedTypes)].Name).push_back(*Type);
+                        }
                     }
-                }
-                if (!Match) continue;
-                for (size_t I = 0; I < FixedCount; ++I) {
-                    const auto &P = Params[I];
-                    const TypeInfo *Type = Actual[I].Type;
-                    if (!Type || Type->isVoid() || Actual[I].Rank != (P.IsArray ? P.Rank : 0)) { Match = false; break; }
-                    auto Binding = Bindings.find(P.TypeName);
-                    if (Binding != Bindings.end()) {
-                        if (Binding->second.empty()) Binding->second.push_back(Type->Name);
-                        else if (!Type->sameType(resolveType(Binding->second.front()))) { Match = false; break; }
-                    }
-                }
-                if (HasPackParam) {
-                    auto &Pack = Bindings.at(Params.back().TypeName);
-                    // Explicit pack types constrain a prefix; deduction fills the rest.
-                    if (Pack.size() > Actual.size() - FixedCount) Match = false;
-                    for (size_t I = FixedCount; Match && I < Actual.size(); ++I) {
+                    if (!Match) continue;
+                    for (size_t I = 0; I < FixedCount; ++I) {
+                        const auto &P = Params[I];
                         const TypeInfo *Type = Actual[I].Type;
-                        size_t Index = I - FixedCount;
-                        if (!Type || Type->isVoid() || Actual[I].Rank) { Match = false; break; }
-                        if (Index < Pack.size()) {
-                            if (!Type->sameType(resolveType(Pack[Index]))) Match = false;
-                        } else Pack.push_back(Type->Name);
+                        if (!Type || Type->isVoid() || Actual[I].Rank != (P.IsArray ? P.Rank : 0)) { Match = false; break; }
+                        auto Binding = Bindings.find(P.TypeName);
+                        if (Binding != Bindings.end()) {
+                            if (Binding->second.empty()) Binding->second.push_back(Type->Name);
+                            else if (!Type->sameType(resolveType(Binding->second.front())) &&
+                                     !(AllowConversions && P.Mode == PassMode::ByVal && !P.IsArray &&
+                                       canImplicitlyConvert(Type, resolveType(Binding->second.front())))) {
+                                Match = false; break;
+                            }
+                        }
                     }
+                    if (HasPackParam) {
+                        auto &Pack = Bindings.at(Params.back().TypeName);
+                        // Explicit pack types constrain a prefix; deduction fills the rest.
+                        if (Pack.size() > Actual.size() - FixedCount) Match = false;
+                        for (size_t I = FixedCount; Match && I < Actual.size(); ++I) {
+                            const TypeInfo *Type = Actual[I].Type;
+                            size_t Index = I - FixedCount;
+                            if (!Type || Type->isVoid() || Actual[I].Rank) { Match = false; break; }
+                            if (Index < Pack.size()) {
+                                if (!Type->sameType(resolveType(Pack[Index])) &&
+                                    !(AllowConversions && Params.back().Mode == PassMode::ByVal &&
+                                      canImplicitlyConvert(Type, resolveType(Pack[Index])))) Match = false;
+                            } else Pack.push_back(Type->Name);
+                        }
+                    }
+                    for (const auto &Param : TemplateParams)
+                        if (!Param.IsPack && Bindings.at(Param.Name).empty()) Match = false;
+                    if (!Match) continue;
+                    // Composite parameter types can use bindings deduced at later positions,
+                    // but do not themselves contribute deductions.
+                    detail::TemplateClone Substitute(Bindings, [&](int, const std::string &) { Match = false; });
+                    for (size_t I = 0; I < FixedCount; ++I) {
+                        const auto &TypeName = Params[I].TypeName;
+                        auto Binding = Bindings.find(TypeName);
+                        std::string Expected = Binding != Bindings.end() ? Binding->second.front()
+                            : TypeName.find('<') != std::string::npos ? Substitute.type(TypeName) : TypeName;
+                        if (!Match || (!Actual[I].Type->sameType(resolveType(Expected)) &&
+                            !(AllowConversions && Params[I].Mode == PassMode::ByVal && !Params[I].IsArray &&
+                              canImplicitlyConvert(Actual[I].Type, resolveType(Expected))))) {
+                            Match = false; break;
+                        }
+                    }
+                    if (!Match) continue;
+                    if (Selected) {
+                        reportError("Ambiguous call to %s(%s)", Name.c_str(), Key.c_str());
+                        return nullptr;
+                    }
+                    Selected = &Definition;
+                    SelectedBindings = std::move(Bindings);
                 }
-                for (const auto &Param : TemplateParams)
-                    if (!Param.IsPack && Bindings.at(Param.Name).empty()) Match = false;
-                if (!Match) continue;
-                // Composite parameter types can use bindings deduced at later positions,
-                // but do not themselves contribute deductions.
-                detail::TemplateClone Substitute(Bindings, [&](int, const std::string &) { Match = false; });
-                for (size_t I = 0; I < FixedCount; ++I) {
-                    const auto &TypeName = Params[I].TypeName;
-                    auto Binding = Bindings.find(TypeName);
-                    std::string Expected = Binding != Bindings.end() ? Binding->second.front()
-                        : TypeName.find('<') != std::string::npos ? Substitute.type(TypeName) : TypeName;
-                    if (!Match || !Actual[I].Type->sameType(resolveType(Expected))) { Match = false; break; }
-                }
-                if (!Match) continue;
-                if (Selected) {
-                    reportError("Ambiguous call to %s(%s)", Name.c_str(), Key.c_str());
-                    return nullptr;
-                }
-                Selected = &Definition;
-                SelectedBindings = std::move(Bindings);
+                if (Selected) return instantiateFunction(*Selected, SelectedBindings);
             }
-            if (Selected) return instantiateFunction(*Selected, SelectedBindings);
         }
     }
     if (Context && Context->Exact && ParamMatched) {

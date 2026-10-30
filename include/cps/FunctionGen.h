@@ -42,6 +42,7 @@ struct FuncSig {
     std::string ParamKey;
     std::string ReturnKey;
     bool IsOverload = false;
+    bool IsImplicit = false;
     bool IsDefaultReturn = false;
     const PrototypeAST *Prototype = nullptr;
     std::string ReturnTypeName;

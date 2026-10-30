@@ -16,15 +16,39 @@ CodeGen::OperatorResolution CodeGen::resolveOperator(
         auto Members = FuncGen->getOverloads(Left->Name + "." + operatorName(Op));
         Candidates.insert(Candidates.end(), Members.begin(), Members.end());
     }
-    // An exact match wins; failing that, a CHAR operand may stand in for a
-    // STRING parameter (it is converted when the arguments are marshalled).
-    auto Accepts = [&](const TypeInfo *Actual, const std::string &Param, bool Lenient) {
-        const TypeInfo *Formal = resolveType(Param);
+    auto Accepts = [&](const TypeInfo *Actual, const ParamSig &Param, bool Lenient) {
+        const TypeInfo *Formal = resolveType(Param.TypeName);
         if (Actual->sameType(Formal)) return true;
-        return Lenient && Actual->Kind == TypeKind::Char && Formal && Formal->isString();
+        // Keep builtin CHAR comparisons ahead of STRING construction.
+        if (Right && Left->Kind == TypeKind::Char && Right->Kind == TypeKind::Char &&
+            Op != '&' && Formal && Formal->isString()) return false;
+        return Lenient && !Param.IsByRef && !Param.IsArray && canImplicitlyConvert(Actual, Formal);
     };
-    // Two CHARs compare as CHARs; only '&' always builds a STRING.
-    bool CanConvert = Right && (Op == '&' || Left->isString() || Right->isString());
+    // Builtin operations on exact operand types precede converted overloads.
+    // Raw C text is the exception: visible STRING operators supply text semantics.
+    auto Numeric = [](const TypeInfo *T) {
+        return T && (T->Kind == TypeKind::Integer || T->Kind == TypeKind::Real);
+    };
+    bool Comparison = Op == tok_eq || Op == tok_ne || Op == '<' || Op == '>' ||
+                      Op == tok_le || Op == tok_ge;
+    bool Builtin = false;
+    if (!Right) {
+        Builtin = (Op == '-' && Numeric(Left)) ||
+                  (Op == tok_not && Left->Kind == TypeKind::Boolean) ||
+                  Left->Kind == TypeKind::CScalar;
+    } else {
+        Builtin = (Numeric(Left) && Numeric(Right) &&
+                   (Comparison || Op == '+' || Op == '-' || Op == '*' || Op == '/' ||
+                    Op == tok_div || Op == tok_mod)) ||
+                  (Left->sameType(Right) &&
+                   ((Comparison && (Left->Kind == TypeKind::Char ||
+                                    Left->Kind == TypeKind::Boolean || Left->isEnum())) ||
+                    ((Op == tok_and || Op == tok_or) && Left->Kind == TypeKind::Boolean) ||
+                    ((Op == tok_eq || Op == tok_ne) && Left->isPointer() &&
+                     Left->CIdentity != "char*"))) ||
+                  (Left->Kind == TypeKind::CScalar && Right->Kind == TypeKind::CScalar) ||
+                  (Left->isEnum() && Right->Kind == TypeKind::Integer && (Op == '+' || Op == '-'));
+    }
     const bool PreferResult = Context && Context->Type;
     auto ReturnsWanted = [&](const FuncSig *Sig) {
         const TypeInfo *Ret = resolveType(Sig->ReturnTypeName);
@@ -35,7 +59,7 @@ CodeGen::OperatorResolution CodeGen::resolveOperator(
         Result.Signature = nullptr;
         Result.Ambiguous = false;
         for (bool Lenient : {false, true}) {
-            if (Lenient && !CanConvert) break;
+            if (Lenient && Builtin) break;
             const FuncSig *Selected = nullptr;
             int Count = 0;
             std::vector<const FuncSig *> Matches;
@@ -43,8 +67,8 @@ CodeGen::OperatorResolution CodeGen::resolveOperator(
                 bool Member = !Sig->Prototype->getOwnerClass().empty();
                 if (Sig->Prototype->getOperator() != Op ||
                     Sig->Params.size() != (Right ? 2u : 1u) - Member) continue;
-                if (!Member && !Accepts(Left, Sig->Params[0].TypeName, Lenient)) continue;
-                if (Right && !Accepts(Right, Sig->Params[Member ? 0 : 1].TypeName, Lenient)) continue;
+                if (!Member && !Accepts(Left, Sig->Params[0], Lenient)) continue;
+                if (Right && !Accepts(Right, Sig->Params[Member ? 0 : 1], Lenient)) continue;
                 ParamMatched = true;
                 if (FilterReturn && !ReturnsWanted(Sig)) continue;
                 ++Count;
@@ -125,7 +149,7 @@ Value *CodeGen::emitOperatorCall(const FuncSig &Signature, ExprAST *Left, ExprAS
 
 // CASE has already evaluated and captured its selector and label values.
 Value *CodeGen::emitOperatorValues(const FuncSig &Signature, Value *Left,
-                                   const TypeInfo *LeftType, Value *Right) {
+                                   const TypeInfo *LeftType, Value *Right, const TypeInfo *ActualRightType) {
     if (!checkOperatorAccess(Signature)) return nullptr;
     bool Member = !Signature.Prototype->getOwnerClass().empty();
     std::vector<Value *> Args;
@@ -136,16 +160,31 @@ Value *CodeGen::emitOperatorValues(const FuncSig &Signature, Value *Left,
         Builder->CreateStore(Val, Slot);
         return Slot;
     };
+    auto Prepare = [&](Value *Val, const TypeInfo *Actual, const TypeInfo *Formal) -> Value * {
+        if (!Val || !Actual || !Formal) return nullptr;
+        if (!Actual->sameType(Formal)) {
+            const FuncSig *Constructor = findImplicitConstructor(Actual, Formal);
+            if (!Constructor) return nullptr;
+            std::vector<size_t> SourceTransfers;
+            if (Actual->IsClass || containsString(Actual))
+                Val = copyClassValue(Actual, Capture(Val, Actual), SourceTransfers);
+            Val = emitImplicitConstruct(*Constructor, Formal, Val, SourceTransfers);
+            if (!Val) return nullptr;
+            materializeOperatorReceiver(Val, Formal);
+            if (typeNeedsDestruction(Formal->Name)) Transfers.push_back(StackObjects.size() - 1);
+        } else if (Formal->IsClass || containsString(Formal)) {
+            Val = copyClassValue(Formal, Capture(Val, Formal), Transfers);
+        }
+        return Val;
+    };
     if (Member) Args.push_back(Capture(Left, LeftType));
     else {
-        if (LeftType->IsClass || containsString(LeftType))
-            Left = copyClassValue(LeftType, Capture(Left, LeftType), Transfers);
+        Left = Prepare(Left, LeftType, resolveType(Signature.Params[0].TypeName));
         if (!Left) return nullptr;
         Args.push_back(Left);
     }
     const TypeInfo *RightType = resolveType(Signature.Params[Member ? 0 : 1].TypeName);
-    if (RightType->IsClass || containsString(RightType))
-        Right = copyClassValue(RightType, Capture(Right, RightType), Transfers);
+    Right = Prepare(Right, ActualRightType, RightType);
     if (!Right) return nullptr;
     Args.push_back(Right);
     transferObjects(Transfers);

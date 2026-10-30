@@ -34,6 +34,7 @@ class PrototypeAST {
     bool IsOverload;
     std::string OwnerClass;
     bool IsPublic;
+    bool IsImplicit = false;
     bool IsVariadic = false;
     bool IsDefaultReturn = false;
     int Operator = 0;
@@ -50,6 +51,8 @@ public:
     const std::vector<ParamDecl> &getParams() const { return Params; }
     const std::string &getReturnType() const { return ReturnType; }
     bool isOverload() const { return IsOverload; }
+    bool isImplicit() const { return IsImplicit; }
+    void setImplicit(bool V) { IsImplicit = V; }
     bool isDefaultReturn() const { return IsDefaultReturn; }
     void setDefaultReturn(bool V) { IsDefaultReturn = V; }
     int getOperator() const { return Operator; }

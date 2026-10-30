@@ -50,7 +50,7 @@ void Parser::syncToStatementStart() {
         case tok_delete: case tok_constant: case tok_declare: case tok_identifier: case tok_operator: case tok_input: case tok_output:
         case tok_case: case tok_endcase: case tok_otherwise:
         case tok_if: case tok_while: case tok_repeat: case tok_for:
-        case tok_template: case tok_overload: case tok_function: case tok_procedure: case tok_call: case tok_return:
+        case tok_template: case tok_implicit: case tok_overload: case tok_function: case tok_procedure: case tok_call: case tok_return:
         case tok_else: case tok_endif: case tok_endwhile: case tok_until:
         case tok_next: case tok_endfunction: case tok_endprocedure:
         case tok_openfile: case tok_readfile: case tok_writefile: case tok_closefile:
@@ -157,9 +157,16 @@ std::unique_ptr<StmtAST> Parser::ParseStatementImpl() {
     else if (CurTok == tok_for) {
         return ParseForStmt();
     }
-    else if (CurTok == tok_overload) {
+    else if (CurTok == tok_implicit || CurTok == tok_overload) {
         int Line = Lex.getLine();
+        bool Overload = CurTok == tok_overload;
         getNextToken();
+        bool Implicit = !Overload || CurTok == tok_implicit;
+        if (Overload && Implicit) getNextToken();
+        if (Implicit) {
+            cps::sourceError(Line, "IMPLICIT is only allowed on a CLASS constructor NEW");
+            return nullptr;
+        }
         if (CurTok == tok_function) return ParseFunction({}, true, true);
         if (CurTok == tok_procedure) return ParseProcedure({}, true, true);
         cps::sourceError(Line, "OVERLOAD must be followed by FUNCTION or PROCEDURE");

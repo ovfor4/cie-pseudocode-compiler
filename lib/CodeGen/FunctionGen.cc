@@ -130,6 +130,15 @@ const FuncSig *FunctionGen::selectDefaultReturn(const std::vector<const FuncSig 
 // Copy-constructor, operator, MAIN and name-collision rules for a
 // FUNCTION/PROCEDURE prototype; reports the first violation.
 bool FunctionGen::validatePrototype(PrototypeAST *Proto) {
+    if (Proto->isImplicit()) {
+        const auto &P = Proto->getParams();
+        if (Proto->getOwnerClass().empty() || !sameIdentifier(Proto->getName(), "NEW") ||
+            !sameIdentifier(Proto->getReturnType(), "VOID") || P.size() != 1 ||
+            P[0].Mode != PassMode::ByVal || P[0].IsArray || P[0].IsPack) {
+            reportError("IMPLICIT requires a CLASS constructor NEW with one BYVAL non-array parameter");
+            return false;
+        }
+    }
     if (Proto->isDefaultReturn()) {
         const TypeInfo *Return = Types.resolve(Proto->getReturnType());
         if (!Proto->isOverload() || (Return && Return->isVoid())) {
@@ -213,6 +222,7 @@ Function *FunctionGen::emitPrototype(PrototypeAST *Proto) {
     Sig.OwnerUnit = CurrentUnit;
     Sig.Name = Proto->getLinkName();
     Sig.IsOverload = Proto->isOverload();
+    Sig.IsImplicit = Proto->isImplicit();
     Sig.IsDefaultReturn = Proto->isDefaultReturn();
     Sig.Prototype = Proto;
     Sig.ReturnTypeName = Proto->getReturnType();

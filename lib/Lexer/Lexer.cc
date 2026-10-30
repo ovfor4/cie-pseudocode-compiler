@@ -70,6 +70,7 @@ const std::unordered_map<std::string, int> Keywords = {
     {"NOT", tok_not},
     {"OPERATOR", tok_operator},
     {"OVERLOAD", tok_overload},
+    {"IMPLICIT", tok_implicit},
     {"TEMPLATE", tok_template},
     {"FUNCTION", tok_function},
     {"ENDFUNCTION", tok_endfunction},

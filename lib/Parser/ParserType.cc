@@ -116,7 +116,7 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
     const char *EndKeyword = IsClass ? "ENDCLASS" : "ENDTYPE";
     auto AtField = [&] {
         return IsClass ? (CurTok == tok_public || CurTok == tok_private || CurTok == tok_identifier ||
-                            CurTok == tok_overload || CurTok == tok_function || CurTok == tok_procedure)
+                            CurTok == tok_implicit || CurTok == tok_overload || CurTok == tok_function || CurTok == tok_procedure)
                        : CurTok == tok_declare;
     };
     std::vector<RecordFieldDecl> Fields;
@@ -135,18 +135,25 @@ std::optional<std::vector<RecordFieldDecl>> Parser::ParseRecordBody(
             // Class fields default to public, like record fields.
             bool IsPublic = CurTok != tok_private;
             if (IsClass && (CurTok == tok_public || CurTok == tok_private) &&
-                (Lex.peekToken() == tok_overload || Lex.peekToken() == tok_function || Lex.peekToken() == tok_procedure))
+                (Lex.peekToken() == tok_implicit || Lex.peekToken() == tok_overload || Lex.peekToken() == tok_function || Lex.peekToken() == tok_procedure))
                 getNextToken();
-            if (IsClass && (CurTok == tok_overload || CurTok == tok_function || CurTok == tok_procedure)) {
+            if (IsClass && (CurTok == tok_implicit || CurTok == tok_overload || CurTok == tok_function || CurTok == tok_procedure)) {
                 bool IsOverload = CurTok == tok_overload;
                 if (IsOverload) getNextToken();
+                bool IsImplicit = CurTok == tok_implicit;
+                if (IsImplicit) getNextToken();
+                if (IsImplicit && CurTok != tok_procedure) {
+                    cps::sourceError(Lex.getLine(), "IMPLICIT requires PROCEDURE NEW");
+                    HadFieldError = true;
+                    continue;
+                }
                 if (CurTok != tok_function && CurTok != tok_procedure) {
                     cps::sourceError(Lex.getLine(), "OVERLOAD must be followed by FUNCTION or PROCEDURE");
                     HadFieldError = true;
                     continue;
                 }
                 auto Method = CurTok == tok_function ? ParseFunction(Name, IsPublic, IsOverload)
-                                                    : ParseProcedure(Name, IsPublic, IsOverload);
+                                                    : ParseProcedure(Name, IsPublic, IsOverload, IsImplicit);
                 if (Method && Methods) {
                     Methods->push_back(std::move(Method));
                     continue;

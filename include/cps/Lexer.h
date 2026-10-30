@@ -80,6 +80,7 @@ enum Token {
     tok_byref = -407,
     tok_byval = -408,
     tok_default = -409,
+    tok_implicit = -410,
 
     tok_openfile = -500,
     tok_readfile = -501,

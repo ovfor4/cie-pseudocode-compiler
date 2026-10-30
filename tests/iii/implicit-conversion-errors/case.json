@@ -1,0 +1,24 @@
+{
+  "errors": [
+    {
+      "line": 28,
+      "reason": "Cannot use a value of type INTEGER where ExplicitOnly is expected"
+    },
+    {
+      "line": 29,
+      "reason": "Cannot use a value of type INTEGER where Second is expected"
+    },
+    {
+      "line": 30,
+      "reason": "BYREF argument I to Ref must be of type First"
+    },
+    {
+      "line": 41,
+      "reason": "Ambiguous call to Ambiguous"
+    },
+    {
+      "line": 48,
+      "reason": "Cannot access private method NEW"
+    }
+  ]
+}

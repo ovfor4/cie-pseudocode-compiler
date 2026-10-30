@@ -24,9 +24,9 @@ Value *CodeGen::emitOwnedValue(ExprAST *Expr, const TypeInfo *Type,
     const TypeInfo *Source = getExprTypeInfo(Expr);
     // A CHAR argument becomes a fresh STRING temporary, owned like any other.
     bool FromChar = Source && Type->isString() && Source->Kind == TypeKind::Char;
-    if (!Source || (!Source->sameType(Type) && !FromChar)) return emitCoercedExpr(Expr, Type);
+    if (!Source) return emitCoercedExpr(Expr, Type);
     Value *Value = nullptr;
-    if (!FromChar && isObjectLValue(Expr)) {
+    if (!FromChar && Source->sameType(Type) && isObjectLValue(Expr)) {
         LValueInfo LV;
         const auto *Var = dynamic_cast<VariableExprAST *>(Expr);
         const auto *Symbol = Var ? getSymbolInfo(Var->getName()) : nullptr;
@@ -241,7 +241,14 @@ void CodeGen::emitAssignment(const LValueInfo &Target, ExprAST *Expr, const Symb
         return;
     }
     Value *Val = emitCoercedExpr(Expr, Info);
-    if (Val) Builder->CreateStore(Val, Target.Addr);
+    if (Val && Info && Info->IsClass && ExprType && !ExprType->sameType(Info)) {
+        materializeOperatorReceiver(Val, Info);
+        std::vector<size_t> Transfers;
+        if (typeNeedsDestruction(Info->Name)) Transfers.push_back(StackObjects.size() - 1);
+        if (!emitDestroy(Info->Name, Target.Addr, DiagnosticLine)) return;
+        Builder->CreateStore(Val, Target.Addr);
+        transferObjects(Transfers);
+    } else if (Val) Builder->CreateStore(Val, Target.Addr);
 }
 
 bool CodeGen::typeNeedsDestruction(const std::string &TypeName) const {
