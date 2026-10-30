@@ -22,7 +22,7 @@ CodeGen::OperatorResolution CodeGen::resolveOperator(
         // Keep builtin CHAR comparisons ahead of STRING construction.
         if (Right && Left->Kind == TypeKind::Char && Right->Kind == TypeKind::Char &&
             Op != '&' && Formal && Formal->isString()) return false;
-        return Lenient && !Param.IsByRef && !Param.IsArray && canImplicitlyConvert(Actual, Formal);
+        return Lenient && !Param.IsByRef && !Param.IsArray && implicitConversionRank(Actual, Formal) == 1;
     };
     // Builtin operations on exact operand types precede converted overloads.
     // Raw C text is the exception: visible STRING operators supply text semantics.

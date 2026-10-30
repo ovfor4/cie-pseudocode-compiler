@@ -1,7 +1,7 @@
 {
   "errors": [
     {
-      "reason": "Operator = cannot be applied to STRING and INTEGER",
+      "reason": "C and pseudocode operands require an explicit cast",
       "line": 2
     }
   ]

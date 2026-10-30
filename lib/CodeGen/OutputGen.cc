@@ -105,6 +105,19 @@ Value *CodeGen::emitStringNullGuard(Value *StrVal) {
 
 void CodeGen::emitOutputValue(Value *Val, const TypeInfo *Info, bool AppendNewline) {
     if (!Val || !Info) return;
+    if (Info->CIdentity == "char*") {
+        const TypeInfo *String = requireStringType();
+        const FuncSig *Constructor = findImplicitConstructor(Info, String);
+        if (!Constructor) {
+            if (String) reportError("STRING requires an IMPLICIT constructor NEW(Text : C_STRING)");
+            return;
+        }
+        Value *Converted = emitImplicitConstruct(*Constructor, String, Val);
+        if (!Converted) return;
+        materializeOperatorReceiver(Converted, String);
+        emitOutputValue(Converted, String, AppendNewline);
+        return;
+    }
     if (Info->isString()) {
         Value *Text = emitStringCString(Val);
         if (Text) Builder->CreateCall(PrintfFunc, {

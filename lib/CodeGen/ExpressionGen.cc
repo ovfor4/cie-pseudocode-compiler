@@ -33,8 +33,7 @@ Value *CodeGen::emitExpr(ExprAST *Expr) {
     }
 
     if (auto *Str = dynamic_cast<StringExprAST*>(Expr)) {
-        Value *Text = Builder->CreateGlobalString(Str->getVal());
-        return Str->isCString() ? Text : emitStringFromCString(Text);
+        return Builder->CreateGlobalString(Str->getVal());
     }
 
     if (auto *Var = dynamic_cast<VariableExprAST*>(Expr)) {

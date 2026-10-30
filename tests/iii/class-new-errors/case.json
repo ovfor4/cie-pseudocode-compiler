@@ -37,7 +37,7 @@
       "line": 30
     },
     {
-      "reason": "Cannot use a value of type STRING where INTEGER is expected",
+      "reason": "Cannot implicitly convert C_STRING to INTEGER",
       "line": 31
     }
   ]

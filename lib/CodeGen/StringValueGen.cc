@@ -35,38 +35,15 @@ Value *CodeGen::emitStringFromCString(Value *Text) {
     return Builder->CreateLoad(Type->LLVMType, Storage, "string");
 }
 
-// CHAR -> STRING: STRING.NEW(1, ch).
-Value *CodeGen::emitStringFromChar(Value *Ch) {
-    const TypeInfo *Type = requireStringType();
-    if (!Type || !Ch) return nullptr;
-    const TypeInfo *CChar = resolveType("C_CHAR");
-    const FuncSig *Constructor = nullptr;
-    for (const FuncSig *Sig : FuncGen->getOverloads(Type->Name + ".NEW"))
-        if (Sig->Params.size() == 2 && !Sig->Params[1].IsArray && !Sig->Params[1].IsByRef &&
-            CChar->sameType(resolveType(Sig->Params[1].TypeName)))
-            Constructor = Sig;
-    if (!Constructor) {
-        reportError("STRING requires a constructor NEW(Count : INTEGER, Ch : C_CHAR)");
-        return nullptr;
-    }
-    if (!checkOperatorAccess(*Constructor)) return nullptr;
-    auto *Storage = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
-                                          Type->LLVMType, "string_value");
-    Builder->CreateStore(Types->getZeroValue(Type->Name), Storage);
-    if (!emitFieldDefaults(Type, Storage, DiagnosticLine)) return nullptr;
-    Value *Count = ConstantInt::get(resolveType("INTEGER")->LLVMType, 1);
-    if (!FuncGen->emitCall(*Constructor, {Storage, Count, Ch})) return nullptr;
-    // The consumer takes ownership, just as with an ordinary class result.
-    return Builder->CreateLoad(Type->LLVMType, Storage, "string");
-}
-
 // STRING -> CHAR: the string must hold exactly one character.
 Value *CodeGen::emitCharFromString(ExprAST *Expr, int Line) {
     const TypeInfo *Type = requireStringType();
     if (!Type) return nullptr;
-    Value *Text = emitExpr(Expr);
+    const TypeInfo *Source = getExprTypeInfo(Expr);
+    Value *Text = emitCoercedExpr(Expr, Type);
     if (!Text) return nullptr;
-    if (!isObjectLValue(Expr)) materializeOperatorReceiver(Text, Type);
+    if (!isObjectLValue(Expr) || !Source || !Source->sameType(Type))
+        materializeOperatorReceiver(Text, Type);
     auto *Receiver = CreateEntryBlockAlloca(Builder->GetInsertBlock()->getParent(),
                                            Type->LLVMType, "string_view");
     Builder->CreateStore(Text, Receiver);
@@ -101,14 +78,16 @@ Value *CodeGen::emitStringCString(Value *Value) {
 }
 
 Value *CodeGen::emitCStringExpr(ExprAST *Expr) {
-    const TypeInfo *Type = getExprTypeInfo(Expr);
-    if (!Type || !Type->isString() || isWholeArrayVar(Expr)) {
-        reportError("Expected a STRING value");
+    const TypeInfo *Source = getExprTypeInfo(Expr);
+    const TypeInfo *Type = requireStringType();
+    if (!Type || !Source || isWholeArrayVar(Expr) ||
+        (!Source->sameType(Type) && !findImplicitConstructor(Source, Type))) {
+        reportError("Expected a STRING value or an IMPLICIT conversion to STRING");
         return nullptr;
     }
-    Value *Value = emitExpr(Expr);
+    Value *Value = emitCoercedExpr(Expr, Type);
     if (!Value) return nullptr;
-    if (!isObjectLValue(Expr)) materializeOperatorReceiver(Value, Type);
+    if (!isObjectLValue(Expr) || !Source->sameType(Type)) materializeOperatorReceiver(Value, Type);
     return emitStringCString(Value);
 }
 

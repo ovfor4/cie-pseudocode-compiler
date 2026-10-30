@@ -214,7 +214,7 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
     int Count = 0;
     // One layer of parameter matching. Lenient admits implicit constructors;
     // FilterReturn keeps only candidates whose result is the wanted type.
-    auto Scan = [&](bool Lenient, bool FilterReturn) -> const FuncSig * {
+    auto Scan = [&](int Layer, bool FilterReturn) -> const FuncSig * {
         const FuncSig *First = nullptr;
         std::vector<const FuncSig *> Matches;
         Count = 0;
@@ -228,8 +228,8 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
                 bool SameRank = Actual[I].Rank == (P.IsArray ? P.Rank : 0);
                 bool Same = SameRank && Actual[I].Type && Actual[I].Type->sameType(Formal);
                 Match = Same ||
-                    (Lenient && SameRank && Actual[I].Type && !P.IsByRef && !P.IsArray &&
-                     canImplicitlyConvert(Actual[I].Type, Formal));
+                    (Layer && SameRank && Actual[I].Type && !P.IsByRef && !P.IsArray &&
+                     implicitConversionRank(Actual[I].Type, Formal) <= Layer);
             }
             if (!Match) continue;
             ParamMatched = true;
@@ -254,9 +254,9 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
                         Name.c_str(), Key.c_str());
     };
     bool Ambiguous = false;
-    bool AllowConversions = false;
+    int ConversionLayer = 0;
     auto Try = [&](bool FilterReturn, const FuncSig *&Selected) {
-        Selected = Scan(AllowConversions, FilterReturn);
+        Selected = Scan(ConversionLayer, FilterReturn);
         if (Count > 1) {
             ReportAmbiguous(FilterReturn);
             Ambiguous = true;
@@ -264,8 +264,8 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
     };
 
     // Exhaust exact ordinary/template candidates before considering conversions.
-    for (bool ConversionLayer : {false, true}) {
-        AllowConversions = ConversionLayer;
+    for (int Layer : {0, 1, 2}) {
+        ConversionLayer = Layer;
         const FuncSig *Selected = nullptr;
         if (PreferResult) {
             Try(true, Selected);
@@ -312,8 +312,8 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
                         if (Binding != Bindings.end()) {
                             if (Binding->second.empty()) Binding->second.push_back(Type->Name);
                             else if (!Type->sameType(resolveType(Binding->second.front())) &&
-                                     !(AllowConversions && P.Mode == PassMode::ByVal && !P.IsArray &&
-                                       canImplicitlyConvert(Type, resolveType(Binding->second.front())))) {
+                                     !(ConversionLayer && P.Mode == PassMode::ByVal && !P.IsArray &&
+                                       implicitConversionRank(Type, resolveType(Binding->second.front())) <= ConversionLayer)) {
                                 Match = false; break;
                             }
                         }
@@ -328,8 +328,8 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
                             if (!Type || Type->isVoid() || Actual[I].Rank) { Match = false; break; }
                             if (Index < Pack.size()) {
                                 if (!Type->sameType(resolveType(Pack[Index])) &&
-                                    !(AllowConversions && Params.back().Mode == PassMode::ByVal &&
-                                      canImplicitlyConvert(Type, resolveType(Pack[Index])))) Match = false;
+                                    !(ConversionLayer && Params.back().Mode == PassMode::ByVal &&
+                                      implicitConversionRank(Type, resolveType(Pack[Index])) <= ConversionLayer)) Match = false;
                             } else Pack.push_back(Type->Name);
                         }
                     }
@@ -345,8 +345,8 @@ const FuncSig *CodeGen::resolveCall(const std::string &Name,
                         std::string Expected = Binding != Bindings.end() ? Binding->second.front()
                             : TypeName.find('<') != std::string::npos ? Substitute.type(TypeName) : TypeName;
                         if (!Match || (!Actual[I].Type->sameType(resolveType(Expected)) &&
-                            !(AllowConversions && Params[I].Mode == PassMode::ByVal && !Params[I].IsArray &&
-                              canImplicitlyConvert(Actual[I].Type, resolveType(Expected))))) {
+                            !(ConversionLayer && Params[I].Mode == PassMode::ByVal && !Params[I].IsArray &&
+                              implicitConversionRank(Actual[I].Type, resolveType(Expected)) <= ConversionLayer))) {
                             Match = false; break;
                         }
                     }

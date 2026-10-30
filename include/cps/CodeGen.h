@@ -139,17 +139,15 @@ class CodeGen {
     bool requireWritable(const SymbolInfo &Info, const std::string &Name);
     const SymbolInfo *lookupWritableSymbol(const std::string &Name);
     void emitConstantStmt(ConstantStmtAST *Stmt);
-    std::map<const ConstantStmtAST *, SymbolInfo> StringConstants;
     const TypeInfo *requireStringType();
     llvm::Value *emitStringFromCString(llvm::Value *Text);
-    llvm::Value *emitStringFromChar(llvm::Value *Ch);
     llvm::Value *emitCharFromString(ExprAST *Expr, int Line);
     llvm::Value *emitStringCString(llvm::Value *Value);
     llvm::Value *emitCStringExpr(ExprAST *Expr);
     llvm::Value *emitFileNameOperand(ExprAST *E, const char *Keyword);
     bool containsString(const TypeInfo *Type) const;
     const FuncSig *findImplicitConstructor(const TypeInfo *Source, const TypeInfo *Target);
-    bool canImplicitlyConvert(const TypeInfo *Source, const TypeInfo *Target);
+    int implicitConversionRank(const TypeInfo *Source, const TypeInfo *Target);
     llvm::Value *emitImplicitConstruct(const FuncSig &Constructor, const TypeInfo *Target,
                                        llvm::Value *Argument,
                                        const std::vector<size_t> &Transfers = {});

@@ -22,11 +22,9 @@ Value *CodeGen::emitOwnedValue(ExprAST *Expr, const TypeInfo *Type,
     expectResult(Expr, Type);
     if (!Type || (!Type->IsClass && !containsString(Type))) return emitCoercedExpr(Expr, Type);
     const TypeInfo *Source = getExprTypeInfo(Expr);
-    // A CHAR argument becomes a fresh STRING temporary, owned like any other.
-    bool FromChar = Source && Type->isString() && Source->Kind == TypeKind::Char;
     if (!Source) return emitCoercedExpr(Expr, Type);
     Value *Value = nullptr;
-    if (!FromChar && Source->sameType(Type) && isObjectLValue(Expr)) {
+    if (Source->sameType(Type) && isObjectLValue(Expr)) {
         LValueInfo LV;
         const auto *Var = dynamic_cast<VariableExprAST *>(Expr);
         const auto *Symbol = Var ? getSymbolInfo(Var->getName()) : nullptr;
@@ -177,9 +175,7 @@ void CodeGen::emitAssignment(const LValueInfo &Target, ExprAST *Expr, const Symb
         return;
     }
     const TypeInfo *ExprType = getExprTypeInfo(Expr);
-    // A CHAR assigned to a STRING is converted first, not bound to OPERATOR<-.
-    bool CharToString = Info && Info->isString() && ExprType && ExprType->Kind == TypeKind::Char;
-    if (Info && Info->IsClass && !CharToString) {
+    if (Info && Info->IsClass) {
         auto Resolution = resolveOperator(tok_assign, Info, ExprType);
         if (Resolution.Ambiguous) {
             reportError("Ambiguous assignment operator");

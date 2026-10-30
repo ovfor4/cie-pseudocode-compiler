@@ -216,18 +216,7 @@ void CodeGen::emitCaseStmt(CaseStmtAST *Stmt) {
             Value *LabelValue = emitExpr(Label);
             Value *LeftValue = Selected;
             const TypeInfo *LeftType = SelectorType;
-            bool LabelConverted = false;
-            // CHAR and STRING compare as STRING.
-            if (SelectorType->isString() && LabelType->Kind == TypeKind::Char) {
-                LabelValue = emitStringFromChar(LabelValue);
-                LabelType = SelectorType;
-                LabelConverted = true;
-            } else if (SelectorType->Kind == TypeKind::Char && LabelType->isString()) {
-                LeftValue = emitStringFromChar(Selected);
-                if (LeftValue) materializeOperatorReceiver(LeftValue, LabelType);
-                LeftType = LabelType;
-            }
-            if (containsString(LabelType) && (LabelConverted || !isObjectLValue(Label)))
+            if (containsString(LabelType) && !isObjectLValue(Label))
                 materializeOperatorReceiver(LabelValue, LabelType);
             ResultContext BoolContext{resolveType("BOOLEAN"), true};
             auto Overload = resolveOperator(Op, LeftType, LabelType, &BoolContext);

@@ -37,8 +37,11 @@ CLASS STRING
     OVERLOAD PROCEDURE NEW(BYREF Other : STRING)
         _HANDLE <- _string_impl_copy(Other._HANDLE)
     ENDPROCEDURE
-    OVERLOAD PROCEDURE NEW(Text : C_STRING)
+    OVERLOAD IMPLICIT PROCEDURE NEW(Text : C_STRING)
         _HANDLE <- _string_impl_from_cstr(Text)
+    ENDPROCEDURE
+    OVERLOAD IMPLICIT PROCEDURE NEW(Ch : CHAR)
+        _HANDLE <- _string_impl_from_count_char((_STRING_C_INTEGER)1, (C_CHAR)Ch)
     ENDPROCEDURE
     OVERLOAD PROCEDURE NEW(Count : INTEGER, Ch : C_CHAR)
         _HANDLE <- _string_impl_from_count_char((_STRING_C_INTEGER)Count, Ch)

@@ -16,12 +16,19 @@ const FuncSig *CodeGen::findImplicitConstructor(const TypeInfo *Source, const Ty
     return nullptr;
 }
 
-bool CodeGen::canImplicitlyConvert(const TypeInfo *Source, const TypeInfo *Target) {
-    if (!Source || !Target) return false;
-    if (Source->sameType(Target)) return true;
-    if ((Source->Kind == TypeKind::Char && Target->isString()) ||
-        (Source->isString() && Target->Kind == TypeKind::Char)) return true;
-    return findImplicitConstructor(Source, Target) != nullptr;
+// 0: exact; 1: one conversion; 2: legacy raw text -> STRING -> CHAR;
+// 3: unavailable. The compatibility bridge must not compete with STRING
+// parameters in LCASE, UCASE, ASC and STR_TO_NUM.
+int CodeGen::implicitConversionRank(const TypeInfo *Source, const TypeInfo *Target) {
+    if (!Source || !Target) return 3;
+    if (Source->sameType(Target)) return 0;
+    if (findImplicitConstructor(Source, Target)) return 1;
+    if (Target->Kind == TypeKind::Char) {
+        if (Source->isString()) return 1;
+        if (Source->CIdentity == "char*" &&
+            findImplicitConstructor(Source, resolveType("STRING"))) return 2;
+    }
+    return 3;
 }
 
 Value *CodeGen::emitImplicitConstruct(const FuncSig &Constructor, const TypeInfo *Target,
@@ -63,9 +70,9 @@ Value *CodeGen::emitCoercedExpr(ExprAST *E, const TypeInfo *Target) {
 
     // CHAR and STRING convert into one another; a STRING that is not exactly
     // one character long is a runtime error.
-    if (Src && Src->Kind == TypeKind::Char && Target->isString())
-        return emitStringFromChar(emitExpr(E));
-    if (Src && Src->isString() && Target->Kind == TypeKind::Char)
+    if (Src && Target->Kind == TypeKind::Char &&
+        (Src->isString() || (Src->CIdentity == "char*" &&
+         findImplicitConstructor(Src, resolveType("STRING")))))
         return emitCharFromString(E, E->getLine() ? E->getLine() : DiagnosticLine);
 
     if (const FuncSig *Constructor = findImplicitConstructor(Src, Target)) {

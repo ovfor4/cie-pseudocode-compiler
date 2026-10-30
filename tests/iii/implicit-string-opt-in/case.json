@@ -1,0 +1,15 @@
+{
+  "compiler_args": [
+    "-no-std"
+  ],
+  "errors": [
+    {
+      "line": 13,
+      "reason": "Cannot implicitly convert C_STRING to STRING"
+    },
+    {
+      "line": 14,
+      "reason": "STRING requires an IMPLICIT constructor NEW"
+    }
+  ]
+}
